@@ -17,7 +17,6 @@
 		"auth:schema": "better-auth generate --config src/lib/server/auth.js --output src/lib/server/db/auth.schema.js --yes"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "next",
 		"@sveltejs/kit": "next",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
@@ -31,6 +30,7 @@
 		"prettier-plugin-svelte": "^4.1.0",
 		"prettier-plugin-tailwindcss": "^0.8.0",
 		"svelte": "^5.56.1",
+		"svelte-adapter-bun": "^1.0.1",
 		"tailwindcss": "^4.3.0",
 		"vite": "^8.0.16"
 	},
