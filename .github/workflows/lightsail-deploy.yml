@@ -21,8 +21,15 @@ jobs:
             set -e
             echo "Starting deployment process..."
 
-            # Source the profile to load environment variables and PATH
-            source ~/.profile
+            # Non-interactive SSH won't load shell rc files; Bun lives here by default.
+            export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+
+            if ! command -v bun >/dev/null 2>&1; then
+              echo "bun not found at $BUN_INSTALL/bin/bun" >&2
+              exit 1
+            fi
+            echo "Using bun: $(command -v bun) ($(bun --version))"
 
             echo "Changing to project directory..."
             cd /var/www/sndbnk
@@ -38,6 +45,6 @@ jobs:
             bun run build
 
             echo "Restarting the Bun service..."
-            systemctl restart sndbnk
+            sudo systemctl restart sndbnk
 
             echo "Deployment completed successfully"
