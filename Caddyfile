@@ -1,0 +1,29 @@
+# Replace sndbnk.com with your real domain before deploying.
+
+www.sndbnk.com {
+	redir https://sndbnk.com{uri} permanent
+}
+
+sndbnk.com {
+	encode gzip zstd
+
+	log {
+		output file /var/log/caddy/sndbnk.access.log
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+		-Server
+	}
+
+	# Bun/SvelteKit serves the app and static assets
+	reverse_proxy localhost:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}

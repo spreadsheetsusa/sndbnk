@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-import { auth } from '$lib/server/auth';
+import { auth } from '#lib/server/auth';
 import { APIError } from 'better-auth/api';
 
 export const load = (event) => {
