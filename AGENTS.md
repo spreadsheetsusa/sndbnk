@@ -29,3 +29,14 @@ You MUST use this tool whenever writing Svelte code before sending it to the use
 
 Generates a Svelte Playground link with the provided code.
 After completing the code, ask the user if they want a playground link. Only call this tool after user confirmation and NEVER if code was written to files in their project.
+
+## Cursor Cloud specific instructions
+
+This is `sndbnk`, a SvelteKit app (Vite dev server) using Drizzle ORM over SQLite and better-auth for email/password auth.
+
+- **Runtime is Bun, not Node.** The DB layer imports `bun:sqlite` (`src/lib/server/db/index.js`), so the app only runs under Bun. Start dev with `bun run dev` (Vite on `http://localhost:5173`). Standard scripts are in `package.json`.
+- **Env vars** live in `.env` (see `.env.example`): `DATABASE_URL`, `ORIGIN`, `BETTER_AUTH_SECRET`. For dev, `ORIGIN=http://localhost:5173`. Both `.env` and the SQLite file are gitignored but persist across sessions via the VM snapshot.
+- **DB schema:** apply with `bun run drizzle-kit push --force`. The plain `bun run db:push` (no flag) prompts for TTY confirmation and fails in non-interactive shells. The SQLite file lives at `DATABASE_URL` (`local.db`).
+- **Auth schema generation:** `bun run auth:schema` runs the better-auth CLI under Bun so it can load `bun:sqlite`. The generated `src/lib/server/db/auth.schema.js` is committed.
+- **Lint:** `bun run lint` (`prettier --check`). A few committed files currently fail the check; that is pre-existing and unrelated to setup.
+- **Core flow to smoke-test:** register at `/signup` or log in at `/signin`; both redirect to `/`, where the authenticated header shows the user and provides sign-out.
