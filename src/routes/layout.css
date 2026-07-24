@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&display=swap');
 @import 'tailwindcss';
 
 :root {
@@ -52,9 +53,9 @@ a {
 }
 
 .display-face {
-	font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Helvetica Neue', sans-serif;
-	font-weight: 900;
-	letter-spacing: -0.045em;
+	font-family: 'Audiowide', 'Helvetica Neue', sans-serif;
+	font-weight: 400;
+	letter-spacing: -0.035em;
 	text-transform: uppercase;
 }
 
