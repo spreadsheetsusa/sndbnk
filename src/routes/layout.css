@@ -1,1 +1,93 @@
 @import 'tailwindcss';
+
+:root {
+	--accent: #c8ff3d;
+	--ink: #11110f;
+	--paper: #f2f0e8;
+	--muted: #696861;
+	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	font-synthesis: none;
+	color: var(--ink);
+	background: var(--paper);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	min-width: 320px;
+	background: var(--paper);
+	scroll-behavior: smooth;
+}
+
+body {
+	margin: 0;
+	min-width: 320px;
+	min-height: 100vh;
+	background:
+		linear-gradient(rgba(17, 17, 15, 0.035) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(17, 17, 15, 0.035) 1px, transparent 1px), var(--paper);
+	background-size: 32px 32px;
+}
+
+button,
+input {
+	font: inherit;
+}
+
+button,
+a {
+	-webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+	color: var(--ink);
+	background: var(--accent);
+}
+
+:focus-visible {
+	outline: 2px solid var(--ink);
+	outline-offset: 3px;
+}
+
+.display-face {
+	font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Helvetica Neue', sans-serif;
+	font-weight: 900;
+	letter-spacing: -0.045em;
+	text-transform: uppercase;
+}
+
+.eyebrow {
+	font-size: 0.6875rem;
+	font-weight: 800;
+	letter-spacing: 0.15em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.accent-fill {
+	background: var(--accent);
+}
+
+.accent-text {
+	color: var(--accent);
+}
+
+.accent-border {
+	border-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
