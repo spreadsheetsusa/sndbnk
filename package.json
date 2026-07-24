@@ -9,8 +9,8 @@
 	},
 	"scripts": {
 		"dev": "bun run --bun vite dev",
-		"build": "vite build",
-		"preview": "vite preview",
+		"build": "bun run --bun vite build",
+		"preview": "bun run --bun vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"lint": "prettier --check .",
 		"format": "prettier --write .",
