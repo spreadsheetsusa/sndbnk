@@ -22,7 +22,8 @@ export const actions = {
 
 		try {
 			await auth.api.signUpEmail({
-				body: { name, email, password }
+				body: { name, email, password },
+				headers: request.headers
 			});
 		} catch (error) {
 			if (error instanceof APIError) {

@@ -2,23 +2,24 @@ name: Deploy to Lightsail
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Deploy to Lightsail via SSH
-        uses: appleboy/ssh-action@v0.1.5
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USERNAME }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: ${{ secrets.LIGHTSAIL_PORT }}
+          command_timeout: 15m
           script: |
-            set -e
+            set -euo pipefail
             echo "Starting deployment process..."
 
             # Non-interactive SSH won't load shell rc files; Bun lives here by default.
@@ -31,20 +32,135 @@ jobs:
             fi
             echo "Using bun: $(command -v bun) ($(bun --version))"
 
+            APP_DIR=/var/www/sndbnk
+            EXPECTED_ORIGIN=https://sndbnk.com
+
             echo "Changing to project directory..."
-            cd /var/www/sndbnk
+            cd "$APP_DIR"
             echo "Current directory: $(pwd)"
 
             echo "Pulling latest changes..."
-            git pull origin main
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+
+            echo "Ensuring production .env values..."
+            python3 - <<'PY'
+            from pathlib import Path
+            import secrets
+            p = Path("/var/www/sndbnk/.env")
+            lines = p.read_text().splitlines() if p.exists() else []
+            env = {}
+            order = []
+            for line in lines:
+                if not line.strip() or line.strip().startswith("#") or "=" not in line:
+                    order.append(("raw", line))
+                    continue
+                k, v = line.split("=", 1)
+                key = k.strip()
+                env[key] = v.strip()
+                order.append(("kv", key))
+            if env.get("ORIGIN", "").strip().strip('"').strip("'") != "https://sndbnk.com":
+                env["ORIGIN"] = "https://sndbnk.com"
+                print("Updated ORIGIN -> https://sndbnk.com")
+            if not env.get("DATABASE_URL"):
+                env["DATABASE_URL"] = "local.db"
+                print("Set DATABASE_URL=local.db")
+            secret = env.get("BETTER_AUTH_SECRET", "").strip().strip('"').strip("'")
+            if not secret or len(secret) < 32:
+                env["BETTER_AUTH_SECRET"] = secrets.token_hex(32)
+                print("Generated BETTER_AUTH_SECRET")
+            seen = set()
+            out = []
+            for kind, payload in order:
+                if kind == "raw":
+                    out.append(payload)
+                    continue
+                key = payload
+                if key in ("ORIGIN", "DATABASE_URL", "BETTER_AUTH_SECRET"):
+                    out.append(f"{key}={env[key]}")
+                else:
+                    out.append(f"{key}={env.get(key, '')}")
+                seen.add(key)
+            for key in ("DATABASE_URL", "ORIGIN", "BETTER_AUTH_SECRET"):
+                if key not in seen:
+                    out.append(f"{key}={env[key]}")
+            p.write_text("\n".join(out).rstrip() + "\n")
+            PY
+            chmod 600 .env
+            chown ubuntu:ubuntu .env || true
+
+            echo "Ensuring SQLite file ownership/permissions..."
+            DB_PATH="$(
+              python3 - <<'PY'
+            from pathlib import Path
+            env = {}
+            for line in Path("/var/www/sndbnk/.env").read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"').strip("'")
+            print(env.get("DATABASE_URL", "local.db"))
+            PY
+            )"
+            case "$DB_PATH" in
+              /*) DB_ABS="$DB_PATH" ;;
+              *) DB_ABS="$APP_DIR/$DB_PATH" ;;
+            esac
+            mkdir -p "$(dirname "$DB_ABS")"
+            if [ ! -e "$DB_ABS" ]; then
+              touch "$DB_ABS"
+            fi
+            sudo chown -R ubuntu:ubuntu "$APP_DIR"
+            sudo chown ubuntu:ubuntu "$DB_ABS" || true
+            chmod 664 "$DB_ABS" || true
+            for side in "-wal" "-shm" "-journal"; do
+              if [ -e "${DB_ABS}${side}" ]; then
+                sudo chown ubuntu:ubuntu "${DB_ABS}${side}" || true
+                chmod 664 "${DB_ABS}${side}" || true
+              fi
+            done
+
+            echo "Installing/updating systemd unit..."
+            sudo cp "$APP_DIR/systemd.service" /etc/systemd/system/sndbnk.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable sndbnk >/dev/null 2>&1 || true
 
             echo "Installing dependencies..."
             bun install
+
+            echo "Applying database schema..."
+            set -a
+            # shellcheck disable=SC1091
+            . "$APP_DIR/.env"
+            set +a
+            bun run drizzle-kit push --force
 
             echo "Building the project..."
             bun run build
 
             echo "Restarting the Bun service..."
             sudo systemctl restart sndbnk
+            sleep 2
+            systemctl is-active sndbnk
+
+            echo "Smoke-testing auth origin..."
+            CODE="$(
+              curl -sS -o /tmp/auth-smoke.body -w '%{http_code}' \
+                -X POST 'http://127.0.0.1:3000/api/auth/sign-in/email' \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "host: sndbnk.com" \
+                --data '{"email":"smoke-nonexistent@sndbnk.invalid","password":"not-a-real-password"}' || true
+            )"
+            echo "sign-in probe HTTP $CODE"
+            head -c 300 /tmp/auth-smoke.body; echo
+            # 401/400 means origin/baseURL accepted the request; 403 INVALID_ORIGIN is a deploy failure.
+            if [ "$CODE" = "403" ] && rg -q 'INVALID_ORIGIN' /tmp/auth-smoke.body; then
+              echo "Auth origin check failed" >&2
+              journalctl -u sndbnk -n 50 --no-pager || true
+              exit 1
+            fi
 
             echo "Deployment completed successfully"
