@@ -2,6 +2,19 @@
 	import { enhance } from '$app/forms';
 
 	let { form } = $props();
+	let submitting = $state(false);
+
+	function handleSubmit() {
+		submitting = true;
+
+		return async ({ update }) => {
+			try {
+				await update();
+			} finally {
+				submitting = false;
+			}
+		};
+	}
 </script>
 
 <svelte:head>
@@ -30,14 +43,14 @@
 			<h2>Create account</h2>
 			<p class="form-intro">A few details and you are in.</p>
 
-			{#if form?.message}
+			{#if form?.message && !submitting}
 				<div class="form-error" id="form-error" role="alert" aria-live="polite">
 					<span aria-hidden="true">!</span>
 					{form.message}
 				</div>
 			{/if}
 
-			<form method="POST" use:enhance>
+			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
 				<label for="name">Name</label>
 				<input
 					id="name"
@@ -46,8 +59,8 @@
 					value={form?.name ?? ''}
 					autocomplete="name"
 					required
-					aria-invalid={form?.message ? 'true' : undefined}
-					aria-describedby={form?.message ? 'form-error' : undefined}
+					aria-invalid={form?.message && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
 				<label for="email">Email</label>
@@ -58,8 +71,8 @@
 					value={form?.email ?? ''}
 					autocomplete="email"
 					required
-					aria-invalid={form?.message ? 'true' : undefined}
-					aria-describedby={form?.message ? 'form-error' : undefined}
+					aria-invalid={form?.message && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
 				<label for="password">Password</label>
@@ -70,12 +83,17 @@
 					autocomplete="new-password"
 					minlength="8"
 					required
-					aria-invalid={form?.message ? 'true' : undefined}
-					aria-describedby={form?.message ? 'form-error password-hint' : 'password-hint'}
+					aria-invalid={form?.message && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting
+						? 'form-error password-hint'
+						: 'password-hint'}
 				/>
 				<p class="field-hint" id="password-hint">Use at least 8 characters.</p>
 
-				<button type="submit">Create account <span aria-hidden="true">↗</span></button>
+				<button type="submit" disabled={submitting}>
+					{submitting ? 'Creating account…' : 'Create account'}
+					{#if !submitting}<span aria-hidden="true">↗</span>{/if}
+				</button>
 			</form>
 
 			<p class="switch-auth">Already have an account? <a href="/signin">Sign in</a></p>
@@ -271,6 +289,12 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		cursor: pointer;
+	}
+
+	button:disabled {
+		opacity: 0.65;
+		box-shadow: 2px 2px 0 var(--ink);
+		cursor: wait;
 	}
 
 	.switch-auth {

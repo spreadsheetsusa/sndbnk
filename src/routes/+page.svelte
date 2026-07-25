@@ -41,6 +41,9 @@
 				<p class="intro">
 					SNDBNK is taking shape. A new home for artists, listeners, and the work between them.
 				</p>
+				{#if data.authNotice}
+					<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
+				{/if}
 				{#if data.user}
 					<p class="welcome">Good to have you here, {shortName}.</p>
 				{:else}
@@ -242,6 +245,22 @@
 		border: 1px solid var(--ink);
 		background: var(--accent);
 		font-weight: 800;
+	}
+
+	.auth-notice {
+		width: fit-content;
+		max-width: 35rem;
+		margin: 2rem 0 0;
+		padding: 0.9rem 1rem;
+		border: 1px solid var(--ink);
+		background: var(--accent);
+		box-shadow: 5px 5px 0 var(--ink);
+		font-weight: 800;
+		line-height: 1.4;
+	}
+
+	.auth-notice + .welcome {
+		margin-top: 1.25rem;
 	}
 
 	.sound-card {

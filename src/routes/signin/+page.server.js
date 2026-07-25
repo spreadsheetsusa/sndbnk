@@ -10,7 +10,7 @@ export const load = ({ locals }) => {
 };
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ cookies, request, url }) => {
 		const formData = await request.formData();
 		const email = formData.get('email')?.toString().trim() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
@@ -29,6 +29,14 @@ export const actions = {
 			}
 			return fail(500, { message: 'Something went wrong. Please try again.', email });
 		}
+
+		cookies.set('sndbnk-auth-notice', 'signed-in', {
+			path: '/',
+			httpOnly: true,
+			sameSite: 'lax',
+			secure: url.protocol === 'https:',
+			maxAge: 60
+		});
 
 		return redirect(303, '/');
 	}
