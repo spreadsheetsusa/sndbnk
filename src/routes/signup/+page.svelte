@@ -90,7 +90,7 @@
 				/>
 				<p class="field-hint" id="password-hint">Use at least 8 characters.</p>
 
-				<button type="submit" disabled={submitting}>
+				<button class="pressable" type="submit" disabled={submitting}>
 					{submitting ? 'Creating account…' : 'Create account'}
 					{#if !submitting}<span aria-hidden="true">↗</span>{/if}
 				</button>

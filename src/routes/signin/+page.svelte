@@ -74,7 +74,7 @@
 					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
-				<button type="submit" disabled={submitting}>
+				<button class="pressable" type="submit" disabled={submitting}>
 					{submitting ? 'Signing in…' : 'Sign in'}
 					{#if !submitting}<span aria-hidden="true">↗</span>{/if}
 				</button>

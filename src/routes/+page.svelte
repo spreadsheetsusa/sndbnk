@@ -48,7 +48,7 @@
 					<p class="welcome">Good to have you here, {shortName}.</p>
 				{:else}
 					<div class="hero-actions">
-						<a class="primary-action" href="/signup"
+						<a class="primary-action pressable" href="/signup"
 							>Create account <span aria-hidden="true">↗</span></a
 						>
 						<a class="text-action" href="/signin">Sign in</a>
