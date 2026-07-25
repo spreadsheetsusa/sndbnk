@@ -2,6 +2,19 @@
 	import { enhance } from '$app/forms';
 
 	let { form } = $props();
+	let submitting = $state(false);
+
+	function handleSubmit() {
+		submitting = true;
+
+		return async ({ update }) => {
+			try {
+				await update();
+			} finally {
+				submitting = false;
+			}
+		};
+	}
 </script>
 
 <svelte:head>
@@ -30,14 +43,14 @@
 			<h2>Sign in</h2>
 			<p class="form-intro">Enter your details to continue.</p>
 
-			{#if form?.message}
+			{#if form?.message && !submitting}
 				<div class="form-error" id="form-error" role="alert" aria-live="polite">
 					<span aria-hidden="true">!</span>
 					{form.message}
 				</div>
 			{/if}
 
-			<form method="POST" use:enhance>
+			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
 				<label for="email">Email</label>
 				<input
 					id="email"
@@ -46,8 +59,8 @@
 					value={form?.email ?? ''}
 					autocomplete="email"
 					required
-					aria-invalid={form?.message ? 'true' : undefined}
-					aria-describedby={form?.message ? 'form-error' : undefined}
+					aria-invalid={form?.message && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
 				<label for="password">Password</label>
@@ -57,11 +70,14 @@
 					type="password"
 					autocomplete="current-password"
 					required
-					aria-invalid={form?.message ? 'true' : undefined}
-					aria-describedby={form?.message ? 'form-error' : undefined}
+					aria-invalid={form?.message && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
-				<button type="submit">Sign in <span aria-hidden="true">↗</span></button>
+				<button type="submit" disabled={submitting}>
+					{submitting ? 'Signing in…' : 'Sign in'}
+					{#if !submitting}<span aria-hidden="true">↗</span>{/if}
+				</button>
 			</form>
 
 			<p class="switch-auth">New to SNDBNK? <a href="/signup">Create an account</a></p>
@@ -251,6 +267,12 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		cursor: pointer;
+	}
+
+	button:disabled {
+		opacity: 0.65;
+		box-shadow: 2px 2px 0 var(--ink);
+		cursor: wait;
 	}
 
 	.switch-auth {
