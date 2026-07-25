@@ -10,6 +10,8 @@ export const auth = betterAuth({
 	secret: BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 	emailAndPassword: { enabled: true },
+	// Apex + www (Caddy redirects www, but preflight/origin checks can still see it).
+	trustedOrigins: ['https://sndbnk.com', 'https://www.sndbnk.com'],
 	plugins: [
 		sveltekitCookies(getRequestEvent) // make sure this is the last plugin in the array
 	]

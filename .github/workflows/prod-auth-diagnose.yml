@@ -1,0 +1,369 @@
+name: Prod auth diagnose and repair
+
+# Temporary branch-triggered job so we can inspect/fix Lightsail without shell access.
+# Runs over the existing Lightsail SSH secrets.
+on:
+  push:
+    branches: [ben/fix-prod-auth-2439]
+  workflow_dispatch:
+
+jobs:
+  diagnose-and-repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Diagnose and repair Lightsail auth
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USERNAME }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          port: ${{ secrets.LIGHTSAIL_PORT }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+
+            export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+
+            APP_DIR=/var/www/sndbnk
+            SERVICE=sndbnk
+            EXPECTED_ORIGIN=https://sndbnk.com
+            UNIT_SRC="$APP_DIR/systemd.service"
+            UNIT_DST=/etc/systemd/system/sndbnk.service
+
+            section() { printf '\n======== %s ========\n' "$1"; }
+
+            section "Identity and paths"
+            whoami
+            hostname
+            command -v bun
+            bun --version
+            cd "$APP_DIR"
+            pwd
+            git rev-parse --short HEAD
+            git status -sb
+
+            section "Permissions before repair"
+            ls -la "$APP_DIR" | head -80
+            id
+            stat -c 'dir mode=%a owner=%U:%G' "$APP_DIR" || true
+            if [ -e "$APP_DIR/.env" ]; then
+              stat -c '.env mode=%a owner=%U:%G' "$APP_DIR/.env"
+            else
+              echo "MISSING .env"
+            fi
+            # Resolve DATABASE_URL path without printing unrelated secrets.
+            DB_PATH="$(
+              python3 - <<'PY'
+            from pathlib import Path
+            env = {}
+            p = Path("/var/www/sndbnk/.env")
+            if p.exists():
+                for line in p.read_text().splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip().strip('"').strip("'")
+            print(env.get("DATABASE_URL", "local.db"))
+            PY
+            )"
+            case "$DB_PATH" in
+              /*) DB_ABS="$DB_PATH" ;;
+              *) DB_ABS="$APP_DIR/$DB_PATH" ;;
+            esac
+            echo "DATABASE_URL path: $DB_ABS"
+            if [ -e "$DB_ABS" ]; then
+              stat -c 'db mode=%a owner=%U:%G size=%s' "$DB_ABS"
+              ls -la "${DB_ABS}"* 2>/dev/null || true
+            else
+              echo "DB file does not exist yet"
+            fi
+            touch "$APP_DIR/.perm-write-test" && rm -f "$APP_DIR/.perm-write-test" && echo "app dir writable by $(whoami)"
+            if [ -e "$DB_ABS" ]; then
+              if [ -w "$DB_ABS" ]; then echo "db writable"; else echo "db NOT writable"; fi
+              DB_DIR="$(dirname "$DB_ABS")"
+              if [ -w "$DB_DIR" ]; then echo "db dir writable"; else echo "db dir NOT writable"; fi
+            fi
+
+            section "Environment sanity (no secret values)"
+            python3 - <<'PY'
+            from pathlib import Path
+            env = {}
+            p = Path("/var/www/sndbnk/.env")
+            if not p.exists():
+                print("MISSING .env")
+                raise SystemExit(0)
+            for line in p.read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"').strip("'")
+            origin = env.get("ORIGIN", "")
+            secret = env.get("BETTER_AUTH_SECRET", "")
+            db = env.get("DATABASE_URL", "")
+            print(f"ORIGIN={origin!r}")
+            print(f"ORIGIN_ok={origin == 'https://sndbnk.com'}")
+            print(f"BETTER_AUTH_SECRET_set={bool(secret)}")
+            print(f"BETTER_AUTH_SECRET_len={len(secret)}")
+            print(f"DATABASE_URL={db!r}")
+            PY
+
+            section "systemd unit and service health"
+            systemctl cat "$SERVICE" || true
+            systemctl is-active "$SERVICE" || true
+            systemctl status "$SERVICE" --no-pager -l || true
+            journalctl -u "$SERVICE" -n 80 --no-pager || true
+
+            section "Pull latest branch tip for repair scripts"
+            # Stay on whatever is checked out locally for deploy path, but fetch branch tip files.
+            git fetch origin ben/fix-prod-auth-2439
+            git checkout --force ben/fix-prod-auth-2439
+            git pull --ff-only origin ben/fix-prod-auth-2439
+
+            section "Repair: .env ORIGIN and secret presence"
+            python3 - <<'PY'
+            from pathlib import Path
+            import secrets
+            p = Path("/var/www/sndbnk/.env")
+            lines = p.read_text().splitlines() if p.exists() else []
+            env = {}
+            order = []
+            for line in lines:
+                raw = line
+                if not line.strip() or line.strip().startswith("#") or "=" not in line:
+                    order.append(("raw", raw))
+                    continue
+                k, v = line.split("=", 1)
+                key = k.strip()
+                val = v.strip()
+                env[key] = val
+                order.append(("kv", key))
+            changed = False
+            if env.get("ORIGIN", "").strip().strip('"').strip("'") != "https://sndbnk.com":
+                env["ORIGIN"] = "https://sndbnk.com"
+                changed = True
+                print("Updated ORIGIN -> https://sndbnk.com")
+            else:
+                print("ORIGIN already correct")
+            if not env.get("DATABASE_URL"):
+                env["DATABASE_URL"] = "local.db"
+                changed = True
+                print("Set DATABASE_URL=local.db")
+            secret = env.get("BETTER_AUTH_SECRET", "").strip().strip('"').strip("'")
+            if not secret or len(secret) < 32:
+                env["BETTER_AUTH_SECRET"] = secrets.token_hex(32)
+                changed = True
+                print("Generated new BETTER_AUTH_SECRET (len>=32)")
+            else:
+                print("BETTER_AUTH_SECRET already present")
+            if env.get("PROTOCOL_HEADER", "").strip() != "X-Forwarded-Proto":
+                env["PROTOCOL_HEADER"] = "X-Forwarded-Proto"
+                changed = True
+                print("Set PROTOCOL_HEADER")
+            if env.get("HOST_HEADER", "").strip() != "X-Forwarded-Host":
+                env["HOST_HEADER"] = "X-Forwarded-Host"
+                changed = True
+                print("Set HOST_HEADER")
+            if "ORIGIN" not in env:
+                env["ORIGIN"] = "https://sndbnk.com"
+                changed = True
+            managed = (
+                "DATABASE_URL",
+                "ORIGIN",
+                "BETTER_AUTH_SECRET",
+                "PROTOCOL_HEADER",
+                "HOST_HEADER",
+            )
+            # Rebuild file preserving comments/blank lines where possible.
+            seen = set()
+            out = []
+            for kind, payload in order:
+                if kind == "raw":
+                    out.append(payload)
+                    continue
+                key = payload
+                if key in managed:
+                    out.append(f"{key}={env[key]}")
+                    seen.add(key)
+                else:
+                    # keep unrelated keys as-is from original map rebuild
+                    out.append(f"{key}={env.get(key, '')}")
+                    seen.add(key)
+            for key in managed:
+                if key not in seen:
+                    out.append(f"{key}={env[key]}")
+            if changed or not p.exists():
+                p.write_text("\n".join(out).rstrip() + "\n")
+                print("Wrote .env")
+            else:
+                print("No .env rewrite needed")
+            PY
+            chmod 600 "$APP_DIR/.env"
+            chown ubuntu:ubuntu "$APP_DIR/.env" || true
+
+            section "Repair: permissions for app + sqlite"
+            sudo chown -R ubuntu:ubuntu "$APP_DIR"
+            # Ensure sqlite can create WAL/SHM sidecars next to the db file.
+            DB_PATH="$(
+              python3 - <<'PY'
+            from pathlib import Path
+            env = {}
+            for line in Path("/var/www/sndbnk/.env").read_text().splitlines():
+                line=line.strip()
+                if not line or line.startswith("#") or "=" not in line: continue
+                k,v=line.split("=",1); env[k.strip()]=v.strip().strip('"').strip("'")
+            print(env.get("DATABASE_URL","local.db"))
+            PY
+            )"
+            case "$DB_PATH" in
+              /*) DB_ABS="$DB_PATH" ;;
+              *) DB_ABS="$APP_DIR/$DB_PATH" ;;
+            esac
+            mkdir -p "$(dirname "$DB_ABS")"
+            if [ ! -e "$DB_ABS" ]; then
+              touch "$DB_ABS"
+            fi
+            chmod 664 "$DB_ABS" || true
+            chmod u+rwx,g+rwx "$(dirname "$DB_ABS")"
+            # clear stale root-owned wal/shm if present
+            for side in "-wal" "-shm" "-journal"; do
+              if [ -e "${DB_ABS}${side}" ]; then
+                sudo chown ubuntu:ubuntu "${DB_ABS}${side}" || true
+                chmod 664 "${DB_ABS}${side}" || true
+              fi
+            done
+            sudo chown ubuntu:ubuntu "$DB_ABS" || true
+            ls -la "$DB_ABS"* 2>/dev/null || true
+
+            section "Repair: install systemd unit with EnvironmentFile"
+            if [ -f "$UNIT_SRC" ]; then
+              sudo cp "$UNIT_SRC" "$UNIT_DST"
+              sudo systemctl daemon-reload
+              echo "Installed unit from repo"
+              systemctl cat "$SERVICE"
+            else
+              echo "Missing $UNIT_SRC" >&2
+              exit 1
+            fi
+
+            section "Install deps, push schema, build"
+            bun install
+            set -a
+            # shellcheck disable=SC1091
+            . "$APP_DIR/.env"
+            set +a
+            bun run db:push
+            bun run build
+
+            section "Restart and verify service"
+            sudo systemctl restart "$SERVICE"
+            sleep 2
+            systemctl is-active "$SERVICE"
+            journalctl -u "$SERVICE" -n 40 --no-pager || true
+
+            section "Local auth probe via reverse-proxied host headers"
+            # Hit the Bun app directly with the public origin so trustedOrigins/baseURL match.
+            PROBE_EMAIL="actions-probe-$(date +%s)@sndbnk.invalid"
+            PROBE_PASS='ProbePass123!'
+            SIGNUP_CODE="$(
+              curl -sS -D /tmp/su.hdr -o /tmp/su.body -w '%{http_code}' \
+                -X POST 'http://127.0.0.1:3000/api/auth/sign-up/email' \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signup" \
+                -H "host: sndbnk.com" \
+                --data "{\"name\":\"Actions Probe\",\"email\":\"${PROBE_EMAIL}\",\"password\":\"${PROBE_PASS}\"}"
+            )"
+            echo "signup_http=${SIGNUP_CODE}"
+            echo 'signup body:'; head -c 500 /tmp/su.body; echo
+            SIGNIN_CODE="$(
+              curl -sS -D /tmp/si.hdr -o /tmp/si.body -w '%{http_code}' \
+                -X POST 'http://127.0.0.1:3000/api/auth/sign-in/email' \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signin" \
+                -H "host: sndbnk.com" \
+                --data "{\"email\":\"${PROBE_EMAIL}\",\"password\":\"${PROBE_PASS}\"}"
+            )"
+            echo "signin_http=${SIGNIN_CODE}"
+            echo 'signin body:'; head -c 500 /tmp/si.body; echo
+            echo 'signin set-cookie present?'
+            grep -i 'set-cookie' /tmp/si.hdr || echo 'no set-cookie'
+
+            section "Public HTTPS probe"
+            PUBLIC_CODE="$(
+              curl -sS -D /tmp/pub.hdr -o /tmp/pub.body -w '%{http_code}' \
+                -X POST "${EXPECTED_ORIGIN}/api/auth/sign-up/email" \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signup" \
+                --data "{\"name\":\"Public Probe\",\"email\":\"public-probe-$(date +%s)@sndbnk.invalid\",\"password\":\"${PROBE_PASS}\"}"
+            )"
+            echo "public_signup_http=${PUBLIC_CODE}"
+            echo 'public body:'; head -c 500 /tmp/pub.body; echo
+
+            section "Form-action signup/signin probe (browser path)"
+            FORM_EMAIL="form-probe-$(date +%s)@sndbnk.invalid"
+            FORM_SIGNUP_CODE="$(
+              curl -sS -c /tmp/form.cj -b /tmp/form.cj -D /tmp/form-su.hdr -o /tmp/form-su.body -w '%{http_code}' \
+                -X POST "${EXPECTED_ORIGIN}/signup" \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signup" \
+                -H 'content-type: application/x-www-form-urlencoded' \
+                --data-urlencode "name=Form Probe" \
+                --data-urlencode "email=${FORM_EMAIL}" \
+                --data-urlencode "password=${PROBE_PASS}"
+            )"
+            echo "form_signup_http=${FORM_SIGNUP_CODE}"
+            echo 'form signup headers:'; grep -iE 'HTTP/|set-cookie|location' /tmp/form-su.hdr || true
+            head -c 300 /tmp/form-su.body; echo
+            # Clear session cookie to exercise sign-in form.
+            rm -f /tmp/form.cj
+            FORM_SIGNIN_CODE="$(
+              curl -sS -c /tmp/form.cj -b /tmp/form.cj -D /tmp/form-si.hdr -o /tmp/form-si.body -w '%{http_code}' \
+                -X POST "${EXPECTED_ORIGIN}/signin" \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signin" \
+                -H 'content-type: application/x-www-form-urlencoded' \
+                --data-urlencode "email=${FORM_EMAIL}" \
+                --data-urlencode "password=${PROBE_PASS}"
+            )"
+            echo "form_signin_http=${FORM_SIGNIN_CODE}"
+            echo 'form signin headers:'; grep -iE 'HTTP/|set-cookie|location' /tmp/form-si.hdr || true
+            head -c 300 /tmp/form-si.body; echo
+
+            section "Final permission snapshot"
+            ls -la "$APP_DIR" | head -40
+            stat -c '.env mode=%a owner=%U:%G' "$APP_DIR/.env"
+            stat -c 'db mode=%a owner=%U:%G size=%s' "$DB_ABS"
+            ls -la "$DB_ABS"* 2>/dev/null || true
+
+            if [ "$SIGNUP_CODE" != "200" ] || [ "$SIGNIN_CODE" != "200" ] || [ "$PUBLIC_CODE" != "200" ]; then
+              echo "Auth API probes failed (signup=${SIGNUP_CODE} signin=${SIGNIN_CODE} public=${PUBLIC_CODE})" >&2
+              journalctl -u "$SERVICE" -n 80 --no-pager || true
+              exit 1
+            fi
+            if ! grep -qi 'set-cookie' /tmp/si.hdr; then
+              echo "Sign-in did not set a session cookie" >&2
+              exit 1
+            fi
+            # Form posts may be 303 (native) or 200 with redirect JSON (progressive enhancement).
+            if ! echo "$FORM_SIGNUP_CODE" | grep -Eq '^(200|303)$'; then
+              echo "Form signup failed HTTP ${FORM_SIGNUP_CODE}" >&2
+              journalctl -u "$SERVICE" -n 80 --no-pager || true
+              exit 1
+            fi
+            if ! echo "$FORM_SIGNIN_CODE" | grep -Eq '^(200|303)$'; then
+              echo "Form signin failed HTTP ${FORM_SIGNIN_CODE}" >&2
+              journalctl -u "$SERVICE" -n 80 --no-pager || true
+              exit 1
+            fi
+            if grep -q 'window is not defined' /tmp/form-su.body /tmp/form-si.body 2>/dev/null; then
+              echo "Redirect still hitting window-is-not-defined bug" >&2
+              exit 1
+            fi
+            echo "DONE"
