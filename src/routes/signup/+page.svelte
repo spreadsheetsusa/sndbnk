@@ -63,6 +63,29 @@
 					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
+				<label for="username">Username</label>
+				<input
+					id="username"
+					name="username"
+					type="text"
+					value={form?.username ?? ''}
+					autocomplete="username"
+					autocapitalize="none"
+					spellcheck="false"
+					minlength="3"
+					maxlength="30"
+					pattern="[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?"
+					required
+					aria-invalid={form?.message && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting
+						? 'form-error username-hint'
+						: 'username-hint'}
+				/>
+				<p class="field-hint" id="username-hint">
+					Your public URL: sndbnk.com/users/<span class="hint-em">you</span>. Letters, numbers,
+					hyphens.
+				</p>
+
 				<label for="email">Email</label>
 				<input
 					id="email"
@@ -271,6 +294,11 @@
 		margin: -0.45rem 0 1.25rem;
 		color: var(--muted);
 		font-size: 0.7rem;
+	}
+
+	.hint-em {
+		color: var(--ink);
+		font-weight: 700;
 	}
 
 	button {

@@ -8,5 +8,10 @@ export const variables = defineEnvVars({
 	BETTER_AUTH_SECRET: {
 		description:
 			'Secret used to sign tokens. For production use 32 characters generated with high entropy. See [Better Auth installation](https://www.better-auth.com/docs/installation).'
+	},
+	PUBLIC_BASE_DOMAIN: {
+		public: true,
+		description:
+			'Apex hostname for tenant URLs (no protocol). Dev: `localhost`. Prod: `sndbnk.com`.'
 	}
 });

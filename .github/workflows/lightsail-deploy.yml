@@ -63,6 +63,9 @@ jobs:
             if env.get("ORIGIN", "").strip().strip('"').strip("'") != "https://sndbnk.com":
                 env["ORIGIN"] = "https://sndbnk.com"
                 print("Updated ORIGIN -> https://sndbnk.com")
+            if env.get("PUBLIC_BASE_DOMAIN", "").strip().strip('"').strip("'") != "sndbnk.com":
+                env["PUBLIC_BASE_DOMAIN"] = "sndbnk.com"
+                print("Updated PUBLIC_BASE_DOMAIN -> sndbnk.com")
             if not env.get("DATABASE_URL"):
                 env["DATABASE_URL"] = "local.db"
                 print("Set DATABASE_URL=local.db")
@@ -75,6 +78,7 @@ jobs:
             managed = (
                 "DATABASE_URL",
                 "ORIGIN",
+                "PUBLIC_BASE_DOMAIN",
                 "BETTER_AUTH_SECRET",
                 "PROTOCOL_HEADER",
                 "HOST_HEADER",

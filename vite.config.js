@@ -22,5 +22,9 @@ export default defineConfig({
 				}
 			}
 		})
-	]
+	],
+	// Allow custom-domain Host headers when testing tenant routing locally.
+	server: {
+		allowedHosts: true
+	}
 });

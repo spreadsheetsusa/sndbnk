@@ -1,4 +1,17 @@
 # Replace sndbnk.com with your real domain before deploying.
+#
+# Tenant hosting:
+# - Apex + www: managed certificates (below)
+# - Premium subdomains (*.sndbnk.com) and verified custom domains: on-demand TLS
+#   gated by /api/domain-tls-check so random hosts cannot obtain certificates.
+# - DNS: point *.sndbnk.com (and apex) at this server. Custom domains CNAME to
+#   {username}.sndbnk.com after the user verifies in Settings.
+
+{
+	on_demand_tls {
+		ask http://127.0.0.1:3000/api/domain-tls-check
+	}
+}
 
 www.sndbnk.com {
 	redir https://sndbnk.com{uri} permanent
@@ -21,6 +34,34 @@ sndbnk.com {
 	}
 
 	# Bun/SvelteKit serves the app and static assets
+	reverse_proxy localhost:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}
+
+# Catch-all HTTPS for premium subdomains and verified custom domains.
+https:// {
+	tls {
+		on_demand
+	}
+
+	encode gzip zstd
+
+	log {
+		output file /var/log/caddy/sndbnk-tenant.access.log
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+		-Server
+	}
+
 	reverse_proxy localhost:3000 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto {scheme}

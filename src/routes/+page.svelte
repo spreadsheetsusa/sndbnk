@@ -1,97 +1,116 @@
 <script>
 	import { enhance } from '$app/forms';
+	import PublicProfile from '#lib/components/PublicProfile.svelte';
 
 	let { data } = $props();
 
 	const shortName = $derived(
-		data.user?.name?.trim().split(/\s+/)[0] ?? data.user?.email?.split('@')[0] ?? 'Account'
+		data.mode === 'marketing'
+			? (data.user?.name?.trim().split(/\s+/)[0] ??
+				data.user?.email?.split('@')[0] ??
+				'Account')
+			: 'Account'
+	);
+
+	const pageTitle = $derived(
+		data.mode === 'tenant-profile'
+			? `${data.profile.name} (@${data.profile.username}) | SNDBNK`
+			: 'SNDBNK | A place for sound'
+	);
+
+	const pageDescription = $derived(
+		data.mode === 'tenant-profile'
+			? `${data.profile.name} on SNDBNK — a public profile for sound.`
+			: 'SNDBNK is taking shape. A new home for artists, listeners, and the work between them.'
 	);
 </script>
 
 <svelte:head>
-	<title>SNDBNK | A place for sound</title>
-	<meta
-		name="description"
-		content="SNDBNK is taking shape. A new home for artists, listeners, and the work between them."
-	/>
+	<title>{pageTitle}</title>
+	<meta name="description" content={pageDescription} />
 </svelte:head>
 
-<div class="landing">
-	<header class="site-header">
-		<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+{#if data.mode === 'tenant-profile'}
+	<PublicProfile {data} />
+{:else}
+	<div class="landing">
+		<header class="site-header">
+			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
 
-		<nav aria-label="Account">
-			{#if data.user}
-				<span class="user-name">Hi, {shortName}</span>
-				<form method="POST" action="?/signOut" use:enhance>
-					<button type="submit">Sign out</button>
-				</form>
-			{:else}
-				<a href="/signin">Sign in</a>
-				<a class="nav-cta" href="/signup">Create account</a>
-			{/if}
-		</nav>
-	</header>
-
-	<main>
-		<section class="hero" aria-labelledby="hero-title">
-			<div class="hero-copy">
-				<p class="eyebrow">A place for sound</p>
-				<h1 id="hero-title" class="display-face">Make some noise. <span>Keep it yours.</span></h1>
-				<p class="intro">
-					SNDBNK is taking shape. A new home for artists, listeners, and the work between them.
-				</p>
-				{#if data.authNotice}
-					<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
-				{/if}
+			<nav aria-label="Account">
 				{#if data.user}
-					<p class="welcome">Good to have you here, {shortName}.</p>
+					<span class="user-name">Hi, {shortName}</span>
+					<a href="/settings">Settings</a>
+					<form method="POST" action="?/signOut" use:enhance>
+						<button type="submit">Sign out</button>
+					</form>
 				{:else}
-					<div class="hero-actions">
-						<a class="primary-action pressable" href="/signup"
-							>Create account <span aria-hidden="true">↗</span></a
-						>
-						<a class="text-action" href="/signin">Sign in</a>
-					</div>
+					<a href="/signin">Sign in</a>
+					<a class="nav-cta" href="/signup">Create account</a>
 				{/if}
-			</div>
+			</nav>
+		</header>
 
-			<div class="sound-card" aria-label="Abstract audio waveform">
-				<div class="card-topline">
-					<span>SNDBNK / 001</span>
-					<span>Signal in motion</span>
+		<main>
+			<section class="hero" aria-labelledby="hero-title">
+				<div class="hero-copy">
+					<p class="eyebrow">A place for sound</p>
+					<h1 id="hero-title" class="display-face">Make some noise. <span>Keep it yours.</span></h1>
+					<p class="intro">
+						SNDBNK is taking shape. A new home for artists, listeners, and the work between them.
+					</p>
+					{#if data.authNotice}
+						<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
+					{/if}
+					{#if data.user}
+						<p class="welcome">Good to have you here, {shortName}.</p>
+					{:else}
+						<div class="hero-actions">
+							<a class="primary-action pressable" href="/signup"
+								>Create account <span aria-hidden="true">↗</span></a
+							>
+							<a class="text-action" href="/signin">Sign in</a>
+						</div>
+					{/if}
 				</div>
-				<svg viewBox="0 0 800 320" role="img" aria-labelledby="wave-title wave-description">
-					<title id="wave-title">Audio waveform</title>
-					<desc id="wave-description">A bright waveform moving across a dark field.</desc>
-					<path
-						d="M0 160 L20 160 L32 138 L44 183 L58 100 L72 218 L87 150 L103 170 L118 45 L132 275 L148 124 L162 196 L177 82 L192 245 L208 135 L224 175 L240 17 L255 302 L270 111 L286 208 L300 68 L316 259 L332 143 L348 178 L364 93 L380 232 L396 151 L412 168 L428 55 L444 269 L460 119 L476 204 L492 78 L508 251 L524 141 L540 181 L556 103 L572 222 L588 146 L604 174 L620 39 L636 281 L652 128 L668 192 L684 91 L700 237 L716 148 L732 170 L746 118 L760 202 L774 153 L800 160"
-					/>
-				</svg>
-				<div class="card-footer">
-					<span>00:00</span>
-					<span class="card-note">Play it forward</span>
-					<span>03:42</span>
+
+				<div class="sound-card" aria-label="Abstract audio waveform">
+					<div class="card-topline">
+						<span>SNDBNK / 001</span>
+						<span>Signal in motion</span>
+					</div>
+					<svg viewBox="0 0 800 320" role="img" aria-labelledby="wave-title wave-description">
+						<title id="wave-title">Audio waveform</title>
+						<desc id="wave-description">A bright waveform moving across a dark field.</desc>
+						<path
+							d="M0 160 L20 160 L32 138 L44 183 L58 100 L72 218 L87 150 L103 170 L118 45 L132 275 L148 124 L162 196 L177 82 L192 245 L208 135 L224 175 L240 17 L255 302 L270 111 L286 208 L300 68 L316 259 L332 143 L348 178 L364 93 L380 232 L396 151 L412 168 L428 55 L444 269 L460 119 L476 204 L492 78 L508 251 L524 141 L540 181 L556 103 L572 222 L588 146 L604 174 L620 39 L636 281 L652 128 L668 192 L684 91 L700 237 L716 148 L732 170 L746 118 L760 202 L774 153 L800 160"
+						/>
+					</svg>
+					<div class="card-footer">
+						<span>00:00</span>
+						<span class="card-note">Play it forward</span>
+						<span>03:42</span>
+					</div>
+					<div class="stamp" aria-hidden="true">Independent<br />frequency</div>
 				</div>
-				<div class="stamp" aria-hidden="true">Independent<br />frequency</div>
-			</div>
-		</section>
+			</section>
 
-		<section class="manifesto" aria-label="Our intention">
-			<p class="eyebrow">Why we are here</p>
-			<p class="manifesto-copy">
-				Music moves through people. We are building a place that respects that.
-			</p>
-			<span class="manifesto-mark" aria-hidden="true">///</span>
-		</section>
-	</main>
+			<section class="manifesto" aria-label="Our intention">
+				<p class="eyebrow">Why we are here</p>
+				<p class="manifesto-copy">
+					Music moves through people. We are building a place that respects that.
+				</p>
+				<span class="manifesto-mark" aria-hidden="true">///</span>
+			</section>
+		</main>
 
-	<footer>
-		<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-		<p>Sound belongs with the people who make it matter.</p>
-		<p>© {new Date().getFullYear()} SNDBNK</p>
-	</footer>
-</div>
+		<footer>
+			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+			<p>Sound belongs with the people who make it matter.</p>
+			<p>© {new Date().getFullYear()} SNDBNK</p>
+		</footer>
+	</div>
+{/if}
 
 <style>
 	.landing {
