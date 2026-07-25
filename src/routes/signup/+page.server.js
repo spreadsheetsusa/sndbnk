@@ -10,7 +10,7 @@ export const load = ({ locals }) => {
 };
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ cookies, request, url }) => {
 		const formData = await request.formData();
 		const name = formData.get('name')?.toString().trim() ?? '';
 		const email = formData.get('email')?.toString().trim() ?? '';
@@ -38,6 +38,14 @@ export const actions = {
 				email
 			});
 		}
+
+		cookies.set('sndbnk-auth-notice', 'account-created', {
+			path: '/',
+			httpOnly: true,
+			sameSite: 'lax',
+			secure: url.protocol === 'https:',
+			maxAge: 60
+		});
 
 		return redirect(303, '/');
 	}
