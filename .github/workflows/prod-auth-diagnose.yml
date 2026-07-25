@@ -241,7 +241,7 @@ jobs:
             # shellcheck disable=SC1091
             . "$APP_DIR/.env"
             set +a
-            bun run drizzle-kit push --force
+            bun run db:push
             bun run build
 
             section "Restart and verify service"
@@ -254,36 +254,56 @@ jobs:
             # Hit the Bun app directly with the public origin so trustedOrigins/baseURL match.
             PROBE_EMAIL="actions-probe-$(date +%s)@sndbnk.invalid"
             PROBE_PASS='ProbePass123!'
-            curl -sS -D /tmp/su.hdr -o /tmp/su.body -w 'signup_http=%{http_code}\n' \
-              -X POST 'http://127.0.0.1:3000/api/auth/sign-up/email' \
-              -H 'content-type: application/json' \
-              -H "origin: ${EXPECTED_ORIGIN}" \
-              -H "referer: ${EXPECTED_ORIGIN}/signup" \
-              -H "host: sndbnk.com" \
-              --data "{\"name\":\"Actions Probe\",\"email\":\"${PROBE_EMAIL}\",\"password\":\"${PROBE_PASS}\"}" || true
+            SIGNUP_CODE="$(
+              curl -sS -D /tmp/su.hdr -o /tmp/su.body -w '%{http_code}' \
+                -X POST 'http://127.0.0.1:3000/api/auth/sign-up/email' \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signup" \
+                -H "host: sndbnk.com" \
+                --data "{\"name\":\"Actions Probe\",\"email\":\"${PROBE_EMAIL}\",\"password\":\"${PROBE_PASS}\"}"
+            )"
+            echo "signup_http=${SIGNUP_CODE}"
             echo 'signup body:'; head -c 500 /tmp/su.body; echo
-            curl -sS -D /tmp/si.hdr -o /tmp/si.body -w 'signin_http=%{http_code}\n' \
-              -X POST 'http://127.0.0.1:3000/api/auth/sign-in/email' \
-              -H 'content-type: application/json' \
-              -H "origin: ${EXPECTED_ORIGIN}" \
-              -H "referer: ${EXPECTED_ORIGIN}/signin" \
-              -H "host: sndbnk.com" \
-              --data "{\"email\":\"${PROBE_EMAIL}\",\"password\":\"${PROBE_PASS}\"}" || true
+            SIGNIN_CODE="$(
+              curl -sS -D /tmp/si.hdr -o /tmp/si.body -w '%{http_code}' \
+                -X POST 'http://127.0.0.1:3000/api/auth/sign-in/email' \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signin" \
+                -H "host: sndbnk.com" \
+                --data "{\"email\":\"${PROBE_EMAIL}\",\"password\":\"${PROBE_PASS}\"}"
+            )"
+            echo "signin_http=${SIGNIN_CODE}"
             echo 'signin body:'; head -c 500 /tmp/si.body; echo
             echo 'signin set-cookie present?'
-            rg -i 'set-cookie' /tmp/si.hdr || echo 'no set-cookie'
+            grep -i 'set-cookie' /tmp/si.hdr || echo 'no set-cookie'
 
             section "Public HTTPS probe"
-            curl -sS -D /tmp/pub.hdr -o /tmp/pub.body -w 'public_signup_http=%{http_code}\n' \
-              -X POST "${EXPECTED_ORIGIN}/api/auth/sign-up/email" \
-              -H 'content-type: application/json' \
-              -H "origin: ${EXPECTED_ORIGIN}" \
-              -H "referer: ${EXPECTED_ORIGIN}/signup" \
-              --data "{\"name\":\"Public Probe\",\"email\":\"public-probe-$(date +%s)@sndbnk.invalid\",\"password\":\"${PROBE_PASS}\"}" || true
+            PUBLIC_CODE="$(
+              curl -sS -D /tmp/pub.hdr -o /tmp/pub.body -w '%{http_code}' \
+                -X POST "${EXPECTED_ORIGIN}/api/auth/sign-up/email" \
+                -H 'content-type: application/json' \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signup" \
+                --data "{\"name\":\"Public Probe\",\"email\":\"public-probe-$(date +%s)@sndbnk.invalid\",\"password\":\"${PROBE_PASS}\"}"
+            )"
+            echo "public_signup_http=${PUBLIC_CODE}"
             echo 'public body:'; head -c 500 /tmp/pub.body; echo
 
             section "Final permission snapshot"
             ls -la "$APP_DIR" | head -40
             stat -c '.env mode=%a owner=%U:%G' "$APP_DIR/.env"
-            stat -c 'db mode=%a owner=%U:%G' "$DB_ABS"
+            stat -c 'db mode=%a owner=%U:%G size=%s' "$DB_ABS"
+            ls -la "$DB_ABS"* 2>/dev/null || true
+
+            if [ "$SIGNUP_CODE" != "200" ] || [ "$SIGNIN_CODE" != "200" ] || [ "$PUBLIC_CODE" != "200" ]; then
+              echo "Auth probes failed (signup=${SIGNUP_CODE} signin=${SIGNIN_CODE} public=${PUBLIC_CODE})" >&2
+              journalctl -u "$SERVICE" -n 80 --no-pager || true
+              exit 1
+            fi
+            if ! grep -qi 'set-cookie' /tmp/si.hdr; then
+              echo "Sign-in did not set a session cookie" >&2
+              exit 1
+            fi
             echo "DONE"
