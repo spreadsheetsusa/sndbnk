@@ -291,6 +291,36 @@ jobs:
             echo "public_signup_http=${PUBLIC_CODE}"
             echo 'public body:'; head -c 500 /tmp/pub.body; echo
 
+            section "Form-action signup/signin probe (browser path)"
+            FORM_EMAIL="form-probe-$(date +%s)@sndbnk.invalid"
+            FORM_SIGNUP_CODE="$(
+              curl -sS -c /tmp/form.cj -b /tmp/form.cj -D /tmp/form-su.hdr -o /tmp/form-su.body -w '%{http_code}' \
+                -X POST "${EXPECTED_ORIGIN}/signup" \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signup" \
+                -H 'content-type: application/x-www-form-urlencoded' \
+                --data-urlencode "name=Form Probe" \
+                --data-urlencode "email=${FORM_EMAIL}" \
+                --data-urlencode "password=${PROBE_PASS}"
+            )"
+            echo "form_signup_http=${FORM_SIGNUP_CODE}"
+            echo 'form signup headers:'; grep -iE 'HTTP/|set-cookie|location' /tmp/form-su.hdr || true
+            head -c 300 /tmp/form-su.body; echo
+            # Clear session cookie to exercise sign-in form.
+            rm -f /tmp/form.cj
+            FORM_SIGNIN_CODE="$(
+              curl -sS -c /tmp/form.cj -b /tmp/form.cj -D /tmp/form-si.hdr -o /tmp/form-si.body -w '%{http_code}' \
+                -X POST "${EXPECTED_ORIGIN}/signin" \
+                -H "origin: ${EXPECTED_ORIGIN}" \
+                -H "referer: ${EXPECTED_ORIGIN}/signin" \
+                -H 'content-type: application/x-www-form-urlencoded' \
+                --data-urlencode "email=${FORM_EMAIL}" \
+                --data-urlencode "password=${PROBE_PASS}"
+            )"
+            echo "form_signin_http=${FORM_SIGNIN_CODE}"
+            echo 'form signin headers:'; grep -iE 'HTTP/|set-cookie|location' /tmp/form-si.hdr || true
+            head -c 300 /tmp/form-si.body; echo
+
             section "Final permission snapshot"
             ls -la "$APP_DIR" | head -40
             stat -c '.env mode=%a owner=%U:%G' "$APP_DIR/.env"
@@ -298,12 +328,27 @@ jobs:
             ls -la "$DB_ABS"* 2>/dev/null || true
 
             if [ "$SIGNUP_CODE" != "200" ] || [ "$SIGNIN_CODE" != "200" ] || [ "$PUBLIC_CODE" != "200" ]; then
-              echo "Auth probes failed (signup=${SIGNUP_CODE} signin=${SIGNIN_CODE} public=${PUBLIC_CODE})" >&2
+              echo "Auth API probes failed (signup=${SIGNUP_CODE} signin=${SIGNIN_CODE} public=${PUBLIC_CODE})" >&2
               journalctl -u "$SERVICE" -n 80 --no-pager || true
               exit 1
             fi
             if ! grep -qi 'set-cookie' /tmp/si.hdr; then
               echo "Sign-in did not set a session cookie" >&2
+              exit 1
+            fi
+            # Form posts may be 303 (native) or 200 with redirect JSON (progressive enhancement).
+            if ! echo "$FORM_SIGNUP_CODE" | grep -Eq '^(200|303)$'; then
+              echo "Form signup failed HTTP ${FORM_SIGNUP_CODE}" >&2
+              journalctl -u "$SERVICE" -n 80 --no-pager || true
+              exit 1
+            fi
+            if ! echo "$FORM_SIGNIN_CODE" | grep -Eq '^(200|303)$'; then
+              echo "Form signin failed HTTP ${FORM_SIGNIN_CODE}" >&2
+              journalctl -u "$SERVICE" -n 80 --no-pager || true
+              exit 1
+            fi
+            if grep -q 'window is not defined' /tmp/form-su.body /tmp/form-si.body 2>/dev/null; then
+              echo "Redirect still hitting window-is-not-defined bug" >&2
               exit 1
             fi
             echo "DONE"

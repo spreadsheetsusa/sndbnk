@@ -1,11 +1,12 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth/api';
 
 import { auth } from '#lib/server/auth';
+import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = ({ locals }) => {
 	if (locals.user) {
-		return redirect(302, '/');
+		safeRedirect(302, '/');
 	}
 };
 
@@ -39,6 +40,6 @@ export const actions = {
 			maxAge: 60
 		});
 
-		return redirect(303, '/');
+		safeRedirect(303, '/');
 	}
 };

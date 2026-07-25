@@ -1,6 +1,5 @@
-import { redirect } from '@sveltejs/kit';
-
 import { auth } from '#lib/server/auth';
+import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = ({ cookies, locals }) => {
 	const authNoticeType = cookies.get('sndbnk-auth-notice');
@@ -23,6 +22,6 @@ export const load = ({ cookies, locals }) => {
 export const actions = {
 	signOut: async ({ request }) => {
 		await auth.api.signOut({ headers: request.headers });
-		return redirect(303, '/');
+		safeRedirect(303, '/');
 	}
 };
