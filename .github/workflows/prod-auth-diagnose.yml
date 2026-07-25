@@ -160,9 +160,24 @@ jobs:
                 print("Generated new BETTER_AUTH_SECRET (len>=32)")
             else:
                 print("BETTER_AUTH_SECRET already present")
+            if env.get("PROTOCOL_HEADER", "").strip() != "X-Forwarded-Proto":
+                env["PROTOCOL_HEADER"] = "X-Forwarded-Proto"
+                changed = True
+                print("Set PROTOCOL_HEADER")
+            if env.get("HOST_HEADER", "").strip() != "X-Forwarded-Host":
+                env["HOST_HEADER"] = "X-Forwarded-Host"
+                changed = True
+                print("Set HOST_HEADER")
             if "ORIGIN" not in env:
                 env["ORIGIN"] = "https://sndbnk.com"
                 changed = True
+            managed = (
+                "DATABASE_URL",
+                "ORIGIN",
+                "BETTER_AUTH_SECRET",
+                "PROTOCOL_HEADER",
+                "HOST_HEADER",
+            )
             # Rebuild file preserving comments/blank lines where possible.
             seen = set()
             out = []
@@ -171,14 +186,14 @@ jobs:
                     out.append(payload)
                     continue
                 key = payload
-                if key in ("ORIGIN", "DATABASE_URL", "BETTER_AUTH_SECRET"):
+                if key in managed:
                     out.append(f"{key}={env[key]}")
                     seen.add(key)
                 else:
                     # keep unrelated keys as-is from original map rebuild
                     out.append(f"{key}={env.get(key, '')}")
                     seen.add(key)
-            for key in ("DATABASE_URL", "ORIGIN", "BETTER_AUTH_SECRET"):
+            for key in managed:
                 if key not in seen:
                     out.append(f"{key}={env[key]}")
             if changed or not p.exists():

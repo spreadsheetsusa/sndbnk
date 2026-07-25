@@ -70,6 +70,15 @@ jobs:
             if not secret or len(secret) < 32:
                 env["BETTER_AUTH_SECRET"] = secrets.token_hex(32)
                 print("Generated BETTER_AUTH_SECRET")
+            env["PROTOCOL_HEADER"] = "X-Forwarded-Proto"
+            env["HOST_HEADER"] = "X-Forwarded-Host"
+            managed = (
+                "DATABASE_URL",
+                "ORIGIN",
+                "BETTER_AUTH_SECRET",
+                "PROTOCOL_HEADER",
+                "HOST_HEADER",
+            )
             seen = set()
             out = []
             for kind, payload in order:
@@ -77,12 +86,12 @@ jobs:
                     out.append(payload)
                     continue
                 key = payload
-                if key in ("ORIGIN", "DATABASE_URL", "BETTER_AUTH_SECRET"):
+                if key in managed:
                     out.append(f"{key}={env[key]}")
                 else:
                     out.append(f"{key}={env.get(key, '')}")
                 seen.add(key)
-            for key in ("DATABASE_URL", "ORIGIN", "BETTER_AUTH_SECRET"):
+            for key in managed:
                 if key not in seen:
                     out.append(f"{key}={env[key]}")
             p.write_text("\n".join(out).rstrip() + "\n")
