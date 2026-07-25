@@ -4,15 +4,17 @@
   "workspaces": {
     "": {
       "name": "sndbnk",
+      "dependencies": {
+        "better-auth": "^1.6.23",
+        "drizzle-orm": "^0.45.2",
+      },
       "devDependencies": {
         "@sveltejs/kit": "next",
         "@sveltejs/vite-plugin-svelte": "^7.1.2",
         "@tailwindcss/vite": "^4.3.0",
         "@types/node": "^22",
         "auth": "^1.6.23",
-        "better-auth": "^1.6.23",
         "drizzle-kit": "^0.31.10",
-        "drizzle-orm": "^0.45.2",
         "prettier": "^3.8.3",
         "prettier-plugin-svelte": "^4.1.0",
         "prettier-plugin-tailwindcss": "^0.8.0",
