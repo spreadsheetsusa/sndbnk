@@ -24,11 +24,20 @@ Install dependencies and start the development server with Bun:
 
 ```sh
 bun install
+bun run db:push
 bun run dev
 
 # or start the server and open the app in a new browser tab
 bun run dev -- --open
 ```
+
+Copy `.env.example` to `.env` if you do not already have one. For local tenant
+subdomains, keep `PUBLIC_BASE_DOMAIN=localhost` and open profiles at
+`http://{username}.localhost:5173` (browsers resolve `*.localhost` to loopback).
+Apex routes (`/settings`, `/signup`, `/signin`) stay on `http://localhost:5173`.
+Custom domains can be exercised in dev by pointing a hosts-file entry at
+`127.0.0.1` after verifying the domain in Settings (Vite allows arbitrary Host
+headers so tenant resolution can run).
 
 ## Building
 

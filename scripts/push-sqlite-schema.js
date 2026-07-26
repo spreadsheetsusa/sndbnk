@@ -71,6 +71,23 @@ CREATE TABLE IF NOT EXISTS verification (
 	updated_at integer NOT NULL
 );
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification (identifier);
+
+CREATE TABLE IF NOT EXISTS profile (
+	user_id text PRIMARY KEY NOT NULL,
+	username text NOT NULL,
+	plan text DEFAULT 'basic' NOT NULL,
+	custom_domain text,
+	custom_domain_status text DEFAULT 'none' NOT NULL,
+	domain_verify_token text,
+	custom_domain_verified_at integer,
+	stripe_customer_id text,
+	stripe_subscription_id text,
+	created_at integer NOT NULL,
+	updated_at integer NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE UNIQUE INDEX IF NOT EXISTS profile_username_unique ON profile (username);
+CREATE UNIQUE INDEX IF NOT EXISTS profile_custom_domain_unique ON profile (custom_domain);
 `);
 
 const tables = db

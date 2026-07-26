@@ -1,7 +1,26 @@
+import { error } from '@sveltejs/kit';
+
 import { auth } from '#lib/server/auth';
+import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
-export const load = ({ cookies, locals }) => {
+export const load = async ({ cookies, locals }) => {
+	if (locals.tenant) {
+		const profilePage = await loadPublicProfilePage({
+			username: locals.tenant.username,
+			locals
+		});
+
+		if (!profilePage) {
+			error(404, 'Profile not found');
+		}
+
+		return {
+			mode: /** @type {const} */ ('tenant-profile'),
+			...profilePage
+		};
+	}
+
 	const authNoticeType = cookies.get('sndbnk-auth-notice');
 	let authNotice = null;
 
@@ -16,7 +35,11 @@ export const load = ({ cookies, locals }) => {
 					: null;
 	}
 
-	return { user: locals.user ?? null, authNotice };
+	return {
+		mode: /** @type {const} */ ('marketing'),
+		user: locals.user ?? null,
+		authNotice
+	};
 };
 
 export const actions = {
