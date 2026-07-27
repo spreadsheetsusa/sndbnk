@@ -6,6 +6,17 @@ export const STORAGE_KEY = 'theme';
 /** @typedef {Theme | 'system'} ThemePreference */
 
 /**
+ * @returns {ThemePreference}
+ */
+export function readStoredPreference() {
+	if (typeof localStorage === 'undefined') return 'system';
+
+	const stored = localStorage.getItem(STORAGE_KEY);
+	if (stored === 'light' || stored === 'dark') return stored;
+	return 'system';
+}
+
+/**
  * @returns {Theme}
  */
 function getDomTheme() {
@@ -24,17 +35,6 @@ let mediaQuery = null;
 
 /** @type {((event: MediaQueryListEvent) => void) | null} */
 let mediaListener = null;
-
-/**
- * @returns {ThemePreference}
- */
-export function readStoredPreference() {
-	if (typeof localStorage === 'undefined') return 'system';
-
-	const stored = localStorage.getItem(STORAGE_KEY);
-	if (stored === 'light' || stored === 'dark') return stored;
-	return 'system';
-}
 
 /**
  * @returns {Theme}
@@ -70,28 +70,6 @@ export function applyTheme(theme) {
 /**
  * @param {ThemePreference} preference
  */
-export function setThemePreference(preference) {
-	if (typeof localStorage !== 'undefined') {
-		if (preference === 'system') {
-			localStorage.removeItem(STORAGE_KEY);
-		} else {
-			localStorage.setItem(STORAGE_KEY, preference);
-		}
-	}
-
-	themePreference.set(preference);
-	applyTheme(resolveTheme(preference));
-	syncSystemListener(preference);
-}
-
-export function toggleTheme() {
-	const next = resolveTheme(readStoredPreference()) === 'dark' ? 'light' : 'dark';
-	setThemePreference(next);
-}
-
-/**
- * @param {ThemePreference} preference
- */
 function syncSystemListener(preference) {
 	if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
 
@@ -113,6 +91,28 @@ function syncSystemListener(preference) {
 	};
 
 	mediaQuery.addEventListener('change', mediaListener);
+}
+
+/**
+ * @param {ThemePreference} preference
+ */
+export function setThemePreference(preference) {
+	if (typeof localStorage !== 'undefined') {
+		if (preference === 'system') {
+			localStorage.removeItem(STORAGE_KEY);
+		} else {
+			localStorage.setItem(STORAGE_KEY, preference);
+		}
+	}
+
+	themePreference.set(preference);
+	applyTheme(resolveTheme(preference));
+	syncSystemListener(preference);
+}
+
+export function toggleTheme() {
+	const next = resolveTheme(readStoredPreference()) === 'dark' ? 'light' : 'dark';
+	setThemePreference(next);
 }
 
 export function initTheme() {
