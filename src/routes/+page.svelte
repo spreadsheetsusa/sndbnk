@@ -176,6 +176,7 @@
 	.nav-cta {
 		padding: 0.75rem 1rem;
 		border: 1px solid var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 	}
 
@@ -249,6 +250,7 @@
 		min-width: 13rem;
 		padding: 1rem;
 		border: 1px solid var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		text-decoration: none;
 		box-shadow: 5px 5px 0 var(--ink);
@@ -263,6 +265,7 @@
 		margin: 2rem 0 0;
 		padding: 0.8rem 1rem;
 		border: 1px solid var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		font-weight: 800;
 	}
@@ -273,6 +276,7 @@
 		margin: 2rem 0 0;
 		padding: 0.9rem 1rem;
 		border: 1px solid var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		box-shadow: 5px 5px 0 var(--ink);
 		font-weight: 800;
@@ -288,8 +292,8 @@
 		min-height: clamp(28rem, 55vw, 44rem);
 		padding: clamp(1.25rem, 3vw, 2.5rem);
 		overflow: hidden;
-		color: var(--paper);
-		background: var(--ink);
+		color: var(--on-inverse);
+		background: var(--inverse);
 		box-shadow: clamp(0.75rem, 2vw, 1.5rem) clamp(0.75rem, 2vw, 1.5rem) 0 var(--accent);
 	}
 
@@ -297,13 +301,13 @@
 	.sound-card::after {
 		position: absolute;
 		inset: 15% auto 15% 50%;
-		border-left: 1px solid color-mix(in srgb, var(--paper) 18%, transparent);
+		border-left: 1px solid color-mix(in srgb, var(--on-inverse) 18%, transparent);
 		content: '';
 	}
 
 	.sound-card::after {
 		inset: 50% 10% auto;
-		border-top: 1px solid color-mix(in srgb, var(--paper) 18%, transparent);
+		border-top: 1px solid color-mix(in srgb, var(--on-inverse) 18%, transparent);
 		border-left: 0;
 	}
 
@@ -400,6 +404,7 @@
 
 	.manifesto-mark {
 		padding: 0.45rem 0.7rem;
+		color: var(--on-accent);
 		background: var(--accent);
 		font-weight: 900;
 		letter-spacing: 0.15em;

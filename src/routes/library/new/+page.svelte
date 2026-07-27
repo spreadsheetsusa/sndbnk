@@ -296,7 +296,7 @@
 		min-height: 3.1rem;
 		padding: 0 1.1rem;
 		border: 1px solid var(--ink);
-		color: var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		box-shadow: 5px 5px 0 var(--ink);
 		font-size: 0.72rem;

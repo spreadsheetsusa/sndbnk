@@ -144,8 +144,8 @@
 		min-height: 100vh;
 		padding: clamp(1.5rem, 4vw, 4rem);
 		overflow: hidden;
-		color: var(--paper);
-		background: var(--ink);
+		color: var(--on-inverse);
+		background: var(--inverse);
 	}
 
 	.auth-top {
@@ -159,7 +159,7 @@
 
 	.logo {
 		width: fit-content;
-		color: var(--paper);
+		color: var(--on-inverse);
 		font-size: clamp(1.7rem, 2.8vw, 2.4rem);
 		line-height: 1;
 		text-decoration: none;
@@ -187,7 +187,7 @@
 		z-index: 2;
 		max-width: 28rem;
 		margin: 0;
-		color: color-mix(in srgb, var(--paper) 70%, transparent);
+		color: color-mix(in srgb, var(--on-inverse) 70%, transparent);
 		font-size: 0.8rem;
 		line-height: 1.5;
 	}
@@ -268,6 +268,7 @@
 		width: 1.5rem;
 		aspect-ratio: 1;
 		place-items: center;
+		color: var(--on-accent);
 		background: var(--accent);
 		font-weight: 900;
 	}
@@ -320,7 +321,7 @@
 		margin-top: 0.1rem;
 		padding: 0 1rem;
 		border: 1px solid var(--ink);
-		color: var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		box-shadow: 5px 5px 0 var(--ink);
 		font-size: 0.75rem;

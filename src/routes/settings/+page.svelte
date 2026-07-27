@@ -489,6 +489,7 @@
 		margin-left: 0.15rem;
 		padding: 0.1rem 0.4rem;
 		border: 1px solid var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		font-size: 0.75rem;
 		font-weight: 900;
@@ -667,7 +668,7 @@
 		margin-top: 0.35rem;
 		padding: 0 1.1rem;
 		border: 1px solid var(--ink);
-		color: var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		box-shadow: 5px 5px 0 var(--ink);
 		font-size: 0.72rem;
@@ -705,6 +706,7 @@
 	}
 
 	.banner.ok {
+		color: var(--on-accent);
 		background: var(--accent);
 	}
 
@@ -821,6 +823,7 @@
 	.status-active {
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
+		color: var(--on-accent);
 		background: var(--accent);
 		padding: 0.05rem 0.35rem;
 	}
