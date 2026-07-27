@@ -13,8 +13,10 @@ node_modules
 Thumbs.db
 
 # Env
-.env
+# NOTE: .env is temporarily tracked so production can pull required vars.
+# Re-ignore and rotate secrets once shell/secrets access is restored.
 .env.*
+!.env
 !.env.example
 !.env.test
 
