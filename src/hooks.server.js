@@ -4,7 +4,14 @@ import { auth } from '#lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { getRequestHostname, resolveTenantHost } from '#lib/server/tenant';
 
-const APEX_ONLY_PREFIXES = ['/settings', '/signin', '/signup', '/api/domain-tls-check'];
+const APEX_ONLY_PREFIXES = [
+	'/settings',
+	'/signin',
+	'/signup',
+	'/library',
+	'/api/media',
+	'/api/domain-tls-check'
+];
 
 /**
  * Paths that should not be rewritten on tenant hosts (framework/assets/auth API).
@@ -53,7 +60,9 @@ const handleTenant = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	if (APEX_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+	if (
+		APEX_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+	) {
 		return new Response('Not Found', {
 			status: 404,
 			headers: { 'content-type': 'text/plain; charset=utf-8' }

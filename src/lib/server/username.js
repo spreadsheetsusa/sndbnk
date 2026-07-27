@@ -36,7 +36,9 @@ export const RESERVED_USERNAMES = new Set([
 	'undefined',
 	'favicon',
 	'robots',
-	'sitemap'
+	'sitemap',
+	'library',
+	'media'
 ]);
 
 /**

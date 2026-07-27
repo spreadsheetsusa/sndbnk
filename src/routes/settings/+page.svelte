@@ -7,20 +7,31 @@
 	let profileBusy = $state(false);
 	let planBusy = $state(false);
 	let domainBusy = $state(false);
+	let storageBusy = $state(false);
+
+	/** @type {string | null} */
+	let userAdapter = $state(null);
 
 	const isPremium = $derived(data.profile.plan === 'premium');
 	const nameValue = $derived(form?.name ?? data.user.name);
 	const usernameValue = $derived(form?.username ?? data.profile.username);
 	const domainValue = $derived(form?.customDomain ?? data.profile.customDomain ?? '');
+	const selectedAdapter = $derived(userAdapter ?? form?.adapter ?? data.storage.adapter);
+	const sshHostValue = $derived(form?.sshHost ?? data.storage.sshHost);
+	const sshPortValue = $derived(form?.sshPort ?? String(data.storage.sshPort ?? 22));
+	const sshUsernameValue = $derived(form?.sshUsername ?? data.storage.sshUsername);
+	const sshRemotePathValue = $derived(form?.sshRemotePath ?? data.storage.sshRemotePath);
+	const isSshAdapter = $derived(selectedAdapter === 'ssh');
 
 	/**
-	 * @param {'profile' | 'plan' | 'domain'} which
+	 * @param {'profile' | 'plan' | 'domain' | 'storage'} which
 	 */
 	function busyHandler(which) {
 		return () => {
 			if (which === 'profile') profileBusy = true;
 			if (which === 'plan') planBusy = true;
 			if (which === 'domain') domainBusy = true;
+			if (which === 'storage') storageBusy = true;
 
 			return async ({ update }) => {
 				try {
@@ -29,6 +40,7 @@
 					if (which === 'profile') profileBusy = false;
 					if (which === 'plan') planBusy = false;
 					if (which === 'domain') domainBusy = false;
+					if (which === 'storage') storageBusy = false;
 				}
 			};
 		};
@@ -37,7 +49,10 @@
 
 <svelte:head>
 	<title>Account settings | SNDBNK</title>
-	<meta name="description" content="Manage your SNDBNK profile, plan, and domain." />
+	<meta
+		name="description"
+		content="Manage your SNDBNK profile, plan, domain, and upload storage."
+	/>
 </svelte:head>
 
 <div class="settings-page">
@@ -45,6 +60,7 @@
 		<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
 		<nav aria-label="Account">
 			<a href="/users/{data.profile.username}">View profile</a>
+			<a href="/library">Library</a>
 			<a href="/">Home</a>
 		</nav>
 	</header>
@@ -117,7 +133,7 @@
 			{/if}
 
 			<div class="plan-grid">
-				{#each /** @type {Array<'basic' | 'premium'>} */ (['basic', 'premium']) as planId (planId)}
+				{#each ['basic', 'premium'] as planId (planId)}
 					{@const detail = data.planDetails[planId]}
 					<article class="plan" class:active={data.profile.plan === planId}>
 						<h3 class="display-face">{detail.label}</h3>
@@ -169,7 +185,9 @@
 					<div class="url-row">
 						<span class="url-label">Subdomain</span>
 						{#if data.urls.subdomainUrl}
-							<a href={data.urls.subdomainUrl}>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a>
+							<a href={data.urls.subdomainUrl}
+								>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
+							>
 						{/if}
 					</div>
 					<div class="url-row">
@@ -239,8 +257,8 @@
 			{:else}
 				<div class="locked">
 					<p>
-						Premium unlocks <span class="mono">{data.profile.username}.{data.baseDomain}</span> and
-						CNAME custom domains.
+						Premium unlocks <span class="mono">{data.profile.username}.{data.baseDomain}</span> and CNAME
+						custom domains.
 					</p>
 					<form method="POST" action="?/setPlan" use:enhance={busyHandler('plan')}>
 						<input type="hidden" name="plan" value="premium" />
@@ -248,6 +266,140 @@
 					</form>
 				</div>
 			{/if}
+		</section>
+
+		<section class="block" aria-labelledby="storage-heading">
+			<div class="block-head">
+				<p class="eyebrow">04</p>
+				<h2 id="storage-heading">Storage</h2>
+				<p>
+					Choose where new track uploads are stored. Local is the default; SSH lets you bring your
+					own server.
+				</p>
+			</div>
+
+			{#if form?.storageMessage && !storageBusy}
+				<div class="banner error" role="alert">{form.storageMessage}</div>
+			{/if}
+			{#if form?.storageSuccess && !storageBusy}
+				<div class="banner ok" role="status">{form.storageSuccess}</div>
+			{/if}
+
+			<form method="POST" action="?/saveStorage" use:enhance={busyHandler('storage')}>
+				<fieldset class="adapter-list">
+					<legend class="visually-hidden">Storage adapter</legend>
+					{#each data.storageAdapters as adapter (adapter.id)}
+						<label class="adapter-option" class:disabled={!adapter.enabled}>
+							<input
+								type="radio"
+								name="adapter"
+								value={adapter.id}
+								checked={selectedAdapter === adapter.id}
+								onchange={() => (userAdapter = adapter.id)}
+								disabled={!adapter.enabled || storageBusy}
+							/>
+							<span class="adapter-copy">
+								<span class="adapter-label">
+									{adapter.label}
+									{#if !adapter.enabled}
+										<span class="coming-soon">Coming soon</span>
+									{/if}
+								</span>
+								<span class="adapter-desc">{adapter.description}</span>
+							</span>
+						</label>
+					{/each}
+				</fieldset>
+
+				{#if isSshAdapter}
+					<label for="sshHost">SSH host</label>
+					<input
+						id="sshHost"
+						name="sshHost"
+						type="text"
+						value={sshHostValue}
+						placeholder="files.example.com"
+						autocapitalize="none"
+						spellcheck="false"
+						required
+					/>
+
+					<label for="sshPort">SSH port</label>
+					<input
+						id="sshPort"
+						name="sshPort"
+						type="number"
+						value={sshPortValue}
+						min="1"
+						max="65535"
+						required
+					/>
+
+					<label for="sshUsername">SSH username</label>
+					<input
+						id="sshUsername"
+						name="sshUsername"
+						type="text"
+						value={sshUsernameValue}
+						autocapitalize="none"
+						spellcheck="false"
+						required
+					/>
+
+					<label for="sshRemotePath">Remote path</label>
+					<input
+						id="sshRemotePath"
+						name="sshRemotePath"
+						type="text"
+						value={sshRemotePathValue}
+						placeholder="/var/www/uploads"
+						autocapitalize="none"
+						spellcheck="false"
+						required
+					/>
+					<p class="hint">Absolute directory on the server where files are written.</p>
+
+					<label for="sshPrivateKey">SSH private key</label>
+					<textarea
+						id="sshPrivateKey"
+						name="sshPrivateKey"
+						rows="6"
+						placeholder={data.storage.hasPrivateKey
+							? 'Leave blank to keep existing key'
+							: 'Paste your PEM private key'}
+						spellcheck="false"
+						autocapitalize="none"></textarea>
+
+					<label for="sshPassphrase">Key passphrase</label>
+					<input id="sshPassphrase" name="sshPassphrase" type="password" autocomplete="off" />
+					<p class="hint">Optional. Only needed if your private key is encrypted.</p>
+
+					{#if data.storage.hasPassphrase}
+						<label class="checkbox-row">
+							<input type="checkbox" name="clearPassphrase" value="on" />
+							Clear stored passphrase
+						</label>
+					{/if}
+				{/if}
+
+				<div class="storage-actions">
+					<button class="pressable" type="submit" disabled={storageBusy}>
+						{storageBusy ? 'Saving…' : 'Save storage'}
+					</button>
+				</div>
+			</form>
+
+			<form
+				class="test-storage-form"
+				method="POST"
+				action="?/testStorage"
+				use:enhance={busyHandler('storage')}
+			>
+				<input type="hidden" name="adapter" value={selectedAdapter} />
+				<button class="pressable ghost" type="submit" disabled={storageBusy}>
+					{storageBusy ? 'Testing…' : 'Test connection'}
+				</button>
+			</form>
 		</section>
 	</main>
 </div>
@@ -373,6 +525,126 @@
 	input:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+
+	textarea {
+		width: 100%;
+		min-height: 8rem;
+		margin-bottom: 0.35rem;
+		padding: 0.75rem 0.85rem;
+		border: 1px solid var(--ink);
+		border-radius: 0;
+		color: var(--ink);
+		background: transparent;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.82rem;
+		line-height: 1.45;
+		resize: vertical;
+		outline: none;
+	}
+
+	textarea:focus {
+		box-shadow: 4px 4px 0 var(--accent);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.adapter-list {
+		margin: 1.5rem 0 0;
+		padding: 0;
+		border: none;
+	}
+
+	.adapter-option {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.75rem;
+		align-items: start;
+		margin-bottom: 0.75rem;
+		padding: 0.85rem 1rem;
+		border: 1px solid var(--ink);
+		cursor: pointer;
+	}
+
+	.adapter-option.disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	.adapter-option input[type='radio'] {
+		width: auto;
+		height: auto;
+		margin: 0.2rem 0 0;
+		accent-color: var(--ink);
+	}
+
+	.adapter-copy {
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.adapter-label {
+		font-size: 0.85rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.coming-soon {
+		margin-left: 0.35rem;
+		padding: 0.05rem 0.35rem;
+		border: 1px solid var(--ink);
+		background: rgb(17 17 15 / 6%);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		vertical-align: middle;
+	}
+
+	.adapter-desc {
+		color: var(--muted);
+		font-size: 0.82rem;
+		line-height: 1.45;
+	}
+
+	.checkbox-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0 0 1rem;
+		font-size: 0.82rem;
+		font-weight: 600;
+		text-transform: none;
+		letter-spacing: normal;
+		cursor: pointer;
+	}
+
+	.checkbox-row input[type='checkbox'] {
+		width: auto;
+		height: auto;
+		margin: 0;
+	}
+
+	.storage-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 0.35rem;
+	}
+
+	.test-storage-form {
+		margin: 0;
+		margin-top: 0.75rem;
 	}
 
 	.hint {

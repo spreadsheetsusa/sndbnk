@@ -88,6 +88,46 @@ CREATE TABLE IF NOT EXISTS profile (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS profile_username_unique ON profile (username);
 CREATE UNIQUE INDEX IF NOT EXISTS profile_custom_domain_unique ON profile (custom_domain);
+
+CREATE TABLE IF NOT EXISTS storage_setting (
+	user_id text PRIMARY KEY NOT NULL,
+	adapter text DEFAULT 'local' NOT NULL,
+	ssh_host text,
+	ssh_port integer DEFAULT 22 NOT NULL,
+	ssh_username text,
+	ssh_remote_path text,
+	ssh_private_key_enc text,
+	ssh_passphrase_enc text,
+	updated_at integer NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE TABLE IF NOT EXISTS track (
+	id text PRIMARY KEY NOT NULL,
+	user_id text NOT NULL,
+	title text NOT NULL,
+	description text,
+	artist text,
+	album text,
+	genre text,
+	year integer,
+	track_number integer,
+	bpm integer,
+	isrc text,
+	comment text,
+	audio_filename text NOT NULL,
+	audio_mime text NOT NULL,
+	audio_bytes integer NOT NULL,
+	cover_filename text,
+	cover_mime text,
+	cover_bytes integer,
+	storage_adapter text DEFAULT 'local' NOT NULL,
+	folder_key text NOT NULL,
+	created_at integer NOT NULL,
+	updated_at integer NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS track_userId_idx ON track (user_id);
 `);
 
 const tables = db
