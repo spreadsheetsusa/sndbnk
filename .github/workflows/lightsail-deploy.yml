@@ -40,39 +40,84 @@ jobs:
             echo "Current directory: $(pwd)"
 
             echo "Pulling latest changes..."
+            # Preserve any existing server .env across pull (tracked .env would otherwise conflict
+            # with an untracked local file, and we want to keep live secrets when present).
+            PRE_PULL_ENV="/tmp/sndbnk.env.pre-pull"
+            rm -f "$PRE_PULL_ENV"
+            if [ -f .env ]; then
+              cp .env "$PRE_PULL_ENV"
+              # If .env is untracked, move it aside so git pull can materialize the tracked file.
+              if ! git ls-files --error-unmatch .env >/dev/null 2>&1; then
+                mv .env "${PRE_PULL_ENV}.untracked"
+                cp "${PRE_PULL_ENV}.untracked" "$PRE_PULL_ENV"
+              fi
+            fi
             git fetch origin main
             git checkout main
             git pull --ff-only origin main
 
             echo "Ensuring production .env values..."
-            python3 - <<'PY'
+            PRE_PULL_ENV="$PRE_PULL_ENV" python3 - <<'PY'
             from pathlib import Path
+            import os
             import secrets
+
+            def parse_env(path: Path):
+                env = {}
+                order = []
+                if not path.exists():
+                    return env, order
+                for line in path.read_text().splitlines():
+                    if not line.strip() or line.strip().startswith("#") or "=" not in line:
+                        order.append(("raw", line))
+                        continue
+                    k, v = line.split("=", 1)
+                    key = k.strip()
+                    env[key] = v.strip()
+                    order.append(("kv", key))
+                return env, order
+
+            def clean(value: str) -> str:
+                return value.strip().strip('"').strip("'")
+
             p = Path("/var/www/sndbnk/.env")
-            lines = p.read_text().splitlines() if p.exists() else []
-            env = {}
-            order = []
-            for line in lines:
-                if not line.strip() or line.strip().startswith("#") or "=" not in line:
-                    order.append(("raw", line))
-                    continue
-                k, v = line.split("=", 1)
-                key = k.strip()
-                env[key] = v.strip()
-                order.append(("kv", key))
-            if env.get("ORIGIN", "").strip().strip('"').strip("'") != "https://sndbnk.com":
+            env, order = parse_env(p)
+
+            # Prefer secrets/values already live on the server before this pull.
+            pre_pull = Path(os.environ.get("PRE_PULL_ENV", "/tmp/sndbnk.env.pre-pull"))
+            if pre_pull.exists():
+                prev, _ = parse_env(pre_pull)
+                for key in (
+                    "BETTER_AUTH_SECRET",
+                    "STORAGE_SECRET",
+                    "DATABASE_URL",
+                    "MEDIA_ROOT",
+                ):
+                    prev_val = clean(prev.get(key, ""))
+                    if prev_val:
+                        env[key] = prev_val
+                        print(f"Preserved {key} from pre-pull .env")
+
+            if clean(env.get("ORIGIN", "")) != "https://sndbnk.com":
                 env["ORIGIN"] = "https://sndbnk.com"
                 print("Updated ORIGIN -> https://sndbnk.com")
-            if env.get("PUBLIC_BASE_DOMAIN", "").strip().strip('"').strip("'") != "sndbnk.com":
+            if clean(env.get("PUBLIC_BASE_DOMAIN", "")) != "sndbnk.com":
                 env["PUBLIC_BASE_DOMAIN"] = "sndbnk.com"
                 print("Updated PUBLIC_BASE_DOMAIN -> sndbnk.com")
-            if not env.get("DATABASE_URL"):
+            if not clean(env.get("DATABASE_URL", "")):
                 env["DATABASE_URL"] = "local.db"
                 print("Set DATABASE_URL=local.db")
-            secret = env.get("BETTER_AUTH_SECRET", "").strip().strip('"').strip("'")
+            if not clean(env.get("MEDIA_ROOT", "")):
+                env["MEDIA_ROOT"] = "./media"
+                print("Set MEDIA_ROOT=./media")
+            secret = clean(env.get("BETTER_AUTH_SECRET", ""))
             if not secret or len(secret) < 32:
                 env["BETTER_AUTH_SECRET"] = secrets.token_hex(32)
                 print("Generated BETTER_AUTH_SECRET")
+            storage_secret = clean(env.get("STORAGE_SECRET", ""))
+            if not storage_secret or len(storage_secret) < 32:
+                env["STORAGE_SECRET"] = secrets.token_hex(32)
+                print("Generated STORAGE_SECRET")
             env["PROTOCOL_HEADER"] = "X-Forwarded-Proto"
             env["HOST_HEADER"] = "X-Forwarded-Host"
             managed = (
@@ -80,6 +125,8 @@ jobs:
                 "ORIGIN",
                 "PUBLIC_BASE_DOMAIN",
                 "BETTER_AUTH_SECRET",
+                "MEDIA_ROOT",
+                "STORAGE_SECRET",
                 "PROTOCOL_HEADER",
                 "HOST_HEADER",
             )
@@ -102,6 +149,8 @@ jobs:
             PY
             chmod 600 .env
             chown ubuntu:ubuntu .env || true
+            mkdir -p media
+            chown ubuntu:ubuntu media || true
 
             echo "Ensuring SQLite file ownership/permissions..."
             DB_PATH="$(
