@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
 	let { form } = $props();
 	let submitting = $state(false);
@@ -24,7 +25,10 @@
 
 <main class="auth-page">
 	<section class="auth-intro" aria-labelledby="signin-title">
-		<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+		<div class="auth-top">
+			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+			<ThemeToggle />
+		</div>
 		<div class="intro-copy">
 			<p class="eyebrow accent-text">Return to the signal</p>
 			<h1 id="signin-title" class="display-face">Pick up where you left off.</h1>
@@ -105,9 +109,16 @@
 		background: var(--ink);
 	}
 
-	.logo {
+	.auth-top {
 		position: relative;
 		z-index: 2;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.logo {
 		width: fit-content;
 		color: var(--paper);
 		font-size: clamp(1.7rem, 2.8vw, 2.4rem);
@@ -137,7 +148,7 @@
 		z-index: 2;
 		max-width: 28rem;
 		margin: 0;
-		color: rgb(242 240 232 / 70%);
+		color: color-mix(in srgb, var(--paper) 70%, transparent);
 		font-size: 0.8rem;
 		line-height: 1.5;
 	}

@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
 	let { data, form } = $props();
 
@@ -42,6 +43,7 @@
 			<a href="/settings">Settings</a>
 			<a href="/users/{data.profile.username}">View profile</a>
 			<a href="/">Home</a>
+			<ThemeToggle />
 		</nav>
 	</header>
 
@@ -187,7 +189,7 @@
 	.block {
 		margin-top: clamp(2.75rem, 7vw, 4rem);
 		padding-top: clamp(1.75rem, 4vw, 2.25rem);
-		border-top: 1px solid rgb(17 17 15 / 18%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.8s ease both;
 	}
 

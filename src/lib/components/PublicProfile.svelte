@@ -1,4 +1,6 @@
 <script>
+	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+
 	/**
 	 * @typedef {{
 	 *   profile: {
@@ -37,6 +39,7 @@
 					<a href="/signin">Sign in</a>
 					<a class="nav-cta" href="/signup">Create account</a>
 				{/if}
+				<ThemeToggle />
 			</nav>
 		</header>
 	{/if}
@@ -202,11 +205,11 @@
 		gap: 0.75rem;
 		align-items: baseline;
 		padding: 0.75rem 0;
-		border-top: 1px solid rgb(17 17 15 / 18%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.url-list li:last-child {
-		border-bottom: 1px solid rgb(17 17 15 / 18%);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.url-label {
@@ -254,7 +257,7 @@
 		justify-content: space-between;
 		margin-top: clamp(3rem, 10vw, 6rem);
 		padding-top: 1.5rem;
-		border-top: 1px solid rgb(17 17 15 / 18%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		color: var(--muted);
 		font-size: 0.8rem;
 	}

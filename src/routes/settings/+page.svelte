@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
+	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
 	let { data, form } = $props();
 
@@ -62,6 +63,7 @@
 			<a href="/users/{data.profile.username}">View profile</a>
 			<a href="/library">Library</a>
 			<a href="/">Home</a>
+			<ThemeToggle />
 		</nav>
 	</header>
 
@@ -463,7 +465,7 @@
 	.block {
 		margin-top: clamp(2.75rem, 7vw, 4rem);
 		padding-top: clamp(1.75rem, 4vw, 2.25rem);
-		border-top: 1px solid rgb(17 17 15 / 18%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.8s ease both;
 	}
 
@@ -604,7 +606,7 @@
 		margin-left: 0.35rem;
 		padding: 0.05rem 0.35rem;
 		border: 1px solid var(--ink);
-		background: rgb(17 17 15 / 6%);
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
 		font-size: 0.62rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
@@ -768,11 +770,11 @@
 		gap: 0.75rem;
 		align-items: baseline;
 		padding: 0.7rem 0;
-		border-top: 1px solid rgb(17 17 15 / 16%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
 	}
 
 	.url-row:last-child {
-		border-bottom: 1px solid rgb(17 17 15 / 16%);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
 	}
 
 	.url-label {
@@ -792,7 +794,7 @@
 		margin-top: 1.75rem;
 		padding: 1.25rem;
 		border: 1px solid var(--ink);
-		background: rgb(17 17 15 / 3%);
+		background: color-mix(in srgb, var(--ink) 3%, transparent);
 	}
 
 	.dns-box ol {
@@ -805,7 +807,7 @@
 	.dns-box code {
 		padding: 0.1rem 0.3rem;
 		background: var(--paper);
-		border: 1px solid rgb(17 17 15 / 20%);
+		border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
 		font-size: 0.8rem;
 		word-break: break-all;
 	}

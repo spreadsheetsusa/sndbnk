@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
+	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
 	let { data } = $props();
 
@@ -47,6 +48,7 @@
 					<a href="/signin">Sign in</a>
 					<a class="nav-cta" href="/signup">Create account</a>
 				{/if}
+				<ThemeToggle />
 			</nav>
 		</header>
 
@@ -295,13 +297,13 @@
 	.sound-card::after {
 		position: absolute;
 		inset: 15% auto 15% 50%;
-		border-left: 1px solid rgb(242 240 232 / 18%);
+		border-left: 1px solid color-mix(in srgb, var(--paper) 18%, transparent);
 		content: '';
 	}
 
 	.sound-card::after {
 		inset: 50% 10% auto;
-		border-top: 1px solid rgb(242 240 232 / 18%);
+		border-top: 1px solid color-mix(in srgb, var(--paper) 18%, transparent);
 		border-left: 0;
 	}
 
