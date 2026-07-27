@@ -11,6 +11,13 @@ import {
 } from '#lib/server/domain-verify';
 import { PLAN_DETAILS, canUseCustomDomain, isPlan } from '#lib/server/plans';
 import { safeRedirect } from '#lib/server/safe-redirect';
+import {
+	STORAGE_ADAPTERS,
+	getStorageSettingPublic,
+	isEnabledAdapter,
+	saveStorageSetting,
+	testStorageConnection
+} from '#lib/server/storage';
 import { buildPublicUrls, getProfileByUserId } from '#lib/server/tenant';
 import { validateUsername } from '#lib/server/username';
 import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
@@ -26,6 +33,7 @@ export const load = async ({ locals }) => {
 	}
 
 	const urls = buildPublicUrls(row);
+	const storage = await getStorageSettingPublic(locals.user.id);
 
 	return {
 		user: {
@@ -42,7 +50,9 @@ export const load = async ({ locals }) => {
 		},
 		urls,
 		baseDomain: PUBLIC_BASE_DOMAIN,
-		planDetails: PLAN_DETAILS
+		planDetails: PLAN_DETAILS,
+		storageAdapters: STORAGE_ADAPTERS,
+		storage
 	};
 };
 
@@ -269,5 +279,62 @@ export const actions = {
 			.where(eq(profile.userId, locals.user.id));
 
 		return { domainSuccess: 'Custom domain removed.' };
+	},
+
+	saveStorage: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const adapter = formData.get('adapter')?.toString() ?? '';
+		const sshHost = formData.get('sshHost')?.toString() ?? '';
+		const sshPort = formData.get('sshPort')?.toString() ?? '22';
+		const sshUsername = formData.get('sshUsername')?.toString() ?? '';
+		const sshRemotePath = formData.get('sshRemotePath')?.toString() ?? '';
+		const sshPrivateKey = formData.get('sshPrivateKey')?.toString() ?? '';
+		const sshPassphrase = formData.get('sshPassphrase')?.toString() ?? '';
+		const clearPassphrase = formData.get('clearPassphrase')?.toString() === 'on';
+
+		const result = await saveStorageSetting(locals.user.id, {
+			adapter,
+			sshHost,
+			sshPort,
+			sshUsername,
+			sshRemotePath,
+			sshPrivateKey,
+			sshPassphrase,
+			clearPassphrase
+		});
+
+		if (!result.ok) {
+			return fail(400, {
+				storageMessage: result.message,
+				adapter,
+				sshHost,
+				sshPort,
+				sshUsername,
+				sshRemotePath
+			});
+		}
+
+		return { storageSuccess: 'Storage settings saved.' };
+	},
+
+	testStorage: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const adapterRaw = formData.get('adapter')?.toString() ?? '';
+		const adapter = isEnabledAdapter(adapterRaw) ? adapterRaw : undefined;
+
+		const result = await testStorageConnection(locals.user.id, adapter);
+		if (!result.ok) {
+			return fail(400, { storageMessage: result.message });
+		}
+
+		return { storageSuccess: 'Connection OK.' };
 	}
 };

@@ -6,9 +6,7 @@
 
 	const shortName = $derived(
 		data.mode === 'marketing'
-			? (data.user?.name?.trim().split(/\s+/)[0] ??
-				data.user?.email?.split('@')[0] ??
-				'Account')
+			? (data.user?.name?.trim().split(/\s+/)[0] ?? data.user?.email?.split('@')[0] ?? 'Account')
 			: 'Account'
 	);
 
@@ -40,6 +38,7 @@
 			<nav aria-label="Account">
 				{#if data.user}
 					<span class="user-name">Hi, {shortName}</span>
+					<a href="/library">Library</a>
 					<a href="/settings">Settings</a>
 					<form method="POST" action="?/signOut" use:enhance>
 						<button type="submit">Sign out</button>
