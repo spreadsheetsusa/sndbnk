@@ -153,6 +153,7 @@
 	.nav-cta {
 		padding: 0.55rem 0.85rem;
 		border: 1px solid var(--ink);
+		color: var(--on-accent);
 		background: var(--accent);
 		box-shadow: 3px 3px 0 var(--ink);
 	}

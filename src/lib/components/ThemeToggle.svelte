@@ -57,6 +57,7 @@
 	}
 
 	.theme-toggle:hover {
+		color: var(--on-accent);
 		background: var(--accent);
 	}
 
