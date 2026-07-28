@@ -83,6 +83,11 @@ export const track = sqliteTable('track', {
 	coverFilename: text('cover_filename'),
 	coverMime: text('cover_mime'),
 	coverBytes: integer('cover_bytes'),
+	durationMs: integer('duration_ms'),
+	bitrate: integer('bitrate'),
+	sampleRate: integer('sample_rate'),
+	channels: integer('channels'),
+	codec: text('codec'),
 	storageAdapter: text('storage_adapter').notNull().default('local'),
 	folderKey: text('folder_key').notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })

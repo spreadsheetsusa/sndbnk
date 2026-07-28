@@ -1,28 +1,263 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
 
 	let { data, form } = $props();
 
 	let busy = $state(false);
+	let parsing = $state(false);
+	/** @type {HTMLInputElement | undefined} */
+	let coverInput = $state();
+	/** @type {string | null} */
+	let coverPreviewUrl = $state(null);
+	/** @type {string | null} */
+	let parseWarning = $state(null);
+	/** @type {string[]} */
+	let autofilledKeys = $state([]);
+	/** @type {File | null} */
+	let selectedAudio = $state(null);
 
-	const titleValue = $derived(form?.title ?? '');
-	const descriptionValue = $derived(form?.description ?? '');
-	const artistValue = $derived(form?.artist ?? '');
-	const albumValue = $derived(form?.album ?? '');
-	const genreValue = $derived(form?.genre ?? '');
-	const yearValue = $derived(form?.year ?? '');
-	const trackNumberValue = $derived(form?.trackNumber ?? '');
-	const bpmValue = $derived(form?.bpm ?? '');
-	const isrcValue = $derived(form?.isrc ?? '');
-	const commentValue = $derived(form?.comment ?? '');
+	/**
+	 * @returns {{
+	 *   title: string;
+	 *   description: string;
+	 *   artist: string;
+	 *   album: string;
+	 *   genre: string;
+	 *   year: string;
+	 *   trackNumber: string;
+	 *   bpm: string;
+	 *   isrc: string;
+	 *   comment: string;
+	 * }}
+	 */
+	function emptyFields() {
+		return {
+			title: '',
+			description: '',
+			artist: '',
+			album: '',
+			genre: '',
+			year: '',
+			trackNumber: '',
+			bpm: '',
+			isrc: '',
+			comment: ''
+		};
+	}
+
+	/**
+	 * @returns {{
+	 *   durationMs: string;
+	 *   bitrate: string;
+	 *   sampleRate: string;
+	 *   channels: string;
+	 *   codec: string;
+	 * }}
+	 */
+	function emptyTechnical() {
+		return {
+			durationMs: '',
+			bitrate: '',
+			sampleRate: '',
+			channels: '',
+			codec: ''
+		};
+	}
+
+	/**
+	 * @param {Record<string, unknown>} source
+	 */
+	function pickFormFields(source) {
+		return {
+			title: String(source.title ?? ''),
+			description: String(source.description ?? ''),
+			artist: String(source.artist ?? ''),
+			album: String(source.album ?? ''),
+			genre: String(source.genre ?? ''),
+			year: String(source.year ?? ''),
+			trackNumber: String(source.trackNumber ?? ''),
+			bpm: String(source.bpm ?? ''),
+			isrc: String(source.isrc ?? ''),
+			comment: String(source.comment ?? '')
+		};
+	}
+
+	let fields = $state(untrack(() => (form?.message ? pickFormFields(form) : emptyFields())));
+	let technical = $state(emptyTechnical());
+	const touched = new SvelteSet();
+
+	const fieldSummary = $derived(
+		autofilledKeys.filter((k) => k !== 'cover').length > 0
+			? autofilledKeys.filter((k) => k !== 'cover').join(', ')
+			: null
+	);
+
+	const techSummary = $derived.by(() => {
+		if (!selectedAudio && !technical.durationMs) return null;
+		/** @type {string[]} */
+		const parts = [];
+		if (technical.durationMs) {
+			parts.push(formatDuration(Number(technical.durationMs)));
+		}
+		if (technical.codec) parts.push(technical.codec);
+		if (technical.bitrate) {
+			const kbps = Math.round(Number(technical.bitrate) / 1000);
+			if (Number.isFinite(kbps) && kbps > 0) parts.push(`${kbps} kbps`);
+		}
+		if (technical.sampleRate) {
+			const khz = Number(technical.sampleRate) / 1000;
+			if (Number.isFinite(khz) && khz > 0) parts.push(`${khz} kHz`);
+		}
+		if (technical.channels) {
+			const ch = Number(technical.channels);
+			parts.push(ch === 1 ? 'mono' : ch === 2 ? 'stereo' : `${ch} ch`);
+		}
+		if (selectedAudio?.size) {
+			parts.push(formatBytes(selectedAudio.size));
+		}
+		return parts.length ? parts.join(' · ') : null;
+	});
+
+	/**
+	 * @param {number} bytes
+	 */
+	function formatBytes(bytes) {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+	}
+
+	/**
+	 * @param {string} key
+	 */
+	function markTouched(key) {
+		touched.add(key);
+	}
+
+	/**
+	 * @param {File | null} file
+	 */
+	function setCoverFile(file) {
+		if (coverPreviewUrl) {
+			URL.revokeObjectURL(coverPreviewUrl);
+			coverPreviewUrl = null;
+		}
+
+		if (!coverInput) return;
+
+		if (!file) {
+			coverInput.value = '';
+			return;
+		}
+
+		const dt = new DataTransfer();
+		dt.items.add(file);
+		coverInput.files = dt.files;
+		coverPreviewUrl = URL.createObjectURL(file);
+	}
+
+	function clearCover() {
+		setCoverFile(null);
+		autofilledKeys = autofilledKeys.filter((k) => k !== 'cover');
+	}
+
+	function clearAutofilled() {
+		const next = { ...fields };
+		for (const key of autofilledKeys) {
+			if (key === 'cover') continue;
+			if (key in next && !touched.has(key)) {
+				// @ts-expect-error dynamic key
+				next[key] = '';
+			}
+		}
+		fields = next;
+		technical = emptyTechnical();
+		if (autofilledKeys.includes('cover') && !touched.has('cover')) {
+			setCoverFile(null);
+		}
+		autofilledKeys = [];
+		parseWarning = null;
+	}
+
+	/**
+	 * @param {Event} event
+	 */
+	async function onAudioChange(event) {
+		const input = /** @type {HTMLInputElement} */ (event.currentTarget);
+		const file = input.files?.[0] ?? null;
+		selectedAudio = file;
+		parseWarning = null;
+		autofilledKeys = [];
+		technical = emptyTechnical();
+
+		if (!file) return;
+
+		parsing = true;
+		try {
+			const result = await extractAudioMetadata(file);
+			parseWarning = result.warning;
+
+			const next = { ...fields };
+			/** @type {string[]} */
+			const filled = [];
+			for (const [key, value] of Object.entries(result.fields)) {
+				if (value == null || value === '') continue;
+				if (touched.has(key)) continue;
+				// @ts-expect-error dynamic key
+				next[key] = value;
+				filled.push(key);
+			}
+			fields = next;
+
+			technical = {
+				durationMs: result.technical.durationMs ?? '',
+				bitrate: result.technical.bitrate ?? '',
+				sampleRate: result.technical.sampleRate ?? '',
+				channels: result.technical.channels ?? '',
+				codec: result.technical.codec ?? ''
+			};
+
+			if (result.cover && !touched.has('cover')) {
+				setCoverFile(result.cover);
+				filled.push('cover');
+			}
+
+			autofilledKeys = filled;
+		} finally {
+			parsing = false;
+		}
+	}
+
+	/**
+	 * @param {Event} event
+	 */
+	function onCoverChange(event) {
+		const input = /** @type {HTMLInputElement} */ (event.currentTarget);
+		const file = input.files?.[0] ?? null;
+		markTouched('cover');
+		if (coverPreviewUrl) {
+			URL.revokeObjectURL(coverPreviewUrl);
+			coverPreviewUrl = null;
+		}
+		if (file) {
+			coverPreviewUrl = URL.createObjectURL(file);
+		}
+	}
 
 	function handleSubmit() {
 		busy = true;
 
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			try {
-				await update();
+				await update({ reset: false });
+				if (result.type === 'failure' && result.data) {
+					fields = { ...emptyFields(), ...pickFormFields(result.data) };
+					touched.clear();
+				}
 			} finally {
 				busy = false;
 			}
@@ -50,13 +285,13 @@
 	<main>
 		<p class="eyebrow accent-text">Library</p>
 		<h1 class="display-face">Upload track</h1>
-		<p class="intro">Add audio and metadata to your private library.</p>
+		<p class="intro">Attach audio first — we fill metadata from the file when available.</p>
 
 		<section class="block" aria-labelledby="upload-heading">
 			<div class="block-head">
 				<p class="eyebrow">01</p>
-				<h2 id="upload-heading">New track</h2>
-				<p>Audio file is required. Cover art is optional.</p>
+				<h2 id="upload-heading">Audio file</h2>
+				<p>Required. Tags and cover art are read in your browser before upload.</p>
 			</div>
 
 			{#if form?.message && !busy}
@@ -64,25 +299,106 @@
 			{/if}
 
 			<form method="POST" enctype="multipart/form-data" use:enhance={handleSubmit} aria-busy={busy}>
+				<label for="audio">Audio file</label>
+				<input
+					id="audio"
+					name="audio"
+					type="file"
+					accept="audio/*"
+					required
+					onchange={onAudioChange}
+				/>
+				<p class="hint">Supported: mp3, wav, flac, aac, ogg, m4a (max 100MB).</p>
+
+				{#if parsing}
+					<p class="status" aria-live="polite">Reading file…</p>
+				{:else if techSummary || fieldSummary || parseWarning}
+					<div class="meta-panel" aria-live="polite">
+						{#if techSummary}
+							<p class="summary">{techSummary}</p>
+						{/if}
+						{#if fieldSummary}
+							<p class="summary muted">Autofilled: {fieldSummary}</p>
+						{/if}
+						{#if parseWarning}
+							<p class="summary warn">{parseWarning}</p>
+						{/if}
+						{#if autofilledKeys.length}
+							<button class="text-btn" type="button" onclick={clearAutofilled}>
+								Clear autofilled values
+							</button>
+						{/if}
+					</div>
+				{/if}
+
+				<input type="hidden" name="durationMs" value={technical.durationMs} />
+				<input type="hidden" name="bitrate" value={technical.bitrate} />
+				<input type="hidden" name="sampleRate" value={technical.sampleRate} />
+				<input type="hidden" name="channels" value={technical.channels} />
+				<input type="hidden" name="codec" value={technical.codec} />
+
+				<div class="block-head nested">
+					<p class="eyebrow">02</p>
+					<h2>Metadata</h2>
+					<p>Edit anything before uploading. Manual edits are kept when you pick another file.</p>
+				</div>
+
 				<label for="title">Title</label>
-				<input id="title" name="title" type="text" value={titleValue} required />
+				<input
+					id="title"
+					name="title"
+					type="text"
+					bind:value={fields.title}
+					oninput={() => markTouched('title')}
+					required
+				/>
 
 				<label for="description">Description</label>
-				<textarea id="description" name="description" rows="4">{descriptionValue}</textarea>
+				<textarea
+					id="description"
+					name="description"
+					rows="4"
+					bind:value={fields.description}
+					oninput={() => markTouched('description')}></textarea>
 
 				<label for="artist">Artist</label>
-				<input id="artist" name="artist" type="text" value={artistValue} />
+				<input
+					id="artist"
+					name="artist"
+					type="text"
+					bind:value={fields.artist}
+					oninput={() => markTouched('artist')}
+				/>
 
 				<label for="album">Album</label>
-				<input id="album" name="album" type="text" value={albumValue} />
+				<input
+					id="album"
+					name="album"
+					type="text"
+					bind:value={fields.album}
+					oninput={() => markTouched('album')}
+				/>
 
 				<label for="genre">Genre</label>
-				<input id="genre" name="genre" type="text" value={genreValue} />
+				<input
+					id="genre"
+					name="genre"
+					type="text"
+					bind:value={fields.genre}
+					oninput={() => markTouched('genre')}
+				/>
 
 				<div class="field-row">
 					<div>
 						<label for="year">Year</label>
-						<input id="year" name="year" type="text" inputmode="numeric" value={yearValue} />
+						<input
+							id="year"
+							name="year"
+							type="text"
+							inputmode="numeric"
+							bind:value={fields.year}
+							oninput={() => markTouched('year')}
+						/>
 					</div>
 					<div>
 						<label for="trackNumber">Track number</label>
@@ -91,30 +407,67 @@
 							name="trackNumber"
 							type="text"
 							inputmode="numeric"
-							value={trackNumberValue}
+							bind:value={fields.trackNumber}
+							oninput={() => markTouched('trackNumber')}
 						/>
 					</div>
 					<div>
 						<label for="bpm">BPM</label>
-						<input id="bpm" name="bpm" type="text" inputmode="numeric" value={bpmValue} />
+						<input
+							id="bpm"
+							name="bpm"
+							type="text"
+							inputmode="numeric"
+							bind:value={fields.bpm}
+							oninput={() => markTouched('bpm')}
+						/>
 					</div>
 				</div>
 
 				<label for="isrc">ISRC</label>
-				<input id="isrc" name="isrc" type="text" value={isrcValue} autocapitalize="none" />
+				<input
+					id="isrc"
+					name="isrc"
+					type="text"
+					bind:value={fields.isrc}
+					oninput={() => markTouched('isrc')}
+					autocapitalize="none"
+				/>
 
 				<label for="comment">Comment</label>
-				<textarea id="comment" name="comment" rows="3">{commentValue}</textarea>
+				<textarea
+					id="comment"
+					name="comment"
+					rows="3"
+					bind:value={fields.comment}
+					oninput={() => markTouched('comment')}></textarea>
 
-				<label for="audio">Audio file</label>
-				<input id="audio" name="audio" type="file" accept="audio/*" required />
-				<p class="hint">Supported audio formats depend on your storage adapter.</p>
+				<div class="block-head nested">
+					<p class="eyebrow">03</p>
+					<h2>Cover image</h2>
+					<p>Optional. Embedded art from the audio file is attached automatically when present.</p>
+				</div>
 
 				<label for="cover">Cover image</label>
-				<input id="cover" name="cover" type="file" accept="image/*" />
+				<input
+					id="cover"
+					name="cover"
+					type="file"
+					accept="image/*"
+					bind:this={coverInput}
+					onchange={onCoverChange}
+				/>
+				<p class="hint">jpg, png, or webp · max 5MB.</p>
+
+				{#if coverPreviewUrl}
+					<div class="cover-preview">
+						<img src={coverPreviewUrl} alt="Cover preview" width="160" height="160" />
+						<button class="text-btn" type="button" onclick={clearCover}>Remove cover</button>
+					</div>
+				{/if}
 
 				<div class="form-actions">
-					<button class="pressable" type="submit" disabled={busy}>
+					<button class="pressable" type="submit" disabled={busy || parsing}>
 						{busy ? 'Uploading…' : 'Upload track'}
 					</button>
 					<a class="pressable ghost" href="/library">Cancel</a>
@@ -207,6 +560,12 @@
 		line-height: 1.5;
 	}
 
+	.block-head.nested {
+		margin: 1.75rem 0 1rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+	}
+
 	.banner {
 		margin-top: 1.25rem;
 		padding: 0.85rem 1rem;
@@ -272,6 +631,70 @@
 		color: var(--muted);
 		font-size: 0.72rem;
 		line-height: 1.45;
+	}
+
+	.status {
+		margin: 0 0 1.15rem;
+		font-size: 0.82rem;
+		font-weight: 700;
+	}
+
+	.meta-panel {
+		display: grid;
+		gap: 0.35rem;
+		margin: 0 0 1.25rem;
+		padding: 0.85rem 1rem;
+		border: 1px solid var(--ink);
+		background: color-mix(in srgb, var(--ink) 3%, transparent);
+	}
+
+	.summary {
+		margin: 0;
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1.45;
+	}
+
+	.summary.muted {
+		color: var(--muted);
+		font-weight: 600;
+	}
+
+	.summary.warn {
+		color: var(--ink);
+		font-weight: 700;
+	}
+
+	.text-btn {
+		width: fit-content;
+		margin-top: 0.25rem;
+		padding: 0;
+		border: 0;
+		color: var(--ink);
+		background: transparent;
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+		cursor: pointer;
+	}
+
+	.cover-preview {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 1rem;
+		margin: 0 0 1.25rem;
+	}
+
+	.cover-preview img {
+		display: block;
+		width: 10rem;
+		height: 10rem;
+		border: 1px solid var(--ink);
+		object-fit: cover;
 	}
 
 	.field-row {

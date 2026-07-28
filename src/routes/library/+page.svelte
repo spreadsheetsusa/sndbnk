@@ -1,5 +1,6 @@
 <script>
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import { formatDuration } from '#lib/media/audio-metadata.js';
 
 	let { data } = $props();
 </script>
@@ -71,7 +72,12 @@
 										<span class="track-album">{track.album}</span>
 									{/if}
 								</div>
-								<span class="adapter-badge">{track.storageAdapter}</span>
+								<div class="track-aside">
+									{#if track.durationMs != null}
+										<span class="track-duration">{formatDuration(track.durationMs)}</span>
+									{/if}
+									<span class="adapter-badge">{track.storageAdapter}</span>
+								</div>
 							</a>
 						</li>
 					{/each}
@@ -227,6 +233,21 @@
 		text-decoration: none;
 	}
 
+	.track-aside {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.35rem;
+	}
+
+	.track-duration {
+		color: var(--muted);
+		font-size: 0.75rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.02em;
+	}
+
 	.track-row:hover .track-title {
 		text-decoration: underline;
 		text-underline-offset: 0.2rem;
@@ -307,8 +328,10 @@
 			grid-template-columns: auto 1fr;
 		}
 
-		.adapter-badge {
+		.track-aside {
 			grid-column: 2;
+			flex-direction: row;
+			align-items: center;
 			justify-self: start;
 		}
 	}

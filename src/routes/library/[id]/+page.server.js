@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 
+import { embedTrackTags } from '#lib/server/media/embed-tags';
 import { getProfileByUserId } from '#lib/server/tenant';
 import { deleteTrackForUser, getOwnedTrack, updateTrackFromForm } from '#lib/server/tracks';
 import { safeRedirect } from '#lib/server/safe-redirect';
@@ -44,6 +45,11 @@ export const load = async ({ locals, params }) => {
 			audioBytes: row.audioBytes,
 			coverFilename: row.coverFilename,
 			hasCover: Boolean(row.coverFilename),
+			durationMs: row.durationMs ?? '',
+			bitrate: row.bitrate ?? '',
+			sampleRate: row.sampleRate ?? '',
+			channels: row.channels ?? '',
+			codec: row.codec ?? '',
 			storageAdapter: row.storageAdapter
 		}
 	};
@@ -75,6 +81,23 @@ export const actions = {
 		}
 
 		return { success: 'Track updated.' };
+	},
+
+	embedTags: async ({ locals, params }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const result = await embedTrackTags(locals.user.id, params.id);
+		if (!result.ok) {
+			return fail(400, { embedError: result.message });
+		}
+
+		return {
+			embedded: result.written.length
+				? `Wrote to the audio file: ${result.written.join(', ')}.`
+				: 'Nothing to write — the audio file already has a value for every field.'
+		};
 	},
 
 	delete: async ({ locals, params }) => {

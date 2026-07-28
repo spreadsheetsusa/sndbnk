@@ -47,6 +47,24 @@ function isFile(value) {
 	return typeof File !== 'undefined' && value instanceof File && value.size > 0;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Coerce a form value to an integer in range, or null if missing/invalid.
+ * Invalid values are dropped silently (descriptive metadata, not a hard fail).
+ * @param {FormDataEntryValue | null} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number | null}
+ */
+function optionalBoundedInt(value, min, max) {
+	const raw = value?.toString().trim() ?? '';
+	if (!raw) return null;
+	const n = Number.parseInt(raw, 10);
+	if (!Number.isInteger(n) || n < min || n > max) return null;
+	return n;
+}
+
 /**
  * @param {FormData} formData
  */
@@ -99,6 +117,14 @@ export function parseTrackMetadata(formData) {
 		return { ok: false, message: 'Title must be 200 characters or fewer.' };
 	}
 
+	const durationMs = optionalBoundedInt(formData.get('durationMs'), 0, DAY_MS);
+	const bitrate = optionalBoundedInt(formData.get('bitrate'), 0, 10_000_000);
+	const sampleRate = optionalBoundedInt(formData.get('sampleRate'), 0, 768_000);
+	const channels = optionalBoundedInt(formData.get('channels'), 1, 32);
+
+	const codecRaw = formData.get('codec')?.toString().trim() ?? '';
+	const codec = codecRaw ? codecRaw.slice(0, 40) : null;
+
 	return {
 		ok: true,
 		metadata: {
@@ -111,7 +137,12 @@ export function parseTrackMetadata(formData) {
 			trackNumber,
 			bpm,
 			isrc,
-			comment
+			comment,
+			durationMs,
+			bitrate,
+			sampleRate,
+			channels,
+			codec
 		}
 	};
 }

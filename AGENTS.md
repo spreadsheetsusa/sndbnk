@@ -40,3 +40,8 @@ This is `sndbnk`, a SvelteKit app (Vite dev server) using Drizzle ORM over SQLit
 - **Auth schema generation:** `bun run auth:schema` runs the better-auth CLI under Bun so it can load `bun:sqlite`. The generated `src/lib/server/db/auth.schema.js` is committed.
 - **Lint:** `bun run lint` (`prettier --check`). A few committed files currently fail the check; that is pre-existing and unrelated to setup.
 - **Core flow to smoke-test:** register at `/signup` or log in at `/signin`; both redirect to `/`, where the authenticated header shows the user and provides sign-out.
+
+## Learned Workspace Facts
+
+- The production build uses `svelte-adapter-bun`; `systemd.service` runs `build/index.js` with Bun from `/var/www/sndbnk`, and Caddy proxies public traffic to the app on `localhost:3000`.
+- Use the package `#lib` import map for source aliases; this project does not use the removed `$lib` alias.

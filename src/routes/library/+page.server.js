@@ -28,6 +28,7 @@ export const load = async ({ locals }) => {
 			artist: t.artist,
 			album: t.album,
 			genre: t.genre,
+			durationMs: t.durationMs,
 			storageAdapter: t.storageAdapter,
 			hasCover: Boolean(t.coverFilename),
 			createdAt: t.createdAt
