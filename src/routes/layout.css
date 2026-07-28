@@ -15,7 +15,7 @@
 	--chroma-red: #ff2f4f;
 	--chroma-cyan: #21e0ff;
 	--chroma-offset: 0.022em;
-	--glitch-offset: 0.06em;
+	--glitch-offset: 0.075em;
 	--glitch-blend: multiply;
 	/* Shared page rail so SiteHeader stays aligned across routes */
 	--site-shell-max: 1600px;
@@ -173,23 +173,23 @@ h1.display-face {
 	}
 
 	4% {
-		clip-path: inset(10% 0 68% 0);
-		transform: translate(-0.14em, -0.03em);
+		clip-path: inset(6% 0 58% 0);
+		transform: translate(-0.16em, -0.03em);
 	}
 
 	8% {
-		clip-path: inset(58% 0 22% 0);
-		transform: translate(0.12em, 0.02em);
+		clip-path: inset(52% 0 14% 0);
+		transform: translate(0.14em, 0.02em);
 	}
 
 	12% {
-		clip-path: inset(32% 0 50% 0);
-		transform: translate(-0.09em, 0.03em);
+		clip-path: inset(28% 0 42% 0);
+		transform: translate(-0.1em, 0.03em);
 	}
 
 	16% {
-		clip-path: inset(76% 0 6% 0);
-		transform: translate(0.17em, -0.02em);
+		clip-path: inset(70% 0 4% 0);
+		transform: translate(0.19em, -0.02em);
 	}
 
 	20% {
@@ -198,18 +198,18 @@ h1.display-face {
 	}
 
 	46% {
-		clip-path: inset(22% 0 58% 0);
-		transform: translate(-0.19em, 0.01em);
+		clip-path: inset(18% 0 50% 0);
+		transform: translate(-0.22em, 0.01em);
 	}
 
 	50% {
-		clip-path: inset(4% 0 82% 0);
-		transform: translate(0.1em, -0.03em);
+		clip-path: inset(2% 0 70% 0);
+		transform: translate(0.12em, -0.03em);
 	}
 
 	54% {
-		clip-path: inset(66% 0 14% 0);
-		transform: translate(-0.13em, 0.02em);
+		clip-path: inset(60% 0 8% 0);
+		transform: translate(-0.15em, 0.02em);
 	}
 
 	58% {
@@ -218,8 +218,8 @@ h1.display-face {
 	}
 
 	84% {
-		clip-path: inset(38% 0 44% 0);
-		transform: translate(0.2em, 0);
+		clip-path: inset(34% 0 34% 0);
+		transform: translate(0.22em, 0);
 	}
 
 	88% {
@@ -236,23 +236,23 @@ h1.display-face {
 	}
 
 	4% {
-		clip-path: inset(64% 0 18% 0);
-		transform: translate(0.15em, 0.03em);
+		clip-path: inset(58% 0 8% 0);
+		transform: translate(0.17em, 0.03em);
 	}
 
 	8% {
-		clip-path: inset(18% 0 62% 0);
-		transform: translate(-0.13em, -0.02em);
+		clip-path: inset(12% 0 54% 0);
+		transform: translate(-0.15em, -0.02em);
 	}
 
 	12% {
-		clip-path: inset(46% 0 34% 0);
-		transform: translate(0.09em, -0.03em);
+		clip-path: inset(42% 0 26% 0);
+		transform: translate(0.1em, -0.03em);
 	}
 
 	16% {
-		clip-path: inset(2% 0 82% 0);
-		transform: translate(-0.16em, 0.02em);
+		clip-path: inset(0 0 72% 0);
+		transform: translate(-0.18em, 0.02em);
 	}
 
 	20% {
@@ -261,18 +261,18 @@ h1.display-face {
 	}
 
 	46% {
-		clip-path: inset(72% 0 10% 0);
-		transform: translate(0.18em, -0.01em);
+		clip-path: inset(64% 0 6% 0);
+		transform: translate(0.2em, -0.01em);
 	}
 
 	50% {
-		clip-path: inset(30% 0 52% 0);
-		transform: translate(-0.11em, 0.03em);
+		clip-path: inset(24% 0 44% 0);
+		transform: translate(-0.13em, 0.03em);
 	}
 
 	54% {
-		clip-path: inset(8% 0 74% 0);
-		transform: translate(0.14em, -0.02em);
+		clip-path: inset(4% 0 66% 0);
+		transform: translate(0.16em, -0.02em);
 	}
 
 	58% {
@@ -281,8 +281,8 @@ h1.display-face {
 	}
 
 	84% {
-		clip-path: inset(54% 0 30% 0);
-		transform: translate(-0.2em, 0);
+		clip-path: inset(48% 0 22% 0);
+		transform: translate(-0.22em, 0);
 	}
 
 	88% {
