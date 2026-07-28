@@ -213,12 +213,11 @@
 		flex-shrink: 0;
 		transition:
 			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
-			color 120ms ease;
+			opacity 120ms ease;
 	}
 
-	.menu-toggle:hover,
-	.menu-toggle[aria-expanded='true'] {
-		color: var(--accent);
+	.menu-toggle:hover {
+		opacity: 0.55;
 	}
 
 	.menu-toggle:active {

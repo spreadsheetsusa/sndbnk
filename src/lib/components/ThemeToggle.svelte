@@ -46,11 +46,13 @@
 		flex-shrink: 0;
 		transition:
 			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
-			color 120ms ease;
+			opacity 120ms ease;
 	}
 
+	/* Without a frame to fill, dimming reads better than an accent tint that would
+	   lose contrast against the light paper background. */
 	.theme-toggle:hover {
-		color: var(--accent);
+		opacity: 0.55;
 	}
 
 	.theme-toggle:active {
