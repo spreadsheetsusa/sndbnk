@@ -46,6 +46,8 @@ html {
 	min-width: 320px;
 	background: var(--paper);
 	scroll-behavior: smooth;
+	/* Keep the centered shell from shifting when a page gains/loses a scrollbar */
+	scrollbar-gutter: stable;
 }
 
 body {
