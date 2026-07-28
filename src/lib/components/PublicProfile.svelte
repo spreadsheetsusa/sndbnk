@@ -32,7 +32,7 @@
 
 	<main>
 		<section class="hero" aria-labelledby="profile-name">
-			<p class="eyebrow accent-text">Public profile</p>
+			<p class="eyebrow eyebrow-chip accent-text">Public profile</p>
 			<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
 			<p class="handle">@{data.profile.username}</p>
 			<p class="lede">

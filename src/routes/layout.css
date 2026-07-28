@@ -107,6 +107,19 @@ a {
 	text-transform: uppercase;
 }
 
+/* Accent text on the paper background is hard to read in light mode, so page-level
+   taglines get an inverse chip. The box-shadow spread stands in for padding, keeping
+   the text itself flush with the headings below it. */
+.eyebrow-chip {
+	width: fit-content;
+}
+
+html:not(.dark) .eyebrow-chip {
+	color: var(--accent);
+	background: var(--inverse);
+	box-shadow: 0 0 0 0.45rem var(--inverse);
+}
+
 .accent-fill {
 	background: var(--accent);
 	color: var(--on-accent);

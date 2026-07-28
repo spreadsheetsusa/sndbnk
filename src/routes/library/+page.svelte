@@ -14,7 +14,7 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow accent-text">Library</p>
+		<p class="eyebrow eyebrow-chip accent-text">Library</p>
 		<h1 class="display-face">Your tracks</h1>
 		<p class="intro">Upload, organize, and manage the audio in your private library.</p>
 

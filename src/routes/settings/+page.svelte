@@ -60,7 +60,7 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow accent-text">Account</p>
+		<p class="eyebrow eyebrow-chip accent-text">Account</p>
 		<h1 class="display-face">Settings</h1>
 		<p class="intro">Your identity, plan, and where the world finds you.</p>
 
