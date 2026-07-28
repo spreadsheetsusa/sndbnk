@@ -3,32 +3,53 @@
 Things that look wrong because they are. Read this before "fixing" something that turns out to be
 deliberate, and before assuming something deliberate is safe.
 
-## Schema drift between Drizzle and the push script
+## A stale `.env` breaks the app at boot
 
-**Severity: breaks production features.**
+Every variable in [`src/env.js`](../src/env.js) is required unless it declares a validator saying
+otherwise. Add one there and every existing `.env` — local checkouts, the VM snapshot — starts
+failing **every route with a 500**, not just the feature that needs it:
 
-There are two schema definitions:
+```
+Invalid environment variables
+BODY_SIZE_LIMIT
+  - Value is missing. If it is optional, add a validator declaring it as such.
+```
 
-- [`src/lib/server/db/schema.js`](../src/lib/server/db/schema.js) — what the app queries
-- [`scripts/push-sqlite-schema.js`](../scripts/push-sqlite-schema.js) — what `bun run db:push`
-  actually applies, and what the Lightsail deploy runs
+That is what happens after pulling the `BODY_SIZE_LIMIT` change if your `.env` predates it. The
+deploy workflow forces the value on the server, and `.env.example` lists it, but nothing repairs an
+existing local file.
 
-The script is behind. It is missing:
+So when you add an env var: update `.env.example`, update the deploy workflow's managed list, and
+either give it a validator marking it optional or expect everyone to edit their `.env`.
 
-- the `track_comment` and `track_like` tables entirely
-- `track.waveform`, `track.duration_ms`, `track.bitrate`, `track.sample_rate`, `track.channels`,
-  and `track.codec`
+## The signup username `pattern` is silently dead
 
-Because every statement is `CREATE TABLE IF NOT EXISTS`, the missing **tables** will be created on
-the next deploy, but the missing **columns** never will — `IF NOT EXISTS` is a no-op against an
-existing table and there is no `ALTER TABLE` step. So on any database that predates the audio
-playback work, likes, comments, and waveforms will fail at the SQL layer.
+[`src/routes/signup/+page.svelte`](../src/routes/signup/+page.svelte) sets:
 
-It also defines `track_userId_idx`, which `schema.js` does not.
+```html
+pattern="[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?"
+```
 
-Fixing it means bringing the DDL in sync and adding guarded `ALTER TABLE … ADD COLUMN` statements
-for the missing columns. Until then, **any schema change needs a matching edit to that script**, and
-column additions need explicit migration handling.
+Modern browsers compile the `pattern` attribute with the regex `v` flag, under which a bare `-` at the
+end of a character class is a syntax error. The browser therefore throws and **discards the pattern
+entirely**, so client-side username validation never runs and the console shows:
+
+```
+Pattern attribute value … is not a valid regular expression: Invalid character class
+```
+
+Verifiable directly:
+
+```js
+new RegExp('[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?', 'u'); // fine
+new RegExp('[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?', 'v'); // throws
+```
+
+Not a security problem — `validateUsername()` in
+[`src/lib/server/username.js`](../src/lib/server/username.js) still rejects bad usernames server-side,
+and its regex is used without the `v` flag so it is unaffected. The cost is a lost instant-feedback
+guardrail plus console noise. The fix is to escape the dash (`[a-zA-Z0-9\-]`) or move it to the front
+of the class.
 
 ## `.env` is committed with live secrets
 

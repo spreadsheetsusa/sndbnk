@@ -50,19 +50,23 @@ bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js
 
 `bun run db:push` runs [`scripts/push-sqlite-schema.js`](scripts/push-sqlite-schema.js), which applies
 hand-written DDL through `bun:sqlite` because `drizzle-kit push` loads `better-sqlite3` and Bun cannot
-open it. **A schema change in `src/lib/server/db/schema.js` needs a matching edit to that script**, and
-column additions need an explicit `ALTER TABLE` — see
-[docs/data-model.md](docs/data-model.md) and [docs/known-issues.md](docs/known-issues.md).
-`bun run db:push:kit` runs drizzle-kit under Node as an escape hatch.
+open it. That script is the migration system: **a schema change in `src/lib/server/db/schema.js` needs
+a matching edit there**, and a new column goes in two places — the `CREATE TABLE` body for fresh
+databases, and the `ensureColumns()` list for existing ones. See
+[docs/data-model.md](docs/data-model.md). `bun run db:push:kit` runs drizzle-kit under Node as an
+escape hatch.
 
 ## Environment
 
 Variables are declared in [`src/env.js`](src/env.js) and read through `$app/env/private` /
 `$app/env/public`. `.env.example` lists them all: `DATABASE_URL`, `ORIGIN`, `PUBLIC_BASE_DOMAIN`,
-`BETTER_AUTH_SECRET`, `MEDIA_ROOT`, `STORAGE_SECRET`, plus the optional `PROTOCOL_HEADER` /
+`BETTER_AUTH_SECRET`, `MEDIA_ROOT`, `BODY_SIZE_LIMIT`, `STORAGE_SECRET`, plus `PROTOCOL_HEADER` /
 `HOST_HEADER` that the Bun adapter needs behind a proxy.
 
 For dev: `ORIGIN=http://localhost:5173`, `PUBLIC_BASE_DOMAIN=localhost`.
+
+**Every declared variable is required.** If your `.env` predates one, the app returns 500 on every
+route at boot with `Invalid environment variables` — copy the missing line from `.env.example`.
 
 **`.env` is currently tracked in git** (a temporary deploy workaround, see
 [docs/known-issues.md](docs/known-issues.md)), so do not add new secrets to it. The SQLite file is

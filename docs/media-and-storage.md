@@ -102,6 +102,10 @@ Validation limits live at the top of [`tracks.js`](../src/lib/server/tracks.js):
 `AUDIO_MAX_BYTES` 100MB, `COVER_MAX_BYTES` 5MB, with a MIME-plus-extension allowlist rather than
 trusting the browser's `Content-Type` alone.
 
+Those limits are only reachable if `BODY_SIZE_LIMIT` is above them. `svelte-adapter-bun` defaults to
+512K and answers `413` before any app code runs, so raising an app-side limit means raising that env
+var too — see [operations.md](operations.md).
+
 Client-side, [`audio-metadata.js`](../src/lib/media/audio-metadata.js) probes the file with
 `music-metadata` before submit and posts duration, bitrate, sample rate, channels, and codec as
 hidden fields. Because that data is client-supplied it is treated as untrusted: `optionalBoundedInt`

@@ -12,8 +12,9 @@ alwaysApply: true
    the whole repo to make the check green.
 3. `bun run dev` and exercise the surface you changed. There is no test runner in this project, so
    manual verification is the verification.
-4. If you changed the schema, apply it (`bun run db:push`) **and** edit
-   `scripts/push-sqlite-schema.js` to match — see `docs/data-model.md`.
+4. If you changed the schema, edit `scripts/push-sqlite-schema.js` to match (new columns go in both
+   the `CREATE TABLE` body and the `ensureColumns()` list) and apply it with `bun run db:push` — see
+   `docs/data-model.md`.
 5. If you touched anything visual, check it in both light and dark mode.
 
 ## Smoke test

@@ -58,7 +58,7 @@ components never import from `src/lib/server/`.
 ```sh
 bun run dev          # Vite on http://localhost:5173
 bun run build        # svelte-adapter-bun → build/index.js
-bun run db:push      # apply schema (also edit scripts/push-sqlite-schema.js first)
+bun run db:push      # apply schema (edit scripts/push-sqlite-schema.js to match first)
 bun run lint         # prettier --check .
 bun run format       # prettier --write .
 bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js

@@ -41,7 +41,7 @@ Four constraints break the app if violated. Everything else is convention.
 
 ```sh
 bun install
-bun run db:push      # apply SQLite schema (see data-model.md for the caveat)
+bun run db:push      # apply SQLite schema (see data-model.md before changing it)
 bun run dev          # Vite on http://localhost:5173
 bun run build        # svelte-adapter-bun → build/index.js
 bun run lint         # prettier --check .

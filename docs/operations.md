@@ -37,13 +37,22 @@ Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` 
 | `PUBLIC_BASE_DOMAIN` | **public** | `localhost`             | `sndbnk.com`         | apex hostname for tenant classification                                 |
 | `BETTER_AUTH_SECRET` | private    | any                     | 32+ chars            | signs sessions; changing it logs everyone out                           |
 | `MEDIA_ROOT`         | private    | `./media`               | `./media`            | local upload root                                                       |
+| `BODY_SIZE_LIMIT`    | private    | `110M`                  | `110M`               | max request body; the adapter default of 512K rejects uploads           |
 | `STORAGE_SECRET`     | private    | any                     | 32+ chars            | encrypts BYOS credentials; changing it invalidates every stored SSH key |
 | `PROTOCOL_HEADER`    | adapter    | unset                   | `X-Forwarded-Proto`  | lets the Bun adapter rebuild URLs behind Caddy                          |
 | `HOST_HEADER`        | adapter    | unset                   | `X-Forwarded-Host`   | same                                                                    |
 
+**Every variable in `src/env.js` is required** unless it declares a validator saying otherwise. A
+`.env` missing one makes the app return 500 on _every_ route at boot, not just on the feature that
+needs it. If your checkout predates a variable, copy it from `.env.example`.
+
 `PROTOCOL_HEADER` and `HOST_HEADER` are read by `svelte-adapter-bun` itself, not by `src/env.js`.
 Without them the app sees `http://localhost:3000` as its origin and better-auth rejects sign-ins with
 `INVALID_ORIGIN` — that is the single most likely cause of "login works locally, fails in prod".
+
+`BODY_SIZE_LIMIT` must exceed the app's own ceilings (100MB audio + 5MB cover + form overhead), or the
+adapter answers `413` before `validateAudioFile()` ever runs — which presents as a broken upload form
+rather than a size rejection.
 
 **`.env` is currently committed to the repo** with live secrets, as a temporary deploy workaround.
 See [known-issues.md](known-issues.md).
@@ -72,12 +81,14 @@ Steps, in order:
 2. Snapshot the existing `.env`, `git pull --ff-only origin main`, then run a Python script that
    merges it back: `BETTER_AUTH_SECRET`, `STORAGE_SECRET`, `DATABASE_URL`, and `MEDIA_ROOT` are
    preserved from the live server, while `ORIGIN`, `PUBLIC_BASE_DOMAIN`, `PROTOCOL_HEADER`, and
-   `HOST_HEADER` are forced to their production values. Missing secrets are generated.
+   `HOST_HEADER` are forced to their production values. Missing secrets are generated, and
+   `BODY_SIZE_LIMIT` is raised to `110M` if it is absent or parses below that.
 3. Fix ownership and permissions on the SQLite file **and its `-wal` / `-shm` / `-journal`
    sidecars** — SQLite needs write access to all of them, and getting this wrong produces
    read-only-database errors at runtime.
 4. Copy `systemd.service` from the repo to `/etc/systemd/system/sndbnk.service`, `daemon-reload`.
-5. `bun install`, source `.env`, `bun run db:push`, `bun run build`.
+5. `bun install`, source `.env`, `bun run db:push` (which also applies any missing columns via
+   `ensureColumns()`), `bun run build`.
 6. `systemctl restart sndbnk`, confirm `is-active`.
 7. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with
    `origin: https://sndbnk.com`. A `400`/`401` means the origin was accepted and the deploy passes.
@@ -138,13 +149,15 @@ CNAMEs to `{username}.sndbnk.com` after verification.
 
 | Symptom                                                  | Likely cause                                                                                                      |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Every route 500s with `Invalid environment variables`    | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                |
 | Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`             |
 | `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                    |
 | Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value |
 | Tenant host returns 404                                  | profile missing, plan is not `premium`, or `customDomainStatus` is not `active`                                   |
 | Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                     |
 | Waveforms are flat placeholder bars                      | `ffmpeg` not installed on the host                                                                                |
-| Likes or comments 500 in prod                            | schema drift — see [known-issues.md](known-issues.md)                                                             |
+| Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                  |
+| A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but not to `ensureColumns()` in the push script                               |
 | `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                |
 
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
