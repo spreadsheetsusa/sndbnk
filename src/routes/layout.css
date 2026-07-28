@@ -1,15 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Audiowide&display=swap');
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
 	--accent: #c8ff3d;
 	--ink: #11110f;
 	--paper: #f2f0e8;
 	--muted: #696861;
+	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
 	color: var(--ink);
 	background: var(--paper);
+}
+
+.dark {
+	--ink: #f2f0e8;
+	--paper: #141410;
+	--muted: #a8a69c;
+	color-scheme: dark;
 }
 
 * {
@@ -27,8 +37,9 @@ body {
 	min-width: 320px;
 	min-height: 100vh;
 	background:
-		linear-gradient(rgba(17, 17, 15, 0.035) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(17, 17, 15, 0.035) 1px, transparent 1px), var(--paper);
+		linear-gradient(color-mix(in srgb, var(--ink) 3.5%, transparent) 1px, transparent 1px),
+		linear-gradient(90deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 1px, transparent 1px),
+		var(--paper);
 	background-size: 32px 32px;
 }
 

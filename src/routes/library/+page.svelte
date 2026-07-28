@@ -1,4 +1,6 @@
 <script>
+	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+
 	let { data } = $props();
 </script>
 
@@ -15,6 +17,7 @@
 			<a href="/settings">Settings</a>
 			<a href="/users/{data.profile.username}">View profile</a>
 			<a href="/">Home</a>
+			<ThemeToggle />
 		</nav>
 	</header>
 
@@ -143,7 +146,7 @@
 	.block {
 		margin-top: clamp(2.75rem, 7vw, 4rem);
 		padding-top: clamp(1.75rem, 4vw, 2.25rem);
-		border-top: 1px solid rgb(17 17 15 / 18%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.8s ease both;
 	}
 
@@ -207,11 +210,11 @@
 	}
 
 	.track-list li {
-		border-top: 1px solid rgb(17 17 15 / 16%);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
 	}
 
 	.track-list li:last-child {
-		border-bottom: 1px solid rgb(17 17 15 / 16%);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
 	}
 
 	.track-row {
@@ -246,8 +249,9 @@
 
 	.cover-placeholder {
 		background:
-			linear-gradient(135deg, rgb(17 17 15 / 8%) 25%, transparent 25%),
-			linear-gradient(225deg, rgb(17 17 15 / 8%) 25%, transparent 25%), var(--paper);
+			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			var(--paper);
 		background-size: 12px 12px;
 	}
 
