@@ -26,7 +26,8 @@
 		"drizzle-orm": "^0.45.2",
 		"music-metadata": "^11.14.0",
 		"ssh2": "^1.17.0",
-		"taglib-wasm": "^1.6.1"
+		"taglib-wasm": "^1.6.1",
+		"wavesurfer.js": "^7.12.11"
 	},
 	"devDependencies": {
 		"@sveltejs/kit": "next",
