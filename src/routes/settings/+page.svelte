@@ -1,7 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
-	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data, form } = $props();
 
@@ -57,15 +57,7 @@
 </svelte:head>
 
 <div class="settings-page">
-	<header class="site-header">
-		<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-		<nav aria-label="Account">
-			<a href="/users/{data.profile.username}">View profile</a>
-			<a href="/library">Library</a>
-			<a href="/">Home</a>
-			<ThemeToggle />
-		</nav>
-	</header>
+	<SiteHeader />
 
 	<main>
 		<p class="eyebrow accent-text">Account</p>
@@ -412,36 +404,6 @@
 		min-height: 100vh;
 		margin: 0 auto;
 		padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1.25rem, 4vw, 2.5rem) 4rem;
-	}
-
-	.site-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: clamp(2rem, 5vw, 3.5rem);
-	}
-
-	.logo {
-		color: var(--ink);
-		font-size: clamp(1.5rem, 3vw, 2rem);
-		line-height: 1;
-		text-decoration: none;
-	}
-
-	nav {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	nav a {
-		color: var(--ink);
-		text-underline-offset: 0.25rem;
 	}
 
 	main > .eyebrow {

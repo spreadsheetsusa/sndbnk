@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
 
 	let { data, form } = $props();
@@ -271,16 +271,7 @@
 </svelte:head>
 
 <div class="library-page">
-	<header class="site-header">
-		<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-		<nav aria-label="Library">
-			<a href="/library" aria-current="page">Library</a>
-			<a href="/settings">Settings</a>
-			<a href="/users/{data.profile.username}">View profile</a>
-			<a href="/">Home</a>
-			<ThemeToggle />
-		</nav>
-	</header>
+	<SiteHeader />
 
 	<main>
 		<p class="eyebrow accent-text">Library</p>
@@ -483,41 +474,6 @@
 		min-height: 100vh;
 		margin: 0 auto;
 		padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1.25rem, 4vw, 2.5rem) 4rem;
-	}
-
-	.site-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: clamp(2rem, 5vw, 3.5rem);
-	}
-
-	.logo {
-		color: var(--ink);
-		font-size: clamp(1.5rem, 3vw, 2rem);
-		line-height: 1;
-		text-decoration: none;
-	}
-
-	nav {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: flex-end;
-		gap: 0.75rem 1rem;
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	nav a {
-		color: var(--ink);
-		text-underline-offset: 0.25rem;
-	}
-
-	nav a[aria-current='page'] {
-		text-decoration: underline;
 	}
 
 	main > .eyebrow {

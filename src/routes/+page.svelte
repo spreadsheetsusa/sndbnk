@@ -1,7 +1,6 @@
 <script>
-	import { enhance } from '$app/forms';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
-	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data } = $props();
 
@@ -33,24 +32,7 @@
 	<PublicProfile {data} />
 {:else}
 	<div class="landing">
-		<header class="site-header">
-			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-
-			<nav aria-label="Account">
-				{#if data.user}
-					<span class="user-name">Hi, {shortName}</span>
-					<a href="/library">Library</a>
-					<a href="/settings">Settings</a>
-					<form method="POST" action="?/signOut" use:enhance>
-						<button type="submit">Sign out</button>
-					</form>
-				{:else}
-					<a href="/signin">Sign in</a>
-					<a class="nav-cta" href="/signup">Create account</a>
-				{/if}
-				<ThemeToggle />
-			</nav>
-		</header>
+		<SiteHeader --site-header-gap="0" />
 
 		<main>
 			<section class="hero" aria-labelledby="hero-title">
@@ -122,14 +104,6 @@
 		overflow: hidden;
 	}
 
-	.site-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		min-height: 5rem;
-		border-bottom: 1px solid var(--ink);
-	}
-
 	.logo {
 		color: var(--ink);
 		font-size: clamp(1.5rem, 2.5vw, 2.1rem);
@@ -137,47 +111,9 @@
 		text-decoration: none;
 	}
 
-	nav,
-	nav form,
 	.hero-actions {
 		display: flex;
 		align-items: center;
-	}
-
-	nav {
-		gap: clamp(0.75rem, 2vw, 1.75rem);
-	}
-
-	nav a,
-	nav button,
-	.user-name {
-		color: var(--ink);
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-decoration: none;
-		text-transform: uppercase;
-	}
-
-	nav button {
-		padding: 0;
-		border: 0;
-		background: transparent;
-		cursor: pointer;
-	}
-
-	nav a:not(.nav-cta),
-	nav button {
-		text-decoration: underline;
-		text-decoration-thickness: 1px;
-		text-underline-offset: 0.3em;
-	}
-
-	.nav-cta {
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--ink);
-		color: var(--on-accent);
-		background: var(--accent);
 	}
 
 	.hero {
@@ -448,19 +384,6 @@
 	@media (max-width: 620px) {
 		.landing {
 			padding: 0 1rem;
-		}
-
-		.site-header {
-			min-height: 4.5rem;
-		}
-
-		.user-name,
-		nav a:not(.nav-cta) {
-			display: none;
-		}
-
-		.nav-cta {
-			padding: 0.6rem 0.75rem;
 		}
 
 		.hero {

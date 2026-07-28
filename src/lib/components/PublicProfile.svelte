@@ -1,5 +1,5 @@
 <script>
-	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	/**
 	 * @typedef {{
@@ -27,21 +27,7 @@
 
 <div class="profile-page" class:tenant-host={data.viaTenantHost}>
 	{#if !data.viaTenantHost}
-		<header class="site-header">
-			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-			<nav aria-label="Account">
-				{#if data.viewer?.isOwner}
-					<a href="/settings">Settings</a>
-				{:else if data.viewer}
-					<a href="/settings">Settings</a>
-					<a href="/">Home</a>
-				{:else}
-					<a href="/signin">Sign in</a>
-					<a class="nav-cta" href="/signup">Create account</a>
-				{/if}
-				<ThemeToggle />
-			</nav>
-		</header>
+		<SiteHeader />
 	{/if}
 
 	<main>
@@ -114,48 +100,11 @@
 		align-content: center;
 	}
 
-	.site-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: clamp(2rem, 6vw, 4rem);
-	}
-
 	.logo {
 		color: var(--ink);
 		font-size: clamp(1.5rem, 3vw, 2rem);
 		line-height: 1;
 		text-decoration: none;
-	}
-
-	nav {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem 1.1rem;
-		align-items: center;
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	nav a {
-		color: var(--ink);
-		text-decoration: none;
-		text-underline-offset: 0.25rem;
-	}
-
-	nav a:hover {
-		text-decoration: underline;
-	}
-
-	.nav-cta {
-		padding: 0.55rem 0.85rem;
-		border: 1px solid var(--ink);
-		color: var(--on-accent);
-		background: var(--accent);
-		box-shadow: 3px 3px 0 var(--ink);
 	}
 
 	.hero {
