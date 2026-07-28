@@ -1,0 +1,65 @@
+---
+description: What sndbnk is, its hard constraints, and where to find things
+alwaysApply: true
+---
+
+# sndbnk
+
+A SoundCloud-style audio host. Creators upload tracks; every creator gets a public profile reachable
+by path, by subdomain, or on their own custom domain. SvelteKit + Svelte 5 runes, plain JS with
+JSDoc, Drizzle over SQLite, better-auth, running on Bun.
+
+## Hard constraints
+
+Violating any of these breaks the app.
+
+- **Bun, not Node.** `src/lib/server/db/index.js` imports `bun:sqlite`. Every command goes through
+  Bun (`bun run dev`, `bun run build`, `bun x …`).
+- **`#lib/...`, never `$lib`.** It is a package `imports` map in `package.json`; the `$lib` alias was
+  removed from this project.
+- **`safeRedirect()` from `#lib/server/safe-redirect`, never `redirect()` from `@sveltejs/kit`** in
+  server code. Kit's version crashes under `svelte-adapter-bun`.
+- **Plain JS with JSDoc types.** `jsconfig.json` sets `checkJs: false`. Do not add `.ts` files, do
+  not add a type-check step, do not convert JSDoc to TS syntax.
+- **Env through `$app/env/private` / `$app/env/public`**, declared in `src/env.js`. `process.env`
+  only in build config and standalone scripts.
+
+## Where things live
+
+| Area | Path |
+| --- | --- |
+| Hooks (tenant + auth) | `src/hooks.server.js` |
+| Routes, loads, actions, API | `src/routes/**` |
+| Server services | `src/lib/server/**` |
+| Schema | `src/lib/server/db/schema.js` (+ generated `auth.schema.js`) |
+| Components | `src/lib/components/**` |
+| Global player state | `src/lib/player/player.svelte.js` |
+| Design tokens and global CSS | `src/routes/layout.css` |
+| Schema apply script | `scripts/push-sqlite-schema.js` |
+
+Routes call `src/lib/server/*` services; services own `db`. Routes never query `db` directly, and
+components never import from `src/lib/server/`.
+
+## Read the docs before non-trivial work
+
+| Task | Doc |
+| --- | --- |
+| Anything architectural | `docs/architecture.md` |
+| Tables, columns, queries, schema changes | `docs/data-model.md` |
+| Pages, loads, actions, endpoints | `docs/routing-and-forms.md` |
+| `.svelte` / `.svelte.js` files | `docs/reactivity.md` |
+| Styling, colors, dark mode | `docs/design-system.md` |
+| Uploads, waveforms, tags, storage | `docs/media-and-storage.md` |
+| Env, deploy, production debugging | `docs/operations.md` |
+| Something looks broken or dead | `docs/known-issues.md` |
+
+## Commands
+
+```sh
+bun run dev          # Vite on http://localhost:5173
+bun run build        # svelte-adapter-bun → build/index.js
+bun run db:push      # apply schema (also edit scripts/push-sqlite-schema.js first)
+bun run lint         # prettier --check .
+bun run format       # prettier --write .
+bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js
+```

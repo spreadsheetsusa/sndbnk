@@ -1,0 +1,55 @@
+---
+description: Branching, commits, verification, and Svelte MCP usage
+alwaysApply: true
+---
+
+# Workflow
+
+## Before you finish
+
+1. `bun run format` on every file you touched.
+2. `bun run lint` — note that `main` has pre-existing failures in unrelated files; do not reformat
+   the whole repo to make the check green.
+3. `bun run dev` and exercise the surface you changed. There is no test runner in this project, so
+   manual verification is the verification.
+4. If you changed the schema, apply it (`bun run db:push`) **and** edit
+   `scripts/push-sqlite-schema.js` to match — see `docs/data-model.md`.
+5. If you touched anything visual, check it in both light and dark mode.
+
+## Smoke test
+
+The end-to-end path that catches most regressions:
+
+1. `/signup` → creates a user, a profile, and redirects to `/` with a one-shot notice.
+2. `/library/new` → upload an audio file; lands on `/library/{id}` with metadata and a waveform.
+3. `/users/{username}` → the track appears, plays, and the global player bar persists across
+   navigation.
+4. `/tracks/{id}` → like and comment both work and survive a reload.
+5. Sign out from the header, then `/signin` back in.
+
+## Git
+
+- **Conventional commits**: `feat:`, `fix:`, `refactor:`, `style:`, `chore:`, `docs:`, `test:`.
+  Imperative mood, lowercase after the colon.
+- **Branches**: `ben/<kebab-description>-<4 hex chars>`, e.g. `ben/audio-playback-d428`.
+- One logical change per commit. Do not batch unrelated work.
+- Never force-push or amend an already-pushed commit unless explicitly asked.
+
+## Svelte MCP
+
+For any Svelte 5 or SvelteKit question, use the Svelte MCP server (configured in `.cursor/mcp.json`)
+rather than recalling API details:
+
+1. `list-sections` to see what documentation exists.
+2. `get-documentation` for every section whose `use_cases` match the task.
+3. `svelte-autofixer` on Svelte code you wrote, repeatedly, until it returns nothing.
+
+Do not call `playground-link` for code written into this repo.
+
+## Environment notes
+
+- `.env` and the SQLite file persist across sessions via the VM snapshot; `.env` is currently
+  tracked in git, so do not add secrets to it.
+- `bun run db:push` is non-interactive. `bun run db:push:kit` runs drizzle-kit under Node as an
+  escape hatch.
+- `ffmpeg` is optional; without it uploads get placeholder waveforms instead of real peaks.

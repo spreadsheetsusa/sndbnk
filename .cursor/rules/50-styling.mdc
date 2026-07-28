@@ -1,0 +1,57 @@
+---
+description: Design tokens, scoped CSS, and dark mode rules
+globs: src/**/*.svelte,src/routes/layout.css,src/app.html
+alwaysApply: false
+---
+
+# Styling
+
+Brutalist and print-inspired: 1px ink borders, zero border-radius, offset drop shadows instead of
+blur, one acid-lime accent, paper-grid background, chromatic aberration on display type.
+
+## Tokens only
+
+- **No hardcoded colors outside `src/routes/layout.css`.** Use `var(--ink)`, `var(--paper)`,
+  `var(--accent)`, `var(--on-accent)`, `var(--muted)`, `var(--inverse)`, `var(--on-inverse)`.
+- Tints come from `color-mix(in srgb, var(--ink) 32%, transparent)`, not a new hex value.
+- Layout widths use `--site-shell-max`, `--site-shell-pad-x`, `--site-content-max`,
+  `--site-content-max-wide` so the header and pages stay aligned.
+- New token → add it to both `:root` and `.dark` in `layout.css`.
+- The one exception is canvas rendering, which cannot read custom properties; `Waveform.svelte`
+  resolves them via `getComputedStyle` and re-applies them when the theme flips.
+
+## Scoped CSS, not utilities
+
+- Style inside the component's `<style>` block with semantic class names (`.auth-intro`,
+  `.form-error`).
+- Tailwind is installed but effectively unused in components. Do not convert scoped CSS to utilities,
+  and prefer scoped CSS for new work.
+- Expose variation as a custom property rather than a boolean prop:
+  `<SiteHeader --site-header-gap="0" />`.
+
+## Dark mode
+
+- Class-based on `<html>` via `@custom-variant dark (&:where(.dark, .dark *))`.
+- **Verify every change in both themes.** Accent-on-paper is the known contrast trap — that is what
+  `.eyebrow-chip` exists for.
+- Do not touch the pre-paint script in `src/app.html` unless you intend to; it prevents a flash of
+  the wrong theme.
+- Theme flips animate via the `.theme-transition` class added to `<html>` for 320ms, because custom
+  properties cannot transition.
+
+## Reuse the utilities
+
+`.display-face` (Audiowide), `.eyebrow`, `.eyebrow-chip`, `.accent-fill` / `.accent-text` /
+`.accent-border`, `.pressable`, `.glitch-mark` (needs a matching `data-text` attribute).
+
+An `h1.display-face` gets chromatic fringes automatically — do not re-implement it.
+
+## Non-negotiables
+
+- Buttons and inputs stay square: `border-radius: 0`, `1px solid var(--ink)`. Pressable buttons carry
+  `box-shadow: 5px 5px 0 var(--ink)`.
+- Never remove focus styling. `:focus-visible` is a `2px solid var(--ink)` outline with `3px` offset.
+- Respect `prefers-reduced-motion`. CSS animation is already covered by a global rule; JS-driven
+  motion must check `window.matchMedia('(prefers-reduced-motion: reduce)')`.
+
+Details: `docs/design-system.md`.
