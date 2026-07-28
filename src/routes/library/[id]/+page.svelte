@@ -530,10 +530,16 @@
 
 <style>
 	.library-page {
-		width: min(100%, 920px);
+		width: min(100%, var(--site-shell-max));
 		min-height: 100vh;
 		margin: 0 auto;
-		padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1.25rem, 4vw, 2.5rem) 4rem;
+		padding: 0 var(--site-shell-pad-x) 4rem;
+	}
+
+	main {
+		width: min(100%, var(--site-content-max));
+		margin: 0 auto;
+		padding-top: clamp(1.25rem, 4vw, 2.5rem);
 	}
 
 	main > .eyebrow {

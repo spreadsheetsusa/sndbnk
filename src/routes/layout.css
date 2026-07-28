@@ -11,11 +11,22 @@
 	--muted: #696861;
 	--inverse: #11110f;
 	--on-inverse: #f2f0e8;
+	/* Shared page rail so SiteHeader stays aligned across routes */
+	--site-shell-max: 1600px;
+	--site-shell-pad-x: clamp(1rem, 3.5vw, 4rem);
+	--site-content-max: 920px;
+	--site-content-max-wide: 1100px;
 	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
 	color: var(--ink);
 	background: var(--paper);
+}
+
+@media (max-width: 620px) {
+	:root {
+		--site-shell-pad-x: 1rem;
+	}
 }
 
 .dark {
