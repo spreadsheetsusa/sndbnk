@@ -97,10 +97,10 @@
 
 <style>
 	.landing {
-		width: min(100%, 1600px);
+		width: min(100%, var(--site-shell-max));
 		min-height: 100vh;
 		margin: 0 auto;
-		padding: 0 clamp(1rem, 3.5vw, 4rem);
+		padding: 0 var(--site-shell-pad-x);
 		overflow: hidden;
 	}
 
@@ -382,10 +382,6 @@
 	}
 
 	@media (max-width: 620px) {
-		.landing {
-			padding: 0 1rem;
-		}
-
 		.hero {
 			gap: 3rem;
 			padding: 3.5rem 0 4.5rem;

@@ -89,15 +89,25 @@
 
 <style>
 	.profile-page {
-		width: min(100%, 1100px);
+		width: min(100%, var(--site-shell-max));
 		min-height: 100vh;
 		margin: 0 auto;
-		padding: clamp(1.25rem, 4vw, 2.5rem);
+		padding: 0 var(--site-shell-pad-x) clamp(1.25rem, 4vw, 2.5rem);
 	}
 
 	.profile-page.tenant-host {
 		display: grid;
 		align-content: center;
+	}
+
+	main {
+		width: min(100%, var(--site-content-max-wide));
+		margin: 0 auto;
+		padding-top: clamp(1.25rem, 4vw, 2.5rem);
+	}
+
+	.profile-page.tenant-host main {
+		padding-top: 0;
 	}
 
 	.logo {
