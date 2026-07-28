@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 
-import { getOwnedTrack } from '#lib/server/tracks';
+import { getTrackById } from '#lib/server/tracks';
 import { getStorageAdapter } from '#lib/server/storage';
 
 /**
@@ -23,17 +23,63 @@ function resolveMime(kind, row) {
 	return 'application/octet-stream';
 }
 
-export async function GET({ locals, params }) {
-	if (!locals.user) {
-		error(401, 'Unauthorized');
+/**
+ * Parse a `Range: bytes=...` header against a known total size.
+ * Only single ranges are supported (all browsers request media this way).
+ *
+ * @param {string | null} header
+ * @param {number} size
+ * @returns {{ start: number, end: number } | null}
+ */
+function parseRange(header, size) {
+	if (!header || size <= 0) return null;
+	const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+	if (!match) return null;
+
+	const [, rawStart, rawEnd] = match;
+	if (!rawStart && !rawEnd) return null;
+
+	if (!rawStart) {
+		// Suffix range: last N bytes.
+		const suffix = Number.parseInt(rawEnd, 10);
+		if (!Number.isFinite(suffix) || suffix <= 0) return null;
+		const start = Math.max(0, size - suffix);
+		return { start, end: size - 1 };
 	}
 
+	const start = Number.parseInt(rawStart, 10);
+	const end = rawEnd ? Math.min(Number.parseInt(rawEnd, 10), size - 1) : size - 1;
+	if (!Number.isFinite(start) || start >= size || start > end) return null;
+	return { start, end };
+}
+
+/**
+ * Slice a storage object body to a byte range without copying when possible.
+ * @param {Uint8Array | ReadableStream | Blob} body
+ * @param {number} start
+ * @param {number} end Inclusive.
+ * @returns {Promise<BodyInit>}
+ */
+async function sliceBody(body, start, end) {
+	if (body instanceof Uint8Array) {
+		return body.subarray(start, end + 1);
+	}
+	if (typeof Blob !== 'undefined' && body instanceof Blob) {
+		// Bun.file slices are lazy, so local storage never reads the full file.
+		return body.slice(start, end + 1);
+	}
+	const bytes = new Uint8Array(await new Response(body).arrayBuffer());
+	return bytes.subarray(start, end + 1);
+}
+
+export async function GET({ params, request, setHeaders }) {
 	const kind = params.file;
 	if (kind !== 'audio' && kind !== 'cover') {
 		error(404, 'Not found');
 	}
 
-	const row = await getOwnedTrack(locals.user.id, params.id);
+	// Public read access: tracks are playable from public profile pages.
+	const row = await getTrackById(params.id);
 	if (!row) {
 		error(404, 'Not found');
 	}
@@ -45,11 +91,29 @@ export async function GET({ locals, params }) {
 
 	try {
 		const adapter = await getStorageAdapter(
-			locals.user.id,
+			row.userId,
 			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
 		);
 		const object = await adapter.get(row.folderKey, filename);
 		const mime = resolveMime(kind, row) || object.contentType;
+
+		setHeaders({
+			'accept-ranges': 'bytes',
+			'cache-control': 'private, max-age=3600'
+		});
+
+		const range = parseRange(request.headers.get('range'), object.size);
+		if (range) {
+			const body = await sliceBody(object.body, range.start, range.end);
+			return new Response(body, {
+				status: 206,
+				headers: {
+					'content-type': mime,
+					'content-range': `bytes ${range.start}-${range.end}/${object.size}`,
+					'content-length': String(range.end - range.start + 1)
+				}
+			});
+		}
 
 		/** @type {BodyInit} */
 		let body;
@@ -64,7 +128,6 @@ export async function GET({ locals, params }) {
 		return new Response(body, {
 			headers: {
 				'content-type': mime,
-				'cache-control': 'private, max-age=3600',
 				'content-length': String(object.size)
 			}
 		});

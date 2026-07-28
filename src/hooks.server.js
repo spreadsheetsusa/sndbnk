@@ -4,14 +4,12 @@ import { auth } from '#lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { getRequestHostname, resolveTenantHost } from '#lib/server/tenant';
 
-const APEX_ONLY_PREFIXES = [
-	'/settings',
-	'/signin',
-	'/signup',
-	'/library',
-	'/api/media',
-	'/api/domain-tls-check'
-];
+const APEX_ONLY_PREFIXES = ['/settings', '/signin', '/signup', '/library', '/api/domain-tls-check'];
+
+/**
+ * Paths that resolve normally on tenant hosts (public playback surfaces).
+ */
+const TENANT_ALLOWED_PREFIXES = ['/tracks', '/api/media', '/api/tracks'];
 
 /**
  * Paths that should not be rewritten on tenant hosts (framework/assets/auth API).
@@ -70,6 +68,14 @@ const handleTenant = async ({ event, resolve }) => {
 	}
 
 	if (pathname === '/') {
+		return resolve(event);
+	}
+
+	if (
+		TENANT_ALLOWED_PREFIXES.some(
+			(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+		)
+	) {
 		return resolve(event);
 	}
 

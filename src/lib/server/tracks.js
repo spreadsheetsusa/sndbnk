@@ -1,7 +1,8 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
-import { track } from '#lib/server/db/schema';
+import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
+import { generateWaveformPeaks, parseWaveform } from '#lib/server/media/waveform';
 import { getOrCreateStorageSetting, getStorageAdapter } from '#lib/server/storage';
 
 const AUDIO_MAX_BYTES = 100 * 1024 * 1024;
@@ -271,6 +272,9 @@ export async function createTrackFromForm(userId, formData) {
 	const folderKey = id;
 	const now = new Date();
 
+	const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
+	const peaks = await generateWaveformPeaks(audioBytes);
+
 	await db.insert(track).values({
 		id,
 		userId,
@@ -281,6 +285,7 @@ export async function createTrackFromForm(userId, formData) {
 		coverFilename: coverResult?.filename ?? null,
 		coverMime: coverResult?.mime ?? null,
 		coverBytes: coverResult?.bytes ?? null,
+		waveform: peaks ? JSON.stringify(peaks) : null,
 		storageAdapter: adapterId,
 		folderKey,
 		createdAt: now,
@@ -288,7 +293,6 @@ export async function createTrackFromForm(userId, formData) {
 	});
 
 	try {
-		const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
 		await storage.put(folderKey, audioResult.filename, audioBytes, audioResult.mime);
 
 		if (coverResult && isFile(coverEntry)) {
@@ -377,6 +381,8 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			if (audioResult && isFile(audioEntry)) {
 				const bytes = new Uint8Array(await audioEntry.arrayBuffer());
 				await storage.put(existing.folderKey, audioResult.filename, bytes, audioResult.mime);
+				const peaks = await generateWaveformPeaks(bytes);
+				patch.waveform = peaks ? JSON.stringify(peaks) : null;
 				if (existing.audioFilename !== audioResult.filename) {
 					// Best-effort: leave old file; folder delete on track delete cleans up.
 				}
@@ -423,4 +429,201 @@ export async function deleteTrackForUser(userId, trackId) {
 
 	await db.delete(track).where(and(eq(track.id, trackId), eq(track.userId, userId)));
 	return { ok: true };
+}
+
+/**
+ * Fetch a track by id regardless of viewer (public playback surfaces).
+ * @param {string} trackId
+ */
+export async function getTrackById(trackId) {
+	const rows = await db.select().from(track).where(eq(track.id, trackId)).limit(1);
+	return rows[0] ?? null;
+}
+
+/**
+ * Ensure a track row has waveform peaks, generating and persisting them from
+ * stored audio when missing (backfill for tracks uploaded before waveforms).
+ * Works across all storage adapters since it goes through `adapter.get()`.
+ *
+ * @param {typeof track.$inferSelect} row
+ * @returns {Promise<number[] | null>}
+ */
+export async function ensureTrackWaveform(row) {
+	const existing = parseWaveform(row.waveform);
+	if (existing) return existing;
+
+	try {
+		const storage = await getStorageAdapter(
+			row.userId,
+			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
+		);
+		const object = await storage.get(row.folderKey, row.audioFilename);
+		const bytes =
+			object.body instanceof Uint8Array
+				? object.body
+				: new Uint8Array(await new Response(/** @type {BodyInit} */ (object.body)).arrayBuffer());
+
+		const peaks = await generateWaveformPeaks(bytes);
+		if (!peaks) return null;
+
+		await db
+			.update(track)
+			.set({ waveform: JSON.stringify(peaks) })
+			.where(eq(track.id, row.id));
+		return peaks;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Like/comment counts and viewer-like state for a set of tracks.
+ * @param {string[]} trackIds
+ * @param {string | null} viewerId
+ * @returns {Promise<Map<string, { likeCount: number, commentCount: number, likedByViewer: boolean }>>}
+ */
+export async function getSocialForTracks(trackIds, viewerId) {
+	/** @type {Map<string, { likeCount: number, commentCount: number, likedByViewer: boolean }>} */
+	const map = new Map();
+	if (trackIds.length === 0) return map;
+
+	for (const id of trackIds) {
+		map.set(id, { likeCount: 0, commentCount: 0, likedByViewer: false });
+	}
+
+	const likeCounts = await db
+		.select({ trackId: trackLike.trackId, n: count() })
+		.from(trackLike)
+		.where(inArray(trackLike.trackId, trackIds))
+		.groupBy(trackLike.trackId);
+	for (const row of likeCounts) {
+		const entry = map.get(row.trackId);
+		if (entry) entry.likeCount = row.n;
+	}
+
+	const commentCounts = await db
+		.select({ trackId: trackComment.trackId, n: count() })
+		.from(trackComment)
+		.where(inArray(trackComment.trackId, trackIds))
+		.groupBy(trackComment.trackId);
+	for (const row of commentCounts) {
+		const entry = map.get(row.trackId);
+		if (entry) entry.commentCount = row.n;
+	}
+
+	if (viewerId) {
+		const likedRows = await db
+			.select({ trackId: trackLike.trackId })
+			.from(trackLike)
+			.where(and(inArray(trackLike.trackId, trackIds), eq(trackLike.userId, viewerId)));
+		for (const row of likedRows) {
+			const entry = map.get(row.trackId);
+			if (entry) entry.likedByViewer = true;
+		}
+	}
+
+	return map;
+}
+
+/**
+ * Comments for a track, newest first, with commenter names.
+ * @param {string} trackId
+ */
+export async function listCommentsForTrack(trackId) {
+	const rows = await db
+		.select({
+			id: trackComment.id,
+			body: trackComment.body,
+			atMs: trackComment.atMs,
+			createdAt: trackComment.createdAt,
+			userId: trackComment.userId,
+			userName: user.name
+		})
+		.from(trackComment)
+		.leftJoin(user, eq(user.id, trackComment.userId))
+		.where(eq(trackComment.trackId, trackId))
+		.orderBy(desc(trackComment.createdAt));
+
+	return rows.map((row) => ({
+		id: row.id,
+		body: row.body,
+		atMs: row.atMs,
+		createdAt: row.createdAt?.getTime() ?? Date.now(),
+		userId: row.userId,
+		userName: row.userName ?? 'Unknown'
+	}));
+}
+
+/**
+ * Serialize a track row (+uploader username, +social) for player card UIs.
+ * Backfills waveform peaks from stored audio when missing.
+ *
+ * @param {typeof track.$inferSelect} row
+ * @param {{ username: string | null, uploaderName: string | null }} uploader
+ * @param {{ likeCount: number, commentCount: number, likedByViewer: boolean } | undefined} social
+ * @param {{ id: string } | null | undefined} viewer
+ */
+export async function serializeTrackForPlayer(row, uploader, social, viewer) {
+	const waveform = await ensureTrackWaveform(row);
+
+	return {
+		id: row.id,
+		title: row.title,
+		artist: row.artist,
+		genre: row.genre,
+		durationMs: row.durationMs,
+		hasCover: Boolean(row.coverFilename),
+		createdAt: row.createdAt?.getTime() ?? Date.now(),
+		username: uploader.username,
+		uploaderName: uploaderName(uploader),
+		waveform,
+		likeCount: social?.likeCount ?? 0,
+		commentCount: social?.commentCount ?? 0,
+		likedByViewer: social?.likedByViewer ?? false,
+		isOwner: Boolean(viewer && viewer.id === row.userId)
+	};
+}
+
+/**
+ * @param {{ username: string | null, uploaderName: string | null }} uploader
+ */
+function uploaderName(uploader) {
+	return uploader.uploaderName ?? uploader.username ?? 'Unknown';
+}
+
+/**
+ * Track rows with uploader profile info for a user, newest first.
+ * @param {string} userId
+ */
+export async function listTracksWithUploader(userId) {
+	return db
+		.select({
+			track: track,
+			username: profile.username,
+			uploaderName: user.name
+		})
+		.from(track)
+		.leftJoin(profile, eq(profile.userId, track.userId))
+		.leftJoin(user, eq(user.id, track.userId))
+		.where(eq(track.userId, userId))
+		.orderBy(desc(track.createdAt));
+}
+
+/**
+ * One track row with uploader profile info.
+ * @param {string} trackId
+ */
+export async function getTrackWithUploader(trackId) {
+	const rows = await db
+		.select({
+			track: track,
+			username: profile.username,
+			uploaderName: user.name
+		})
+		.from(track)
+		.leftJoin(profile, eq(profile.userId, track.userId))
+		.leftJoin(user, eq(user.id, track.userId))
+		.where(eq(track.id, trackId))
+		.limit(1);
+	return rows[0] ?? null;
 }

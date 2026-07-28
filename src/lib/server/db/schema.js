@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
 
 export const task = sqliteTable('task', {
@@ -88,6 +88,8 @@ export const track = sqliteTable('track', {
 	sampleRate: integer('sample_rate'),
 	channels: integer('channels'),
 	codec: text('codec'),
+	/** JSON array of ~1000 peak ints (0-100) for waveform rendering. */
+	waveform: text('waveform'),
 	storageAdapter: text('storage_adapter').notNull().default('local'),
 	folderKey: text('folder_key').notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
@@ -106,9 +108,71 @@ export const storageSettingRelations = relations(storageSetting, ({ one }) => ({
 	})
 }));
 
-export const trackRelations = relations(track, ({ one }) => ({
+export const trackRelations = relations(track, ({ one, many }) => ({
 	user: one(user, {
 		fields: [track.userId],
+		references: [user.id]
+	}),
+	comments: many(trackComment),
+	likes: many(trackLike)
+}));
+
+export const trackComment = sqliteTable(
+	'track_comment',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		trackId: text('track_id')
+			.notNull()
+			.references(() => track.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		body: text('body').notNull(),
+		/** Playback position the comment was left at, if any. */
+		atMs: integer('at_ms'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [index('track_comment_trackId_idx').on(table.trackId)]
+);
+
+export const trackCommentRelations = relations(trackComment, ({ one }) => ({
+	track: one(track, {
+		fields: [trackComment.trackId],
+		references: [track.id]
+	}),
+	user: one(user, {
+		fields: [trackComment.userId],
+		references: [user.id]
+	})
+}));
+
+export const trackLike = sqliteTable(
+	'track_like',
+	{
+		trackId: text('track_id')
+			.notNull()
+			.references(() => track.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [primaryKey({ columns: [table.trackId, table.userId] })]
+);
+
+export const trackLikeRelations = relations(trackLike, ({ one }) => ({
+	track: one(track, {
+		fields: [trackLike.trackId],
+		references: [track.id]
+	}),
+	user: one(user, {
+		fields: [trackLike.userId],
 		references: [user.id]
 	})
 }));
