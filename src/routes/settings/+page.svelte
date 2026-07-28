@@ -1,9 +1,62 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data, form } = $props();
+
+	const tabs = [
+		{ id: 'profile', label: 'Profile' },
+		{ id: 'plan', label: 'Plan' },
+		{ id: 'domain', label: 'Domain' },
+		{ id: 'storage', label: 'Storage' }
+	];
+
+	/**
+	 * Form actions carry `&tab=`, so submitting without JS lands back on the section
+	 * whose banner is about to be shown.
+	 */
+	function tabFromUrl() {
+		const requested = page.url.searchParams.get('tab');
+		return tabs.find((tab) => tab.id === requested)?.id ?? 'profile';
+	}
+
+	let activeTab = $state(tabFromUrl());
+
+	/**
+	 * @param {string} id
+	 */
+	function selectTab(id) {
+		activeTab = id;
+
+		const url = new URL(page.url);
+		url.searchParams.set('tab', id);
+		replaceState(url, page.state);
+	}
+
+	/**
+	 * @param {KeyboardEvent & { currentTarget: HTMLButtonElement }} event
+	 */
+	function handleTabKeydown(event) {
+		const current = tabs.findIndex((tab) => tab.id === activeTab);
+
+		let next = -1;
+		if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+		if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+		if (event.key === 'Home') next = 0;
+		if (event.key === 'End') next = tabs.length - 1;
+		if (next === -1) return;
+
+		event.preventDefault();
+		selectTab(tabs[next].id);
+
+		const sibling = event.currentTarget.parentElement?.children[next];
+		if (sibling instanceof HTMLElement) {
+			sibling.focus();
+		}
+	}
 
 	let profileBusy = $state(false);
 	let planBusy = $state(false);
@@ -60,341 +113,377 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow accent-text">Account</p>
+		<p class="eyebrow eyebrow-chip accent-text">Account</p>
 		<h1 class="display-face">Settings</h1>
 		<p class="intro">Your identity, plan, and where the world finds you.</p>
 
-		<section class="block" aria-labelledby="profile-heading">
-			<div class="block-head">
-				<p class="eyebrow">01</p>
-				<h2 id="profile-heading">Profile</h2>
-				<p>Display name and username. Email stays your sign-in.</p>
-			</div>
-
-			{#if form?.profileMessage && !profileBusy}
-				<div class="banner error" role="alert">{form.profileMessage}</div>
-			{/if}
-			{#if form?.profileSuccess && !profileBusy}
-				<div class="banner ok" role="status">{form.profileSuccess}</div>
-			{/if}
-
-			<form method="POST" action="?/updateProfile" use:enhance={busyHandler('profile')}>
-				<label for="name">Display name</label>
-				<input id="name" name="name" type="text" value={nameValue} autocomplete="name" required />
-
-				<label for="username">Username</label>
-				<input
-					id="username"
-					name="username"
-					type="text"
-					value={usernameValue}
-					autocomplete="username"
-					autocapitalize="none"
-					spellcheck="false"
-					minlength="3"
-					maxlength="30"
-					required
-				/>
-				<p class="hint">
-					Path URL: {PUBLIC_BASE_DOMAIN}/users/<strong>{usernameValue || 'you'}</strong>
-				</p>
-
-				<label for="email">Email</label>
-				<input id="email" type="email" value={data.user.email} disabled />
-				<p class="hint">Used for sign-in. Changing email comes later.</p>
-
-				<button class="pressable" type="submit" disabled={profileBusy}>
-					{profileBusy ? 'Saving…' : 'Save profile'}
+		<div class="tab-bar" role="tablist" aria-label="Settings sections">
+			{#each tabs as tab (tab.id)}
+				<button
+					type="button"
+					role="tab"
+					id="tab-{tab.id}"
+					class="tab"
+					class:active={activeTab === tab.id}
+					aria-selected={activeTab === tab.id}
+					aria-controls="panel-{tab.id}"
+					tabindex={activeTab === tab.id ? 0 : -1}
+					onclick={() => selectTab(tab.id)}
+					onkeydown={handleTabKeydown}
+				>
+					{tab.label}
 				</button>
-			</form>
-		</section>
+			{/each}
+		</div>
 
-		<section class="block" aria-labelledby="plan-heading">
-			<div class="block-head">
-				<p class="eyebrow">02</p>
-				<h2 id="plan-heading">Plan</h2>
-				<p>
-					Pick freely for now — payments land later. Current:
-					<strong class="plan-pill">{data.profile.plan}</strong>
-				</p>
-			</div>
-
-			{#if form?.planMessage && !planBusy}
-				<div class="banner error" role="alert">{form.planMessage}</div>
-			{/if}
-			{#if form?.planSuccess && !planBusy}
-				<div class="banner ok" role="status">{form.planSuccess}</div>
-			{/if}
-
-			<div class="plan-grid">
-				{#each ['basic', 'premium'] as planId (planId)}
-					{@const detail = data.planDetails[planId]}
-					<article class="plan" class:active={data.profile.plan === planId}>
-						<h3 class="display-face">{detail.label}</h3>
-						<p class="plan-summary">{detail.summary}</p>
-						<ul>
-							{#each detail.features as feature (feature)}
-								<li>{feature}</li>
-							{/each}
-						</ul>
-						<form method="POST" action="?/setPlan" use:enhance={busyHandler('plan')}>
-							<input type="hidden" name="plan" value={planId} />
-							<button
-								class="pressable"
-								class:ghost={data.profile.plan === planId}
-								type="submit"
-								disabled={planBusy || data.profile.plan === planId}
-							>
-								{data.profile.plan === planId ? 'Current plan' : `Choose ${detail.label}`}
-							</button>
-						</form>
-					</article>
-				{/each}
-			</div>
-		</section>
-
-		<section class="block" aria-labelledby="domain-heading">
-			<div class="block-head">
-				<p class="eyebrow">03</p>
-				<h2 id="domain-heading">Domain</h2>
-				<p>
-					{#if isPremium}
-						Your subdomain is live. Optionally connect a custom domain with a CNAME.
-					{:else}
-						Upgrade to Premium to unlock <strong>{data.profile.username}.{data.baseDomain}</strong>
-						and custom domains.
-					{/if}
-				</p>
-			</div>
-
-			{#if form?.domainMessage && !domainBusy}
-				<div class="banner error" role="alert">{form.domainMessage}</div>
-			{/if}
-			{#if form?.domainSuccess && !domainBusy}
-				<div class="banner ok" role="status">{form.domainSuccess}</div>
-			{/if}
-
-			{#if isPremium}
-				<div class="domain-panel">
-					<div class="url-row">
-						<span class="url-label">Subdomain</span>
-						{#if data.urls.subdomainUrl}
-							<a href={data.urls.subdomainUrl}
-								>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
-							>
-						{/if}
-					</div>
-					<div class="url-row">
-						<span class="url-label">Path</span>
-						<a href={data.urls.pathUrl}>{data.urls.pathUrl.replace(/^https?:\/\//, '')}</a>
-					</div>
+		{#if activeTab === 'profile'}
+			<div class="block" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
+				<div class="block-head">
+					<h2>Profile</h2>
+					<p>Display name and username. Email stays your sign-in.</p>
 				</div>
+
+				{#if form?.profileMessage && !profileBusy}
+					<div class="banner error" role="alert">{form.profileMessage}</div>
+				{/if}
+				{#if form?.profileSuccess && !profileBusy}
+					<div class="banner ok" role="status">{form.profileSuccess}</div>
+				{/if}
 
 				<form
-					class="domain-form"
 					method="POST"
-					action="?/saveDomain"
-					use:enhance={busyHandler('domain')}
+					action="?/updateProfile&tab=profile"
+					use:enhance={busyHandler('profile')}
 				>
-					<label for="customDomain">Custom domain</label>
+					<label for="name">Display name</label>
+					<input id="name" name="name" type="text" value={nameValue} autocomplete="name" required />
+
+					<label for="username">Username</label>
 					<input
-						id="customDomain"
-						name="customDomain"
+						id="username"
+						name="username"
 						type="text"
-						value={domainValue}
-						placeholder="music.example.com"
+						value={usernameValue}
+						autocomplete="username"
 						autocapitalize="none"
 						spellcheck="false"
+						minlength="3"
+						maxlength="30"
+						required
 					/>
-					<p class="hint">Enter the hostname visitors will type. No https://.</p>
-					<button class="pressable" type="submit" disabled={domainBusy}>
-						{domainBusy ? 'Saving…' : 'Save domain'}
+					<p class="hint">
+						Path URL: {PUBLIC_BASE_DOMAIN}/users/<strong>{usernameValue || 'you'}</strong>
+					</p>
+
+					<label for="email">Email</label>
+					<input id="email" type="email" value={data.user.email} disabled />
+					<p class="hint">Used for sign-in. Changing email comes later.</p>
+
+					<button class="pressable" type="submit" disabled={profileBusy}>
+						{profileBusy ? 'Saving…' : 'Save profile'}
 					</button>
 				</form>
+			</div>
+		{/if}
 
-				{#if data.profile.customDomain && data.profile.domainVerifyToken}
-					<div class="dns-box" aria-label="DNS instructions">
-						<p class="eyebrow">DNS setup</p>
-						<p>
-							Status:
-							<strong class="status-{data.profile.customDomainStatus}">
-								{data.profile.customDomainStatus}
-							</strong>
-						</p>
-						<ol>
-							<li>
-								CNAME <code>{data.profile.customDomain}</code> →
-								<code>{data.urls.cnameTarget}</code>
-							</li>
-							<li>
-								TXT <code>_sndbnk-verify.{data.profile.customDomain}</code> →
-								<code>{data.profile.domainVerifyToken}</code>
-							</li>
-						</ol>
-						<p class="hint">
-							DNS can take a few minutes. After both records propagate, verify below.
-						</p>
-						<div class="dns-actions">
-							<form method="POST" action="?/verifyDomain" use:enhance={busyHandler('domain')}>
-								<button class="pressable" type="submit" disabled={domainBusy}>
-									{domainBusy ? 'Checking…' : 'Verify DNS'}
+		{#if activeTab === 'plan'}
+			<div class="block" role="tabpanel" id="panel-plan" aria-labelledby="tab-plan">
+				<div class="block-head">
+					<h2>Plan</h2>
+					<p>
+						Pick freely for now — payments land later. Current:
+						<strong class="plan-pill">{data.profile.plan}</strong>
+					</p>
+				</div>
+
+				{#if form?.planMessage && !planBusy}
+					<div class="banner error" role="alert">{form.planMessage}</div>
+				{/if}
+				{#if form?.planSuccess && !planBusy}
+					<div class="banner ok" role="status">{form.planSuccess}</div>
+				{/if}
+
+				<div class="plan-grid">
+					{#each ['basic', 'premium'] as planId (planId)}
+						{@const detail = data.planDetails[planId]}
+						<article class="plan" class:active={data.profile.plan === planId}>
+							<h3 class="display-face">{detail.label}</h3>
+							<p class="plan-summary">{detail.summary}</p>
+							<ul>
+								{#each detail.features as feature (feature)}
+									<li>{feature}</li>
+								{/each}
+							</ul>
+							<form method="POST" action="?/setPlan&tab=plan" use:enhance={busyHandler('plan')}>
+								<input type="hidden" name="plan" value={planId} />
+								<button
+									class="pressable"
+									class:ghost={data.profile.plan === planId}
+									type="submit"
+									disabled={planBusy || data.profile.plan === planId}
+								>
+									{data.profile.plan === planId ? 'Current plan' : `Choose ${detail.label}`}
 								</button>
 							</form>
-							<form method="POST" action="?/removeDomain" use:enhance={busyHandler('domain')}>
-								<button class="pressable ghost danger" type="submit" disabled={domainBusy}>
-									Remove domain
-								</button>
-							</form>
+						</article>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		{#if activeTab === 'domain'}
+			<div class="block" role="tabpanel" id="panel-domain" aria-labelledby="tab-domain">
+				<div class="block-head">
+					<h2>Domain</h2>
+					<p>
+						{#if isPremium}
+							Your subdomain is live. Optionally connect a custom domain with a CNAME.
+						{:else}
+							Upgrade to Premium to unlock <strong>{data.profile.username}.{data.baseDomain}</strong
+							>
+							and custom domains.
+						{/if}
+					</p>
+				</div>
+
+				{#if form?.domainMessage && !domainBusy}
+					<div class="banner error" role="alert">{form.domainMessage}</div>
+				{/if}
+				{#if form?.domainSuccess && !domainBusy}
+					<div class="banner ok" role="status">{form.domainSuccess}</div>
+				{/if}
+
+				{#if isPremium}
+					<div class="domain-panel">
+						<div class="url-row">
+							<span class="url-label">Subdomain</span>
+							{#if data.urls.subdomainUrl}
+								<a href={data.urls.subdomainUrl}
+									>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
+								>
+							{/if}
+						</div>
+						<div class="url-row">
+							<span class="url-label">Path</span>
+							<a href={data.urls.pathUrl}>{data.urls.pathUrl.replace(/^https?:\/\//, '')}</a>
 						</div>
 					</div>
-				{/if}
-			{:else}
-				<div class="locked">
-					<p>
-						Premium unlocks <span class="mono">{data.profile.username}.{data.baseDomain}</span> and CNAME
-						custom domains.
-					</p>
-					<form method="POST" action="?/setPlan" use:enhance={busyHandler('plan')}>
-						<input type="hidden" name="plan" value="premium" />
-						<button class="pressable" type="submit" disabled={planBusy}>Switch to Premium</button>
+
+					<form
+						class="domain-form"
+						method="POST"
+						action="?/saveDomain&tab=domain"
+						use:enhance={busyHandler('domain')}
+					>
+						<label for="customDomain">Custom domain</label>
+						<input
+							id="customDomain"
+							name="customDomain"
+							type="text"
+							value={domainValue}
+							placeholder="music.example.com"
+							autocapitalize="none"
+							spellcheck="false"
+						/>
+						<p class="hint">Enter the hostname visitors will type. No https://.</p>
+						<button class="pressable" type="submit" disabled={domainBusy}>
+							{domainBusy ? 'Saving…' : 'Save domain'}
+						</button>
 					</form>
-				</div>
-			{/if}
-		</section>
 
-		<section class="block" aria-labelledby="storage-heading">
-			<div class="block-head">
-				<p class="eyebrow">04</p>
-				<h2 id="storage-heading">Storage</h2>
-				<p>
-					Choose where new track uploads are stored. Local is the default; SSH lets you bring your
-					own server.
-				</p>
-			</div>
-
-			{#if form?.storageMessage && !storageBusy}
-				<div class="banner error" role="alert">{form.storageMessage}</div>
-			{/if}
-			{#if form?.storageSuccess && !storageBusy}
-				<div class="banner ok" role="status">{form.storageSuccess}</div>
-			{/if}
-
-			<form method="POST" action="?/saveStorage" use:enhance={busyHandler('storage')}>
-				<fieldset class="adapter-list">
-					<legend class="visually-hidden">Storage adapter</legend>
-					{#each data.storageAdapters as adapter (adapter.id)}
-						<label class="adapter-option" class:disabled={!adapter.enabled}>
-							<input
-								type="radio"
-								name="adapter"
-								value={adapter.id}
-								checked={selectedAdapter === adapter.id}
-								onchange={() => (userAdapter = adapter.id)}
-								disabled={!adapter.enabled || storageBusy}
-							/>
-							<span class="adapter-copy">
-								<span class="adapter-label">
-									{adapter.label}
-									{#if !adapter.enabled}
-										<span class="coming-soon">Coming soon</span>
-									{/if}
-								</span>
-								<span class="adapter-desc">{adapter.description}</span>
-							</span>
-						</label>
-					{/each}
-				</fieldset>
-
-				{#if isSshAdapter}
-					<label for="sshHost">SSH host</label>
-					<input
-						id="sshHost"
-						name="sshHost"
-						type="text"
-						value={sshHostValue}
-						placeholder="files.example.com"
-						autocapitalize="none"
-						spellcheck="false"
-						required
-					/>
-
-					<label for="sshPort">SSH port</label>
-					<input
-						id="sshPort"
-						name="sshPort"
-						type="number"
-						value={sshPortValue}
-						min="1"
-						max="65535"
-						required
-					/>
-
-					<label for="sshUsername">SSH username</label>
-					<input
-						id="sshUsername"
-						name="sshUsername"
-						type="text"
-						value={sshUsernameValue}
-						autocapitalize="none"
-						spellcheck="false"
-						required
-					/>
-
-					<label for="sshRemotePath">Remote path</label>
-					<input
-						id="sshRemotePath"
-						name="sshRemotePath"
-						type="text"
-						value={sshRemotePathValue}
-						placeholder="/var/www/uploads"
-						autocapitalize="none"
-						spellcheck="false"
-						required
-					/>
-					<p class="hint">Absolute directory on the server where files are written.</p>
-
-					<label for="sshPrivateKey">SSH private key</label>
-					<textarea
-						id="sshPrivateKey"
-						name="sshPrivateKey"
-						rows="6"
-						placeholder={data.storage.hasPrivateKey
-							? 'Leave blank to keep existing key'
-							: 'Paste your PEM private key'}
-						spellcheck="false"
-						autocapitalize="none"></textarea>
-
-					<label for="sshPassphrase">Key passphrase</label>
-					<input id="sshPassphrase" name="sshPassphrase" type="password" autocomplete="off" />
-					<p class="hint">Optional. Only needed if your private key is encrypted.</p>
-
-					{#if data.storage.hasPassphrase}
-						<label class="checkbox-row">
-							<input type="checkbox" name="clearPassphrase" value="on" />
-							Clear stored passphrase
-						</label>
+					{#if data.profile.customDomain && data.profile.domainVerifyToken}
+						<div class="dns-box" aria-label="DNS instructions">
+							<p class="eyebrow">DNS setup</p>
+							<p>
+								Status:
+								<strong class="status-{data.profile.customDomainStatus}">
+									{data.profile.customDomainStatus}
+								</strong>
+							</p>
+							<ol>
+								<li>
+									CNAME <code>{data.profile.customDomain}</code> →
+									<code>{data.urls.cnameTarget}</code>
+								</li>
+								<li>
+									TXT <code>_sndbnk-verify.{data.profile.customDomain}</code> →
+									<code>{data.profile.domainVerifyToken}</code>
+								</li>
+							</ol>
+							<p class="hint">
+								DNS can take a few minutes. After both records propagate, verify below.
+							</p>
+							<div class="dns-actions">
+								<form
+									method="POST"
+									action="?/verifyDomain&tab=domain"
+									use:enhance={busyHandler('domain')}
+								>
+									<button class="pressable" type="submit" disabled={domainBusy}>
+										{domainBusy ? 'Checking…' : 'Verify DNS'}
+									</button>
+								</form>
+								<form
+									method="POST"
+									action="?/removeDomain&tab=domain"
+									use:enhance={busyHandler('domain')}
+								>
+									<button class="pressable ghost danger" type="submit" disabled={domainBusy}>
+										Remove domain
+									</button>
+								</form>
+							</div>
+						</div>
 					{/if}
+				{:else}
+					<div class="locked">
+						<p>
+							Premium unlocks <span class="mono">{data.profile.username}.{data.baseDomain}</span> and
+							CNAME custom domains.
+						</p>
+						<form method="POST" action="?/setPlan&tab=domain" use:enhance={busyHandler('plan')}>
+							<input type="hidden" name="plan" value="premium" />
+							<button class="pressable" type="submit" disabled={planBusy}>Switch to Premium</button>
+						</form>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		{#if activeTab === 'storage'}
+			<div class="block" role="tabpanel" id="panel-storage" aria-labelledby="tab-storage">
+				<div class="block-head">
+					<h2>Storage</h2>
+					<p>
+						Choose where new track uploads are stored. Local is the default; SSH lets you bring your
+						own server.
+					</p>
+				</div>
+
+				{#if form?.storageMessage && !storageBusy}
+					<div class="banner error" role="alert">{form.storageMessage}</div>
+				{/if}
+				{#if form?.storageSuccess && !storageBusy}
+					<div class="banner ok" role="status">{form.storageSuccess}</div>
 				{/if}
 
-				<div class="storage-actions">
-					<button class="pressable" type="submit" disabled={storageBusy}>
-						{storageBusy ? 'Saving…' : 'Save storage'}
-					</button>
-				</div>
-			</form>
+				<form method="POST" action="?/saveStorage&tab=storage" use:enhance={busyHandler('storage')}>
+					<fieldset class="adapter-list">
+						<legend class="visually-hidden">Storage adapter</legend>
+						{#each data.storageAdapters as adapter (adapter.id)}
+							<label class="adapter-option" class:disabled={!adapter.enabled}>
+								<input
+									type="radio"
+									name="adapter"
+									value={adapter.id}
+									checked={selectedAdapter === adapter.id}
+									onchange={() => (userAdapter = adapter.id)}
+									disabled={!adapter.enabled || storageBusy}
+								/>
+								<span class="adapter-copy">
+									<span class="adapter-label">
+										{adapter.label}
+										{#if !adapter.enabled}
+											<span class="coming-soon">Coming soon</span>
+										{/if}
+									</span>
+									<span class="adapter-desc">{adapter.description}</span>
+								</span>
+							</label>
+						{/each}
+					</fieldset>
 
-			<form
-				class="test-storage-form"
-				method="POST"
-				action="?/testStorage"
-				use:enhance={busyHandler('storage')}
-			>
-				<input type="hidden" name="adapter" value={selectedAdapter} />
-				<button class="pressable ghost" type="submit" disabled={storageBusy}>
-					{storageBusy ? 'Testing…' : 'Test connection'}
-				</button>
-			</form>
-		</section>
+					{#if isSshAdapter}
+						<label for="sshHost">SSH host</label>
+						<input
+							id="sshHost"
+							name="sshHost"
+							type="text"
+							value={sshHostValue}
+							placeholder="files.example.com"
+							autocapitalize="none"
+							spellcheck="false"
+							required
+						/>
+
+						<label for="sshPort">SSH port</label>
+						<input
+							id="sshPort"
+							name="sshPort"
+							type="number"
+							value={sshPortValue}
+							min="1"
+							max="65535"
+							required
+						/>
+
+						<label for="sshUsername">SSH username</label>
+						<input
+							id="sshUsername"
+							name="sshUsername"
+							type="text"
+							value={sshUsernameValue}
+							autocapitalize="none"
+							spellcheck="false"
+							required
+						/>
+
+						<label for="sshRemotePath">Remote path</label>
+						<input
+							id="sshRemotePath"
+							name="sshRemotePath"
+							type="text"
+							value={sshRemotePathValue}
+							placeholder="/var/www/uploads"
+							autocapitalize="none"
+							spellcheck="false"
+							required
+						/>
+						<p class="hint">Absolute directory on the server where files are written.</p>
+
+						<label for="sshPrivateKey">SSH private key</label>
+						<textarea
+							id="sshPrivateKey"
+							name="sshPrivateKey"
+							rows="6"
+							placeholder={data.storage.hasPrivateKey
+								? 'Leave blank to keep existing key'
+								: 'Paste your PEM private key'}
+							spellcheck="false"
+							autocapitalize="none"></textarea>
+
+						<label for="sshPassphrase">Key passphrase</label>
+						<input id="sshPassphrase" name="sshPassphrase" type="password" autocomplete="off" />
+						<p class="hint">Optional. Only needed if your private key is encrypted.</p>
+
+						{#if data.storage.hasPassphrase}
+							<label class="checkbox-row">
+								<input type="checkbox" name="clearPassphrase" value="on" />
+								Clear stored passphrase
+							</label>
+						{/if}
+					{/if}
+
+					<div class="storage-actions">
+						<button class="pressable" type="submit" disabled={storageBusy}>
+							{storageBusy ? 'Saving…' : 'Save storage'}
+						</button>
+					</div>
+				</form>
+
+				<form
+					class="test-storage-form"
+					method="POST"
+					action="?/testStorage&tab=storage"
+					use:enhance={busyHandler('storage')}
+				>
+					<input type="hidden" name="adapter" value={selectedAdapter} />
+					<button class="pressable ghost" type="submit" disabled={storageBusy}>
+						{storageBusy ? 'Testing…' : 'Test connection'}
+					</button>
+				</form>
+			</div>
+		{/if}
 	</main>
 </div>
 
@@ -431,8 +520,52 @@
 		animation: rise 0.75s ease 0.05s both;
 	}
 
+	.tab-bar {
+		display: flex;
+		gap: clamp(1.15rem, 3.5vw, 2.25rem);
+		margin-top: clamp(2.5rem, 6.5vw, 3.75rem);
+		padding-top: 0.25rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+		animation: rise 0.75s ease 0.1s both;
+	}
+
+	.tab-bar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.tab {
+		position: relative;
+		padding: 0 0 0.85rem;
+		border: 0;
+		color: var(--muted);
+		background: transparent;
+		font-size: 0.75rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		white-space: nowrap;
+		cursor: pointer;
+		transition: color 120ms ease;
+	}
+
+	.tab:hover,
+	.tab.active {
+		color: var(--ink);
+	}
+
+	/* Sits on the panel's border-top so the active tab reads as connected to its section */
+	.tab.active::after {
+		position: absolute;
+		right: 0;
+		bottom: -1px;
+		left: 0;
+		height: 2px;
+		background: var(--accent);
+		content: '';
+	}
+
 	.block {
-		margin-top: clamp(2.75rem, 7vw, 4rem);
 		padding-top: clamp(1.75rem, 4vw, 2.25rem);
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.8s ease both;

@@ -35,8 +35,17 @@
 
 	<main>
 		<section class="hero" aria-labelledby="profile-name">
-			<p class="eyebrow accent-text">Public profile</p>
-			<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
+			<p class="eyebrow eyebrow-chip accent-text">Public profile</p>
+			<div class="name-block">
+				<div class="signal" aria-hidden="true">
+					<svg viewBox="0 0 800 180" role="presentation" preserveAspectRatio="none">
+						<path
+							d="M0 90 H40 L55 60 L70 120 L90 30 L110 150 L130 70 L150 100 L170 20 L190 160 L210 55 L230 115 L250 40 L270 140 L290 80 L310 95 L330 50 L350 130 L370 75 L390 105 L410 35 L430 145 L450 65 L470 110 L490 45 L510 135 L530 85 L550 100 L570 25 L590 155 L610 60 L630 120 L650 70 L670 100 L690 55 L710 125 L730 90 H800"
+						/>
+					</svg>
+				</div>
+				<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
+			</div>
 			<p class="handle">@{data.profile.username}</p>
 			{#if data.tracks.length === 0}
 				<p class="lede">
@@ -92,14 +101,6 @@
 				</ul>
 			</section>
 		{/if}
-
-		<section class="signal" aria-hidden="true">
-			<svg viewBox="0 0 800 180" role="presentation">
-				<path
-					d="M0 90 H40 L55 60 L70 120 L90 30 L110 150 L130 70 L150 100 L170 20 L190 160 L210 55 L230 115 L250 40 L270 140 L290 80 L310 95 L330 50 L350 130 L370 75 L390 105 L410 35 L430 145 L450 65 L470 110 L490 45 L510 135 L530 85 L550 100 L570 25 L590 155 L610 60 L630 120 L650 70 L670 100 L690 55 L710 125 L730 90 H800"
-				/>
-			</svg>
-		</section>
 	</main>
 
 	{#if !data.viaTenantHost}
@@ -149,7 +150,13 @@
 		margin: 0 0 1rem;
 	}
 
+	.name-block {
+		position: relative;
+		z-index: 0;
+	}
+
 	h1 {
+		position: relative;
 		margin: 0;
 		font-size: clamp(3.5rem, 10vw, 6.5rem);
 		line-height: 0.9;
@@ -251,9 +258,18 @@
 	}
 
 	.signal {
-		margin-top: clamp(2.5rem, 8vw, 5rem);
-		overflow: hidden;
+		position: absolute;
+		z-index: -1;
+		inset: -26% -10%;
+		/* Fade the ends so the trace reads as texture rather than a boxed-in graphic */
+		mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
 		animation: pulse-line 3.2s ease-in-out infinite;
+	}
+
+	.signal svg {
+		display: block;
+		width: 100%;
+		height: 100%;
 	}
 
 	.signal path {
@@ -290,10 +306,10 @@
 	@keyframes pulse-line {
 		0%,
 		100% {
-			opacity: 0.55;
+			opacity: 0.4;
 		}
 		50% {
-			opacity: 1;
+			opacity: 0.8;
 		}
 	}
 

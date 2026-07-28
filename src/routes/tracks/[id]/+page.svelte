@@ -59,7 +59,7 @@
 	{/if}
 
 	<main>
-		<p class="eyebrow accent-text">Track</p>
+		<p class="eyebrow eyebrow-chip accent-text">Track</p>
 
 		<div class="player-wrap">
 			<TrackCard
