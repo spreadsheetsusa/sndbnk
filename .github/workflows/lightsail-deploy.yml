@@ -80,6 +80,24 @@ jobs:
             def clean(value: str) -> str:
                 return value.strip().strip('"').strip("'")
 
+            def parse_as_bytes(value: str):
+                """Parse adapter-style sizes (512K, 110M) into a byte count, or None if invalid."""
+                raw = clean(value)
+                if not raw:
+                    return None
+                unit = raw[-1].upper()
+                multiplier = {"B": 1, "K": 1024, "M": 1024 * 1024, "G": 1024 * 1024 * 1024}.get(
+                    unit, 1
+                )
+                number = raw[:-1] if multiplier != 1 else raw
+                try:
+                    parsed = float(number) * multiplier
+                except ValueError:
+                    return None
+                if parsed != parsed:  # NaN
+                    return None
+                return parsed
+
             p = Path("/var/www/sndbnk/.env")
             env, order = parse_env(p)
 
@@ -92,6 +110,7 @@ jobs:
                     "STORAGE_SECRET",
                     "DATABASE_URL",
                     "MEDIA_ROOT",
+                    "BODY_SIZE_LIMIT",
                 ):
                     prev_val = clean(prev.get(key, ""))
                     if prev_val:
@@ -110,6 +129,12 @@ jobs:
             if not clean(env.get("MEDIA_ROOT", "")):
                 env["MEDIA_ROOT"] = "./media"
                 print("Set MEDIA_ROOT=./media")
+            # Default Bun/adapter body limit is 512K; library uploads allow 100MB audio + 5MB cover.
+            min_body_limit = parse_as_bytes("110M")
+            body_limit_bytes = parse_as_bytes(env.get("BODY_SIZE_LIMIT", ""))
+            if body_limit_bytes is None or body_limit_bytes < min_body_limit:
+                env["BODY_SIZE_LIMIT"] = "110M"
+                print("Set BODY_SIZE_LIMIT=110M")
             secret = clean(env.get("BETTER_AUTH_SECRET", ""))
             if not secret or len(secret) < 32:
                 env["BETTER_AUTH_SECRET"] = secrets.token_hex(32)
@@ -126,6 +151,7 @@ jobs:
                 "PUBLIC_BASE_DOMAIN",
                 "BETTER_AUTH_SECRET",
                 "MEDIA_ROOT",
+                "BODY_SIZE_LIMIT",
                 "STORAGE_SECRET",
                 "PROTOCOL_HEADER",
                 "HOST_HEADER",

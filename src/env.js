@@ -17,6 +17,10 @@ export const variables = defineEnvVars({
 	MEDIA_ROOT: {
 		description: 'Local filesystem root for media uploads (e.g. `./media`).'
 	},
+	BODY_SIZE_LIMIT: {
+		description:
+			'svelte-adapter-bun / Bun max request body size (e.g. `110M`). Default 512K is too small for library uploads; must cover audio (100MB) + cover (5MB) + form overhead.'
+	},
 	STORAGE_SECRET: {
 		description:
 			'Secret used to encrypt bring-your-own-storage credentials at rest. Use 32+ characters with high entropy.'

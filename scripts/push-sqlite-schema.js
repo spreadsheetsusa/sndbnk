@@ -1,6 +1,9 @@
 /**
  * Apply the SQLite schema using Bun's native driver.
  * drizzle-kit's push path loads better-sqlite3, which Bun cannot open.
+ *
+ * Existing DBs are upgraded with idempotent ALTER TABLE ADD COLUMN —
+ * CREATE TABLE IF NOT EXISTS alone does not add new columns.
  */
 import { Database } from 'bun:sqlite';
 
@@ -121,6 +124,12 @@ CREATE TABLE IF NOT EXISTS track (
 	cover_filename text,
 	cover_mime text,
 	cover_bytes integer,
+	duration_ms integer,
+	bitrate integer,
+	sample_rate integer,
+	channels integer,
+	codec text,
+	waveform text,
 	storage_adapter text DEFAULT 'local' NOT NULL,
 	folder_key text NOT NULL,
 	created_at integer NOT NULL,
@@ -128,7 +137,58 @@ CREATE TABLE IF NOT EXISTS track (
 	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
 );
 CREATE INDEX IF NOT EXISTS track_userId_idx ON track (user_id);
+
+CREATE TABLE IF NOT EXISTS track_comment (
+	id text PRIMARY KEY NOT NULL,
+	track_id text NOT NULL,
+	user_id text NOT NULL,
+	body text NOT NULL,
+	at_ms integer,
+	created_at integer NOT NULL,
+	FOREIGN KEY (track_id) REFERENCES track(id) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS track_comment_trackId_idx ON track_comment (track_id);
+
+CREATE TABLE IF NOT EXISTS track_like (
+	track_id text NOT NULL,
+	user_id text NOT NULL,
+	created_at integer NOT NULL,
+	PRIMARY KEY (track_id, user_id),
+	FOREIGN KEY (track_id) REFERENCES track(id) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
 `);
+
+/**
+ * Add missing columns on existing tables. SQLite CREATE TABLE IF NOT EXISTS
+ * never alters an already-created table.
+ * @param {string} table
+ * @param {Array<[string, string]>} columns column name + SQL type fragment
+ */
+function ensureColumns(table, columns) {
+	const existing = new Set(
+		db
+			.query(`SELECT name FROM pragma_table_info('${table}')`)
+			.all()
+			.map((row) => row.name)
+	);
+
+	for (const [name, typeSql] of columns) {
+		if (existing.has(name)) continue;
+		db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${typeSql}`);
+		console.log(`Added column ${table}.${name}`);
+	}
+}
+
+ensureColumns('track', [
+	['duration_ms', 'integer'],
+	['bitrate', 'integer'],
+	['sample_rate', 'integer'],
+	['channels', 'integer'],
+	['codec', 'text'],
+	['waveform', 'text']
+]);
 
 const tables = db
 	.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
