@@ -6,7 +6,6 @@
 
 	const nav = $derived(page.data.nav ?? { name: null, username: null });
 	const signedIn = $derived(Boolean(nav.name));
-	const shortName = $derived(nav.name?.trim().split(/\s+/)[0] ?? 'Account');
 
 	let open = $state(false);
 	/** @type {HTMLDivElement | undefined} */
@@ -77,9 +76,6 @@
 
 	<div class="header-end">
 		<nav class="inline-nav" aria-label="Main">
-			{#if signedIn}
-				<span class="user-name">Hi, {shortName}</span>
-			{/if}
 			{@render navLinks()}
 		</nav>
 
@@ -119,9 +115,6 @@
 
 			{#if open}
 				<nav id="site-menu" class="menu-panel" aria-label="Main menu">
-					{#if signedIn}
-						<span class="menu-name">Hi, {shortName}</span>
-					{/if}
 					{@render navLinks()}
 				</nav>
 			{/if}
@@ -167,8 +160,7 @@
 	}
 
 	.inline-nav a,
-	.inline-nav button,
-	.user-name {
+	.inline-nav button {
 		color: var(--ink);
 		font-size: 0.75rem;
 		font-weight: 800;
@@ -214,21 +206,19 @@
 		align-items: center;
 		justify-content: center;
 		padding: 0;
-		border: 1px solid var(--ink);
+		border: 0;
 		color: var(--ink);
-		background: var(--paper);
+		background: transparent;
 		cursor: pointer;
 		flex-shrink: 0;
 		transition:
 			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
-			background-color 120ms ease,
 			color 120ms ease;
 	}
 
 	.menu-toggle:hover,
 	.menu-toggle[aria-expanded='true'] {
-		color: var(--on-accent);
-		background: var(--accent);
+		color: var(--accent);
 	}
 
 	.menu-toggle:active {
@@ -252,15 +242,6 @@
 		border: 1px solid var(--ink);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--ink);
-	}
-
-	.menu-name {
-		padding: 0.55rem 0.7rem;
-		color: var(--muted);
-		font-size: 0.6875rem;
-		font-weight: 800;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
 	}
 
 	.menu-panel a,
