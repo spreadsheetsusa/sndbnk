@@ -50,7 +50,8 @@ updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 ### Auth — generated, do not edit
 
 [`src/lib/server/db/auth.schema.js`](../src/lib/server/db/auth.schema.js) is written by the
-better-auth CLI. Regenerate with `bun run auth:schema`; hand edits are lost.
+better-auth CLI. Regenerate with `bun run auth:schema`; hand edits are lost. The CLI emits double
+quotes and spaces, so **follow it with `bun run format`** or the file will fail lint.
 
 | Table          | Notes                                                                     |
 | -------------- | ------------------------------------------------------------------------- |

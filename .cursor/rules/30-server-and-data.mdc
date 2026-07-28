@@ -24,8 +24,8 @@ query — if the query does not exist yet, add a named function to the relevant 
 - Enums are `text` plus a JSDoc `@typedef`, validated in code, not by a SQL constraint.
 - Prefer explicit `select({ … }).innerJoin(…)` projections over the relational query API.
 - Single-row reads `.limit(1)` and `return rows[0] ?? null`.
-- **`src/lib/server/db/auth.schema.js` is generated.** Regenerate with `bun run auth:schema`; never
-  hand-edit it.
+- **`src/lib/server/db/auth.schema.js` is generated.** Regenerate with `bun run auth:schema` followed
+  by `bun run format` (the CLI emits double quotes); never hand-edit it.
 - **Any schema change also needs an edit to `scripts/push-sqlite-schema.js`.** Column additions need
   an explicit `ALTER TABLE`; the script's `CREATE TABLE IF NOT EXISTS` will not add them. See
   `docs/known-issues.md`.
