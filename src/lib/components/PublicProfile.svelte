@@ -205,7 +205,7 @@
 	.signal {
 		position: absolute;
 		z-index: -1;
-		inset: -14% -8%;
+		inset: -26% -10%;
 		/* Fade the ends so the trace reads as texture rather than a boxed-in graphic */
 		mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
 		animation: pulse-line 3.2s ease-in-out infinite;
@@ -251,10 +251,10 @@
 	@keyframes pulse-line {
 		0%,
 		100% {
-			opacity: 0.3;
+			opacity: 0.4;
 		}
 		50% {
-			opacity: 0.65;
+			opacity: 0.8;
 		}
 	}
 
