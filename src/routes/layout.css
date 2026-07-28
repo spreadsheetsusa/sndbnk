@@ -11,6 +11,12 @@
 	--muted: #696861;
 	--inverse: #11110f;
 	--on-inverse: #f2f0e8;
+	/* Chromatic aberration fringes for display type */
+	--chroma-red: #ff2f4f;
+	--chroma-cyan: #21e0ff;
+	--chroma-offset: 0.022em;
+	--glitch-offset: 0.06em;
+	--glitch-blend: multiply;
 	/* Shared page rail so SiteHeader stays aligned across routes */
 	--site-shell-max: 1600px;
 	--site-shell-pad-x: clamp(1rem, 3.5vw, 4rem);
@@ -35,6 +41,9 @@
 	--muted: #a8a69c;
 	--inverse: #050504;
 	--on-inverse: #f2f0e8;
+	--chroma-red: #ff5a72;
+	--chroma-cyan: #57e9ff;
+	--glitch-blend: screen;
 	color-scheme: dark;
 }
 
@@ -99,6 +108,224 @@ a {
 	text-transform: uppercase;
 }
 
+/* Page-level display headings get split colour fringes. drop-shadow (not
+   text-shadow) so outline-only headings keep their transparent fill. */
+h1.display-face {
+	filter: drop-shadow(calc(-1 * var(--chroma-offset)) 0 0 var(--chroma-red))
+		drop-shadow(var(--chroma-offset) 0 0 var(--chroma-cyan));
+}
+
+.glitch-mark {
+	position: relative;
+	display: inline-block;
+	text-shadow:
+		0 0 0 transparent,
+		0 0 0 transparent;
+	transition: text-shadow 140ms ease;
+}
+
+.glitch-mark::before,
+.glitch-mark::after {
+	position: absolute;
+	top: 0;
+	left: 0;
+	opacity: 0;
+	content: attr(data-text);
+	mix-blend-mode: var(--glitch-blend);
+	pointer-events: none;
+}
+
+.glitch-mark::before {
+	color: var(--chroma-cyan);
+}
+
+.glitch-mark::after {
+	color: var(--chroma-red);
+}
+
+.glitch-mark:hover,
+.glitch-mark:focus-visible {
+	text-shadow:
+		calc(-1 * var(--glitch-offset)) 0 0 var(--chroma-red),
+		var(--glitch-offset) 0 0 var(--chroma-cyan);
+	animation: glitch-jolt 2.4s steps(1, end) infinite;
+}
+
+.glitch-mark:hover::before,
+.glitch-mark:focus-visible::before {
+	opacity: 0.92;
+	animation: glitch-slice-a 2.4s steps(1, end) infinite;
+}
+
+.glitch-mark:hover::after,
+.glitch-mark:focus-visible::after {
+	opacity: 0.92;
+	animation: glitch-slice-b 2.4s steps(1, end) infinite;
+}
+
+/* inset(50% 0 50% 0) collapses the copy to nothing, so the loop spends most of
+   its time calm and the offsets read as bursts rather than a constant wobble. */
+@keyframes glitch-slice-a {
+	0%,
+	100% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+
+	4% {
+		clip-path: inset(10% 0 68% 0);
+		transform: translate(-0.14em, -0.03em);
+	}
+
+	8% {
+		clip-path: inset(58% 0 22% 0);
+		transform: translate(0.12em, 0.02em);
+	}
+
+	12% {
+		clip-path: inset(32% 0 50% 0);
+		transform: translate(-0.09em, 0.03em);
+	}
+
+	16% {
+		clip-path: inset(76% 0 6% 0);
+		transform: translate(0.17em, -0.02em);
+	}
+
+	20% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+
+	46% {
+		clip-path: inset(22% 0 58% 0);
+		transform: translate(-0.19em, 0.01em);
+	}
+
+	50% {
+		clip-path: inset(4% 0 82% 0);
+		transform: translate(0.1em, -0.03em);
+	}
+
+	54% {
+		clip-path: inset(66% 0 14% 0);
+		transform: translate(-0.13em, 0.02em);
+	}
+
+	58% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+
+	84% {
+		clip-path: inset(38% 0 44% 0);
+		transform: translate(0.2em, 0);
+	}
+
+	88% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+}
+
+@keyframes glitch-slice-b {
+	0%,
+	100% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+
+	4% {
+		clip-path: inset(64% 0 18% 0);
+		transform: translate(0.15em, 0.03em);
+	}
+
+	8% {
+		clip-path: inset(18% 0 62% 0);
+		transform: translate(-0.13em, -0.02em);
+	}
+
+	12% {
+		clip-path: inset(46% 0 34% 0);
+		transform: translate(0.09em, -0.03em);
+	}
+
+	16% {
+		clip-path: inset(2% 0 82% 0);
+		transform: translate(-0.16em, 0.02em);
+	}
+
+	20% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+
+	46% {
+		clip-path: inset(72% 0 10% 0);
+		transform: translate(0.18em, -0.01em);
+	}
+
+	50% {
+		clip-path: inset(30% 0 52% 0);
+		transform: translate(-0.11em, 0.03em);
+	}
+
+	54% {
+		clip-path: inset(8% 0 74% 0);
+		transform: translate(0.14em, -0.02em);
+	}
+
+	58% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+
+	84% {
+		clip-path: inset(54% 0 30% 0);
+		transform: translate(-0.2em, 0);
+	}
+
+	88% {
+		clip-path: inset(50% 0 50% 0);
+		transform: translate(0, 0);
+	}
+}
+
+@keyframes glitch-jolt {
+	0%,
+	100% {
+		transform: translate(0, 0) skewX(0deg);
+	}
+
+	6% {
+		transform: translate(0.02em, 0) skewX(-6deg);
+	}
+
+	10% {
+		transform: translate(-0.02em, 0) skewX(4deg);
+	}
+
+	14% {
+		transform: translate(0, 0) skewX(0deg);
+	}
+
+	48% {
+		transform: translate(-0.03em, 0) skewX(5deg);
+	}
+
+	52% {
+		transform: translate(0, 0) skewX(0deg);
+	}
+
+	86% {
+		transform: translate(0.02em, 0) skewX(-3deg);
+	}
+
+	90% {
+		transform: translate(0, 0) skewX(0deg);
+	}
+}
+
 .eyebrow {
 	font-size: 0.6875rem;
 	font-weight: 800;
@@ -131,5 +358,20 @@ a {
 		animation-duration: 0.01ms !important;
 		animation-iteration-count: 1 !important;
 		transition-duration: 0.01ms !important;
+	}
+
+	/* Keep the static colour split on hover, drop the glitch loop entirely. */
+	.glitch-mark:hover,
+	.glitch-mark:focus-visible {
+		animation: none;
+		transform: none;
+	}
+
+	.glitch-mark:hover::before,
+	.glitch-mark:hover::after,
+	.glitch-mark:focus-visible::before,
+	.glitch-mark:focus-visible::after {
+		opacity: 0;
+		animation: none;
 	}
 }
