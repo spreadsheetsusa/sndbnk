@@ -298,7 +298,7 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow accent-text">Library</p>
+		<p class="eyebrow eyebrow-chip accent-text">Library</p>
 		<h1 class="display-face">{data.track.title}</h1>
 		<p class="intro">
 			Edit metadata or replace files. Stored via <strong>{data.track.storageAdapter}</strong>.

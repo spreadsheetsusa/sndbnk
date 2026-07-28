@@ -274,7 +274,7 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow accent-text">Library</p>
+		<p class="eyebrow eyebrow-chip accent-text">Library</p>
 		<h1 class="display-face">Upload track</h1>
 		<p class="intro">Attach audio first — we fill metadata from the file when available.</p>
 

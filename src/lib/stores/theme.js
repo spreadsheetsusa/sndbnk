@@ -30,8 +30,14 @@ export const themePreference = writable(/** @type {ThemePreference} */ (readStor
 /** @type {import('svelte/store').Writable<Theme>} */
 export const resolvedTheme = writable(/** @type {Theme} */ (getDomTheme()));
 
+const TRANSITION_CLASS = 'theme-transition';
+const TRANSITION_MS = 320;
+
 /** @type {MediaQueryList | null} */
 let mediaQuery = null;
+
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let transitionTimer;
 
 /** @type {((event: MediaQueryListEvent) => void) | null} */
 let mediaListener = null;
@@ -56,10 +62,36 @@ export function resolveTheme(preference) {
 }
 
 /**
- * @param {Theme} theme
+ * @returns {boolean}
  */
-export function applyTheme(theme) {
+function prefersReducedMotion() {
+	if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+	return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
+ * Eases the colour swap for the duration of a single flip. Kept off the first paint so
+ * the stored preference does not animate in from the server-rendered default.
+ */
+function startColorTransition() {
+	if (prefersReducedMotion()) return;
+
+	const root = document.documentElement;
+	root.classList.add(TRANSITION_CLASS);
+	clearTimeout(transitionTimer);
+	transitionTimer = setTimeout(() => root.classList.remove(TRANSITION_CLASS), TRANSITION_MS);
+}
+
+/**
+ * @param {Theme} theme
+ * @param {{ animate?: boolean }} [options]
+ */
+export function applyTheme(theme, options = {}) {
 	if (typeof document === 'undefined') return;
+
+	if (options.animate) {
+		startColorTransition();
+	}
 
 	const root = document.documentElement;
 	root.classList.toggle('dark', theme === 'dark');
@@ -86,7 +118,7 @@ function syncSystemListener(preference) {
 
 	mediaListener = () => {
 		if (readStoredPreference() === 'system') {
-			applyTheme(getSystemTheme());
+			applyTheme(getSystemTheme(), { animate: true });
 		}
 	};
 
@@ -106,7 +138,7 @@ export function setThemePreference(preference) {
 	}
 
 	themePreference.set(preference);
-	applyTheme(resolveTheme(preference));
+	applyTheme(resolveTheme(preference), { animate: true });
 	syncSystemListener(preference);
 }
 
