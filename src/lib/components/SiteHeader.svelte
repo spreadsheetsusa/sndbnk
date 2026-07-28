@@ -73,7 +73,9 @@
 {/snippet}
 
 <header class="site-header">
-	<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+	<a class="logo display-face glitch-mark" data-text="SNDBNK" href="/" aria-label="SNDBNK home">
+		SNDBNK
+	</a>
 
 	<div class="header-end">
 		<nav class="inline-nav" aria-label="Main">
