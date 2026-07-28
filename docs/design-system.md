@@ -12,29 +12,29 @@ blocks.
 
 Defined on `:root`, overridden on `.dark`.
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `--accent` | `#c8ff3d` | inherited | CTA fills, waveform progress, focus glow |
-| `--on-accent` | `#11110f` | inherited | text on an accent fill |
-| `--ink` | `#11110f` | `#f2f0e8` | text, borders, shadows |
-| `--paper` | `#f2f0e8` | `#141410` | page background |
-| `--muted` | `#696861` | `#a8a69c` | secondary copy |
-| `--inverse` | `#11110f` | `#050504` | inverted panels (auth intro, eyebrow chips) |
-| `--on-inverse` | `#f2f0e8` | `#f2f0e8` | text on an inverted panel |
-| `--chroma-red` | `#ff2f4f` | `#ff5a72` | left aberration fringe |
-| `--chroma-cyan` | `#21e0ff` | `#57e9ff` | right aberration fringe |
-| `--chroma-offset` | `0.022em` | — | heading fringe distance |
-| `--glitch-offset` | `0.075em` | — | hover glitch fringe distance |
-| `--glitch-blend` | `multiply` | `screen` | blend mode for glitch copies |
+| Token             | Light      | Dark      | Use                                         |
+| ----------------- | ---------- | --------- | ------------------------------------------- |
+| `--accent`        | `#c8ff3d`  | inherited | CTA fills, waveform progress, focus glow    |
+| `--on-accent`     | `#11110f`  | inherited | text on an accent fill                      |
+| `--ink`           | `#11110f`  | `#f2f0e8` | text, borders, shadows                      |
+| `--paper`         | `#f2f0e8`  | `#141410` | page background                             |
+| `--muted`         | `#696861`  | `#a8a69c` | secondary copy                              |
+| `--inverse`       | `#11110f`  | `#050504` | inverted panels (auth intro, eyebrow chips) |
+| `--on-inverse`    | `#f2f0e8`  | `#f2f0e8` | text on an inverted panel                   |
+| `--chroma-red`    | `#ff2f4f`  | `#ff5a72` | left aberration fringe                      |
+| `--chroma-cyan`   | `#21e0ff`  | `#57e9ff` | right aberration fringe                     |
+| `--chroma-offset` | `0.022em`  | —         | heading fringe distance                     |
+| `--glitch-offset` | `0.075em`  | —         | hover glitch fringe distance                |
+| `--glitch-blend`  | `multiply` | `screen`  | blend mode for glitch copies                |
 
 Layout rail:
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--site-shell-max` | `1600px` | outer page width, shared by header and pages so nothing shifts |
-| `--site-shell-pad-x` | `clamp(1rem, 3.5vw, 4rem)`, `1rem` under 620px | horizontal gutter |
-| `--site-content-max` | `920px` | main reading column |
-| `--site-content-max-wide` | `1100px` | profile pages |
+| Token                     | Value                                          | Use                                                            |
+| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| `--site-shell-max`        | `1600px`                                       | outer page width, shared by header and pages so nothing shifts |
+| `--site-shell-pad-x`      | `clamp(1rem, 3.5vw, 4rem)`, `1rem` under 620px | horizontal gutter                                              |
+| `--site-content-max`      | `920px`                                        | main reading column                                            |
+| `--site-content-max-wide` | `1100px`                                       | profile pages                                                  |
 
 **Never hardcode a color outside `layout.css`.** Use `var(--ink)` and friends, and reach for
 `color-mix(in srgb, var(--ink) 32%, transparent)` for tints rather than inventing a new hex. The one
@@ -68,12 +68,12 @@ paper fails contrast, which is why `.eyebrow-chip` exists.
 
 Three tiers, deliberately different voices:
 
-| Tier | Font | Class / selector | Where |
-| --- | --- | --- | --- |
-| Display | Audiowide | `.display-face` | wordmark, hero `h1` |
-| Editorial | Georgia | `h2` in forms and settings | section titles |
-| Body | Inter | `:root` default | everything else |
-| Micro-label | Inter 800 | `.eyebrow` | uppercase, `0.15em` tracking |
+| Tier        | Font      | Class / selector           | Where                        |
+| ----------- | --------- | -------------------------- | ---------------------------- |
+| Display     | Audiowide | `.display-face`            | wordmark, hero `h1`          |
+| Editorial   | Georgia   | `h2` in forms and settings | section titles               |
+| Body        | Inter     | `:root` default            | everything else              |
+| Micro-label | Inter 800 | `.eyebrow`                 | uppercase, `0.15em` tracking |
 
 Audiowide is loaded via `@import url(…fonts.googleapis.com…)` at the top of `layout.css`; `:root` sets
 `font-synthesis: none` so no faux bold appears.
@@ -82,15 +82,15 @@ Audiowide is loaded via `@import url(…fonts.googleapis.com…)` at the top of 
 
 Global, defined in `layout.css`:
 
-| Class | Effect |
-| --- | --- |
-| `.display-face` | Audiowide, uppercase, tight tracking |
-| `.eyebrow` | uppercase micro-label |
-| `.eyebrow-chip` | in light mode only, wraps accent text in an inverse chip via `box-shadow` spread |
-| `.accent-fill` / `.accent-text` / `.accent-border` | apply the accent to background / color / border |
-| `.pressable` | tactile press: shadow collapses to `1px` and the element translates `4px, 4px` |
-| `.glitch-mark` | hover/focus chromatic split plus a bursty slice animation |
-| `.theme-transition` | added to `<html>` during a theme flip |
+| Class                                              | Effect                                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `.display-face`                                    | Audiowide, uppercase, tight tracking                                             |
+| `.eyebrow`                                         | uppercase micro-label                                                            |
+| `.eyebrow-chip`                                    | in light mode only, wraps accent text in an inverse chip via `box-shadow` spread |
+| `.accent-fill` / `.accent-text` / `.accent-border` | apply the accent to background / color / border                                  |
+| `.pressable`                                       | tactile press: shadow collapses to `1px` and the element translates `4px, 4px`   |
+| `.glitch-mark`                                     | hover/focus chromatic split plus a bursty slice animation                        |
+| `.theme-transition`                                | added to `<html>` during a theme flip                                            |
 
 ### `.pressable`
 

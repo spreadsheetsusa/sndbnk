@@ -126,7 +126,7 @@ export const player = new Player();
 What makes it work, and what to copy:
 
 - **Public reactive fields, private machinery.** `#audio`, `#raf`, and `#history` are `#private` and
-  deliberately *not* `$state` — nothing renders from them, so making them reactive would only add
+  deliberately _not_ `$state` — nothing renders from them, so making them reactive would only add
   churn.
 - **Methods are the API.** `play()`, `toggle()`, `seek()`, `addToQueue()`, `evict()`. Consumers never
   assign to fields from outside; the invariants live in one file.

@@ -29,11 +29,11 @@ route.
 
 ### Implementations
 
-| Adapter | Factory | Notes |
-| --- | --- | --- |
-| `local` | `createLocalAdapter(userId)` | `Bun.write` / `Bun.file` under `MEDIA_ROOT` |
-| `ssh` | `createSshAdapter(userId, config)` | `ssh2` SFTP, a fresh connection per operation |
-| `s3`, `r2` | — | listed in `STORAGE_ADAPTERS` with `enabled: false`; not implemented |
+| Adapter    | Factory                            | Notes                                                               |
+| ---------- | ---------------------------------- | ------------------------------------------------------------------- |
+| `local`    | `createLocalAdapter(userId)`       | `Bun.write` / `Bun.file` under `MEDIA_ROOT`                         |
+| `ssh`      | `createSshAdapter(userId, config)` | `ssh2` SFTP, a fresh connection per operation                       |
+| `s3`, `r2` | —                                  | listed in `STORAGE_ADAPTERS` with `enabled: false`; not implemented |
 
 Layout is identical across adapters, which is what makes them interchangeable:
 

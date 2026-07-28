@@ -15,11 +15,11 @@ everything.
 
 ## Naming
 
-| Layer | Case | Example |
-| --- | --- | --- |
-| JS property | camelCase | `customDomainStatus` |
-| SQL column | snake_case | `custom_domain_status` |
-| Table name | singular snake_case | `track`, `track_comment` |
+| Layer       | Case                | Example                  |
+| ----------- | ------------------- | ------------------------ |
+| JS property | camelCase           | `customDomainStatus`     |
+| SQL column  | snake_case          | `custom_domain_status`   |
+| Table name  | singular snake_case | `track`, `track_comment` |
 
 Always pass the snake_case name explicitly as the column-builder argument:
 `customDomain: text('custom_domain')`. Never rely on inference.
@@ -52,12 +52,12 @@ updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 [`src/lib/server/db/auth.schema.js`](../src/lib/server/db/auth.schema.js) is written by the
 better-auth CLI. Regenerate with `bun run auth:schema`; hand edits are lost.
 
-| Table | Notes |
-| --- | --- |
-| `user` | `id`, `name`, `email` (unique), `emailVerified`, `image`, timestamps |
-| `session` | `token` (unique), `expiresAt`, `ipAddress`, `userAgent`, `userId` → index |
-| `account` | credential + OAuth fields; `password` hash lives here, not on `user` |
-| `verification` | `identifier` → index, `value`, `expiresAt` |
+| Table          | Notes                                                                     |
+| -------------- | ------------------------------------------------------------------------- |
+| `user`         | `id`, `name`, `email` (unique), `emailVerified`, `image`, timestamps      |
+| `session`      | `token` (unique), `expiresAt`, `ipAddress`, `userAgent`, `userId` → index |
+| `account`      | credential + OAuth fields; `password` hash lives here, not on `user`      |
+| `verification` | `identifier` → index, `value`, `expiresAt`                                |
 
 These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies them.
 
@@ -65,15 +65,15 @@ These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies 
 
 `userId` is both primary key and foreign key, so the 1:1 relationship is enforced by the schema.
 
-| Column | Purpose |
-| --- | --- |
-| `username` | unique; the subdomain label and path segment |
-| `plan` | `'basic' \| 'premium'`, default `basic` |
-| `customDomain` | unique, nullable |
-| `customDomainStatus` | `'none' \| 'pending' \| 'active'` |
-| `domainVerifyToken` | the `sndbnk-verify=…` value the owner puts in DNS TXT |
-| `customDomainVerifiedAt` | timestamp of the last successful verification |
-| `stripeCustomerId`, `stripeSubscriptionId` | reserved; billing is not wired up yet |
+| Column                                     | Purpose                                               |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `username`                                 | unique; the subdomain label and path segment          |
+| `plan`                                     | `'basic' \| 'premium'`, default `basic`               |
+| `customDomain`                             | unique, nullable                                      |
+| `customDomainStatus`                       | `'none' \| 'pending' \| 'active'`                     |
+| `domainVerifyToken`                        | the `sndbnk-verify=…` value the owner puts in DNS TXT |
+| `customDomainVerifiedAt`                   | timestamp of the last successful verification         |
+| `stripeCustomerId`, `stripeSubscriptionId` | reserved; billing is not wired up yet                 |
 
 A user without a `profile` row is in a broken half-registered state. Loaders that need one
 redirect to `/signup` rather than rendering.
@@ -88,12 +88,12 @@ so callers never handle a missing row. SSH credentials are stored in `sshPrivate
 
 Four groups of columns:
 
-| Group | Columns |
-| --- | --- |
-| Editable metadata | `title` (required), `description`, `artist`, `album`, `genre`, `year`, `trackNumber`, `bpm`, `isrc`, `comment` |
-| Files | `audioFilename`, `audioMime`, `audioBytes`, `coverFilename`, `coverMime`, `coverBytes` |
-| Probed technical | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec` |
-| Derived / placement | `waveform` (JSON string of ~1000 ints), `storageAdapter`, `folderKey` |
+| Group               | Columns                                                                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Editable metadata   | `title` (required), `description`, `artist`, `album`, `genre`, `year`, `trackNumber`, `bpm`, `isrc`, `comment` |
+| Files               | `audioFilename`, `audioMime`, `audioBytes`, `coverFilename`, `coverMime`, `coverBytes`                         |
+| Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`                                                     |
+| Derived / placement | `waveform` (JSON string of ~1000 ints), `storageAdapter`, `folderKey`                                          |
 
 `storageAdapter` is a **snapshot of the owner's adapter at upload time**, and `folderKey` equals the
 track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —

@@ -30,16 +30,16 @@ confirm plan gating works.
 Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` /
 `$app/env/public`. Anything not in that registry is invisible to the app.
 
-| Variable | Visibility | Dev | Prod | Purpose |
-| --- | --- | --- | --- | --- |
-| `DATABASE_URL` | private | `local.db` | `local.db` | SQLite **file path**, not a URL |
-| `ORIGIN` | private | `http://localhost:5173` | `https://sndbnk.com` | better-auth `baseURL`; must match the browser origin exactly |
-| `PUBLIC_BASE_DOMAIN` | **public** | `localhost` | `sndbnk.com` | apex hostname for tenant classification |
-| `BETTER_AUTH_SECRET` | private | any | 32+ chars | signs sessions; changing it logs everyone out |
-| `MEDIA_ROOT` | private | `./media` | `./media` | local upload root |
-| `STORAGE_SECRET` | private | any | 32+ chars | encrypts BYOS credentials; changing it invalidates every stored SSH key |
-| `PROTOCOL_HEADER` | adapter | unset | `X-Forwarded-Proto` | lets the Bun adapter rebuild URLs behind Caddy |
-| `HOST_HEADER` | adapter | unset | `X-Forwarded-Host` | same |
+| Variable             | Visibility | Dev                     | Prod                 | Purpose                                                                 |
+| -------------------- | ---------- | ----------------------- | -------------------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`       | private    | `local.db`              | `local.db`           | SQLite **file path**, not a URL                                         |
+| `ORIGIN`             | private    | `http://localhost:5173` | `https://sndbnk.com` | better-auth `baseURL`; must match the browser origin exactly            |
+| `PUBLIC_BASE_DOMAIN` | **public** | `localhost`             | `sndbnk.com`         | apex hostname for tenant classification                                 |
+| `BETTER_AUTH_SECRET` | private    | any                     | 32+ chars            | signs sessions; changing it logs everyone out                           |
+| `MEDIA_ROOT`         | private    | `./media`               | `./media`            | local upload root                                                       |
+| `STORAGE_SECRET`     | private    | any                     | 32+ chars            | encrypts BYOS credentials; changing it invalidates every stored SSH key |
+| `PROTOCOL_HEADER`    | adapter    | unset                   | `X-Forwarded-Proto`  | lets the Bun adapter rebuild URLs behind Caddy                          |
+| `HOST_HEADER`        | adapter    | unset                   | `X-Forwarded-Host`   | same                                                                    |
 
 `PROTOCOL_HEADER` and `HOST_HEADER` are read by `svelte-adapter-bun` itself, not by `src/env.js`.
 Without them the app sees `http://localhost:3000` as its origin and better-auth rejects sign-ins with
@@ -104,11 +104,11 @@ sudo systemctl restart sndbnk
 
 [`Caddyfile`](../Caddyfile) defines four blocks:
 
-| Block | Behavior |
-| --- | --- |
-| global | `on_demand_tls { ask http://127.0.0.1:3000/api/domain-tls-check }` |
-| `www.sndbnk.com` | permanent redirect to the apex |
-| `sndbnk.com` | managed certs, gzip/zstd, security headers, `reverse_proxy localhost:3000` |
+| Block                | Behavior                                                                       |
+| -------------------- | ------------------------------------------------------------------------------ |
+| global               | `on_demand_tls { ask http://127.0.0.1:3000/api/domain-tls-check }`             |
+| `www.sndbnk.com`     | permanent redirect to the apex                                                 |
+| `sndbnk.com`         | managed certs, gzip/zstd, security headers, `reverse_proxy localhost:3000`     |
 | `https://` catch-all | `tls { on_demand }`, same proxy — serves premium subdomains and custom domains |
 
 All proxied requests get `X-Real-IP`, `X-Forwarded-Proto`, and `X-Forwarded-Host`. The tenant hook
@@ -136,16 +136,16 @@ CNAMEs to `{username}.sndbnk.com` after verification.
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
-| --- | --- |
-| Sign-in returns `403 INVALID_ORIGIN` in prod | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000` |
-| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars |
-| Cookies do not persist across a subdomain | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value |
-| Tenant host returns 404 | profile missing, plan is not `premium`, or `customDomainStatus` is not `active` |
-| Custom domain will not get TLS | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails |
-| Waveforms are flat placeholder bars | `ffmpeg` not installed on the host |
-| Likes or comments 500 in prod | schema drift — see [known-issues.md](known-issues.md) |
-| `bun run build` fails on `bun:sqlite` | something is running under Node; every command must go through Bun |
+| Symptom                                                  | Likely cause                                                                                                      |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`             |
+| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                    |
+| Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value |
+| Tenant host returns 404                                  | profile missing, plan is not `premium`, or `customDomainStatus` is not `active`                                   |
+| Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                     |
+| Waveforms are flat placeholder bars                      | `ffmpeg` not installed on the host                                                                                |
+| Likes or comments 500 in prod                            | schema drift — see [known-issues.md](known-issues.md)                                                             |
+| `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                |
 
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
 permissions, systemd, the build, and both the API and public HTTPS surfaces. It is marked temporary

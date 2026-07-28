@@ -47,15 +47,15 @@ Do not add new secrets to `.env` while it is tracked.
 
 ## Dead and unfinished code
 
-| Item | Status |
-| --- | --- |
-| `task` table | Scaffolding from `sv create`. Defined in `schema.js` and the push script, queried by nothing. Safe to remove from both. |
-| `resolveTenantHost().pathname` | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead. |
-| `s3` and `r2` in `STORAGE_ADAPTERS` | `enabled: false`, no implementation. The settings UI renders them as unavailable. |
-| `profile.stripeCustomerId` / `stripeSubscriptionId` | Columns exist; no billing code. `setPlan` changes the plan with no payment. |
-| `src/lib/index.js` | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`. |
-| `scratch-seed.js`, `scratch-verify.js` | Committed one-off probes from the tag-embedding work, with hardcoded `/tmp/sndbnk-tag/` paths and no `package.json` wiring. |
-| `db:generate`, `db:migrate`, `db:studio` | Present in `package.json`; no `drizzle/` folder exists, so migrations have never been used. |
+| Item                                                | Status                                                                                                                      |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `task` table                                        | Scaffolding from `sv create`. Defined in `schema.js` and the push script, queried by nothing. Safe to remove from both.     |
+| `resolveTenantHost().pathname`                      | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                |
+| `s3` and `r2` in `STORAGE_ADAPTERS`                 | `enabled: false`, no implementation. The settings UI renders them as unavailable.                                           |
+| `profile.stripeCustomerId` / `stripeSubscriptionId` | Columns exist; no billing code. `setPlan` changes the plan with no payment.                                                 |
+| `src/lib/index.js`                                  | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                       |
+| `scratch-seed.js`, `scratch-verify.js`              | Committed one-off probes from the tag-embedding work, with hardcoded `/tmp/sndbnk-tag/` paths and no `package.json` wiring. |
+| `db:generate`, `db:migrate`, `db:studio`            | Present in `package.json`; no `drizzle/` folder exists, so migrations have never been used.                                 |
 
 ## Inconsistencies worth knowing
 

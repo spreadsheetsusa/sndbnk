@@ -50,12 +50,12 @@ flowchart LR
 Skipped entirely when `building`. Otherwise it reads the hostname (preferring `x-forwarded-host`,
 which Caddy sets) and resolves it:
 
-| Outcome | Effect |
-| --- | --- |
-| `apex` | pass through untouched |
-| `not_found` | plain-text 404 response, no SvelteKit render |
-| `redirect` | 302 to the apex path URL — a basic-plan user cannot use a subdomain |
-| `rewrite` | sets `event.locals.tenant`, then gates the path |
+| Outcome     | Effect                                                              |
+| ----------- | ------------------------------------------------------------------- |
+| `apex`      | pass through untouched                                              |
+| `not_found` | plain-text 404 response, no SvelteKit render                        |
+| `redirect`  | 302 to the apex path URL — a basic-plan user cannot use a subdomain |
+| `rewrite`   | sets `event.locals.tenant`, then gates the path                     |
 
 On a tenant host the path allowlist is deliberately narrow:
 
@@ -74,11 +74,11 @@ Calls `auth.api.getSession()` and, when a session exists, populates `locals.user
 
 Declared in [`src/app.d.ts`](../src/app.d.ts). All three fields are optional — check before use.
 
-| Field | Set by | Meaning |
-| --- | --- | --- |
-| `locals.user` | `handleBetterAuth` | signed-in better-auth user |
-| `locals.session` | `handleBetterAuth` | the session row |
-| `locals.tenant` | `handleTenant` | request arrived on a creator's own host |
+| Field            | Set by             | Meaning                                 |
+| ---------------- | ------------------ | --------------------------------------- |
+| `locals.user`    | `handleBetterAuth` | signed-in better-auth user              |
+| `locals.session` | `handleBetterAuth` | the session row                         |
+| `locals.tenant`  | `handleTenant`     | request arrived on a creator's own host |
 
 `locals.tenant` carries `{ userId, username, plan, name, customDomain, customDomainStatus, hostKind }`
 where `hostKind` is `'subdomain' | 'custom'`. Its presence is the single signal for "render in
@@ -90,11 +90,11 @@ Only `handleTenant` writes `locals.tenant`. Loaders read it, never set it.
 
 One creator, three public URLs, gated by plan ([`src/lib/server/plans.js`](../src/lib/server/plans.js)):
 
-| Surface | URL | Requires |
-| --- | --- | --- |
-| Path | `{ORIGIN}/users/{username}` | nothing — always available |
-| Subdomain | `{username}.{PUBLIC_BASE_DOMAIN}` | `premium` |
-| Custom domain | the creator's own hostname | `premium` + `customDomainStatus === 'active'` |
+| Surface       | URL                               | Requires                                      |
+| ------------- | --------------------------------- | --------------------------------------------- |
+| Path          | `{ORIGIN}/users/{username}`       | nothing — always available                    |
+| Subdomain     | `{username}.{PUBLIC_BASE_DOMAIN}` | `premium`                                     |
+| Custom domain | the creator's own hostname        | `premium` + `customDomainStatus === 'active'` |
 
 `classifyHost()` in [`src/lib/server/tenant.js`](../src/lib/server/tenant.js) decides which is which:
 

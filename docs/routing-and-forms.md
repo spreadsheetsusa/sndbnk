@@ -4,21 +4,21 @@
 
 No nested layouts, no route groups, no `+error.svelte`. One root layout and a flat set of routes.
 
-| Route | Auth | What it does |
-| --- | --- | --- |
-| `/` | optional | Marketing landing on apex; the owner's public profile on a tenant host |
-| `/signin`, `/signup` | redirects if signed in | email/password auth, then `303 → /` |
-| `/settings` | required | tabbed profile / plan / domain / storage management |
-| `/library` | required | the owner's track list |
-| `/library/new` | required | upload form |
-| `/library/[id]` | owner only | edit metadata, embed tags, delete |
-| `/tracks/[id]` | public | track detail with waveform and comments |
-| `/users/[username]` | public | public profile by path |
-| `/api/media/[id]/[file]` | public | audio/cover streaming with Range support |
-| `/api/tracks/[id]` | required | `DELETE` a track |
-| `/api/tracks/[id]/like` | required | `POST` toggles a like |
-| `/api/tracks/[id]/comments` | required | `POST` adds a comment |
-| `/api/domain-tls-check` | internal | Caddy on-demand TLS gate |
+| Route                       | Auth                   | What it does                                                           |
+| --------------------------- | ---------------------- | ---------------------------------------------------------------------- |
+| `/`                         | optional               | Marketing landing on apex; the owner's public profile on a tenant host |
+| `/signin`, `/signup`        | redirects if signed in | email/password auth, then `303 → /`                                    |
+| `/settings`                 | required               | tabbed profile / plan / domain / storage management                    |
+| `/library`                  | required               | the owner's track list                                                 |
+| `/library/new`              | required               | upload form                                                            |
+| `/library/[id]`             | owner only             | edit metadata, embed tags, delete                                      |
+| `/tracks/[id]`              | public                 | track detail with waveform and comments                                |
+| `/users/[username]`         | public                 | public profile by path                                                 |
+| `/api/media/[id]/[file]`    | public                 | audio/cover streaming with Range support                               |
+| `/api/tracks/[id]`          | required               | `DELETE` a track                                                       |
+| `/api/tracks/[id]/like`     | required               | `POST` toggles a like                                                  |
+| `/api/tracks/[id]/comments` | required               | `POST` adds a comment                                                  |
+| `/api/domain-tls-check`     | internal               | Caddy on-demand TLS gate                                               |
 
 `/settings`, `/signin`, `/signup`, `/library`, and `/api/domain-tls-check` 404 on tenant hosts. See
 [architecture.md](architecture.md).
@@ -89,13 +89,13 @@ Passwords are never echoed.
 
 ### `fail` vs `error` vs `safeRedirect`
 
-| Situation | Use |
-| --- | --- |
-| Invalid user input, recoverable | `fail(400, { … })` |
-| Not authorized for this action | `fail(403, { … })` in a form action; `error(401)` in an API route |
-| Resource does not exist | `error(404, '…')` |
-| Unexpected failure | `fail(500, { message: 'Something went wrong.' })` |
-| Success that changes location | `safeRedirect(303, '/library/…')` |
+| Situation                       | Use                                                               |
+| ------------------------------- | ----------------------------------------------------------------- |
+| Invalid user input, recoverable | `fail(400, { … })`                                                |
+| Not authorized for this action  | `fail(403, { … })` in a form action; `error(401)` in an API route |
+| Resource does not exist         | `error(404, '…')`                                                 |
+| Unexpected failure              | `fail(500, { message: 'Something went wrong.' })`                 |
+| Success that changes location   | `safeRedirect(303, '/library/…')`                                 |
 
 Never `throw redirect()` from `@sveltejs/kit` — always `safeRedirect()`.
 
@@ -145,12 +145,12 @@ also inspect `result.type === 'failure'` and merge `result.data` back into their
 
 Both exist, and the split is deliberate:
 
-| Use a **form action** when | Use **`fetch` to `/api/*`** when |
-| --- | --- |
-| the operation belongs in history or changes location | the change is in-place and local to one card |
-| you want it to work without JS | JS is already required (it is a button inside a player) |
-| the page needs fresh `load` data afterwards | invalidating the whole page would be wasteful |
-| examples: auth, settings, upload, track edit | examples: like toggle, add comment, delete from the card menu |
+| Use a **form action** when                           | Use **`fetch` to `/api/*`** when                              |
+| ---------------------------------------------------- | ------------------------------------------------------------- |
+| the operation belongs in history or changes location | the change is in-place and local to one card                  |
+| you want it to work without JS                       | JS is already required (it is a button inside a player)       |
+| the page needs fresh `load` data afterwards          | invalidating the whole page would be wasteful                 |
+| examples: auth, settings, upload, track edit         | examples: like toggle, add comment, delete from the card menu |
 
 Track deletion exists on both paths — the form action on `/library/[id]` redirects to `/library`,
 the `DELETE` endpoint serves the inline card menu. Both call the same

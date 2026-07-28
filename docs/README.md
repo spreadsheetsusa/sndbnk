@@ -9,16 +9,16 @@ Read [architecture.md](architecture.md) first. Everything else is reference you 
 
 ## Where to look for what
 
-| I need to… | Read |
-| --- | --- |
-| Understand the request lifecycle, layers, or tenancy | [architecture.md](architecture.md) |
-| Add or change a table, column, or query | [data-model.md](data-model.md) |
-| Add a page, `load`, form action, or API endpoint | [routing-and-forms.md](routing-and-forms.md) |
-| Write or review a `.svelte` / `.svelte.js` file | [reactivity.md](reactivity.md) |
-| Style anything, or touch colors and dark mode | [design-system.md](design-system.md) |
+| I need to…                                            | Read                                         |
+| ----------------------------------------------------- | -------------------------------------------- |
+| Understand the request lifecycle, layers, or tenancy  | [architecture.md](architecture.md)           |
+| Add or change a table, column, or query               | [data-model.md](data-model.md)               |
+| Add a page, `load`, form action, or API endpoint      | [routing-and-forms.md](routing-and-forms.md) |
+| Write or review a `.svelte` / `.svelte.js` file       | [reactivity.md](reactivity.md)               |
+| Style anything, or touch colors and dark mode         | [design-system.md](design-system.md)         |
 | Work on uploads, waveforms, tags, or storage adapters | [media-and-storage.md](media-and-storage.md) |
-| Set up env vars, deploy, or debug production | [operations.md](operations.md) |
-| Understand something that looks wrong | [known-issues.md](known-issues.md) |
+| Set up env vars, deploy, or debug production          | [operations.md](operations.md)               |
+| Understand something that looks wrong                 | [known-issues.md](known-issues.md)           |
 
 Normative style rules live in [`.cursor/rules/`](../.cursor/rules), not here. These docs explain
 how the system is put together and why; the rules say what to do while editing it.
