@@ -108,9 +108,7 @@
 		if (wavesurfer) {
 			wavesurfer.setOptions({
 				peaks: [
-					nextPeaks && nextPeaks.length > 0
-						? nextPeaks.map((v) => v / 100)
-						: normalizedPeaks()
+					nextPeaks && nextPeaks.length > 0 ? nextPeaks.map((v) => v / 100) : normalizedPeaks()
 				],
 				duration: nextDuration
 			});

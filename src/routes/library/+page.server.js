@@ -1,5 +1,9 @@
 import { getProfileByUserId } from '#lib/server/tenant';
-import { listTracksForUser } from '#lib/server/tracks';
+import {
+	getSocialForTracks,
+	listTracksWithUploader,
+	serializeTrackForPlayer
+} from '#lib/server/tracks';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = async ({ locals }) => {
@@ -12,7 +16,17 @@ export const load = async ({ locals }) => {
 		safeRedirect(302, '/signup');
 	}
 
-	const tracks = await listTracksForUser(locals.user.id);
+	const rows = await listTracksWithUploader(locals.user.id);
+	const social = await getSocialForTracks(
+		rows.map((row) => row.track.id),
+		locals.user.id
+	);
+
+	const tracks = await Promise.all(
+		rows.map((row) =>
+			serializeTrackForPlayer(row.track, row, social.get(row.track.id), locals.user)
+		)
+	);
 
 	return {
 		user: {
@@ -22,16 +36,6 @@ export const load = async ({ locals }) => {
 		profile: {
 			username: profile.username
 		},
-		tracks: tracks.map((t) => ({
-			id: t.id,
-			title: t.title,
-			artist: t.artist,
-			album: t.album,
-			genre: t.genre,
-			durationMs: t.durationMs,
-			storageAdapter: t.storageAdapter,
-			hasCover: Boolean(t.coverFilename),
-			createdAt: t.createdAt
-		}))
+		tracks
 	};
 };

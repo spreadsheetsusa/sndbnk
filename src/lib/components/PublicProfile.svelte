@@ -1,5 +1,7 @@
 <script>
+	import { invalidateAll } from '$app/navigation';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import TrackCard from '#lib/components/player/TrackCard.svelte';
 
 	/**
 	 * @typedef {{
@@ -16,8 +18,9 @@
 	 *     customDomainUrl: string | null,
 	 *     cnameTarget: string
 	 *   },
+	 *   tracks: import('#lib/components/player/TrackCard.svelte').CardTrack[],
 	 *   viaTenantHost: boolean,
-	 *   viewer: { id: string, isOwner: boolean } | null
+	 *   viewer: { id: string, name: string, isOwner: boolean } | null
 	 * }} ProfilePageData
 	 */
 
@@ -35,9 +38,11 @@
 			<p class="eyebrow accent-text">Public profile</p>
 			<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
 			<p class="handle">@{data.profile.username}</p>
-			<p class="lede">
-				This space is ready for sound. Tracks, releases, and the rest of SNDBNK will land here.
-			</p>
+			{#if data.tracks.length === 0}
+				<p class="lede">
+					This space is ready for sound. Tracks, releases, and the rest of SNDBNK will land here.
+				</p>
+			{/if}
 
 			<ul class="url-list" aria-label="Profile addresses">
 				<li>
@@ -47,8 +52,7 @@
 				{#if data.urls.subdomainUrl}
 					<li>
 						<span class="url-label">Subdomain</span>
-						<a href={data.urls.subdomainUrl}
-							>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
+						<a href={data.urls.subdomainUrl}>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
 						>
 					</li>
 				{/if}
@@ -69,6 +73,25 @@
 				</p>
 			{/if}
 		</section>
+
+		{#if data.tracks.length > 0}
+			<section class="tracks" aria-labelledby="tracks-heading">
+				<p class="eyebrow">Tracks</p>
+				<h2 id="tracks-heading" class="sr-only">Tracks by {data.profile.name}</h2>
+				<ul class="profile-track-list">
+					{#each data.tracks as track (track.id)}
+						<li>
+							<TrackCard
+								{track}
+								signedIn={Boolean(data.viewer)}
+								viewerName={data.viewer?.name ?? null}
+								ondeleted={() => invalidateAll()}
+							/>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 
 		<section class="signal" aria-hidden="true">
 			<svg viewBox="0 0 800 180" role="presentation">
@@ -194,6 +217,37 @@
 	.owner-note a {
 		color: var(--ink);
 		font-weight: 800;
+	}
+
+	.tracks {
+		margin-top: clamp(2.5rem, 7vw, 4rem);
+		padding-top: clamp(1.5rem, 4vw, 2rem);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		animation: rise 0.85s ease 0.2s both;
+	}
+
+	.tracks > .eyebrow {
+		margin: 0 0 1rem;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.profile-track-list {
+		display: grid;
+		gap: 1rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
 	.signal {

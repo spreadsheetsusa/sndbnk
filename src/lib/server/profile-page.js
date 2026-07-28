@@ -1,4 +1,9 @@
 import { buildPublicUrls, getProfileByUsername } from '#lib/server/tenant';
+import {
+	getSocialForTracks,
+	listTracksWithUploader,
+	serializeTrackForPlayer
+} from '#lib/server/tracks';
 import { normalizeUsername } from '#lib/server/username';
 
 /**
@@ -16,7 +21,17 @@ export async function loadPublicProfilePage({ username, locals }) {
 	const urls = buildPublicUrls(row);
 	const viaTenantHost = Boolean(locals.tenant);
 
+	const trackRows = await listTracksWithUploader(row.userId);
+	const social = await getSocialForTracks(
+		trackRows.map((r) => r.track.id),
+		locals.user?.id ?? null
+	);
+	const tracks = await Promise.all(
+		trackRows.map((r) => serializeTrackForPlayer(r.track, r, social.get(r.track.id), locals.user))
+	);
+
 	return {
+		tracks,
 		profile: {
 			username: row.username,
 			name: row.name,
@@ -29,6 +44,7 @@ export async function loadPublicProfilePage({ username, locals }) {
 		viewer: locals.user
 			? {
 					id: locals.user.id,
+					name: locals.user.name,
 					isOwner: locals.user.id === row.userId
 				}
 			: null

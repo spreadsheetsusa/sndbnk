@@ -466,7 +466,10 @@ export async function ensureTrackWaveform(row) {
 		const peaks = await generateWaveformPeaks(bytes);
 		if (!peaks) return null;
 
-		await db.update(track).set({ waveform: JSON.stringify(peaks) }).where(eq(track.id, row.id));
+		await db
+			.update(track)
+			.set({ waveform: JSON.stringify(peaks) })
+			.where(eq(track.id, row.id));
 		return peaks;
 	} catch {
 		return null;

@@ -1,6 +1,7 @@
 <script>
+	import { invalidateAll } from '$app/navigation';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
-	import { formatDuration } from '#lib/media/audio-metadata.js';
+	import TrackCard from '#lib/components/player/TrackCard.svelte';
 
 	let { data } = $props();
 </script>
@@ -42,34 +43,12 @@
 				<ul class="track-list">
 					{#each data.tracks as track (track.id)}
 						<li>
-							<a class="track-row" href="/library/{track.id}">
-								<div class="cover">
-									{#if track.hasCover}
-										<img
-											src="/api/media/{track.id}/cover"
-											alt=""
-											width="72"
-											height="72"
-											loading="lazy"
-										/>
-									{:else}
-										<span class="cover-placeholder" aria-hidden="true"></span>
-									{/if}
-								</div>
-								<div class="track-meta">
-									<span class="track-title">{track.title}</span>
-									<span class="track-artist">{track.artist || 'Unknown artist'}</span>
-									{#if track.album}
-										<span class="track-album">{track.album}</span>
-									{/if}
-								</div>
-								<div class="track-aside">
-									{#if track.durationMs != null}
-										<span class="track-duration">{formatDuration(track.durationMs)}</span>
-									{/if}
-									<span class="adapter-badge">{track.storageAdapter}</span>
-								</div>
-							</a>
+							<TrackCard
+								{track}
+								signedIn={true}
+								viewerName={data.user.name}
+								ondeleted={() => invalidateAll()}
+							/>
 						</li>
 					{/each}
 				</ul>
@@ -172,106 +151,11 @@
 	}
 
 	.track-list {
+		display: grid;
+		gap: 1rem;
 		margin: 1.5rem 0 0;
 		padding: 0;
 		list-style: none;
-	}
-
-	.track-list li {
-		border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
-	}
-
-	.track-list li:last-child {
-		border-bottom: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
-	}
-
-	.track-row {
-		display: grid;
-		grid-template-columns: auto 1fr auto;
-		gap: 1rem;
-		align-items: center;
-		padding: 0.85rem 0;
-		color: var(--ink);
-		text-decoration: none;
-	}
-
-	.track-aside {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.35rem;
-	}
-
-	.track-duration {
-		color: var(--muted);
-		font-size: 0.75rem;
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-		letter-spacing: 0.02em;
-	}
-
-	.track-row:hover .track-title {
-		text-decoration: underline;
-		text-underline-offset: 0.2rem;
-	}
-
-	.cover {
-		width: 4.5rem;
-		height: 4.5rem;
-		flex-shrink: 0;
-	}
-
-	.cover img,
-	.cover-placeholder {
-		display: block;
-		width: 100%;
-		height: 100%;
-		border: 1px solid var(--ink);
-		object-fit: cover;
-	}
-
-	.cover-placeholder {
-		background:
-			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
-			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
-			var(--paper);
-		background-size: 12px 12px;
-	}
-
-	.track-meta {
-		display: flex;
-		flex-direction: column;
-		gap: 0.15rem;
-		min-width: 0;
-	}
-
-	.track-title {
-		font-weight: 800;
-		font-size: 0.95rem;
-		line-height: 1.3;
-	}
-
-	.track-artist {
-		color: var(--muted);
-		font-size: 0.85rem;
-		line-height: 1.35;
-	}
-
-	.track-album {
-		color: var(--muted);
-		font-size: 0.75rem;
-		line-height: 1.35;
-	}
-
-	.adapter-badge {
-		padding: 0.15rem 0.45rem;
-		border: 1px solid var(--ink);
-		background: rgb(200 255 61 / 22%);
-		font-size: 0.62rem;
-		font-weight: 900;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		white-space: nowrap;
 	}
 
 	@keyframes rise {
@@ -282,19 +166,6 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
-		}
-	}
-
-	@media (max-width: 720px) {
-		.track-row {
-			grid-template-columns: auto 1fr;
-		}
-
-		.track-aside {
-			grid-column: 2;
-			flex-direction: row;
-			align-items: center;
-			justify-self: start;
 		}
 	}
 </style>

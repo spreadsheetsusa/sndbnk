@@ -56,9 +56,7 @@
 	const isPlaying = $derived(isActive && player.playing);
 	const cardTime = $derived(isActive ? player.currentTime : 0);
 	const durationSec = $derived((track.durationMs ?? 0) / 1000);
-	const progressPct = $derived(
-		durationSec > 0 ? Math.min((cardTime / durationSec) * 100, 100) : 0
-	);
+	const progressPct = $derived(durationSec > 0 ? Math.min((cardTime / durationSec) * 100, 100) : 0);
 	const viewerInitial = $derived((viewerName ?? '?').trim().charAt(0).toUpperCase() || '?');
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
@@ -245,7 +243,10 @@
 				onseek={handleSeek}
 			/>
 			{#if isActive}
-				<span class="time-chip current" style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))">
+				<span
+					class="time-chip current"
+					style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
+				>
 					{formatDuration(cardTime * 1000)}
 				</span>
 			{/if}
