@@ -5,9 +5,12 @@
 
 :root {
 	--accent: #c8ff3d;
+	--on-accent: #11110f;
 	--ink: #11110f;
 	--paper: #f2f0e8;
 	--muted: #696861;
+	--inverse: #11110f;
+	--on-inverse: #f2f0e8;
 	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
@@ -19,6 +22,8 @@
 	--ink: #f2f0e8;
 	--paper: #141410;
 	--muted: #a8a69c;
+	--inverse: #050504;
+	--on-inverse: #f2f0e8;
 	color-scheme: dark;
 }
 
@@ -65,7 +70,7 @@ a {
 }
 
 ::selection {
-	color: var(--ink);
+	color: var(--on-accent);
 	background: var(--accent);
 }
 
@@ -91,6 +96,7 @@ a {
 
 .accent-fill {
 	background: var(--accent);
+	color: var(--on-accent);
 }
 
 .accent-text {
