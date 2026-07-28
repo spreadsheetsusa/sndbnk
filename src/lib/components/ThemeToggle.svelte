@@ -5,13 +5,7 @@
 	const label = $derived(`Switch to ${nextTheme} mode`);
 </script>
 
-<button
-	type="button"
-	class="theme-toggle"
-	onclick={toggleTheme}
-	aria-label={label}
-	title={label}
->
+<button type="button" class="theme-toggle" onclick={toggleTheme} aria-label={label} title={label}>
 	{#if $resolvedTheme === 'dark'}
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			<circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.75" />
@@ -44,21 +38,19 @@
 		width: 2.25rem;
 		height: 2.25rem;
 		padding: 0;
-		border: 1px solid var(--ink);
-		background: var(--paper);
+		border: 0;
+		background: transparent;
 		color: var(--ink);
 		cursor: pointer;
 		text-decoration: none;
 		flex-shrink: 0;
 		transition:
 			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
-			background-color 120ms ease,
 			color 120ms ease;
 	}
 
 	.theme-toggle:hover {
-		color: var(--on-accent);
-		background: var(--accent);
+		color: var(--accent);
 	}
 
 	.theme-toggle:active {
