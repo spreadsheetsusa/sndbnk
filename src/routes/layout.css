@@ -20,7 +20,7 @@
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
 	color: var(--ink);
-	background: var(--paper);
+	background-color: var(--paper);
 }
 
 @media (max-width: 620px) {
@@ -44,7 +44,7 @@
 
 html {
 	min-width: 320px;
-	background: var(--paper);
+	background-color: var(--paper);
 	scroll-behavior: smooth;
 	/* Keep the centered shell from shifting when a page gains/loses a scrollbar */
 	scrollbar-gutter: stable;
@@ -54,11 +54,27 @@ body {
 	margin: 0;
 	min-width: 320px;
 	min-height: 100vh;
-	background:
+	background-color: var(--paper);
+	background-image:
 		linear-gradient(color-mix(in srgb, var(--ink) 3.5%, transparent) 1px, transparent 1px),
-		linear-gradient(90deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 1px, transparent 1px),
-		var(--paper);
+		linear-gradient(90deg, color-mix(in srgb, var(--ink) 3.5%, transparent) 1px, transparent 1px);
 	background-size: 32px 32px;
+}
+
+/* Theme flips swap custom properties, which cannot animate. This class is added to
+   <html> for the length of a flip so everything referencing them eases instead. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+	transition:
+		background-color 280ms ease,
+		border-color 280ms ease,
+		color 280ms ease,
+		box-shadow 280ms ease,
+		fill 280ms ease,
+		stroke 280ms ease !important;
+	transition-delay: 0s !important;
 }
 
 button,
