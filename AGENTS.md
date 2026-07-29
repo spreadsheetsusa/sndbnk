@@ -41,7 +41,16 @@ This is `sndbnk`, a SvelteKit app (Vite dev server) using Drizzle ORM over SQLit
 - **Lint:** `bun run lint` (`prettier --check`). A few committed files currently fail the check; that is pre-existing and unrelated to setup.
 - **Core flow to smoke-test:** register at `/signup` or log in at `/signin`; both redirect to `/`, where the authenticated header shows the user and provides sign-out.
 
+## Learned User Preferences
+
+- Prefer a shared site header with a hamburger that opens a local dropdown menu, not a slide-in drawer/panel.
+- Prefer track listings without card borders or backgrounds; secondary track actions should sit in an ellipsis menu.
+
 ## Learned Workspace Facts
 
 - The production build uses `svelte-adapter-bun`; `systemd.service` runs `build/index.js` with Bun from `/var/www/sndbnk`, and Caddy proxies public traffic to the app on `localhost:3000`.
 - Use the package `#lib` import map for source aliases; this project does not use the removed `$lib` alias.
+- After pulls, apply SQLite schema with `bun run db:push` (`scripts/push-sqlite-schema.js`); do not rely on `drizzle-kit push` under Bun.
+- Beyond `DATABASE_URL` / `ORIGIN` / `BETTER_AUTH_SECRET`, local/runtime env also needs `PUBLIC_BASE_DOMAIN`, `MEDIA_ROOT`, `BODY_SIZE_LIMIT`, and `STORAGE_SECRET` (see `.env.example`).
+- Shared chrome lives in `#lib/components/SiteHeader.svelte` and is included per page (not via a nested layout).
+- Client upload autofill uses `#lib/media/audio-metadata.js` (`music-metadata`); server-side tag gap-fill uses `#lib/server/media/embed-tags.js` (`taglib-wasm`).

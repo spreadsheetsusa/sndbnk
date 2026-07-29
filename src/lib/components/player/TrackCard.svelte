@@ -49,8 +49,6 @@
 	let copied = $state(false);
 	let likeBusy = $state(false);
 	let deleteBusy = $state(false);
-	/** @type {HTMLDivElement | undefined} */
-	let menuWrap = $state();
 
 	const isActive = $derived(player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
@@ -170,13 +168,20 @@
 		}
 	}
 
-	/** @param {PointerEvent} event */
-	function handlePointerDown(event) {
-		if (!menuOpen || !menuWrap) return;
-		const target = /** @type {Node | null} */ (event.target);
-		if (target && !menuWrap.contains(target)) {
-			menuOpen = false;
+	/** @type {import('svelte/attachments').Attachment} */
+	function menuClickOutside(node) {
+		/** @param {PointerEvent} event */
+		function onPointerDown(event) {
+			if (!menuOpen) return;
+			const target = /** @type {Node | null} */ (event.target);
+			if (target && !node.contains(target)) {
+				menuOpen = false;
+			}
 		}
+		document.addEventListener('pointerdown', onPointerDown);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown);
+		};
 	}
 
 	/** @param {KeyboardEvent} event */
@@ -188,9 +193,8 @@
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
-<svelte:document onpointerdown={handlePointerDown} />
 
-<article class="track-card" class:active={isActive}>
+<article class="track-card">
 	<div class="cover">
 		{#if track.hasCover}
 			<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
@@ -231,6 +235,57 @@
 				</span>
 				{#if track.genre}
 					<span class="tag"># {track.genre}</span>
+				{/if}
+			</div>
+
+			<div class="menu-wrap" {@attach menuClickOutside}>
+				<button
+					type="button"
+					class="more-btn"
+					aria-label="More actions"
+					aria-expanded={menuOpen}
+					aria-haspopup="menu"
+					onclick={() => (menuOpen = !menuOpen)}
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<circle cx="5" cy="12" r="1.6" />
+						<circle cx="12" cy="12" r="1.6" />
+						<circle cx="19" cy="12" r="1.6" />
+					</svg>
+				</button>
+
+				{#if menuOpen}
+					<div class="menu" role="menu">
+						<button type="button" role="menuitem" onclick={copyLink}>
+							{copied ? 'Copied!' : 'Copy link'}
+						</button>
+						{#if track.isOwner}
+							<a class="menu-item" role="menuitem" href="/library/{track.id}">Edit</a>
+						{/if}
+						<button
+							type="button"
+							role="menuitem"
+							disabled={!signedIn || likeBusy}
+							onclick={toggleLike}
+						>
+							{liked ? 'Unlike' : 'Like'}
+							{#if likeCount > 0}
+								<span class="menu-count">{likeCount}</span>
+							{/if}
+						</button>
+						<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
+						{#if track.isOwner}
+							<button
+								type="button"
+								role="menuitem"
+								class="danger"
+								disabled={deleteBusy}
+								onclick={deleteTrack}
+							>
+								Delete Track
+							</button>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -281,84 +336,14 @@
 			</form>
 		{/if}
 
-		<div class="actions">
-			<button type="button" class="action-btn" onclick={copyLink}>
-				<svg viewBox="0 0 24 24" aria-hidden="true">
-					<path
-						d="M9 14l6-6M8 17a4 4 0 01-3-7l2-2M16 7a4 4 0 013 7l-2 2"
-						fill="none"
-						stroke-width="1.6"
-						stroke-linecap="round"
-					/>
-				</svg>
-				{copied ? 'Copied!' : 'Copy link'}
-			</button>
-
-			{#if track.isOwner}
-				<a class="action-btn" href="/library/{track.id}">
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path
-							d="M4 20l1-4L16 5l3 3L8 19l-4 1zM14 7l3 3"
-							fill="none"
-							stroke-width="1.6"
-							stroke-linejoin="round"
-						/>
-					</svg>
-					Edit
-				</a>
-			{/if}
-
-			<div class="menu-wrap" bind:this={menuWrap}>
-				<button
-					type="button"
-					class="action-btn"
-					aria-label="More actions"
-					aria-expanded={menuOpen}
-					onclick={() => (menuOpen = !menuOpen)}
-				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<circle cx="5" cy="12" r="1.6" />
-						<circle cx="12" cy="12" r="1.6" />
-						<circle cx="19" cy="12" r="1.6" />
-					</svg>
-				</button>
-
-				{#if menuOpen}
-					<div class="menu" role="menu">
-						<button
-							type="button"
-							role="menuitem"
-							disabled={!signedIn || likeBusy}
-							onclick={toggleLike}
-						>
-							{liked ? 'Unlike' : 'Like'}
-							{#if likeCount > 0}
-								<span class="menu-count">{likeCount}</span>
-							{/if}
-						</button>
-						<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
-						{#if track.isOwner}
-							<button
-								type="button"
-								role="menuitem"
-								class="danger"
-								disabled={deleteBusy}
-								onclick={deleteTrack}
-							>
-								Delete Track
-							</button>
-						{/if}
-					</div>
-				{/if}
-			</div>
-
-			{#if commentCount > 0}
+		{#if commentCount > 0}
+			<div class="meta">
 				<span class="counts">
 					{commentCount}
 					{commentCount === 1 ? 'comment' : 'comments'}
 				</span>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</div>
 </article>
 
@@ -368,12 +353,6 @@
 		grid-template-columns: auto 1fr;
 		gap: 1rem;
 		padding: 1rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
-		background: color-mix(in srgb, var(--ink) 3%, transparent);
-	}
-
-	.track-card.active {
-		border-color: var(--ink);
 	}
 
 	.cover {
@@ -409,7 +388,7 @@
 	.head {
 		display: flex;
 		gap: 0.75rem;
-		align-items: flex-start;
+		align-items: center;
 	}
 
 	.play-btn {
@@ -607,52 +586,42 @@
 		font-weight: 800;
 	}
 
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
+	.menu-wrap {
+		position: relative;
+		flex-shrink: 0;
 	}
 
-	.action-btn {
+	.more-btn {
 		display: inline-flex;
-		gap: 0.4rem;
+		width: 2rem;
+		height: 2rem;
 		align-items: center;
-		min-height: 2rem;
-		padding: 0 0.65rem;
+		justify-content: center;
+		padding: 0;
 		border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
 		background: transparent;
 		color: var(--ink);
-		font-size: 0.7rem;
-		font-weight: 800;
-		letter-spacing: 0.04em;
-		text-decoration: none;
-		text-transform: uppercase;
 		cursor: pointer;
 	}
 
-	.action-btn:hover {
+	.more-btn:hover,
+	.more-btn[aria-expanded='true'] {
 		border-color: var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
 	}
 
-	.action-btn svg {
-		width: 0.95rem;
-		height: 0.95rem;
+	.more-btn svg {
+		width: 1rem;
+		height: 1rem;
 		fill: currentColor;
-		stroke: currentColor;
-	}
-
-	.menu-wrap {
-		position: relative;
 	}
 
 	.menu {
 		position: absolute;
 		z-index: 30;
 		top: calc(100% + 0.35rem);
-		left: 0;
+		right: 0;
 		display: grid;
 		min-width: 11rem;
 		padding: 0.3rem;
@@ -661,7 +630,8 @@
 		box-shadow: 5px 5px 0 var(--ink);
 	}
 
-	.menu button {
+	.menu button,
+	.menu .menu-item {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
@@ -675,11 +645,13 @@
 		font-weight: 800;
 		letter-spacing: 0.04em;
 		text-align: left;
+		text-decoration: none;
 		text-transform: uppercase;
 		cursor: pointer;
 	}
 
-	.menu button:not(:disabled):hover {
+	.menu button:not(:disabled):hover,
+	.menu .menu-item:hover {
 		color: var(--on-accent);
 		background: var(--accent);
 	}
@@ -703,8 +675,12 @@
 		color: inherit;
 	}
 
+	.meta {
+		display: flex;
+		justify-content: flex-end;
+	}
+
 	.counts {
-		margin-left: auto;
 		color: var(--muted);
 		font-size: 0.72rem;
 		font-weight: 600;
