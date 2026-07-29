@@ -1,0 +1,72 @@
+---
+description: Server module, database, auth, and storage conventions
+globs: src/lib/server/**,src/hooks.server.js,src/routes/**/+page.server.js,src/routes/**/+server.js,src/routes/**/+layout.server.js
+alwaysApply: false
+---
+
+# Server and data
+
+## Layering
+
+Routes call service modules in `src/lib/server/`; services own `db`. A route must not build a Drizzle
+query — if the query does not exist yet, add a named function to the relevant service.
+
+## Database
+
+- Import the single client: `import { db } from '#lib/server/db'`, tables from
+  `#lib/server/db/schema` (which re-exports the auth tables).
+- camelCase JS keys, snake_case SQL columns, passed explicitly: `customDomain: text('custom_domain')`.
+- IDs: `text('id').primaryKey().$defaultFn(() => crypto.randomUUID())`.
+- Timestamps: `integer('created_at', { mode: 'timestamp_ms' })` with `$defaultFn(() => new Date())`,
+  plus `$onUpdate(() => new Date())` on `updatedAt`. Serialize to `.getTime()` at the boundary; never
+  send a `Date` to the client.
+- User-owned rows cascade: `.references(() => user.id, { onDelete: 'cascade' })`.
+- Enums are `text` plus a JSDoc `@typedef`, validated in code, not by a SQL constraint.
+- Prefer explicit `select({ … }).innerJoin(…)` projections over the relational query API.
+- Single-row reads `.limit(1)` and `return rows[0] ?? null`.
+- **`src/lib/server/db/auth.schema.js` is generated.** Regenerate with `bun run auth:schema` followed
+  by `bun run format` (the CLI emits double quotes); never hand-edit it.
+- **Any schema change also needs an edit to `scripts/push-sqlite-schema.js`** — that script is the
+  migration system. A new column goes in **two** places there: the `CREATE TABLE` body (fresh
+  databases) and the matching `ensureColumns()` list (existing databases, via `ALTER TABLE`).
+  `CREATE TABLE IF NOT EXISTS` alone never adds a column. See `docs/data-model.md`.
+- **A new env var needs `src/env.js`, `.env.example`, and the deploy workflow's managed list.** Every
+  declared variable is required, so omitting one 500s every route at boot.
+
+## Auth and authorization
+
+- Use the exported `auth` from `#lib/server/auth`. Session population belongs to
+  `handleBetterAuth` in `src/hooks.server.js` — no other place calls `getSession`.
+- Guard at the top of every `load`, action, and endpoint: `if (!locals.user) safeRedirect(302, '/signin')`
+  in page code, `if (!locals.user) error(401, '…')` in API routes.
+- **Ownership is enforced in the query.** Mutations go through `getOwnedTrack(userId, trackId)`;
+  public reads use `getTrackById`. Never fetch-then-compare.
+- `locals.tenant` is written only by `handleTenant`. Read it; never set it.
+
+## Errors and control flow
+
+- Return `{ ok: true, … } | { ok: false, message }` from validators and mutators. Do not throw for
+  user input.
+- Convert at the boundary: `fail()` for form validation, `error()` for missing or unauthorized,
+  `safeRedirect()` for navigation.
+- **`safeRedirect()` from `#lib/server/safe-redirect`, never `redirect()` from `@sveltejs/kit`.**
+- Throw only for missing configuration (`if (!DATABASE_URL) throw …`) or corrupt data
+  (`decryptSecret`).
+
+## Env
+
+`$app/env/private` and `$app/env/public`, with every variable declared in `src/env.js`. `process.env`
+only in `drizzle.config.js` and standalone scripts, which run outside the SvelteKit runtime.
+
+## Storage and media
+
+- Resolve adapters through `getStorageAdapter(userId, forceAdapter)`. On reads of an existing track,
+  always pass `row.storageAdapter` — it is a snapshot of the adapter used at upload time.
+- Decrypted SSH credentials never leave `src/lib/server/storage/`. User-facing data comes from
+  `getStorageSettingPublic()`, which reports presence, not values.
+- `get()` bodies can be `Uint8Array | ReadableStream | Blob`; handle all three.
+- Write the DB row before writing files (the id is the `folderKey`), and roll both back on failure.
+- Media side effects fail soft: waveform generation and tag embedding return `null` / `{ ok: false }`
+  rather than aborting an otherwise successful operation.
+
+Details: `docs/data-model.md`, `docs/media-and-storage.md`, `docs/architecture.md`.

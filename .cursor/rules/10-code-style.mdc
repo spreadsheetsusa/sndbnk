@@ -1,0 +1,73 @@
+---
+description: Code style and code of conduct for sndbnk
+alwaysApply: true
+---
+
+# Code style
+
+## Language
+
+- **ES6+ only.** `const`/`let`, arrow functions, destructuring, spread, optional chaining (`?.`),
+  nullish coalescing (`??`), logical assignment (`??=`), `for…of`, template literals, top-level
+  `await`, native `Intl`, `crypto.randomUUID()`, `structuredClone`. No `var`, no `function` where an
+  arrow reads better, no polyfills, no utility library for something the platform does.
+- **Plain JS with JSDoc.** Type exported functions with `@param` / `@returns`, type object shapes with
+  `@typedef`, and derive DB row types with `typeof table.$inferSelect` rather than restating columns.
+  Cast inline when needed: `/** @type {'local' | 'ssh'} */ (row.storageAdapter)`.
+- **ESM everywhere.** `"type": "module"`, no `require`.
+
+## Fewest lines that express the idea
+
+Not golf — the shortest form that is still obvious.
+
+- **Early return over nesting.** Guard clauses at the top, happy path unindented.
+- **Prefer an expression to a statement block.** `const x = cond ? a : b`, `value ?? fallback`,
+  `rows[0] ?? null`.
+- **Do not write a helper used once** unless it names something non-obvious.
+- **Do not add options, flags, or abstraction layers for hypothetical future needs.** The storage
+  adapter interface has exactly four methods because that is what is used.
+- **Delete instead of commenting out.**
+
+## Result objects, not exceptions
+
+Anything a user can cause returns a discriminated object; the caller decides the HTTP shape.
+
+```js
+export function validateUsername(value) {
+	const username = normalizeUsername(value);
+	if (!PATTERN.test(username)) return { ok: false, message: 'Usernames are 3-30 characters…' };
+	if (RESERVED_USERNAMES.has(username)) return { ok: false, message: 'That username is reserved.' };
+	return { ok: true, username };
+}
+```
+
+Then `if (!result.ok) return result;` chains cleanly through callers. Throw only for programmer error
+or missing configuration.
+
+## Naming
+
+- Functions are verb phrases: `getProfileByUsername`, `parseTrackMetadata`, `ensureTrackWaveform`.
+- Predicates read as questions: `isPlan`, `canUseSubdomain`, `hasMatchingCname`.
+- Module-level constants are `SCREAMING_SNAKE`: `AUDIO_MAX_BYTES`, `RESERVED_USERNAMES`.
+- Names say what a thing is, not what type it is. No Hungarian prefixes, no `Impl`, no `Manager`.
+
+## Formatting
+
+Prettier decides; never hand-format against it. Run `bun run format` on files you touch.
+
+Tabs, single quotes, no trailing commas, 100 columns, semicolons.
+`prettier-plugin-svelte` then `prettier-plugin-tailwindcss` (Tailwind must stay last).
+
+## Comments
+
+Write a comment only for something the code cannot say: a workaround and why it exists, a
+non-obvious constraint, an ordering requirement, a deliberate trade-off. The existing ones are the
+model:
+
+```js
+// ffmpeg needs a seekable input for container formats like m4a/flac,
+// so stage the bytes in a temp file instead of piping stdin.
+```
+
+Never narrate the next line, never explain your diff, never leave `TODO` without context. An empty
+`catch {}` gets a one-line reason.

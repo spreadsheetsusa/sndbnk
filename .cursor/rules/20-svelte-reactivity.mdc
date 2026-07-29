@@ -1,0 +1,74 @@
+---
+description: Svelte 5 runes conventions for components and reactive modules
+globs: src/**/*.svelte,src/**/*.svelte.js
+alwaysApply: false
+---
+
+# Svelte 5 reactivity
+
+This codebase is 100% runes. There is not one `export let`, `on:click`, `$:`, or
+`createEventDispatcher` in it — do not introduce the first.
+
+## Derive, do not synchronize
+
+- If a value is computable from other values, it is `$derived` (or `$derived.by` when you need
+  statements). Never an `$effect` that assigns.
+- **Never copy a prop into `$state`.** That severs reactivity. Derive from the prop instead.
+- `$effect` is only for pushing state into something outside Svelte: a canvas, an `<audio>` element,
+  a third-party instance, `localStorage`. Read all dependencies at the top of the effect, before any
+  branch, and keep one concern per effect.
+- One-time setup with teardown belongs in `onMount`, not `$effect`.
+
+## Props
+
+```js
+/**
+ * @type {{
+ *   track: CardTrack,
+ *   signedIn?: boolean,
+ *   oncommented?: (comment: Comment) => void
+ * }}
+ */
+let { track, signedIn = false, oncommented } = $props();
+```
+
+- Destructure once, defaults inline, JSDoc object literal above.
+- **Callback props, not events**: `oncommented?.(comment)`. No `createEventDispatcher`.
+- `$bindable` is unused here; parents own state and pass callbacks down.
+- Reuse markup with `{#snippet}` + `{@render}`, not a wrapper component.
+- DOM event attributes: `onclick`, `onkeydown`, `onsubmit`.
+
+## Shared state
+
+New cross-component state goes in a `.svelte.js` module as a class with `$state` fields, exported as
+a single instance — see `src/lib/player/player.svelte.js`.
+
+- Public reactive fields; `#private` for machinery that nothing renders from.
+- Methods are the only mutation path; invariants stay in one file.
+- Reassign arrays (`this.queue = [...this.queue, x]`), do not mutate in place.
+- Guard browser-only work with `import { browser } from '$app/env'`.
+- `$state.raw` for third-party instances, DOM handles, and large payloads that should not be proxied.
+
+Consumers read it directly — `player.current`, no `$` prefix, no subscription.
+
+`src/lib/stores/theme.js` and `brand.js` are legacy `writable` stores. Leave them unless you are
+already substantially editing them, and do not add new ones.
+
+## Optimistic updates
+
+Hold a nullable override beside the server prop and derive the display value:
+
+```js
+let likeOverride = $state(null);
+const liked = $derived(likeOverride?.liked ?? track.likedByViewer);
+```
+
+Set the override from the server's response, not a local guess, so a fresh `load` transparently wins.
+Always clear busy flags in `finally`.
+
+## Before finishing
+
+Run the Svelte MCP `svelte-autofixer` on every component you wrote or edited, until it returns
+nothing.
+
+Details and full examples: `docs/reactivity.md`.

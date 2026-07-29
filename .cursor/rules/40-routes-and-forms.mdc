@@ -1,0 +1,84 @@
+---
+description: SvelteKit route, load, form action, and endpoint conventions
+globs: src/routes/**
+alwaysApply: false
+---
+
+# Routes and forms
+
+## `load`
+
+- Guards first, as one-line early returns: `if (!locals.user) safeRedirect(302, '/signin')`. A page
+  needing a profile falls through to `/signup` when the row is missing.
+- Return a flat, serializable, explicitly picked shape. Convert `Date` to milliseconds. Do not return
+  a whole DB row when the page uses three fields.
+- Tag multi-mode pages with a literal so the component branches on one field:
+  `{ mode: 'tenant-profile', … }` vs `{ mode: 'marketing', … }`.
+- Services return `null` for not-found; the loader converts with `error(404, '…')`.
+- Reuse a shared loader across surfaces that must not drift — `loadPublicProfilePage()` serves both
+  `/users/[username]` and the tenant `/`.
+
+## Form actions
+
+- One form per route → `default` action, no `action` attribute.
+- Several forms per route → named actions, with any UI state the redirect must preserve in the query
+  string: `action="?/updateProfile&tab=profile"`.
+- **Give each section its own `fail` keys** (`profileMessage`/`profileSuccess`,
+  `domainMessage`/`domainSuccess`, …). There is only one `form` prop per page, so shared keys leak
+  errors between forms. Single-form routes use `message`.
+- Echo submitted values back in `fail()` so the form repopulates. Never echo a password.
+- `fail(400)` for invalid input, `fail(403)` for unauthorized in a form, `error(404)` for missing,
+  `fail(500)` for unexpected, `safeRedirect(303, …)` on success that changes location.
+
+## Progressive enhancement
+
+Every form gets `use:enhance` with a busy flag cleared in `finally`:
+
+```js
+function handleSubmit() {
+	submitting = true;
+	return async ({ update }) => {
+		try {
+			await update();
+		} finally {
+			submitting = false;
+		}
+	};
+}
+```
+
+For multi-form pages, use one handler factory keyed by section. On long forms use
+`update({ reset: false })` and merge `result.data` back into local state when
+`result.type === 'failure'`.
+
+## Form action or fetch?
+
+- **Form action** when the operation changes location, belongs in history, needs fresh `load` data,
+  or should work without JS: auth, settings, upload, track edit.
+- **`fetch` to `/api/*`** when the change is in-place inside an already-interactive component: like
+  toggle, add comment, delete from a card menu.
+
+Both paths must call the same service function.
+
+## API endpoints
+
+- Guard, load, mutate, `json(…)`. Keep them short.
+- Errors use Kit's `error(status, message)` — never a `200` with an error body. Clients check `res.ok`.
+- Return the new authoritative state (`{ liked, likeCount }`), not `{ ok: true }`, so the client can
+  replace its optimistic value.
+- On tenant hosts only `/`, `/tracks/*`, `/api/media/*`, and `/api/tracks/*` resolve. A new
+  account-facing route must be added to `APEX_ONLY_PREFIXES` in `src/hooks.server.js`; a new public
+  one must be added to `TENANT_ALLOWED_PREFIXES`.
+
+## Accessibility
+
+Non-optional, and already consistent — copy it:
+
+- Errors: `role="alert"` `aria-live="polite"`. Success: `role="status"`.
+- Hide messages while submitting: `{#if form?.message && !submitting}`.
+- Invalid inputs: `aria-invalid` plus `aria-describedby` pointing at the error container id.
+- `<form aria-busy={submitting}>`, buttons disabled with progress text (`'Saving…'`).
+- Sections use `aria-labelledby` on their heading; standalone forms use `aria-label`.
+- Decorative SVG `aria-hidden="true"`; meaningful SVG `role="img"` with a label.
+
+Details: `docs/routing-and-forms.md`.
