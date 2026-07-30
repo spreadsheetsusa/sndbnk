@@ -114,17 +114,22 @@ silently drops anything out of range instead of failing the upload.
 ## Waveforms
 
 `generateWaveformPeaks()` shells out to ffmpeg via `Bun.spawn`, decoding to 4 kHz mono 16-bit PCM,
-bucketing into `WAVEFORM_BUCKETS` (1000) max-amplitude buckets, normalizing against the loudest
-bucket, and quantizing to integers 0–100. The result is stored as a JSON string on `track.waveform`
-(~2–3 KB), so a profile page ships peaks inline with no extra request.
+bucketing into `WAVEFORM_BUCKETS` (1000) max-amplitude buckets (or fewer for sub-second files),
+normalizing against the loudest bucket, and quantizing to integers 0–100. The result is stored as a
+JSON string on `track.waveform` (~2–3 KB), so a profile page ships peaks inline with no extra
+request. Callers pass the audio file extension so the temp input is named `input.{ext}` and ffmpeg
+probes containers like m4a/flac reliably.
 
 Two things to know:
 
-- **ffmpeg is an optional dependency.** Every failure path returns `null`, and the input is staged
-  in a temp file (ffmpeg needs a seekable input for m4a/flac) that is always cleaned up in `finally`.
-  A missing ffmpeg degrades to placeholder bars, it does not break uploads.
-- **`ensureTrackWaveform(row)` backfills lazily.** Tracks uploaded before waveforms existed get
-  peaks generated on first read from storage. That is why `serializeTrackForPlayer` is async.
+- **ffmpeg is required for real waveforms.** Production deploy installs and checks for it. Every
+  failure path still returns `null` (uploads never break on a decode miss), and the input is staged
+  in a temp file that is always cleaned up in `finally`. Failures log a `[waveform]` line with exit
+  code and stderr so `journalctl -u sndbnk` shows why peaks were skipped; the UI falls back to
+  placeholder bars only in that case.
+- **`ensureTrackWaveform(row)` backfills lazily.** Tracks uploaded before waveforms existed — or
+  whose upload-time generation failed — get peaks generated on first read from storage. That is why
+  `serializeTrackForPlayer` is async.
 
 `Waveform.svelte` divides the stored 0–100 ints by 100 for wavesurfer, and falls back to a synthetic
 sine pattern when peaks are `null`.

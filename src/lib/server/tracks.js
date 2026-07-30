@@ -273,7 +273,9 @@ export async function createTrackFromForm(userId, formData) {
 	const now = new Date();
 
 	const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
-	const peaks = await generateWaveformPeaks(audioBytes);
+	const peaks = await generateWaveformPeaks(audioBytes, {
+		ext: extFromName(audioResult.filename)
+	});
 
 	await db.insert(track).values({
 		id,
@@ -381,7 +383,9 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			if (audioResult && isFile(audioEntry)) {
 				const bytes = new Uint8Array(await audioEntry.arrayBuffer());
 				await storage.put(existing.folderKey, audioResult.filename, bytes, audioResult.mime);
-				const peaks = await generateWaveformPeaks(bytes);
+				const peaks = await generateWaveformPeaks(bytes, {
+					ext: extFromName(audioResult.filename)
+				});
 				patch.waveform = peaks ? JSON.stringify(peaks) : null;
 				if (existing.audioFilename !== audioResult.filename) {
 					// Best-effort: leave old file; folder delete on track delete cleans up.
@@ -463,7 +467,9 @@ export async function ensureTrackWaveform(row) {
 				? object.body
 				: new Uint8Array(await new Response(/** @type {BodyInit} */ (object.body)).arrayBuffer());
 
-		const peaks = await generateWaveformPeaks(bytes);
+		const peaks = await generateWaveformPeaks(bytes, {
+			ext: extFromName(row.audioFilename)
+		});
 		if (!peaks) return null;
 
 		await db
