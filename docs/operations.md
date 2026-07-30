@@ -9,7 +9,8 @@ bun run db:push
 bun run dev             # http://localhost:5173
 ```
 
-Optional but useful: install `ffmpeg` so uploads get real waveforms instead of placeholder bars.
+Install `ffmpeg` too. Uploads shell out to it for waveform peaks; without it, tracks get
+placeholder bars. Production deploy installs and verifies ffmpeg before restarting the service.
 
 ### Testing tenant hosts locally
 
@@ -87,10 +88,11 @@ Steps, in order:
    sidecars** — SQLite needs write access to all of them, and getting this wrong produces
    read-only-database errors at runtime.
 4. Copy `systemd.service` from the repo to `/etc/systemd/system/sndbnk.service`, `daemon-reload`.
-5. `bun install`, source `.env`, `bun run db:push` (which also applies any missing columns via
+5. Ensure `ffmpeg` is on PATH (install via apt if missing); fail the deploy if it is still absent.
+6. `bun install`, source `.env`, `bun run db:push` (which also applies any missing columns via
    `ensureColumns()`), `bun run build`.
-6. `systemctl restart sndbnk`, confirm `is-active`.
-7. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with
+7. `systemctl restart sndbnk`, confirm `is-active`.
+8. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with
    `origin: https://sndbnk.com`. A `400`/`401` means the origin was accepted and the deploy passes.
    A `403 INVALID_ORIGIN` or a `500` fails the job and dumps `journalctl -u sndbnk -n 50`.
 
@@ -155,7 +157,7 @@ CNAMEs to `{username}.sndbnk.com` after verification.
 | Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value |
 | Tenant host returns 404                                  | profile missing, plan is not `premium`, or `customDomainStatus` is not `active`                                   |
 | Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                     |
-| Waveforms are flat placeholder bars                      | `ffmpeg` not installed on the host                                                                                |
+| Waveforms are flat placeholder bars                      | `ffmpeg` missing or decode failed — check `journalctl -u sndbnk` for `[waveform]` errors                          |
 | Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                  |
 | A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but not to `ensureColumns()` in the push script                               |
 | `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                |

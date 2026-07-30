@@ -11,7 +11,8 @@ live on SNDBNK's disk or on a server you own, over SFTP.
 ## Quickstart
 
 Requires [Bun](https://bun.sh). The app imports `bun:sqlite`, so it does not run under Node.
-Install `ffmpeg` too if you want real waveforms instead of placeholder bars.
+Install `ffmpeg` as well — uploads use it to generate real waveforms; without it, tracks fall back
+to placeholder bars.
 
 ```sh
 cp .env.example .env    # then fill BETTER_AUTH_SECRET and STORAGE_SECRET
