@@ -475,7 +475,7 @@
 		background: #c2321e;
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 960px) {
 		.stats,
 		.added {
 			display: none;
@@ -483,8 +483,58 @@
 	}
 
 	@media (max-width: 640px) {
-		.genre {
+		.row {
+			grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+			grid-template-areas:
+				'play name name name name'
+				'. duration stats publish menu';
+			row-gap: 0.3rem;
+			padding: 0.45rem 0.5rem;
+		}
+
+		.play-btn {
+			grid-area: play;
+		}
+
+		.name {
+			grid-area: name;
+		}
+
+		.duration {
+			grid-area: duration;
+			text-align: left;
+		}
+
+		.stats {
+			display: flex;
+			grid-area: stats;
+		}
+
+		.publish-switch {
+			grid-area: publish;
+		}
+
+		.menu-wrap {
+			grid-area: menu;
+			justify-self: end;
+		}
+
+		.cover,
+		.genre,
+		.added {
 			display: none;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.play-btn,
+		.more-btn {
+			width: var(--tap-min);
+			height: var(--tap-min);
+		}
+
+		.publish-switch {
+			min-height: var(--tap-min);
 		}
 	}
 </style>

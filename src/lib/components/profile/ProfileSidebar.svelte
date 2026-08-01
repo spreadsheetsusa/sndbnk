@@ -455,4 +455,10 @@
 		font-size: 0.76rem;
 		line-height: 1.4;
 	}
+
+	@media (pointer: coarse) {
+		.repost-toggle {
+			min-height: var(--tap-min);
+		}
+	}
 </style>

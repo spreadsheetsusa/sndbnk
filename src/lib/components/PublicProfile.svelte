@@ -474,9 +474,43 @@
 		}
 	}
 
-	@media (max-width: 620px) {
+	@media (max-width: 640px) {
+		main {
+			padding-top: 0.5rem;
+		}
+
+		.hero {
+			padding-bottom: 0.25rem;
+		}
+
+		h1 {
+			font-size: clamp(2rem, 7vw, 4.5rem);
+		}
+
+		.hero > .lede {
+			display: none;
+		}
+
+		.tracks {
+			margin-top: 1.75rem;
+			padding-top: 1.25rem;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.signal {
+			display: none;
+		}
+
 		.link-url {
 			display: none;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.edit-btn {
+			width: var(--tap-min);
+			height: var(--tap-min);
 		}
 	}
 </style>

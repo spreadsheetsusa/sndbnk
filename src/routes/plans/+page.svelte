@@ -791,9 +791,29 @@
 		margin: 0.6rem 0 0;
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 960px) {
 		.tiers {
 			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.intro {
+			margin-bottom: 2rem;
+		}
+
+		.lede {
+			display: none;
+		}
+
+		.interval-toggle {
+			margin-top: 1.25rem;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.interval {
+			min-height: var(--tap-min);
 		}
 	}
 </style>

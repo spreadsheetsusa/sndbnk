@@ -212,7 +212,7 @@
 		contain-intrinsic-size: auto 2.6rem;
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 960px) {
 		.track-table {
 			--library-grid: 1.7rem 1.75rem minmax(0, 1fr) minmax(0, 8rem) 4rem 4.8rem 1.7rem;
 		}
@@ -224,12 +224,24 @@
 	}
 
 	@media (max-width: 640px) {
-		.track-table {
-			--library-grid: 1.7rem 1.75rem minmax(0, 1fr) 4rem 4.8rem 1.7rem;
+		main {
+			padding-top: 0.5rem;
 		}
 
-		.table-head .col-genre {
+		h1 {
+			font-size: clamp(1.85rem, 6vw, 3.75rem);
+		}
+
+		.intro {
 			display: none;
+		}
+
+		.table-head {
+			display: none;
+		}
+
+		.track-table li {
+			contain-intrinsic-size: auto 3.6rem;
 		}
 	}
 

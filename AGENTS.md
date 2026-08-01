@@ -98,26 +98,29 @@ comprehensive Svelte 5 and SvelteKit documentation. Use it rather than recalling
 ## Learned User Preferences
 
 - Prefer menus that open as local dropdowns/popovers anchored to their trigger, never slide-in drawers or panels.
-- In the signed-in header, put Accent, Appearance, Settings, and Sign out (with username) behind an avatar-circle dropdown (grouped with separators), and render primary nav (Library, My Profile) as Winamp-style pressed mode buttons.
+- In the signed-in header, put Accent, Appearance, Settings, and Sign out behind an avatar-circle dropdown (grouped with separators), and render primary nav (Feed, Library, `@{username}`) as Winamp-style pressed mode buttons.
 - Prefer the global player embedded in the header nav (centered among adjacent controls) rather than a footer bar; it can appear and disappear without slide animation.
 - Prefer track listings without card borders or backgrounds; secondary track actions should sit in an ellipsis menu.
-- Prefer TrackCard comment forms hidden until row hover (smooth slide+fade), and omit commenting on the personal library page.
-- Prefer subtle, low-prominence borders and separators (e.g. reduced opacity) in both light and dark mode; in dark mode, card elevation should stay dim (accent-tinted border, muted shadow) rather than bright white glow.
+- Prefer TrackCard comment forms revealed on waveform hover (not whole-row hover), always visible on mobile/touch, and omitted on the personal library page.
+- Prefer subtle, low-prominence borders and separators; in dark mode, chrome elevation/shadows should be accent-derived (darkened accent), not bright white glow — keep cover-art shadows unchanged.
 - Prefer form controls with `rounded-xs` and accent-derived border/surface tints, not bright default input borders.
-- Default non-full-width page content to the same max width as the site header/nav.
+- Default non-full-width page content to the same max width as the site header/nav; keep discover/profile sidebars consistently slightly wider across pages that use them.
 - Use Tabler icon components for all UI iconography instead of inline SVG glyphs or typographic arrows.
 - When changing a shared UI pattern, apply it to every instance site-wide, not just the element the user pointed at.
+- Prefer compact page-head banners on authenticated pages (short eyebrow/title/intro, less marketing copy) and mobile-friendly hit targets (especially the global player) without regressing desktop layouts or duplicating mobile-only component trees.
+- Prefer the library page as a file-manager: a centralized waveform deck under the page head plus a compact tabular track list (no per-row waveforms).
 
 ## Learned Workspace Facts
 
-- The production build uses `svelte-adapter-bun`; `systemd.service` runs `build/index.js` with Bun from `/var/www/sndbnk`, and Caddy proxies public traffic to the app on `localhost:3000`.
-- Use the package `#lib` import map for source aliases; this project does not use the removed `$lib` alias.
-- After pulls, apply SQLite schema with `bun run db:push` (`scripts/push-sqlite-schema.js`); do not rely on `drizzle-kit push` under Bun.
-- Beyond `DATABASE_URL` / `ORIGIN` / `BETTER_AUTH_SECRET`, local/runtime env also needs `PUBLIC_BASE_DOMAIN`, `MEDIA_ROOT`, `BODY_SIZE_LIMIT`, and `STORAGE_SECRET` (see `.env.example`).
+- Production runs on AWS Lightsail at `sndbnk.com`; the build uses `svelte-adapter-bun`, `systemd.service` runs `build/index.js` with Bun from `/var/www/sndbnk`, and Caddy proxies public traffic to the app on `localhost:3000`.
 - Shared chrome lives in `#lib/components/SiteHeader.svelte` and is included per page (not via a nested layout); global playback is `#lib/components/player/HeaderPlayer.svelte` in that header (the former footer `GlobalPlayerBar` was removed).
-- Creator profiles support bio, location, labeled external links, and an avatar; avatars appear in the header, comments, and similar chrome.
+- Creator profiles support bio, location, labeled external links, avatar, follows/reposts, and a stats-oriented sidebar; only published tracks appear on public profiles.
 - Client upload autofill uses `#lib/media/audio-metadata.js` (`music-metadata`); server-side tag gap-fill uses `#lib/server/media/embed-tags.js` (`taglib-wasm`).
 - Import icons from `@tabler/icons-svelte-runes` using per-icon paths (`@tabler/icons-svelte-runes/icons/heart`); the plain `@tabler/icons-svelte` package is Svelte 4 (`$$props`) and fails under the runes mode that `vite.config.js` forces, and barrel imports make Vite compile the whole icon set.
 - `vite.config.js` forces runes mode for every non-`node_modules` file and pins the dev server to port 5174.
-- The accent color is global: the `accent` writable in `#lib/stores/brand.js` drives `--accent` / `--on-accent` (defaults in `src/routes/layout.css`), with preset swatches plus a custom color via an inline slide-down picker; do not hardcode the accent hex in components.
-- Waveforms use Wavesurfer with SoundCloud-like two-tone bars (darker lower half) and drag-to-scrub seeking that previews the playhead before release.
+- The accent color is global: the `accent` writable in `#lib/stores/brand.js` drives `--accent` / `--on-accent` (defaults in `src/routes/layout.css`), with preset swatches plus a custom color via an inline slide-down picker; UI typeface is Space Grotesk (Google Font); do not hardcode the accent hex in components.
+- Waveforms use Wavesurfer with SoundCloud-like two-tone bars; progress fill is the live accent, hover/seek preview is a reduced-opacity accent, and the duration chip uses accent background with contrast-aware text.
+- Every paged track listing shares one kit: keyset cursor helpers in `src/lib/server/cursor.js` (bidirectional, optionally inclusive), `serializeTrackRows()` in `src/lib/server/tracks.js`, a single `GET /api/tracks` with `feed` / `library` / `profile` scopes, and on the client `TrackList` (`src/lib/lists/track-list.svelte.js`), the `whenVisible` attachment (`src/lib/lists/infinite-scroll.js`), `InfiniteList.svelte`, and `restorableList()` paired with SvelteKit's `export const snapshot`.
+- Scroll restore snapshots only a cursor plus a pixel offset, never the loaded rows; it refetches a window around that cursor, extends the window downward until the anchor offset is actually reachable, and suppresses auto-loading until it has finished positioning.
+- Measure list scroll positions from the `offsetTop` chain rather than `getBoundingClientRect()`, because the 0.85s `rise` entrance animation folds its transform into the rect; after a prepend, scroll to a pinned row's absolute position instead of a relative `scrollBy(delta)`, since Chrome's scroll anchoring may already have compensated.
+- An IntersectionObserver reports only crossings, so an infinite-scroll sentinel can stall when a page of short rows (the library's ~35px rows) fails to push it back out of `rootMargin`; loads report whether they added rows and the observer re-observes while progress continues. Verify this in a foregrounded Cursor browser tab — IntersectionObserver and rAF only run while the tab renders — or exercise the same load path with the rendering-independent `Load more` button.

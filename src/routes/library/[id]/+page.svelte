@@ -829,9 +829,28 @@
 		}
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 640px) {
+		main {
+			padding-top: 0.5rem;
+		}
+
+		.page-head {
+			margin-bottom: 1.5rem;
+		}
+
+		.intro {
+			display: none;
+		}
+
 		.current-files {
 			grid-template-columns: 1fr;
+		}
+
+		.current-cover img,
+		.cover-preview img {
+			width: min(100%, 14rem);
+			height: auto;
+			aspect-ratio: 1;
 		}
 
 		.field-row {

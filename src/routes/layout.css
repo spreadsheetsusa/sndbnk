@@ -39,6 +39,12 @@
 	--site-header-gap: clamp(0.75rem, 2vw, 1.25rem);
 	/* Card rail beside feed/list pages (Discover, etc.) */
 	--site-sidebar-width: 20rem;
+	/* Minimum comfortable touch target (44px). Grow hit boxes under pointer: coarse. */
+	--tap-min: 2.75rem;
+	/* Ambient cover wash behind TrackCard on phones; darker theme needs a lighter wash. */
+	--track-card-wash: 0.5;
+	/* Waveform scrub band; raised under pointer: coarse. */
+	--waveform-height: 66px;
 	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
@@ -46,9 +52,15 @@
 	background-color: var(--paper);
 }
 
-@media (max-width: 620px) {
+@media (max-width: 560px) {
 	:root {
 		--site-shell-pad-x: 1rem;
+	}
+}
+
+@media (pointer: coarse) {
+	:root {
+		--waveform-height: 88px;
 	}
 }
 
@@ -60,9 +72,11 @@
 	--on-inverse: #f2f0e8;
 	/* Accent edge + darkened accent so the offset shadow tracks the chosen accent */
 	--hard-border: var(--accent);
-	--hard-shadow: color-mix(in srgb, var(--accent) 42%, black);
+	--hard-shadow: color-mix(in srgb, var(--accent) 62%, black);
 	/* Cover art stays on translucent ink so it doesn't pick up the accent tint */
 	--cover-shadow: color-mix(in srgb, var(--ink) 28%, transparent);
+	/* Scrim reads hotter against dark paper — keep the wash subtler. */
+	--track-card-wash: 0.38;
 	--chroma-red: #ff5a72;
 	--chroma-cyan: #57e9ff;
 	--glitch-blend: screen;

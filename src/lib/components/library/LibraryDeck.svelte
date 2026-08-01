@@ -263,4 +263,11 @@
 			display: none;
 		}
 	}
+
+	@media (pointer: coarse) {
+		.play-btn {
+			width: var(--tap-min);
+			height: var(--tap-min);
+		}
+	}
 </style>

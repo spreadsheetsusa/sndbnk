@@ -200,7 +200,7 @@
 		opacity: 0.75;
 	}
 
-	@media (max-width: 620px) {
+	@media (max-width: 560px) {
 		.stat {
 			min-width: 0;
 			flex: 1 1 8rem;

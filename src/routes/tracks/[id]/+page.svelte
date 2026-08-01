@@ -146,6 +146,26 @@
 		animation: rise 0.65s ease both;
 	}
 
+	@media (max-width: 640px) {
+		.player-wrap {
+			--track-card-cover-mobile: block;
+			--track-card-wash: 0;
+			--track-card-cover-size: 100%;
+		}
+
+		.player-wrap :global(.track-card) {
+			padding: 0 0 1rem;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.comment-at {
+			display: inline-flex;
+			align-items: center;
+			min-height: var(--tap-min);
+		}
+	}
+
 	.description {
 		margin-top: 1.5rem;
 		animation: rise 0.75s ease 0.05s both;

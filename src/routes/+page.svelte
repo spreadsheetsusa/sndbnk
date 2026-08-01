@@ -454,7 +454,7 @@
 		}
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 960px) {
 		.hero {
 			grid-template-columns: 1fr;
 			min-height: auto;
@@ -466,11 +466,11 @@
 		}
 
 		.sound-card {
-			min-height: min(115vw, 42rem);
+			min-height: clamp(16rem, 115vw, 42rem);
 		}
 	}
 
-	@media (max-width: 620px) {
+	@media (max-width: 640px) {
 		.hero {
 			gap: 3rem;
 			padding: 3.5rem 0 4.5rem;
@@ -488,8 +488,12 @@
 			flex-wrap: wrap;
 		}
 
+		.primary-action {
+			min-width: 100%;
+		}
+
 		.sound-card {
-			min-height: 110vw;
+			min-height: clamp(16rem, 110vw, 42rem);
 			box-shadow: 0.65rem 0.65rem 0 var(--accent);
 		}
 
@@ -502,24 +506,31 @@
 			top: 14%;
 			width: 5.5rem;
 		}
+	}
 
+	@media (max-width: 560px) {
 		.manifesto {
-			grid-template-columns: 1fr auto;
+			grid-template-columns: 1fr;
 			gap: 1.5rem;
 		}
 
 		.manifesto-copy {
-			grid-column: 1 / -1;
-			grid-row: 2;
+			grid-column: auto;
+			grid-row: auto;
 		}
 
 		.manifesto-mark {
-			grid-column: 2;
-			grid-row: 1;
+			grid-column: auto;
+			grid-row: auto;
+			justify-self: start;
 		}
 
 		footer {
-			grid-template-columns: 1fr auto;
+			grid-template-columns: 1fr;
+		}
+
+		footer p:last-child {
+			text-align: left;
 		}
 
 		footer p:nth-child(2) {

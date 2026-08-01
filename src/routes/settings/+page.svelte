@@ -814,6 +814,7 @@
 		margin-top: 0;
 		padding-top: 0.25rem;
 		overflow-x: auto;
+		scroll-snap-type: x proximity;
 		scrollbar-width: none;
 		animation: rise 0.75s ease 0.1s both;
 	}
@@ -833,6 +834,7 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		white-space: nowrap;
+		scroll-snap-align: start;
 		cursor: pointer;
 		transition: color 120ms ease;
 	}
@@ -1426,7 +1428,15 @@
 		}
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 640px) {
+		.page-head {
+			margin-bottom: 1.5rem;
+		}
+
+		.intro {
+			display: none;
+		}
+
 		.current-meta {
 			text-align: left;
 		}
@@ -1434,6 +1444,19 @@
 		.url-row {
 			grid-template-columns: 1fr;
 			gap: 0.2rem;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.avatar-block {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.tab {
+			min-height: var(--tap-min);
 		}
 	}
 </style>

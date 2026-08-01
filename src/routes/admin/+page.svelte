@@ -988,10 +988,28 @@
 		white-space: nowrap;
 	}
 
-	@media (max-width: 860px) {
+	@media (max-width: 960px) {
 		.data-table {
 			display: block;
 			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+			mask-image: linear-gradient(to right, #000 85%, transparent);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.page-head {
+			margin-bottom: 1.25rem;
+		}
+
+		.intro {
+			display: none;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.pressable.small {
+			min-height: var(--tap-min);
 		}
 	}
 </style>

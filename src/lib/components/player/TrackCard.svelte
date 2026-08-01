@@ -393,6 +393,7 @@
 
 <article
 	class="track-card"
+	style:--cover-url={track.hasCover ? `url(/api/media/${track.id}/cover)` : 'none'}
 	onfocusin={() => (focusWithin = true)}
 	onfocusout={handleFocusOut}
 	{@attach whileNearViewport((visible) => (nearViewport = visible))}
@@ -772,9 +773,9 @@
 		position: relative;
 	}
 
-	/* Matches the Waveform component's default height. */
+	/* Matches Waveform's --waveform-height (taller under pointer: coarse). */
 	.wave-placeholder {
-		height: 66px;
+		height: var(--waveform-height);
 	}
 
 	.time-chip {
@@ -1016,17 +1017,54 @@
 
 	@media (max-width: 640px) {
 		.track-card {
+			position: relative;
+			isolation: isolate;
 			grid-template-columns: 1fr;
 		}
 
+		/* Blurred cover behind the whole row; the paper scrim keeps text legible. */
+		.track-card::before {
+			content: '';
+			position: absolute;
+			z-index: -1;
+			inset: 0;
+			background:
+				linear-gradient(to bottom, color-mix(in srgb, var(--paper) 62%, transparent), var(--paper)),
+				var(--cover-url, none) center / cover no-repeat;
+			filter: blur(14px) saturate(1.15);
+			opacity: var(--track-card-wash, 0.5);
+			transform: scale(1.08);
+			pointer-events: none;
+		}
+
 		.cover {
-			width: 5rem;
-			height: 5rem;
+			display: var(--track-card-cover-mobile, none);
+			width: var(--track-card-cover-size, 100%);
+			height: auto;
+			aspect-ratio: 1;
+			max-width: 100%;
 		}
 
 		.title,
 		.artist {
 			white-space: normal;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.more-btn {
+			width: var(--tap-min);
+			height: var(--tap-min);
+		}
+
+		.send-btn {
+			width: var(--tap-min);
+			height: var(--tap-min);
+		}
+
+		.marker :global(.avatar) {
+			width: 1.5rem;
+			height: 1.5rem;
 		}
 	}
 </style>

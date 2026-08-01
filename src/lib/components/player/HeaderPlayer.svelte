@@ -316,6 +316,7 @@
 		appearance: none;
 		background: transparent;
 		cursor: pointer;
+		touch-action: none;
 	}
 
 	.seek::-webkit-slider-runnable-track {
@@ -438,7 +439,7 @@
 		top: calc(100% + 0.5rem);
 		right: 0;
 		width: min(22rem, calc(100vw - 2 * var(--site-shell-pad-x)));
-		max-height: 50vh;
+		max-height: 60vh;
 		padding: 0.85rem;
 		overflow: auto;
 		border: 1px solid var(--hard-border);
@@ -551,14 +552,8 @@
 		}
 	}
 
-	@media (max-width: 980px) {
-		.time.total {
-			display: none;
-		}
-	}
-
 	/* Matches the header's wrap breakpoint: full-width row under the logo and nav. */
-	@media (max-width: 860px) {
+	@media (max-width: 960px) {
 		.header-player {
 			order: 2;
 			flex-basis: 100%;
@@ -577,6 +572,49 @@
 
 		.time.total {
 			display: block;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.cell {
+			min-height: var(--tap-min);
+		}
+
+		.transport-btn,
+		.icon-btn {
+			width: var(--tap-min);
+		}
+
+		.transport-btn.play {
+			width: 3.25rem;
+		}
+
+		.seek {
+			height: 1.75rem;
+		}
+
+		.seek::-webkit-slider-runnable-track {
+			height: 6px;
+		}
+
+		.seek::-moz-range-track {
+			height: 6px;
+		}
+
+		.seek::-webkit-slider-thumb {
+			width: 18px;
+			height: 18px;
+			margin-top: -6px;
+		}
+
+		.seek::-moz-range-thumb {
+			width: 18px;
+			height: 18px;
+		}
+
+		.queue-remove {
+			width: var(--tap-min);
+			height: var(--tap-min);
 		}
 	}
 </style>

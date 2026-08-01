@@ -22,7 +22,7 @@ Defined on `:root`, overridden on `.dark`.
 | `--inverse`       | `#11110f`    | `#050504`               | inverted panels (auth intro, eyebrow chips) |
 | `--on-inverse`    | `#f2f0e8`    | `#f2f0e8`               | text on an inverted panel                   |
 | `--hard-border`   | `var(--ink)` | `var(--accent)`         | raised panel/menu edges                     |
-| `--hard-shadow`   | `var(--ink)` | accent @ 42% into black | offset block shadows on raised surfaces     |
+| `--hard-shadow`   | `var(--ink)` | accent @ 62% into black | offset block shadows on raised surfaces     |
 | `--cover-shadow`  | `var(--ink)` | ink @ 28% transparent   | offset shadows on cover art only            |
 | `--chroma-red`    | `#ff2f4f`    | `#ff5a72`               | left aberration fringe                      |
 | `--chroma-cyan`   | `#21e0ff`    | `#57e9ff`               | right aberration fringe                     |
@@ -41,6 +41,21 @@ Layout rail:
 | `--site-header-height`    | `5rem`                                         | sticky header min-height                                       |
 | `--site-header-gap`       | `clamp(0.75rem, 2vw, 1.25rem)`                 | space below the header before page content                     |
 | `--site-sidebar-width`    | `20rem`                                        | card sidebar rail on feed/list pages                           |
+| `--tap-min`               | `2.75rem` (44px)                               | minimum comfortable touch target under `pointer: coarse`       |
+| `--waveform-height`       | `66px` / `88px` on coarse                      | scrub band height for Waveform and its placeholders            |
+| `--track-card-wash`       | `0.5` light / `0.38` dark                      | opacity of the blurred cover behind TrackCard on phones        |
+
+## Breakpoints
+
+Layout changes use width queries; hit-target growth uses `@media (pointer: coarse)` so a narrow
+desktop window never inflates controls. Four width rungs:
+
+| Breakpoint | Use                                                          |
+| ---------- | ------------------------------------------------------------ |
+| `560px`    | phone-narrow: icon-only nav, most aggressive trimming        |
+| `640px`    | phone: card/row reflow, banner trimming, single-column forms |
+| `960px`    | narrow: sidebars and multi-column grids stack                |
+| `1200px`   | compact desktop: header player now-playing hide              |
 
 **Never hardcode a color outside `layout.css`.** Use `var(--ink)` and friends, and reach for
 `color-mix(in srgb, var(--ink) 32%, transparent)` for tints rather than inventing a new hex. The one

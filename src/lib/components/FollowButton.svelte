@@ -124,9 +124,16 @@
 		display: block;
 	}
 
-	@media (max-width: 400px) {
+	@media (max-width: 560px) {
 		.follow-btn.sm span {
 			display: none;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.follow-btn.sm {
+			min-height: var(--tap-min);
+			padding-inline: 0.65rem;
 		}
 	}
 </style>

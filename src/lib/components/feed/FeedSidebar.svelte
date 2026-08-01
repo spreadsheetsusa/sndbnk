@@ -486,4 +486,11 @@
 	.genre-chip:hover .genre-count {
 		opacity: 1;
 	}
+
+	@media (pointer: coarse) {
+		.scope-btn,
+		.genre-chip {
+			min-height: var(--tap-min);
+		}
+	}
 </style>

@@ -129,4 +129,10 @@
 		color: var(--ink);
 		background: transparent;
 	}
+
+	@media (pointer: coarse) {
+		.actions .pressable {
+			min-height: var(--tap-min);
+		}
+	}
 </style>

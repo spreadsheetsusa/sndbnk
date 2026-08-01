@@ -1,5 +1,8 @@
 <script>
+	import IconLibrary from '@tabler/icons-svelte-runes/icons/library';
 	import IconMenu2 from '@tabler/icons-svelte-runes/icons/menu-2';
+	import IconRss from '@tabler/icons-svelte-runes/icons/rss';
+	import IconUser from '@tabler/icons-svelte-runes/icons/user';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
@@ -152,15 +155,23 @@
 	<div class="header-end">
 		{#if signedIn}
 			<nav class="mode-strip" aria-label="Primary">
-				<a class="mode-btn" href="/feed" aria-current={current('/feed')}>Feed</a>
-				<a class="mode-btn" href="/library" aria-current={current('/library')}> Library </a>
+				<a class="mode-btn" href="/feed" aria-current={current('/feed')} aria-label="Feed">
+					<IconRss size={16} stroke={1.75} aria-hidden="true" />
+					<span class="label">Feed</span>
+				</a>
+				<a class="mode-btn" href="/library" aria-current={current('/library')} aria-label="Library">
+					<IconLibrary size={16} stroke={1.75} aria-hidden="true" />
+					<span class="label">Library</span>
+				</a>
 				{#if nav.username}
 					<a
 						class="mode-btn"
 						href="/users/{nav.username}"
 						aria-current={current(`/users/${nav.username}`)}
+						aria-label="@{nav.username}"
 					>
-						@{nav.username}
+						<IconUser size={16} stroke={1.75} aria-hidden="true" />
+						<span class="label">@{nav.username}</span>
 					</a>
 				{/if}
 			</nav>
@@ -322,6 +333,7 @@
 
 	.mode-btn {
 		display: inline-flex;
+		gap: 0.4rem;
 		align-items: center;
 		justify-content: center;
 		min-height: 2.25rem;
@@ -342,6 +354,11 @@
 			background 120ms ease,
 			box-shadow 120ms ease,
 			color 120ms ease;
+	}
+
+	.mode-btn :global(svg) {
+		display: none;
+		flex-shrink: 0;
 	}
 
 	.mode-btn:last-child {
@@ -392,6 +409,7 @@
 		right: 0;
 		display: grid;
 		min-width: 17rem;
+		max-width: calc(100vw - 2 * var(--site-shell-pad-x));
 		padding: 0.4rem;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
@@ -629,7 +647,7 @@
 	}
 
 	/* Narrow: the player takes its own row instead of squeezing the logo and nav. */
-	@media (max-width: 860px) {
+	@media (max-width: 960px) {
 		.site-header {
 			flex-wrap: wrap;
 			align-content: center;
@@ -640,7 +658,7 @@
 		}
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 640px) {
 		.site-header {
 			--site-header-height: 4.5rem;
 		}
@@ -656,6 +674,53 @@
 
 		.menu-wrap {
 			display: block;
+		}
+	}
+
+	/* Phone-narrow: icon-only mode strip so Feed / Library / @user still fit. */
+	@media (max-width: 560px) {
+		.mode-btn {
+			gap: 0;
+			padding: 0.4rem 0.7rem;
+		}
+
+		.mode-btn :global(svg) {
+			display: block;
+		}
+
+		.mode-btn .label {
+			display: none;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.mode-btn {
+			min-height: var(--tap-min);
+		}
+
+		.avatar-btn {
+			min-width: var(--tap-min);
+			min-height: var(--tap-min);
+			align-items: center;
+			justify-content: center;
+		}
+
+		.menu-toggle {
+			width: var(--tap-min);
+			height: var(--tap-min);
+		}
+
+		.account-item {
+			min-height: var(--tap-min);
+		}
+
+		.swatches {
+			gap: 0.5rem;
+		}
+
+		.swatch {
+			width: 1.75rem;
+			height: 1.75rem;
 		}
 	}
 </style>

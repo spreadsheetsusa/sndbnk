@@ -555,9 +555,20 @@
 		}
 	}
 
-	@media (max-width: 620px) {
+	@media (max-width: 560px) {
+		.cover-flow {
+			--tile: clamp(9rem, 17vw, 15.5rem);
+		}
+
 		.stage {
 			mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+		}
+	}
+
+	@media (pointer: coarse) {
+		.arrow {
+			width: var(--tap-min);
+			height: var(--tap-min);
 		}
 	}
 </style>

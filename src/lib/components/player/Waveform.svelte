@@ -27,7 +27,7 @@
 		peaks,
 		durationMs,
 		currentTime = 0,
-		height = 66,
+		height,
 		label = 'Seek',
 		onseek,
 		onscrub,
@@ -325,10 +325,14 @@
 			const { default: WaveSurfer } = await import('wavesurfer.js');
 			if (destroyed) return;
 
+			// Prefer an explicit prop; otherwise read --waveform-height (taller on touch).
+			const fromCss = Math.round(parseFloat(getComputedStyle(container).height)) || 66;
+			const resolvedHeight = height ?? fromCss;
+
 			const colors = resolveColors($accentColor);
 			wavesurfer = WaveSurfer.create({
 				container,
-				height,
+				height: resolvedHeight,
 				waveColor: colors.waveColor,
 				progressColor: colors.progressColor,
 				barWidth: 2,
@@ -409,7 +413,7 @@
 	class="waveform"
 	class:scrubbing={scrubRatio != null}
 	bind:this={container}
-	style:height="{height}px"
+	style:height={height != null ? `${height}px` : 'var(--waveform-height)'}
 	role="slider"
 	tabindex="0"
 	aria-label={label}

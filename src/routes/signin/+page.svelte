@@ -326,23 +326,31 @@
 		flex-shrink: 0;
 	}
 
-	@media (max-width: 800px) {
+	@media (max-width: 960px) {
 		.auth-page {
 			grid-template-columns: 1fr;
 		}
 
 		.auth-intro {
-			min-height: 23rem;
-			padding: 1.5rem;
+			min-height: 12rem;
+			padding: 1.25rem 1.5rem;
 		}
 
 		.intro-copy {
-			margin: 4rem 0 1rem;
+			margin: 1.25rem 0 0;
+		}
+
+		.intro-copy .eyebrow {
+			margin-bottom: 0.65rem;
 		}
 
 		h1 {
 			max-width: 9ch;
-			font-size: clamp(3.5rem, 15vw, 5.5rem);
+			font-size: clamp(2.4rem, 10vw, 3.75rem);
+		}
+
+		.auth-intro svg {
+			display: none;
 		}
 
 		.side-note {
@@ -350,12 +358,18 @@
 		}
 
 		.form-panel {
-			min-height: calc(100vh - 23rem);
-			padding: 3.5rem 1.5rem 2rem;
+			min-height: calc(100vh - 12rem);
+			padding: 2.5rem 1.5rem 2rem;
 		}
 
 		.form-wrap {
 			margin: 0 auto;
+		}
+	}
+
+	@media (max-width: 640px) {
+		h1 {
+			max-width: none;
 		}
 	}
 </style>

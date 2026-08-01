@@ -165,4 +165,22 @@
 			grid-template-columns: 1fr;
 		}
 	}
+
+	@media (max-width: 640px) {
+		main {
+			padding-top: 0.5rem;
+		}
+
+		.feed-head {
+			margin-bottom: 1.5rem;
+		}
+
+		h1 {
+			font-size: clamp(2rem, 8vw, 3.75rem);
+		}
+
+		.intro {
+			display: none;
+		}
+	}
 </style>
