@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import {
+	canViewTrack,
 	getSocialForTracks,
 	getTrackWithUploader,
 	listCommentsForTrack,
@@ -9,7 +10,7 @@ import {
 
 export const load = async ({ locals, params }) => {
 	const row = await getTrackWithUploader(params.id);
-	if (!row) {
+	if (!row || !canViewTrack(row.track, locals.user?.id)) {
 		error(404, 'Track not found');
 	}
 

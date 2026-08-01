@@ -16,8 +16,16 @@ for (const id of ['probe-mp3', 'probe-flac']) {
 
 	console.log(`\n=== ${id}`);
 	console.log('  on-disk bytes :', bytes.byteLength);
-	console.log('  db audio_bytes:', row.audio_bytes, bytes.byteLength === row.audio_bytes ? 'MATCH' : 'MISMATCH');
-	console.log('  title         :', JSON.stringify(props.title), '<- must still be "Original Title"');
+	console.log(
+		'  db audio_bytes:',
+		row.audio_bytes,
+		bytes.byteLength === row.audio_bytes ? 'MATCH' : 'MISMATCH'
+	);
+	console.log(
+		'  title         :',
+		JSON.stringify(props.title),
+		'<- must still be "Original Title"'
+	);
 	for (const k of ['artist', 'album', 'genre', 'date', 'trackNumber', 'bpm', 'isrc', 'comment']) {
 		console.log(`  ${k.padEnd(14)}:`, JSON.stringify(props[k]));
 	}

@@ -208,7 +208,7 @@
 
 	h2 {
 		margin: 0;
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: clamp(2.8rem, 5vw, 4.75rem);
 		font-weight: 400;
 		letter-spacing: -0.045em;
@@ -286,7 +286,7 @@
 		border: 1px solid var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 		font-size: 0.75rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
@@ -296,7 +296,7 @@
 
 	button:disabled {
 		opacity: 0.65;
-		box-shadow: 2px 2px 0 var(--ink);
+		box-shadow: 2px 2px 0 var(--hard-shadow);
 		cursor: wait;
 	}
 

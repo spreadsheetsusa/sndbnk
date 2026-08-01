@@ -12,20 +12,23 @@ blocks.
 
 Defined on `:root`, overridden on `.dark`.
 
-| Token             | Light      | Dark      | Use                                         |
-| ----------------- | ---------- | --------- | ------------------------------------------- |
-| `--accent`        | `#c8ff3d`  | inherited | CTA fills, waveform progress, focus glow    |
-| `--on-accent`     | `#11110f`  | inherited | text on an accent fill                      |
-| `--ink`           | `#11110f`  | `#f2f0e8` | text, borders, shadows                      |
-| `--paper`         | `#f2f0e8`  | `#141410` | page background                             |
-| `--muted`         | `#696861`  | `#a8a69c` | secondary copy                              |
-| `--inverse`       | `#11110f`  | `#050504` | inverted panels (auth intro, eyebrow chips) |
-| `--on-inverse`    | `#f2f0e8`  | `#f2f0e8` | text on an inverted panel                   |
-| `--chroma-red`    | `#ff2f4f`  | `#ff5a72` | left aberration fringe                      |
-| `--chroma-cyan`   | `#21e0ff`  | `#57e9ff` | right aberration fringe                     |
-| `--chroma-offset` | `0.022em`  | —         | heading fringe distance                     |
-| `--glitch-offset` | `0.075em`  | —         | hover glitch fringe distance                |
-| `--glitch-blend`  | `multiply` | `screen`  | blend mode for glitch copies                |
+| Token             | Light        | Dark                    | Use                                         |
+| ----------------- | ------------ | ----------------------- | ------------------------------------------- |
+| `--accent`        | `#c8ff3d`    | inherited               | CTA fills, waveform progress, focus glow    |
+| `--on-accent`     | `#11110f`    | inherited               | text on an accent fill                      |
+| `--ink`           | `#11110f`    | `#f2f0e8`               | text, borders, shadows                      |
+| `--paper`         | `#f2f0e8`    | `#141410`               | page background                             |
+| `--muted`         | `#696861`    | `#a8a69c`               | secondary copy                              |
+| `--inverse`       | `#11110f`    | `#050504`               | inverted panels (auth intro, eyebrow chips) |
+| `--on-inverse`    | `#f2f0e8`    | `#f2f0e8`               | text on an inverted panel                   |
+| `--hard-border`   | `var(--ink)` | `var(--accent)`         | raised panel/menu edges                     |
+| `--hard-shadow`   | `var(--ink)` | accent @ 42% into black | offset block shadows on raised surfaces     |
+| `--cover-shadow`  | `var(--ink)` | ink @ 28% transparent   | offset shadows on cover art only            |
+| `--chroma-red`    | `#ff2f4f`    | `#ff5a72`               | left aberration fringe                      |
+| `--chroma-cyan`   | `#21e0ff`    | `#57e9ff`               | right aberration fringe                     |
+| `--chroma-offset` | `0.022em`    | —                       | heading fringe distance                     |
+| `--glitch-offset` | `0.075em`    | —                       | hover glitch fringe distance                |
+| `--glitch-blend`  | `multiply`   | `screen`                | blend mode for glitch copies                |
 
 Layout rail:
 
@@ -35,6 +38,9 @@ Layout rail:
 | `--site-shell-pad-x`      | `clamp(1rem, 3.5vw, 4rem)`, `1rem` under 620px | horizontal gutter                                              |
 | `--site-content-max`      | `920px`                                        | main reading column                                            |
 | `--site-content-max-wide` | `1100px`                                       | profile pages                                                  |
+| `--site-header-height`    | `5rem`                                         | sticky header min-height                                       |
+| `--site-header-gap`       | `clamp(0.75rem, 2vw, 1.25rem)`                 | space below the header before page content                     |
+| `--site-sidebar-width`    | `20rem`                                        | card sidebar rail on feed/list pages                           |
 
 **Never hardcode a color outside `layout.css`.** Use `var(--ink)` and friends, and reach for
 `color-mix(in srgb, var(--ink) 32%, transparent)` for tints rather than inventing a new hex. The one
@@ -64,19 +70,37 @@ Three pieces make it flicker-free and animated:
 Anything you build must be checked in both themes. Accent-on-paper is the trap: lime text on warm
 paper fails contrast, which is why `.eyebrow-chip` exists.
 
+## Accent
+
+[`src/lib/stores/brand.js`](../src/lib/stores/brand.js) owns `--accent` and `--on-accent` the same
+way `theme.js` owns `.dark`: a pre-paint script in [`src/app.html`](../src/app.html) restores the
+stored choice, `initAccent()` re-applies it on mount, and `setAccent()` / `setCustomAccent()` write
+both custom properties onto `documentElement`.
+
+Four presets live in `ACCENTS` with a hardcoded `onAccent`. The fifth, `CUSTOM_ACCENT_ID`, is any
+hex the user picks: it is stored separately under `accent-custom`, and its `--on-accent` is computed
+by `onAccentFor()`, which returns ink or paper depending on which gives better WCAG contrast against
+the fill. The account menu renders it as a conic-gradient wheel swatch that slides
+[`AccentPicker.svelte`](../src/lib/components/AccentPicker.svelte) open beneath the row; every drag
+commits immediately, so the whole site recolors live.
+
+**`--accent` must always be a `#rrggbb` string.** `Waveform.svelte` reads it back through
+`getComputedStyle` and parses the hex itself, so `normalizeHex()` is the only door into the custom
+value.
+
 ## Typography
 
 Three tiers, deliberately different voices:
 
-| Tier        | Font      | Class / selector           | Where                        |
-| ----------- | --------- | -------------------------- | ---------------------------- |
-| Display     | Audiowide | `.display-face`            | wordmark, hero `h1`          |
-| Editorial   | Georgia   | `h2` in forms and settings | section titles               |
-| Body        | Inter     | `:root` default            | everything else              |
-| Micro-label | Inter 800 | `.eyebrow`                 | uppercase, `0.15em` tracking |
+| Tier        | Font          | Class / selector           | Where                        |
+| ----------- | ------------- | -------------------------- | ---------------------------- |
+| Display     | Audiowide     | `.display-face`            | wordmark, hero `h1`          |
+| Editorial   | Space Grotesk | `h2` in forms and settings | section titles               |
+| Body        | Inter         | `:root` default            | everything else              |
+| Micro-label | Inter 800     | `.eyebrow`                 | uppercase, `0.15em` tracking |
 
-Audiowide is loaded via `@import url(…fonts.googleapis.com…)` at the top of `layout.css`; `:root` sets
-`font-synthesis: none` so no faux bold appears.
+Audiowide and Space Grotesk are loaded via `@import url(…fonts.googleapis.com…)` at the top of
+`layout.css`; `:root` sets `font-synthesis: none` so no faux bold appears.
 
 ## Utilities
 
@@ -94,9 +118,11 @@ Global, defined in `layout.css`:
 
 ### `.pressable`
 
-Give any button that is meant to feel physical the class, plus the ink border and `5px 5px 0 var(--ink)`
-shadow in its own scoped styles. The transition and `:active` handling come free, and
-`:not(:disabled)` keeps a disabled button from moving.
+Give any button that is meant to feel physical the class, plus a border and
+`5px 5px 0 var(--hard-shadow)` in its own scoped styles. Accent-filled buttons keep
+`border: 1px solid var(--ink)`; paper/ghost raised controls use `var(--hard-border)`. The
+transition and `:active` handling come free, and `:not(:disabled)` keeps a disabled button from
+moving.
 
 ### `.glitch-mark`
 
@@ -131,8 +157,8 @@ inherits this automatically through the global rule — but if you add JS-driven
   and `prettier-plugin-tailwindcss` will sort classes if you write them, but the design language is
   custom properties. Do not convert existing scoped CSS to utilities, and prefer scoped CSS for new
   work so the codebase stays one thing.
-- **Expose knobs as custom properties** rather than adding boolean props. `SiteHeader` accepts
-  `--site-header-gap`, which the landing page sets to `0`:
+- **Expose knobs as custom properties** rather than adding boolean props. `SiteHeader` reads
+  `--site-header-gap` (default on `:root` in `layout.css`); the landing page overrides it to `0`:
   `<SiteHeader --site-header-gap="0" />`.
 - **Focus is never removed.** `:focus-visible` gets a `2px solid var(--ink)` outline with `3px`
   offset globally; if you restyle focus, keep it at least that visible.
@@ -144,11 +170,19 @@ inherits this automatically through the global rule — but if you add JS-driven
 Two flavors, both drawn in accent over ink:
 
 - **Real playback**: wavesurfer.js bar chart, `barWidth: 2`, `barGap: 1`, `barRadius: 0`,
-  `cursorWidth: 0`. Unplayed bars are ink at 32% alpha, played bars are accent.
+  `cursorWidth: 0`. Unplayed bars are ink at 32% alpha, played bars are the accent hex (two-tone
+  lower half mixed toward ink). Hovering shows a second opaque fill (accent mixed 40% toward white)
+  from the left edge to the cursor without moving the playhead; TrackCard also reveals its comment
+  form from that same waveform hover.
 - **Decorative**: hand-authored SVG paths with `stroke: var(--accent)`, `vector-effect: non-scaling-stroke`,
   low opacity — behind auth panels and profile names.
 
-Canvas cannot read CSS custom properties, so `Waveform.svelte` resolves `--ink` and `--accent` from
-`getComputedStyle(container)` and converts hex to `rgba()` itself. This is the sanctioned exception
-to "no color logic in components", and it is why the theme flip needs an explicit effect to re-apply
-colors.
+`/library` is the exception to per-track waveforms: it is a file manager, so the rows
+(`LibraryTrackRow`) are a compact table and the single waveform lives in `LibraryDeck` above the
+list, fed by whichever row was last selected or played. The header strip and the rows share the
+`--library-grid` column template set on `.track-table`, so changing columns means changing it once.
+
+Canvas cannot read CSS custom properties, so `Waveform.svelte` takes the accent hex from the
+`accentColor` store and resolves `--ink` / `--paper` from `getComputedStyle(container)`, converting
+to canvas fills itself. This is the sanctioned exception to "no color logic in components", and it is
+why theme and accent changes need an explicit effect to re-apply colors.

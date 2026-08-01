@@ -1,11 +1,10 @@
+import { ORIGIN } from '$app/env/private';
+
+import { listRecentComments } from '#lib/server/feed';
 import { listLinksForUser } from '#lib/server/profile-links';
+import { getProfileStats, isFollowing, listFansAlsoLike, listFollowers } from '#lib/server/social';
 import { buildPublicUrls, getProfileByUsername } from '#lib/server/tenant';
-import {
-	getSocialForTracks,
-	listTimedCommentsForTracks,
-	listTracksWithUploader,
-	serializeTrackForPlayer
-} from '#lib/server/tracks';
+import { listProfileItemsWithUploader, serializeTrackRows } from '#lib/server/tracks';
 import { normalizeUsername } from '#lib/server/username';
 
 /**
@@ -22,26 +21,24 @@ export async function loadPublicProfilePage({ username, locals }) {
 
 	const urls = buildPublicUrls(row);
 	const viaTenantHost = Boolean(locals.tenant);
-	const links = await listLinksForUser(row.userId);
+	const viewerId = locals.user?.id ?? null;
 
-	const trackRows = await listTracksWithUploader(row.userId);
-	const trackIds = trackRows.map((r) => r.track.id);
-	const social = await getSocialForTracks(trackIds, locals.user?.id ?? null);
-	const timedComments = await listTimedCommentsForTracks(trackIds);
-	const tracks = await Promise.all(
-		trackRows.map((r) =>
-			serializeTrackForPlayer(
-				r.track,
-				r,
-				social.get(r.track.id),
-				locals.user,
-				timedComments.get(r.track.id)
-			)
-		)
-	);
+	const [links, page, stats, fansAlsoLike, followers, recentComments, viewerFollows] =
+		await Promise.all([
+			listLinksForUser(row.userId),
+			listProfileItemsWithUploader(row.userId, { publishedOnly: true }),
+			getProfileStats(row.userId),
+			listFansAlsoLike(row.userId, viewerId),
+			listFollowers(row.userId, viewerId),
+			listRecentComments({ creatorId: row.userId }),
+			isFollowing(viewerId, row.userId)
+		]);
+
+	const tracks = await serializeTrackRows(page.rows, locals.user);
 
 	return {
 		tracks,
+		nextCursor: page.nextCursor,
 		profile: {
 			username: row.username,
 			name: row.name,
@@ -54,13 +51,18 @@ export async function loadPublicProfilePage({ username, locals }) {
 		},
 		links,
 		urls,
+		stats,
+		sidebar: { fansAlsoLike, followers, recentComments },
 		viaTenantHost,
+		// Tenant hosts only serve this profile, so cross-profile links need the apex.
+		siteOrigin: ORIGIN.replace(/\/$/, ''),
 		viewer: locals.user
 			? {
 					id: locals.user.id,
 					name: locals.user.name,
 					image: locals.user.image ?? null,
-					isOwner: locals.user.id === row.userId
+					isOwner: locals.user.id === row.userId,
+					isFollowing: viewerFollows
 				}
 			: null
 	};

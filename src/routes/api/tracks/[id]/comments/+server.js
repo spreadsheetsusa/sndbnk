@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 
 import { db } from '#lib/server/db';
 import { trackComment } from '#lib/server/db/schema';
-import { getTrackById } from '#lib/server/tracks';
+import { canViewTrack, getTrackById } from '#lib/server/tracks';
 
 const BODY_MAX_LENGTH = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,7 +13,7 @@ export async function POST({ locals, params, request }) {
 	}
 
 	const row = await getTrackById(params.id);
-	if (!row) {
+	if (!row || !canViewTrack(row, locals.user.id)) {
 		error(404, 'Track not found');
 	}
 

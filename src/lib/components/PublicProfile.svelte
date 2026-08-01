@@ -1,10 +1,12 @@
 <script>
 	import IconMapPin from '@tabler/icons-svelte-runes/icons/map-pin';
-	import { invalidateAll } from '$app/navigation';
+	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
+	import ProfileSidebar from '#lib/components/profile/ProfileSidebar.svelte';
 	import { displayUrl } from '#lib/profile-links.js';
 
 	/**
@@ -20,20 +22,40 @@
 	 *     customDomainStatus: string
 	 *   },
 	 *   links: Array<{ id: string, label: string, url: string }>,
-	 *   urls: {
-	 *     pathUrl: string,
-	 *     subdomainUrl: string | null,
-	 *     customDomainUrl: string | null,
-	 *     cnameTarget: string
-	 *   },
 	 *   tracks: import('#lib/components/player/TrackCard.svelte').CardTrack[],
+	 *   stats: import('#lib/components/profile/ProfileSidebar.svelte').ProfileStats,
+	 *   sidebar: {
+	 *     fansAlsoLike: import('#lib/components/profile/ArtistRow.svelte').Artist[],
+	 *     followers: import('#lib/components/profile/ArtistRow.svelte').Artist[],
+	 *     recentComments: import('#lib/components/profile/ProfileSidebar.svelte').RecentComment[]
+	 *   },
 	 *   viaTenantHost: boolean,
-	 *   viewer: { id: string, name: string, image: string | null, isOwner: boolean } | null
+	 *   siteOrigin: string,
+	 *   viewer: {
+	 *     id: string,
+	 *     name: string,
+	 *     image: string | null,
+	 *     isOwner: boolean,
+	 *     isFollowing: boolean
+	 *   } | null
 	 * }} ProfilePageData
 	 */
 
-	/** @type {{ data: ProfilePageData }} */
-	let { data } = $props();
+	/**
+	 * @type {{
+	 *   data: ProfilePageData,
+	 *   list: import('#lib/lists/track-list.svelte.js').TrackList
+	 * }}
+	 */
+	let { data, list } = $props();
+
+	/** Viewer-side filter only — nothing about it is persisted. */
+	let showReposts = $state(true);
+	const hasReposts = $derived(list.items.some((track) => track.repostedAt));
+	const items = $derived(
+		showReposts ? list.items : list.items.filter((track) => !track.repostedAt)
+	);
+	const linkBase = $derived(data.viaTenantHost ? data.siteOrigin : '');
 </script>
 
 <div class="profile-page" class:tenant-host={data.viaTenantHost}>
@@ -42,107 +64,111 @@
 	{/if}
 
 	<main>
-		<section class="hero" aria-labelledby="profile-name">
-			<p class="eyebrow eyebrow-chip accent-text">Public profile</p>
-			<div class="name-block">
-				<div class="signal" aria-hidden="true">
-					<svg viewBox="0 0 800 180" role="presentation" preserveAspectRatio="none">
-						<path
-							d="M0 90 H40 L55 60 L70 120 L90 30 L110 150 L130 70 L150 100 L170 20 L190 160 L210 55 L230 115 L250 40 L270 140 L290 80 L310 95 L330 50 L350 130 L370 75 L390 105 L410 35 L430 145 L450 65 L470 110 L490 45 L510 135 L530 85 L550 100 L570 25 L590 155 L610 60 L630 120 L650 70 L670 100 L690 55 L710 125 L730 90 H800"
-						/>
-					</svg>
-				</div>
-				<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
-			</div>
+		<div class="profile-grid">
+			<div class="block">
+				<section class="hero" aria-labelledby="profile-name">
+					<p class="eyebrow eyebrow-chip accent-text">Public profile</p>
+					<div class="name-block">
+						<div class="signal" aria-hidden="true">
+							<svg viewBox="0 0 800 180" role="presentation" preserveAspectRatio="none">
+								<path
+									d="M0 90 H40 L55 60 L70 120 L90 30 L110 150 L130 70 L150 100 L170 20 L190 160 L210 55 L230 115 L250 40 L270 140 L290 80 L310 95 L330 50 L350 130 L370 75 L390 105 L410 35 L430 145 L450 65 L470 110 L490 45 L510 135 L530 85 L550 100 L570 25 L590 155 L610 60 L630 120 L650 70 L670 100 L690 55 L710 125 L730 90 H800"
+								/>
+							</svg>
+						</div>
+						<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
+					</div>
 
-			<div class="identity">
-				<Avatar src={data.profile.avatarUrl} name={data.profile.name} size="4.5rem" />
-				<div class="identity-copy">
-					<p class="handle">@{data.profile.username}</p>
-					{#if data.profile.location}
-						<p class="location">
-							<IconMapPin size={15} stroke={1.75} />
-							{data.profile.location}
+					<div class="identity">
+						<Avatar src={data.profile.avatarUrl} name={data.profile.name} size="3.5rem" />
+						<div class="identity-copy">
+							<p class="handle">@{data.profile.username}</p>
+							{#if data.profile.location}
+								<p class="location">
+									<IconMapPin size={15} stroke={1.75} />
+									{data.profile.location}
+								</p>
+							{/if}
+						</div>
+						{#if data.viewer?.isOwner}
+							<a class="edit-btn" href="/settings" aria-label="Edit profile">
+								<IconPencil size={16} stroke={1.75} aria-hidden="true" />
+							</a>
+						{/if}
+					</div>
+
+					{#if data.profile.bio}
+						<p class="bio">{data.profile.bio}</p>
+					{/if}
+
+					{#if data.links.length > 0}
+						<ul class="link-list" aria-label="Links">
+							{#each data.links as link (link.id)}
+								<li>
+									<a href={link.url} target="_blank" rel="me noopener nofollow">
+										<span class="link-glyph" aria-hidden="true">
+											<ProfileLinkIcon label={link.label} />
+										</span>
+										<span class="link-label">{link.label}</span>
+										<span class="link-url">{displayUrl(link.url)}</span>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+
+					{#if list.items.length === 0}
+						<p class="lede">
+							This space is ready for sound. Tracks, releases, and the rest of SNDBNK will land
+							here.
 						</p>
 					{/if}
-				</div>
+				</section>
+
+				{#if list.items.length > 0}
+					<section class="tracks" aria-labelledby="tracks-heading">
+						<p class="eyebrow">{hasReposts ? 'Tracks & Reposts' : 'Tracks'}</p>
+						<h2 id="tracks-heading" class="sr-only">Tracks by {data.profile.name}</h2>
+						{#if items.length === 0}
+							<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
+						{:else}
+							<InfiniteList {list} moreLabel="Load more tracks">
+								<ul class="profile-track-list">
+									{#each items as track (track.id)}
+										<li data-cursor={track.cursor}>
+											<TrackCard
+												{track}
+												{linkBase}
+												signedIn={Boolean(data.viewer)}
+												viewerName={data.viewer?.name ?? null}
+												viewerImage={data.viewer?.image ?? null}
+												ondeleted={() => list.remove(track.id)}
+											/>
+										</li>
+									{/each}
+								</ul>
+							</InfiniteList>
+						{/if}
+					</section>
+				{/if}
 			</div>
 
-			{#if data.profile.bio}
-				<p class="bio">{data.profile.bio}</p>
-			{/if}
-
-			{#if data.links.length > 0}
-				<ul class="link-list" aria-label="Links">
-					{#each data.links as link (link.id)}
-						<li>
-							<a href={link.url} target="_blank" rel="me noopener nofollow">
-								<span class="link-glyph" aria-hidden="true">
-									<ProfileLinkIcon label={link.label} />
-								</span>
-								<span class="link-label">{link.label}</span>
-								<span class="link-url">{displayUrl(link.url)}</span>
-							</a>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-
-			{#if data.tracks.length === 0}
-				<p class="lede">
-					This space is ready for sound. Tracks, releases, and the rest of SNDBNK will land here.
-				</p>
-			{/if}
-
-			<ul class="url-list" aria-label="Profile addresses">
-				<li>
-					<span class="url-label">Path</span>
-					<a href={data.urls.pathUrl}>{data.urls.pathUrl.replace(/^https?:\/\//, '')}</a>
-				</li>
-				{#if data.urls.subdomainUrl}
-					<li>
-						<span class="url-label">Subdomain</span>
-						<a href={data.urls.subdomainUrl}>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
-						>
-					</li>
-				{/if}
-				{#if data.urls.customDomainUrl}
-					<li>
-						<span class="url-label">Custom</span>
-						<a href={data.urls.customDomainUrl}
-							>{data.urls.customDomainUrl.replace(/^https?:\/\//, '')}</a
-						>
-					</li>
-				{/if}
-			</ul>
-
-			{#if data.viewer?.isOwner}
-				<p class="owner-note">
-					This is your profile.
-					<a href="/settings">Manage plan &amp; domains</a>
-				</p>
-			{/if}
-		</section>
-
-		{#if data.tracks.length > 0}
-			<section class="tracks" aria-labelledby="tracks-heading">
-				<p class="eyebrow">Tracks</p>
-				<h2 id="tracks-heading" class="sr-only">Tracks by {data.profile.name}</h2>
-				<ul class="profile-track-list">
-					{#each data.tracks as track (track.id)}
-						<li>
-							<TrackCard
-								{track}
-								signedIn={Boolean(data.viewer)}
-								viewerName={data.viewer?.name ?? null}
-								viewerImage={data.viewer?.image ?? null}
-								ondeleted={() => invalidateAll()}
-							/>
-						</li>
-					{/each}
-				</ul>
-			</section>
-		{/if}
+			<ProfileSidebar
+				username={data.profile.username}
+				name={data.profile.name}
+				stats={data.stats}
+				fansAlsoLike={data.sidebar.fansAlsoLike}
+				followers={data.sidebar.followers}
+				recentComments={data.sidebar.recentComments}
+				signedIn={Boolean(data.viewer)}
+				isOwner={Boolean(data.viewer?.isOwner)}
+				isFollowing={Boolean(data.viewer?.isFollowing)}
+				{hasReposts}
+				{showReposts}
+				{linkBase}
+				onrepoststoggle={(next) => (showReposts = next)}
+			/>
+		</div>
 	</main>
 
 	{#if !data.viaTenantHost}
@@ -169,11 +195,22 @@
 	main {
 		width: min(100%, var(--site-content-max-wide));
 		margin: 0 auto;
-		padding-top: clamp(1.25rem, 4vw, 2.5rem);
+		padding-top: clamp(0.75rem, 2vw, 1.25rem);
 	}
 
 	.profile-page.tenant-host main {
 		padding-top: 0;
+	}
+
+	.profile-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) var(--site-sidebar-width);
+		gap: clamp(2rem, 5vw, 3rem);
+		align-items: start;
+	}
+
+	.block {
+		min-width: 0;
 	}
 
 	.logo {
@@ -188,8 +225,8 @@
 		animation: rise 0.7s ease both;
 	}
 
-	.eyebrow {
-		margin: 0 0 1rem;
+	.hero > .eyebrow {
+		margin: 0 0 0.35rem;
 	}
 
 	.name-block {
@@ -200,26 +237,58 @@
 	h1 {
 		position: relative;
 		margin: 0;
-		font-size: clamp(3.5rem, 10vw, 6.5rem);
-		line-height: 0.9;
+		font-size: clamp(2.75rem, 7vw, 4.5rem);
+		line-height: 0.95;
 		letter-spacing: -0.03em;
+		word-break: break-word;
 	}
 
 	.identity {
 		display: flex;
-		gap: 1rem;
+		gap: 0.85rem;
 		align-items: center;
-		margin-top: 1.15rem;
+		margin-top: 0.55rem;
 	}
 
 	.identity-copy {
 		min-width: 0;
+		flex: 1;
+	}
+
+	.edit-btn {
+		display: inline-flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: 2.1rem;
+		height: 2.1rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		color: var(--ink);
+		background: transparent;
+		text-decoration: none;
+		transition:
+			border-color 120ms ease,
+			background 120ms ease,
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+	}
+
+	.edit-btn:hover {
+		border-color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+
+	.edit-btn:active {
+		transform: translate(1px, 1px);
+	}
+
+	.edit-btn :global(svg) {
+		display: block;
 	}
 
 	.handle {
 		margin: 0;
 		color: var(--muted);
-		font-size: 1.05rem;
+		font-size: 0.95rem;
 		font-weight: 700;
 		letter-spacing: 0.04em;
 	}
@@ -228,16 +297,16 @@
 		display: flex;
 		gap: 0.3rem;
 		align-items: center;
-		margin: 0.35rem 0 0;
+		margin: 0.2rem 0 0;
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: 0.82rem;
 	}
 
 	.bio {
 		max-width: 34rem;
-		margin: 1.35rem 0 0;
+		margin: 0.85rem 0 0;
 		font-size: 1rem;
-		line-height: 1.6;
+		line-height: 1.5;
 		white-space: pre-line;
 		animation: rise 0.8s ease 0.06s both;
 	}
@@ -246,7 +315,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		margin: 1.5rem 0 0;
+		margin: 1rem 0 0;
 		padding: 0;
 		list-style: none;
 		animation: rise 0.85s ease 0.12s both;
@@ -298,68 +367,22 @@
 
 	.lede {
 		max-width: 32rem;
-		margin: 1.5rem 0 0;
+		margin: 1rem 0 0;
 		color: var(--muted);
-		font-size: 1.05rem;
-		line-height: 1.55;
+		font-size: 1rem;
+		line-height: 1.45;
 		animation: rise 0.8s ease 0.08s both;
 	}
 
-	.url-list {
-		display: grid;
-		gap: 0.65rem;
-		margin: 2rem 0 0;
-		padding: 0;
-		list-style: none;
-		animation: rise 0.85s ease 0.16s both;
-	}
-
-	.url-list li {
-		display: grid;
-		grid-template-columns: 6.5rem 1fr;
-		gap: 0.75rem;
-		align-items: baseline;
-		padding: 0.75rem 0;
-		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-	}
-
-	.url-list li:last-child {
-		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-	}
-
-	.url-label {
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-	}
-
-	.url-list a {
-		color: var(--ink);
-		font-weight: 700;
-		word-break: break-all;
-		text-underline-offset: 0.2rem;
-	}
-
-	.owner-note {
-		margin: 1.75rem 0 0;
-		font-size: 0.9rem;
-	}
-
-	.owner-note a {
-		color: var(--ink);
-		font-weight: 800;
-	}
-
 	.tracks {
-		margin-top: clamp(2.5rem, 7vw, 4rem);
+		margin-top: 2.5rem;
 		padding-top: clamp(1.5rem, 4vw, 2rem);
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.85s ease 0.2s both;
 	}
 
 	.tracks > .eyebrow {
-		margin: 0 0 1rem;
+		margin: 0 0 0.75rem;
 	}
 
 	.sr-only {
@@ -382,10 +405,17 @@
 		list-style: none;
 	}
 
+	/* Off-screen cards skip layout and paint entirely; `auto` keeps each row's
+	   real height once measured, so scrolling back up lands where it should. */
+	.profile-track-list li {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 192px;
+	}
+
 	.signal {
 		position: absolute;
 		z-index: -1;
-		inset: -26% -10%;
+		inset: -18% -8%;
 		/* Fade the ends so the trace reads as texture rather than a boxed-in graphic */
 		mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
 		animation: pulse-line 3.2s ease-in-out infinite;
@@ -438,12 +468,13 @@
 		}
 	}
 
-	@media (max-width: 620px) {
-		.url-list li {
+	@media (max-width: 960px) {
+		.profile-grid {
 			grid-template-columns: 1fr;
-			gap: 0.25rem;
 		}
+	}
 
+	@media (max-width: 620px) {
 		.link-url {
 			display: none;
 		}

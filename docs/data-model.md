@@ -94,11 +94,15 @@ Four groups of columns:
 | Editable metadata   | `title` (required), `description`, `artist`, `album`, `genre`, `year`, `trackNumber`, `bpm`, `isrc`, `comment` |
 | Files               | `audioFilename`, `audioMime`, `audioBytes`, `coverFilename`, `coverMime`, `coverBytes`                         |
 | Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`                                                     |
-| Derived / placement | `waveform` (JSON string of ~1000 ints), `storageAdapter`, `folderKey`                                          |
+| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `storageAdapter`, `folderKey`                             |
 
 `storageAdapter` is a **snapshot of the owner's adapter at upload time**, and `folderKey` equals the
 track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —
 so switching your storage setting never orphans existing tracks.
+
+`published` defaults to `1`. Public surfaces — profile pages, the feed, the landing showcase, and
+`/tracks/[id]` for anyone but the owner — filter on it; the owner's library lists every track and
+carries the toggle.
 
 ### `track_comment`
 
@@ -109,6 +113,19 @@ work. Indexed on `trackId`.
 
 Composite primary key `(trackId, userId)`, so the "one like per user" rule is a schema guarantee and
 the toggle endpoint needs no uniqueness check.
+
+### `track_repost`
+
+Same shape as `track_like` — composite primary key `(trackId, userId)` plus a
+`(userId, createdAt)` index, because reposts are read back in reverse-chronological order for a
+profile listing and for the Following feed. `createdAt` is the repost time, which is what a reposted
+track sorts by; the track's own `createdAt` is ignored for placement. Reposting your own track is
+rejected in `toggleRepost()`, not by a constraint.
+
+### `follow`
+
+Composite primary key `(followerId, followingId)` and an index on `followingId` for follower counts.
+Self-follow is rejected in `toggleFollow()` with a result object, per the no-exceptions rule.
 
 ## Relations
 
@@ -121,6 +138,9 @@ erDiagram
   user ||--o{ account : has
   track ||--o{ track_comment : has
   track ||--o{ track_like : has
+  track ||--o{ track_repost : has
+  user ||--o{ track_repost : makes
+  user ||--o{ follow : follows
 ```
 
 Drizzle `relations()` are declared for every table but the code overwhelmingly uses explicit

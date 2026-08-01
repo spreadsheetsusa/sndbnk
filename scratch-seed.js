@@ -10,10 +10,9 @@ db.query(
 	 values (?, 'tagprobe', 'basic', 'none', ?, ?)`
 ).run(USER_ID, now, now);
 
-db.query(`insert or replace into storage_setting (user_id, adapter, ssh_port, updated_at) values (?, 'local', 22, ?)`).run(
-	USER_ID,
-	now
-);
+db.query(
+	`insert or replace into storage_setting (user_id, adapter, ssh_port, updated_at) values (?, 'local', 22, ?)`
+).run(USER_ID, now);
 
 const fixtures = [
 	{ id: 'probe-mp3', file: 'probe.mp3', name: 'audio.mp3', mime: 'audio/mpeg' },

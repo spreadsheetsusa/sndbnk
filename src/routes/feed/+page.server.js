@@ -5,37 +5,10 @@ import {
 	listNewArtists,
 	listRecentComments
 } from '#lib/server/feed';
+import { listFollowingIds } from '#lib/server/social';
 import { getProfileByUserId } from '#lib/server/tenant';
-import {
-	getSocialForTracks,
-	listTimedCommentsForTracks,
-	serializeTrackForPlayer
-} from '#lib/server/tracks';
+import { serializeTrackRows } from '#lib/server/tracks';
 import { safeRedirect } from '#lib/server/safe-redirect';
-
-/**
- * @param {Awaited<ReturnType<typeof listFeedTracks>>['rows']} rows
- * @param {{ id: string } | null} viewer
- */
-async function serializeFeedRows(rows, viewer) {
-	const trackIds = rows.map((row) => row.track.id);
-	const [social, timedComments] = await Promise.all([
-		getSocialForTracks(trackIds, viewer?.id ?? null),
-		listTimedCommentsForTracks(trackIds)
-	]);
-
-	return Promise.all(
-		rows.map((row) =>
-			serializeTrackForPlayer(
-				row.track,
-				row,
-				social.get(row.track.id),
-				viewer,
-				timedComments.get(row.track.id)
-			)
-		)
-	);
-}
 
 export const load = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -48,16 +21,18 @@ export const load = async ({ locals, url }) => {
 	}
 
 	const genreParam = url.searchParams.get('genre')?.trim() || null;
+	const following = url.searchParams.get('following') === '1';
+	const followingIds = following ? await listFollowingIds(locals.user.id) : null;
 
 	const [{ rows, nextCursor }, mostLiked, newArtists, recentComments, genres] = await Promise.all([
-		listFeedTracks({ genre: genreParam }),
+		listFeedTracks({ genre: genreParam, followingIds }),
 		listMostLikedTracks(),
-		listNewArtists(),
+		listNewArtists({ viewerId: locals.user.id }),
 		listRecentComments(),
 		listGenres()
 	]);
 
-	const tracks = await serializeFeedRows(rows, locals.user);
+	const tracks = await serializeTrackRows(rows, locals.user);
 
 	return {
 		user: {
@@ -68,6 +43,8 @@ export const load = async ({ locals, url }) => {
 		tracks,
 		nextCursor,
 		genre: genreParam,
+		following,
+		followingCount: followingIds?.length ?? null,
 		sidebar: {
 			mostLiked,
 			newArtists,

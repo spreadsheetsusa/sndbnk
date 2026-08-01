@@ -15,10 +15,11 @@ blur, one acid-lime accent, paper-grid background, chromatic aberration on displ
   `var(--accent)`, `var(--on-accent)`, `var(--muted)`, `var(--inverse)`, `var(--on-inverse)`.
 - Tints come from `color-mix(in srgb, var(--ink) 32%, transparent)`, not a new hex value.
 - Layout widths use `--site-shell-max`, `--site-shell-pad-x`, `--site-content-max`,
-  `--site-content-max-wide` so the header and pages stay aligned.
+  `--site-content-max-wide`, `--site-sidebar-width` so the header and pages stay aligned.
 - New token → add it to both `:root` and `.dark` in `layout.css`.
 - The one exception is canvas rendering, which cannot read custom properties; `Waveform.svelte`
-  resolves them via `getComputedStyle` and re-applies them when the theme flips.
+  takes accent from the `accentColor` store and `--ink` / `--paper` via `getComputedStyle`, and
+  re-applies fills when the theme or accent changes.
 
 ## Scoped CSS, not utilities
 
@@ -48,8 +49,11 @@ An `h1.display-face` gets chromatic fringes automatically — do not re-implemen
 
 ## Non-negotiables
 
-- Buttons and inputs stay square: `border-radius: 0`, `1px solid var(--ink)`. Pressable buttons carry
-  `box-shadow: 5px 5px 0 var(--ink)`.
+- Buttons and inputs stay square: `border-radius: 0`, `1px solid var(--ink)`. Raised paper panels use
+  `border: 1px solid var(--hard-border)` and `box-shadow: 5px 5px 0 var(--hard-shadow)` (ink in light,
+  accent edge + darkened accent shadow in dark). Cover art uses `--cover-shadow` instead (ink in
+  light, translucent ink in dark — not accent-tinted). Accent-filled pressables keep an ink border so
+  the edge stays visible on the fill; their shadow still uses `--hard-shadow`.
 - Never remove focus styling. `:focus-visible` is a `2px solid var(--ink)` outline with `3px` offset.
 - Respect `prefers-reduced-motion`. CSS animation is already covered by a global rule; JS-driven
   motion must check `window.matchMedia('(prefers-reduced-motion: reduce)')`.

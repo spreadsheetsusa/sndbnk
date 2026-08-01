@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import { auth } from '#lib/server/auth';
 import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
+import { getSiteStats, listShowcaseTracks } from '#lib/server/showcase';
 
 export const load = async ({ cookies, locals }) => {
 	if (locals.tenant) {
@@ -35,10 +36,14 @@ export const load = async ({ cookies, locals }) => {
 					: null;
 	}
 
+	const [showcase, stats] = await Promise.all([listShowcaseTracks(), getSiteStats()]);
+
 	return {
 		mode: /** @type {const} */ ('marketing'),
 		user: locals.user ?? null,
-		authNotice
+		authNotice,
+		showcase,
+		stats
 	};
 };
 

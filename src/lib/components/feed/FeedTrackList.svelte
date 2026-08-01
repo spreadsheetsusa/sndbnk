@@ -1,73 +1,25 @@
 <script>
-	import { invalidateAll } from '$app/navigation';
+	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 
 	/**
-	 * @typedef {Object} FeedTrack
-	 * @property {string} id
-	 * @property {string} title
-	 * @property {string | null} artist
-	 * @property {string | null} genre
-	 * @property {number | null} durationMs
-	 * @property {boolean} hasCover
-	 * @property {number} createdAt
-	 * @property {string | null} username
-	 * @property {string} uploaderName
-	 * @property {number[] | null} waveform
-	 * @property {number} likeCount
-	 * @property {number} commentCount
-	 * @property {boolean} likedByViewer
-	 * @property {boolean} isOwner
-	 */
-
-	/**
 	 * @type {{
-	 *   initialTracks: FeedTrack[],
-	 *   initialCursor: string | null,
+	 *   list: import('#lib/lists/track-list.svelte.js').TrackList,
 	 *   genre: string | null,
+	 *   following?: boolean,
 	 *   viewerName: string | null,
 	 *   viewerImage?: string | null
 	 * }}
 	 */
-	let { initialTracks, initialCursor, genre, viewerName, viewerImage = null } = $props();
-
-	// Seeded once on mount; parent remounts this component via {#key} when loader data changes.
-	// svelte-ignore state_referenced_locally
-	let tracks = $state(initialTracks);
-	// svelte-ignore state_referenced_locally
-	let cursor = $state(initialCursor);
-	let loadingMore = $state(false);
-	let loadError = $state(/** @type {string | null} */ (null));
-
-	async function loadMore() {
-		if (!cursor || loadingMore) return;
-		loadingMore = true;
-		loadError = null;
-
-		try {
-			const params = new URLSearchParams({ cursor });
-			if (genre) params.set('genre', genre);
-
-			const res = await fetch(`/api/feed?${params}`);
-			if (!res.ok) {
-				throw new Error('Could not load more tracks.');
-			}
-
-			const payload = await res.json();
-			tracks = [...tracks, ...payload.tracks];
-			cursor = payload.nextCursor ?? null;
-		} catch (err) {
-			loadError = err instanceof Error ? err.message : 'Could not load more tracks.';
-		} finally {
-			loadingMore = false;
-		}
-	}
+	let { list, genre, following = false, viewerName, viewerImage = null } = $props();
 </script>
 
-{#if tracks.length === 0}
+{#if list.items.length === 0}
 	<div class="empty" aria-live="polite">
 		<p>
-			{#if genre}
+			{#if following}
+				Nothing from the people you follow yet. Follow more creators to fill this out.
+			{:else if genre}
 				No tracks in this genre yet.
 			{:else}
 				No tracks yet. Be the first to upload.
@@ -76,30 +28,21 @@
 		<a class="pressable" href="/library/new">Upload track</a>
 	</div>
 {:else}
-	<ul class="track-list">
-		{#each tracks as track (track.id)}
-			<li>
-				<TrackCard
-					{track}
-					signedIn={true}
-					{viewerName}
-					{viewerImage}
-					ondeleted={() => invalidateAll()}
-				/>
-			</li>
-		{/each}
-	</ul>
-
-	{#if cursor}
-		<div class="load-more">
-			<button type="button" class="pressable" disabled={loadingMore} onclick={loadMore}>
-				{loadingMore ? 'Loading…' : 'Load more'}
-			</button>
-			{#if loadError}
-				<p class="load-error" role="alert">{loadError}</p>
-			{/if}
-		</div>
-	{/if}
+	<InfiniteList {list} endLabel="You're all caught up">
+		<ul class="track-list">
+			{#each list.items as track (track.id)}
+				<li data-cursor={track.cursor}>
+					<TrackCard
+						{track}
+						signedIn={true}
+						{viewerName}
+						{viewerImage}
+						ondeleted={() => list.remove(track.id)}
+					/>
+				</li>
+			{/each}
+		</ul>
+	</InfiniteList>
 {/if}
 
 <style>
@@ -113,18 +56,13 @@
 		border: 1px solid var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 		font-size: 0.72rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		text-decoration: none;
 		cursor: pointer;
-	}
-
-	.pressable:disabled {
-		opacity: 0.55;
-		cursor: wait;
 	}
 
 	.empty {
@@ -147,16 +85,10 @@
 		list-style: none;
 	}
 
-	.load-more {
-		display: grid;
-		gap: 0.75rem;
-		justify-items: start;
-		margin-top: 1.75rem;
-	}
-
-	.load-error {
-		margin: 0;
-		color: var(--muted);
-		font-size: 0.85rem;
+	/* Off-screen cards skip layout and paint entirely; `auto` keeps each row's
+	   real height once measured, so scrolling back up lands where it should. */
+	.track-list li {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 192px;
 	}
 </style>

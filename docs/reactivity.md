@@ -143,7 +143,8 @@ What makes it work, and what to copy:
 Components then just read it — no subscription, no `$` prefix:
 
 ```svelte
-<div class="app-shell" class:has-player={player.current}>
+{#if player.current}
+	{@const track = player.current}
 ```
 
 **New shared state goes here, not in a `writable`.**
@@ -185,7 +186,8 @@ Two modules still use `writable`:
 - [`src/lib/stores/theme.js`](../src/lib/stores/theme.js) — `themePreference` and `resolvedTheme`,
   driven by imperative functions (`applyTheme`, `toggleTheme`, `initTheme`) that also touch
   `documentElement` and `localStorage`
-- [`src/lib/stores/brand.js`](../src/lib/stores/brand.js) — a single `accent` value, currently static
+- [`src/lib/stores/brand.js`](../src/lib/stores/brand.js) — `accent` (the selected id), `customAccent`
+  (the user's hex), and `accentColor`, driven by `applyAccent` / `setAccent` / `setCustomAccent`
 
 They work and they are small, so they are not urgent to change. But they are the old generation:
 consumers must remember the `$` prefix, and `Waveform.svelte` mixes `$resolvedTheme` with rune state
@@ -199,7 +201,7 @@ flowchart TD
   load["+page.server.js load"] -->|"props"| page["+page.svelte"]
   page -->|"props + callbacks"| card["TrackCard"]
   card -->|"method calls"| player["player singleton"]
-  player -->|"reactive fields"| bar["GlobalPlayerBar"]
+  player -->|"reactive fields"| bar["HeaderPlayer"]
   player -->|"currentTime prop"| wave["Waveform"]
   card -->|"fetch /api/*"| api["API route"]
   api -->|"authoritative JSON"| card

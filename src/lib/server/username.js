@@ -38,7 +38,11 @@ export const RESERVED_USERNAMES = new Set([
 	'robots',
 	'sitemap',
 	'library',
-	'media'
+	'media',
+	'plans',
+	'pricing',
+	'checkout',
+	'upgrade'
 ]);
 
 /**

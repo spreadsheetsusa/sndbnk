@@ -18,7 +18,11 @@ import {
 	replaceLinksForUser,
 	validateProfileLinks
 } from '#lib/server/profile-links';
-import { PLAN_DETAILS, canUseCustomDomain, isPlan } from '#lib/server/plans';
+import { changeSubscription } from '#lib/server/billing/checkout';
+import { canUseCustomDomain, getPlans, planOrDefault } from '#lib/server/billing/plans';
+import { createPortalSession } from '#lib/server/billing/portal';
+import { billingEnabled } from '#lib/server/billing/stripe';
+import { getUsage } from '#lib/server/quota';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import {
 	STORAGE_ADAPTERS,
@@ -44,6 +48,8 @@ export const load = async ({ locals }) => {
 	const urls = buildPublicUrls(row);
 	const storage = await getStorageSettingPublic(locals.user.id);
 	const links = await listLinksForUser(locals.user.id);
+	const usage = await getUsage(locals.user.id);
+	const tier = planOrDefault(row.plan);
 
 	return {
 		user: {
@@ -68,7 +74,30 @@ export const load = async ({ locals }) => {
 		},
 		urls,
 		baseDomain: PUBLIC_BASE_DOMAIN,
-		planDetails: PLAN_DETAILS,
+		billing: {
+			enabled: billingEnabled,
+			planId: tier.id,
+			planLabel: tier.label,
+			planBlurb: tier.blurb,
+			interval: row.planInterval,
+			status: row.subscriptionStatus,
+			hasSubscription: Boolean(row.stripeSubscriptionId),
+			cancelAtPeriodEnd: row.cancelAtPeriodEnd,
+			currentPeriodEnd: row.currentPeriodEnd?.getTime() ?? null,
+			monthlyAmount: tier.monthlyAmount,
+			yearlyAmount: tier.yearlyAmount,
+			allowStorageAdapters: tier.allowStorageAdapters,
+			allowSubdomain: tier.allowSubdomain,
+			allowCustomDomain: tier.allowCustomDomain
+		},
+		usage,
+		plans: getPlans().map((option) => ({
+			id: option.id,
+			label: option.label,
+			monthlyAmount: option.monthlyAmount,
+			yearlyAmount: option.yearlyAmount,
+			purchasable: Boolean(option.stripePriceMonthlyId && option.stripePriceYearlyId)
+		})),
 		storageAdapters: STORAGE_ADAPTERS,
 		storage
 	};
@@ -184,37 +213,35 @@ export const actions = {
 		return { avatarSuccess: 'Avatar removed.' };
 	},
 
-	setPlan: async ({ locals, request }) => {
+	openPortal: async ({ locals }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const result = await createPortalSession(locals.user.id);
+		if (!result.ok) {
+			return fail(400, { billingMessage: result.message });
+		}
+
+		safeRedirect(303, result.url);
+	},
+
+	changePlan: async ({ locals, request }) => {
 		if (!locals.user) {
 			safeRedirect(302, '/signin');
 		}
 
 		const formData = await request.formData();
-		const plan = formData.get('plan')?.toString() ?? '';
+		const planId = formData.get('plan')?.toString() ?? '';
+		const interval = formData.get('interval')?.toString() ?? '';
 
-		if (!isPlan(plan)) {
-			return fail(400, { planMessage: 'Choose Basic or Premium.' });
+		const result = await changeSubscription(locals.user.id, planId, interval);
+		if (!result.ok) {
+			return fail(400, { billingMessage: result.message });
 		}
-
-		/** @type {Record<string, unknown>} */
-		const patch = {
-			plan,
-			updatedAt: new Date()
-		};
-
-		if (plan === 'basic') {
-			patch.customDomainStatus = 'none';
-			patch.customDomainVerifiedAt = null;
-			// Keep domain + token so upgrading again can re-verify quickly, but mark inactive.
-		}
-
-		await db.update(profile).set(patch).where(eq(profile.userId, locals.user.id));
 
 		return {
-			planSuccess:
-				plan === 'premium'
-					? 'Premium is on. Your subdomain is ready.'
-					: 'Switched to Basic. Subdomain and custom domain are paused.'
+			billingSuccess: `You're on ${planOrDefault(result.plan).label}. The difference is prorated on your next invoice.`
 		};
 	},
 
@@ -226,7 +253,7 @@ export const actions = {
 		const row = await getProfileByUserId(locals.user.id);
 		if (!row || !canUseCustomDomain(row.plan)) {
 			return fail(403, {
-				domainMessage: 'Custom domains are a Premium feature. Switch plans first.'
+				domainMessage: 'Custom domains need Premium or Business. Upgrade from the Billing tab.'
 			});
 		}
 
@@ -290,7 +317,9 @@ export const actions = {
 
 		const row = await getProfileByUserId(locals.user.id);
 		if (!row || !canUseCustomDomain(row.plan)) {
-			return fail(403, { domainMessage: 'Custom domains are a Premium feature.' });
+			return fail(403, {
+				domainMessage: 'Custom domains need Premium or Business. Upgrade from the Billing tab.'
+			});
 		}
 
 		if (!row.customDomain || !row.domainVerifyToken) {

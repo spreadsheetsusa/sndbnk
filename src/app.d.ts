@@ -3,7 +3,8 @@ import type { User, Session } from 'better-auth';
 declare global {
 	namespace App {
 		interface Locals {
-			user?: User;
+			/** `role` and the ban fields come from the better-auth admin plugin. */
+			user?: User & { role?: string | null; banned?: boolean | null };
 			session?: Session;
 			/** Set when the request host is a premium tenant subdomain or custom domain. */
 			tenant?: {

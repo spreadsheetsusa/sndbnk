@@ -7,7 +7,6 @@
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
-	import { fly } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -58,7 +57,114 @@
 
 {#if player.current}
 	{@const track = player.current}
-	<div class="player-bar" transition:fly={{ y: 88, duration: 260 }}>
+	<div class="header-player">
+		<div class="strip">
+			<div class="transport">
+				<button
+					type="button"
+					class="cell transport-btn"
+					aria-label="Previous"
+					onclick={() => player.previous()}
+				>
+					<IconPlayerSkipBackFilled size={15} aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					class="cell transport-btn play"
+					aria-label={player.playing ? 'Pause' : 'Play'}
+					onclick={() => player.toggle()}
+				>
+					{#if player.playing}
+						<IconPlayerPauseFilled size={17} aria-hidden="true" />
+					{:else}
+						<IconPlayerPlayFilled size={17} aria-hidden="true" />
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="cell transport-btn"
+					aria-label="Next"
+					disabled={player.queue.length === 0}
+					onclick={() => player.next()}
+				>
+					<IconPlayerSkipForwardFilled size={15} aria-hidden="true" />
+				</button>
+			</div>
+
+			<div class="cell scrub">
+				<span class="time elapsed">{formatDuration(player.currentTime * 1000)}</span>
+
+				<input
+					class="seek"
+					type="range"
+					min="0"
+					max="1000"
+					step="1"
+					value={sliderValue}
+					aria-label="Seek"
+					style:--fill="{(sliderValue / 1000) * 100}%"
+					onpointerdown={() => {
+						scrubbing = true;
+						scrubValue = Math.round(progress * 1000);
+					}}
+					oninput={handleSeekInput}
+					onchange={handleSeekCommit}
+				/>
+
+				<span class="time total">{formatDuration(player.duration * 1000)}</span>
+			</div>
+
+			<div class="cell now-playing">
+				{#if track.hasCover}
+					<img class="bar-cover" src="/api/media/{track.id}/cover" alt="" width="26" height="26" />
+				{:else}
+					<span class="bar-cover placeholder" aria-hidden="true"></span>
+				{/if}
+				<div class="now-meta">
+					{#if track.username}
+						<a class="now-artist" href="/users/{track.username}">
+							{track.artist || track.uploaderName}
+						</a>
+					{:else}
+						<span class="now-artist">{track.artist || track.uploaderName}</span>
+					{/if}
+					<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+				</div>
+			</div>
+
+			<div class="bar-actions">
+				{#if signedIn}
+					<button
+						type="button"
+						class="cell icon-btn"
+						class:active={track.likedByViewer}
+						aria-label={track.likedByViewer ? 'Unlike' : 'Like'}
+						aria-pressed={track.likedByViewer}
+						onclick={toggleLike}
+					>
+						{#if track.likedByViewer}
+							<IconHeartFilled size={15} aria-hidden="true" />
+						{:else}
+							<IconHeart size={15} stroke={1.75} aria-hidden="true" />
+						{/if}
+					</button>
+				{/if}
+				<button
+					type="button"
+					class="cell icon-btn"
+					class:active={queueOpen}
+					aria-label="Next Up queue"
+					aria-expanded={queueOpen}
+					onclick={() => (queueOpen = !queueOpen)}
+				>
+					<IconPlaylist size={15} stroke={1.75} aria-hidden="true" />
+					{#if player.queue.length > 0}
+						<span class="queue-count">{player.queue.length}</span>
+					{/if}
+				</button>
+			</div>
+		</div>
+
 		{#if queueOpen}
 			<aside class="queue-panel" aria-label="Next Up">
 				<header>
@@ -99,153 +205,64 @@
 				{/if}
 			</aside>
 		{/if}
-
-		<div class="bar-inner">
-			<div class="transport">
-				<button
-					type="button"
-					class="transport-btn"
-					aria-label="Previous"
-					onclick={() => player.previous()}
-				>
-					<IconPlayerSkipBackFilled size={15} aria-hidden="true" />
-				</button>
-				<button
-					type="button"
-					class="transport-btn play"
-					aria-label={player.playing ? 'Pause' : 'Play'}
-					onclick={() => player.toggle()}
-				>
-					{#if player.playing}
-						<IconPlayerPauseFilled size={18} aria-hidden="true" />
-					{:else}
-						<IconPlayerPlayFilled size={18} aria-hidden="true" />
-					{/if}
-				</button>
-				<button
-					type="button"
-					class="transport-btn"
-					aria-label="Next"
-					disabled={player.queue.length === 0}
-					onclick={() => player.next()}
-				>
-					<IconPlayerSkipForwardFilled size={15} aria-hidden="true" />
-				</button>
-			</div>
-
-			<span class="time elapsed">{formatDuration(player.currentTime * 1000)}</span>
-
-			<input
-				class="seek"
-				type="range"
-				min="0"
-				max="1000"
-				step="1"
-				value={sliderValue}
-				aria-label="Seek"
-				style:--fill="{(sliderValue / 1000) * 100}%"
-				onpointerdown={() => {
-					scrubbing = true;
-					scrubValue = Math.round(progress * 1000);
-				}}
-				oninput={handleSeekInput}
-				onchange={handleSeekCommit}
-			/>
-
-			<span class="time total">{formatDuration(player.duration * 1000)}</span>
-
-			<div class="now-playing">
-				{#if track.hasCover}
-					<img class="bar-cover" src="/api/media/{track.id}/cover" alt="" width="40" height="40" />
-				{:else}
-					<span class="bar-cover placeholder" aria-hidden="true"></span>
-				{/if}
-				<div class="now-meta">
-					{#if track.username}
-						<a class="now-artist" href="/users/{track.username}">
-							{track.artist || track.uploaderName}
-						</a>
-					{:else}
-						<span class="now-artist">{track.artist || track.uploaderName}</span>
-					{/if}
-					<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
-				</div>
-			</div>
-
-			<div class="bar-actions">
-				{#if signedIn}
-					<button
-						type="button"
-						class="icon-btn"
-						class:active={track.likedByViewer}
-						aria-label={track.likedByViewer ? 'Unlike' : 'Like'}
-						aria-pressed={track.likedByViewer}
-						onclick={toggleLike}
-					>
-						{#if track.likedByViewer}
-							<IconHeartFilled size={16} aria-hidden="true" />
-						{:else}
-							<IconHeart size={16} stroke={1.75} aria-hidden="true" />
-						{/if}
-					</button>
-				{/if}
-				<button
-					type="button"
-					class="icon-btn"
-					class:active={queueOpen}
-					aria-label="Next Up queue"
-					aria-expanded={queueOpen}
-					onclick={() => (queueOpen = !queueOpen)}
-				>
-					<IconPlaylist size={16} stroke={1.75} aria-hidden="true" />
-					{#if player.queue.length > 0}
-						<span class="queue-count">{player.queue.length}</span>
-					{/if}
-				</button>
-			</div>
-		</div>
 	</div>
 {/if}
 
 <style>
-	.player-bar {
-		position: fixed;
-		z-index: 60;
-		right: 0;
-		bottom: 0;
-		left: 0;
-		border-top: 1px solid var(--ink);
+	.header-player {
+		position: relative;
+		display: flex;
+		flex: 1 1 auto;
+		min-width: 0;
+		max-width: 100%;
+		justify-content: center;
+	}
+
+	.strip {
+		display: flex;
+		align-items: stretch;
+		min-width: 0;
+		max-width: 100%;
+		border: 1px solid var(--hard-border);
 		background: var(--paper);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
 	}
 
-	.bar-inner {
+	.transport,
+	.bar-actions {
 		display: flex;
-		gap: clamp(0.6rem, 1.5vw, 1.25rem);
-		align-items: center;
-		width: min(100%, var(--site-shell-max));
-		min-height: 3.75rem;
-		margin: 0 auto;
-		padding: 0.4rem var(--site-shell-pad-x);
-	}
-
-	.transport {
-		display: flex;
-		gap: 0.35rem;
-		align-items: center;
+		align-items: stretch;
 		flex-shrink: 0;
 	}
 
-	.transport-btn {
-		display: inline-flex;
-		width: 2.1rem;
-		height: 2.1rem;
+	.cell {
+		display: flex;
 		align-items: center;
+		min-height: 2.25rem;
+		border: 0;
+		border-right: 1px solid var(--hard-border);
+	}
+
+	.bar-actions .cell:last-child {
+		border-right: 0;
+	}
+
+	.transport-btn,
+	.icon-btn {
 		justify-content: center;
+		width: 2.1rem;
 		padding: 0;
-		border: 1px solid var(--ink);
 		color: var(--ink);
-		background: var(--paper);
+		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
 		cursor: pointer;
+		transition:
+			background 120ms ease,
+			color 120ms ease;
+	}
+
+	.transport-btn :global(svg),
+	.icon-btn :global(svg) {
+		display: block;
 	}
 
 	.transport-btn:disabled {
@@ -253,25 +270,30 @@
 		cursor: default;
 	}
 
-	.transport-btn :global(svg) {
-		display: block;
-	}
-
 	.transport-btn.play {
-		width: 2.5rem;
-		height: 2.5rem;
+		width: 2.4rem;
+		color: var(--on-accent);
+		background: var(--accent);
+		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+	}
+
+	.transport-btn:not(:disabled):hover,
+	.icon-btn:hover,
+	.icon-btn.active {
 		color: var(--on-accent);
 		background: var(--accent);
 	}
 
-	.transport-btn:not(:disabled):hover {
-		color: var(--on-accent);
-		background: var(--accent);
+	.scrub {
+		gap: 0.5rem;
+		flex: 1 1 12rem;
+		min-width: 7rem;
+		padding: 0 0.6rem;
 	}
 
 	.time {
 		flex-shrink: 0;
-		font-size: 0.72rem;
+		font-size: 0.66rem;
 		font-weight: 800;
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.03em;
@@ -288,8 +310,8 @@
 
 	.seek {
 		flex: 1;
-		min-width: 4rem;
-		height: 1.1rem;
+		min-width: 3.5rem;
+		height: 1rem;
 		margin: 0;
 		appearance: none;
 		background: transparent;
@@ -333,19 +355,20 @@
 	}
 
 	.now-playing {
-		display: flex;
-		gap: 0.6rem;
-		align-items: center;
+		gap: 0.45rem;
 		min-width: 0;
-		max-width: 16rem;
-		flex-shrink: 0;
+		max-width: 12rem;
+		padding: 0 0.6rem;
+		flex-shrink: 1;
 	}
 
 	.bar-cover {
 		display: block;
-		width: 2.5rem;
-		height: 2.5rem;
-		border: 1px solid var(--ink);
+		width: 1.6rem;
+		height: 1.6rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
+		box-shadow: 2px 2px 0 var(--hard-shadow);
 		object-fit: cover;
 		flex-shrink: 0;
 	}
@@ -360,14 +383,14 @@
 	.now-meta {
 		display: flex;
 		flex-direction: column;
-		gap: 0.1rem;
 		min-width: 0;
+		line-height: 1.2;
 	}
 
 	.now-artist {
 		overflow: hidden;
 		color: var(--muted);
-		font-size: 0.68rem;
+		font-size: 0.6rem;
 		font-weight: 700;
 		text-decoration: none;
 		text-overflow: ellipsis;
@@ -377,7 +400,7 @@
 	.now-title {
 		overflow: hidden;
 		color: var(--ink);
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 		font-weight: 800;
 		text-decoration: none;
 		text-overflow: ellipsis;
@@ -390,45 +413,14 @@
 		text-underline-offset: 0.2rem;
 	}
 
-	.bar-actions {
-		display: flex;
-		gap: 0.35rem;
-		align-items: center;
-		flex-shrink: 0;
-	}
-
 	.icon-btn {
 		position: relative;
-		display: inline-flex;
-		width: 2.1rem;
-		height: 2.1rem;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-		border: 1px solid var(--ink);
-		color: var(--ink);
-		background: var(--paper);
-		cursor: pointer;
-	}
-
-	.icon-btn :global(svg) {
-		display: block;
-	}
-
-	.icon-btn.active {
-		color: var(--on-accent);
-		background: var(--accent);
-	}
-
-	.icon-btn:hover {
-		color: var(--on-accent);
-		background: var(--accent);
 	}
 
 	.queue-count {
 		position: absolute;
-		top: -0.45rem;
-		right: -0.45rem;
+		top: -0.4rem;
+		right: -0.4rem;
 		min-width: 1rem;
 		padding: 0.05rem 0.2rem;
 		border: 1px solid var(--ink);
@@ -442,15 +434,16 @@
 
 	.queue-panel {
 		position: absolute;
-		right: var(--site-shell-pad-x);
-		bottom: calc(100% + 0.6rem);
+		z-index: 20;
+		top: calc(100% + 0.5rem);
+		right: 0;
 		width: min(22rem, calc(100vw - 2 * var(--site-shell-pad-x)));
 		max-height: 50vh;
 		padding: 0.85rem;
 		overflow: auto;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--hard-border);
 		background: var(--paper);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
 	.queue-panel header {
@@ -552,15 +545,38 @@
 		color: var(--ink);
 	}
 
-	@media (max-width: 860px) {
+	@media (max-width: 1200px) {
 		.now-playing {
 			display: none;
 		}
 	}
 
-	@media (max-width: 560px) {
+	@media (max-width: 980px) {
 		.time.total {
 			display: none;
+		}
+	}
+
+	/* Matches the header's wrap breakpoint: full-width row under the logo and nav. */
+	@media (max-width: 860px) {
+		.header-player {
+			order: 2;
+			flex-basis: 100%;
+			margin-bottom: 0.75rem;
+		}
+
+		.strip {
+			width: 100%;
+		}
+
+		.now-playing {
+			display: flex;
+			max-width: none;
+			flex: 1 1 auto;
+		}
+
+		.time.total {
+			display: block;
 		}
 	}
 </style>

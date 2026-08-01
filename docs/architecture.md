@@ -120,7 +120,7 @@ src/
   env.js                 defineEnvVars — the env var registry
   hooks.server.js         tenant + auth handles
   routes/
-    +layout.svelte        app shell, global player bar, accent var
+    +layout.svelte        app shell, theme + accent init
     layout.css            design tokens + global utilities
     +page.svelte          marketing landing OR tenant profile
     signin/ signup/       auth forms
@@ -130,7 +130,7 @@ src/
     users/[username]/     public profile by path
     api/                  media streaming, social mutations, TLS check
   lib/
-    components/           SiteHeader, ThemeToggle, PublicProfile, player/*
+    components/           SiteHeader (hosts the player), ThemeToggle, PublicProfile, player/*
     player/player.svelte.js   rune-class audio singleton
     stores/               theme, brand (legacy writable stores)
     media/                client-side metadata probe
@@ -139,6 +139,7 @@ src/
       db/                 schema.js, auth.schema.js (generated), index.js
       tenant.js plans.js username.js domain-verify.js profile-page.js
       tracks.js           track CRUD + serialization
+      social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg), embed-tags.js (taglib)
       storage/            adapter interface, local, ssh, crypto
       safe-redirect.js    adapter-safe redirect

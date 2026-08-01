@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 
-import { getTrackById } from '#lib/server/tracks';
+import { canViewTrack, getTrackById } from '#lib/server/tracks';
 import { getStorageAdapter } from '#lib/server/storage';
 
 /**
@@ -72,15 +72,15 @@ async function sliceBody(body, start, end) {
 	return bytes.subarray(start, end + 1);
 }
 
-export async function GET({ params, request, setHeaders }) {
+export async function GET({ locals, params, request, setHeaders }) {
 	const kind = params.file;
 	if (kind !== 'audio' && kind !== 'cover') {
 		error(404, 'Not found');
 	}
 
-	// Public read access: tracks are playable from public profile pages.
+	// Public read access: published tracks are playable from public profile pages.
 	const row = await getTrackById(params.id);
-	if (!row) {
+	if (!row || !canViewTrack(row, locals.user?.id)) {
 		error(404, 'Not found');
 	}
 

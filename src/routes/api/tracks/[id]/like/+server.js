@@ -3,7 +3,7 @@ import { and, count, eq } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { trackLike } from '#lib/server/db/schema';
-import { getTrackById } from '#lib/server/tracks';
+import { canViewTrack, getTrackById } from '#lib/server/tracks';
 
 export async function POST({ locals, params }) {
 	if (!locals.user) {
@@ -11,7 +11,7 @@ export async function POST({ locals, params }) {
 	}
 
 	const row = await getTrackById(params.id);
-	if (!row) {
+	if (!row || !canViewTrack(row, locals.user.id)) {
 		error(404, 'Track not found');
 	}
 

@@ -2,8 +2,27 @@
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import CoverFlow from '#lib/components/home/CoverFlow.svelte';
+	import StatBadges from '#lib/components/home/StatBadges.svelte';
+	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 
 	let { data } = $props();
+
+	/** @type {HTMLElement | undefined} */
+	let container;
+
+	// Tenant hosts serve one profile from `/`; the marketing home has no paged
+	// list, so this stays empty and inert there.
+	const paged = restorableList(
+		() => ({
+			scope: 'profile',
+			username: data.mode === 'tenant-profile' ? data.profile.username : null
+		}),
+		() => (data.mode === 'tenant-profile' ? data : { tracks: [], nextCursor: null }),
+		() => container
+	);
+
+	export const snapshot = paged.snapshot;
 
 	const shortName = $derived(
 		data.mode === 'marketing'
@@ -30,7 +49,9 @@
 </svelte:head>
 
 {#if data.mode === 'tenant-profile'}
-	<PublicProfile {data} />
+	<div bind:this={container}>
+		<PublicProfile {data} list={paged.current} />
+	</div>
 {:else}
 	<div class="landing">
 		<SiteHeader --site-header-gap="0" />
@@ -80,6 +101,21 @@
 				</div>
 			</section>
 
+			{#if data.showcase.length > 0}
+				<section class="showcase" aria-labelledby="showcase-heading">
+					<div class="showcase-head">
+						<p class="eyebrow eyebrow-chip accent-text">In the bank</p>
+						<h2 id="showcase-heading">Sound that already lives here</h2>
+						<p class="showcase-lede">
+							Drag it, nudge it, or leave it alone and let it play itself.
+						</p>
+					</div>
+
+					<CoverFlow tracks={data.showcase} />
+					<StatBadges stats={data.stats} />
+				</section>
+			{/if}
+
 			<section class="manifesto" aria-label="Our intention">
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">
@@ -103,7 +139,8 @@
 		min-height: 100vh;
 		margin: 0 auto;
 		padding: 0 var(--site-shell-pad-x);
-		overflow: hidden;
+		/* Not `overflow: hidden` — that makes a scroll container and breaks the sticky header. */
+		overflow-x: clip;
 	}
 
 	.logo {
@@ -191,7 +228,7 @@
 		color: var(--on-accent);
 		background: var(--accent);
 		text-decoration: none;
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
 	.text-action {
@@ -216,7 +253,7 @@
 		border: 1px solid var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 		font-weight: 800;
 		line-height: 1.4;
 	}
@@ -289,7 +326,7 @@
 
 	.card-note {
 		color: var(--accent);
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: clamp(1.25rem, 2.3vw, 2.25rem);
 		font-style: italic;
 		font-weight: 400;
@@ -318,6 +355,45 @@
 		transform: rotate(8deg);
 	}
 
+	/* Full-bleed band: the covers should run off both edges of the viewport,
+	   not stop at the page rail. `.landing` clips the overflow. */
+	.showcase {
+		display: grid;
+		gap: clamp(1.5rem, 3.5vw, 2.5rem);
+		justify-items: center;
+		margin-inline: calc(50% - 50vw);
+		padding: clamp(2.5rem, 6vw, 4.5rem) var(--site-shell-pad-x);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		animation: rise 0.85s ease both;
+	}
+
+	.showcase-head {
+		display: grid;
+		justify-items: center;
+		max-width: 34rem;
+		text-align: center;
+	}
+
+	.showcase-head .eyebrow {
+		margin: 0 0 0.9rem;
+	}
+
+	.showcase-head h2 {
+		margin: 0;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: clamp(2rem, 5vw, 3.25rem);
+		font-weight: 400;
+		letter-spacing: -0.03em;
+		line-height: 1.05;
+	}
+
+	.showcase-lede {
+		margin: 0.85rem 0 0;
+		color: var(--muted);
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+
 	.manifesto {
 		display: grid;
 		grid-template-columns: 0.35fr 1fr auto;
@@ -335,7 +411,7 @@
 	.manifesto-copy {
 		max-width: 24ch;
 		margin: 0;
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: clamp(2rem, 4vw, 4.5rem);
 		line-height: 1.06;
 	}
@@ -365,6 +441,17 @@
 
 	footer p:last-child {
 		text-align: right;
+	}
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(0.6rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	@media (max-width: 900px) {

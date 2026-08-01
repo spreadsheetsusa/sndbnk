@@ -92,9 +92,6 @@ Do not add new secrets to `.env` while it is tracked.
   `prettier-plugin-tailwindcss` are all configured; components style themselves with scoped CSS and
   custom properties. Tokens live in `:root`, not in a Tailwind `@theme` block. This is fine, just do
   not assume utilities are available idiom here.
-- **`accent` store is static.** `stores/brand.js` exports `writable('#c8ff3d')` and nothing ever
-  sets it. It is plumbed through the root layout as `style:--accent`, presumably for future
-  per-tenant branding.
 - **Import extension inconsistency.** `storage/index.js` imports `./crypto.js`;
   `db/schema.js` imports `./auth.schema`. Both resolve; neither is enforced.
 - **Env access is split by context.** Runtime code uses `$app/env/private`; `drizzle.config.js` and

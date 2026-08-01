@@ -5,7 +5,7 @@ import { ORIGIN } from '$app/env/private';
 
 import { db } from '#lib/server/db';
 import { profile, user } from '#lib/server/db/schema';
-import { canUseCustomDomain, canUseSubdomain } from '#lib/server/plans';
+import { canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
 import { RESERVED_USERNAMES } from '#lib/server/username';
 
 /**
@@ -69,97 +69,62 @@ export function classifyHost(hostname, baseDomain = PUBLIC_BASE_DOMAIN) {
 	return { kind: 'custom', hostname: host };
 }
 
+const PROFILE_COLUMNS = {
+	userId: profile.userId,
+	username: profile.username,
+	plan: profile.plan,
+	bio: profile.bio,
+	location: profile.location,
+	customDomain: profile.customDomain,
+	customDomainStatus: profile.customDomainStatus,
+	domainVerifyToken: profile.domainVerifyToken,
+	customDomainVerifiedAt: profile.customDomainVerifiedAt,
+	stripeCustomerId: profile.stripeCustomerId,
+	stripeSubscriptionId: profile.stripeSubscriptionId,
+	planInterval: profile.planInterval,
+	subscriptionStatus: profile.subscriptionStatus,
+	currentPeriodEnd: profile.currentPeriodEnd,
+	cancelAtPeriodEnd: profile.cancelAtPeriodEnd,
+	createdAt: profile.createdAt,
+	updatedAt: profile.updatedAt,
+	name: user.name,
+	email: user.email,
+	image: user.image
+};
+
 /**
- * @param {string} username
+ * @param {import('drizzle-orm').SQL | undefined} where
  */
-export async function getProfileByUsername(username) {
+async function selectProfile(where) {
 	const rows = await db
-		.select({
-			userId: profile.userId,
-			username: profile.username,
-			plan: profile.plan,
-			bio: profile.bio,
-			location: profile.location,
-			customDomain: profile.customDomain,
-			customDomainStatus: profile.customDomainStatus,
-			domainVerifyToken: profile.domainVerifyToken,
-			customDomainVerifiedAt: profile.customDomainVerifiedAt,
-			stripeCustomerId: profile.stripeCustomerId,
-			stripeSubscriptionId: profile.stripeSubscriptionId,
-			createdAt: profile.createdAt,
-			updatedAt: profile.updatedAt,
-			name: user.name,
-			email: user.email,
-			image: user.image
-		})
+		.select(PROFILE_COLUMNS)
 		.from(profile)
 		.innerJoin(user, eq(profile.userId, user.id))
-		.where(eq(profile.username, username))
+		.where(where)
 		.limit(1);
 
 	return rows[0] ?? null;
+}
+
+/**
+ * @param {string} username
+ */
+export function getProfileByUsername(username) {
+	return selectProfile(eq(profile.username, username));
 }
 
 /**
  * @param {string} userId
  */
-export async function getProfileByUserId(userId) {
-	const rows = await db
-		.select({
-			userId: profile.userId,
-			username: profile.username,
-			plan: profile.plan,
-			bio: profile.bio,
-			location: profile.location,
-			customDomain: profile.customDomain,
-			customDomainStatus: profile.customDomainStatus,
-			domainVerifyToken: profile.domainVerifyToken,
-			customDomainVerifiedAt: profile.customDomainVerifiedAt,
-			stripeCustomerId: profile.stripeCustomerId,
-			stripeSubscriptionId: profile.stripeSubscriptionId,
-			createdAt: profile.createdAt,
-			updatedAt: profile.updatedAt,
-			name: user.name,
-			email: user.email,
-			image: user.image
-		})
-		.from(profile)
-		.innerJoin(user, eq(profile.userId, user.id))
-		.where(eq(profile.userId, userId))
-		.limit(1);
-
-	return rows[0] ?? null;
+export function getProfileByUserId(userId) {
+	return selectProfile(eq(profile.userId, userId));
 }
 
 /**
  * @param {string} hostname
  */
-export async function getProfileByCustomDomain(hostname) {
-	const rows = await db
-		.select({
-			userId: profile.userId,
-			username: profile.username,
-			plan: profile.plan,
-			bio: profile.bio,
-			location: profile.location,
-			customDomain: profile.customDomain,
-			customDomainStatus: profile.customDomainStatus,
-			domainVerifyToken: profile.domainVerifyToken,
-			customDomainVerifiedAt: profile.customDomainVerifiedAt,
-			stripeCustomerId: profile.stripeCustomerId,
-			stripeSubscriptionId: profile.stripeSubscriptionId,
-			createdAt: profile.createdAt,
-			updatedAt: profile.updatedAt,
-			name: user.name,
-			email: user.email,
-			image: user.image
-		})
-		.from(profile)
-		.innerJoin(user, eq(profile.userId, user.id))
-		.where(eq(profile.customDomain, hostname))
-		.limit(1);
-
-	return rows[0] ?? null;
+export function getProfileByCustomDomain(hostname) {
+	return selectProfile(eq(profile.customDomain, hostname));
 }
 
 /**

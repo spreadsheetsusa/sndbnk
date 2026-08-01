@@ -2,7 +2,7 @@ import { getProfileByUserId } from '#lib/server/tenant';
 
 export const load = async ({ locals }) => {
 	if (locals.tenant || !locals.user) {
-		return { nav: { name: null, username: null, image: null } };
+		return { nav: { name: null, username: null, image: null, isAdmin: false } };
 	}
 
 	const profile = await getProfileByUserId(locals.user.id);
@@ -11,7 +11,8 @@ export const load = async ({ locals }) => {
 		nav: {
 			name: locals.user.name ?? locals.user.email,
 			username: profile?.username ?? null,
-			image: locals.user.image ?? null
+			image: locals.user.image ?? null,
+			isAdmin: locals.user.role === 'admin'
 		}
 	};
 };

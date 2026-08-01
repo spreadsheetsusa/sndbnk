@@ -4,12 +4,25 @@
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { slide } from 'svelte/transition';
+	import AccentPicker from '#lib/components/AccentPicker.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
+	import HeaderPlayer from '#lib/components/player/HeaderPlayer.svelte';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
-	import { ACCENTS, accent, setAccent } from '#lib/stores/brand.js';
+	import {
+		ACCENTS,
+		CUSTOM_ACCENT_ID,
+		accent,
+		customAccent,
+		setAccent,
+		setCustomAccent
+	} from '#lib/stores/brand.js';
 	import { resolvedTheme, setThemePreference, themePreference } from '#lib/stores/theme.js';
 
-	const nav = $derived(page.data.nav ?? { name: null, username: null, image: null });
+	const nav = $derived(
+		page.data.nav ?? { name: null, username: null, image: null, isAdmin: false }
+	);
 	const signedIn = $derived(Boolean(nav.name));
 	const appearanceValue = $derived(
 		$themePreference === 'light' || $themePreference === 'dark' ? $themePreference : $resolvedTheme
@@ -17,8 +30,22 @@
 
 	let guestMenuOpen = $state(false);
 	let accountMenuOpen = $state(false);
+	let pickerOpen = $state(false);
 
 	const guestMenuLabel = $derived(guestMenuOpen ? 'Close menu' : 'Open menu');
+
+	/**
+	 * @param {string} id
+	 */
+	function selectPreset(id) {
+		setAccent(id);
+		pickerOpen = false;
+	}
+
+	function toggleCustomAccent() {
+		setCustomAccent($customAccent);
+		pickerOpen = !pickerOpen;
+	}
 
 	/**
 	 * @param {string} href
@@ -57,6 +84,13 @@
 		/** @param {KeyboardEvent} event */
 		function onKeydown(event) {
 			if (event.key !== 'Escape' || !accountMenuOpen) return;
+
+			if (pickerOpen) {
+				pickerOpen = false;
+				/** @type {HTMLElement | null} */ (node.querySelector('.wheel'))?.focus();
+				return;
+			}
+
 			accountMenuOpen = false;
 			node.querySelector('button')?.focus();
 		}
@@ -98,10 +132,12 @@
 	afterNavigate(() => {
 		guestMenuOpen = false;
 		accountMenuOpen = false;
+		pickerOpen = false;
 	});
 </script>
 
 {#snippet guestLinks()}
+	<a href="/plans" aria-current={current('/plans')}>Pricing</a>
 	<a href="/signin" aria-current={current('/signin')}>Sign in</a>
 	<a class="nav-cta" href="/signup" aria-current={current('/signup')}>Create account</a>
 {/snippet}
@@ -110,6 +146,8 @@
 	<a class="logo display-face glitch-mark" data-text="SNDBNK" href="/" aria-label="SNDBNK home">
 		SNDBNK
 	</a>
+
+	<HeaderPlayer />
 
 	<div class="header-end">
 		{#if signedIn}
@@ -122,7 +160,7 @@
 						href="/users/{nav.username}"
 						aria-current={current(`/users/${nav.username}`)}
 					>
-						My Profile
+						@{nav.username}
 					</a>
 				{/if}
 			</nav>
@@ -154,11 +192,30 @@
 										aria-pressed={$accent === option.id}
 										aria-label={option.label}
 										title={option.label}
-										onclick={() => setAccent(option.id)}
+										onclick={() => selectPreset(option.id)}
 									></button>
 								{/each}
+								<button
+									type="button"
+									class="swatch wheel"
+									aria-pressed={$accent === CUSTOM_ACCENT_ID}
+									aria-expanded={pickerOpen}
+									aria-controls="accent-picker"
+									aria-label="Custom"
+									title="Custom"
+									onclick={toggleCustomAccent}
+								></button>
 							</div>
 						</div>
+
+						{#if pickerOpen}
+							<div
+								id="accent-picker"
+								transition:slide={{ duration: prefersReducedMotion.current ? 0 : 200 }}
+							>
+								<AccentPicker />
+							</div>
+						{/if}
 
 						<label class="appearance-row">
 							<span>Appearance</span>
@@ -178,6 +235,10 @@
 						<a class="account-item" href="/settings" aria-current={current('/settings')}>
 							Settings
 						</a>
+
+						{#if nav.isAdmin}
+							<a class="account-item" href="/admin" aria-current={current('/admin')}>Admin</a>
+						{/if}
 
 						<hr class="account-divider" />
 
@@ -225,13 +286,17 @@
 
 <style>
 	.site-header {
+		position: sticky;
+		z-index: 40;
+		top: 0;
 		display: flex;
 		gap: 1rem;
 		align-items: center;
 		justify-content: space-between;
-		min-height: 5rem;
-		margin-bottom: var(--site-header-gap, clamp(2rem, 5vw, 3.5rem));
+		min-height: var(--site-header-height);
+		margin-bottom: var(--site-header-gap);
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		background: var(--paper);
 	}
 
 	.logo {
@@ -250,9 +315,9 @@
 	.mode-strip {
 		display: inline-flex;
 		align-items: stretch;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--hard-border);
 		background: var(--paper);
-		box-shadow: 3px 3px 0 var(--ink);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
 	}
 
 	.mode-btn {
@@ -262,7 +327,7 @@
 		min-height: 2.25rem;
 		padding: 0.4rem 0.85rem;
 		border: 0;
-		border-right: 1px solid var(--ink);
+		border-right: 1px solid var(--hard-border);
 		color: var(--ink);
 		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
 		font-size: 0.7rem;
@@ -326,11 +391,11 @@
 		top: calc(100% + 0.5rem);
 		right: 0;
 		display: grid;
-		min-width: 14.5rem;
+		min-width: 17rem;
 		padding: 0.4rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--hard-border);
 		background: var(--paper);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
 	.account-item {
@@ -426,6 +491,20 @@
 		transform: translate(1px, 1px);
 	}
 
+	.swatch.wheel {
+		background: conic-gradient(
+			from 0deg,
+			#ff3d3d,
+			#ffd93d,
+			#5dff3d,
+			#3dffd9,
+			#3d8aff,
+			#b83dff,
+			#ff3d8a,
+			#ff3d3d
+		);
+	}
+
 	.account-divider {
 		width: 100%;
 		height: 0;
@@ -512,9 +591,9 @@
 		display: grid;
 		min-width: 12rem;
 		padding: 0.4rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--hard-border);
 		background: var(--paper);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
 	.menu-panel a {
@@ -549,9 +628,21 @@
 		background: var(--accent);
 	}
 
+	/* Narrow: the player takes its own row instead of squeezing the logo and nav. */
+	@media (max-width: 860px) {
+		.site-header {
+			flex-wrap: wrap;
+			align-content: center;
+		}
+
+		.header-end {
+			order: 1;
+		}
+	}
+
 	@media (max-width: 720px) {
 		.site-header {
-			min-height: 4.5rem;
+			--site-header-height: 4.5rem;
 		}
 
 		.mode-btn {

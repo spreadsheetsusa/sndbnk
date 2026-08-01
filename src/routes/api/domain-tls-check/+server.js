@@ -1,6 +1,6 @@
 import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 
-import { canUseCustomDomain, canUseSubdomain } from '#lib/server/plans';
+import { canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
 import { classifyHost, getProfileByCustomDomain, getProfileByUsername } from '#lib/server/tenant';
 
 /**

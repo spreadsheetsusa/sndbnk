@@ -2,11 +2,16 @@
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
+	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconSend from '@tabler/icons-svelte-runes/icons/send';
-	import { fade } from 'svelte/transition';
+	import { onDestroy } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { fade, slide } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
+	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
@@ -25,6 +30,7 @@
 	/**
 	 * @typedef {Object} CardTrack
 	 * @property {string} id
+	 * @property {string} [cursor] position in a paged listing
 	 * @property {string} title
 	 * @property {string | null} artist
 	 * @property {string | null} genre
@@ -36,7 +42,12 @@
 	 * @property {number[] | null} waveform
 	 * @property {number} likeCount
 	 * @property {number} commentCount
+	 * @property {number} [repostCount]
 	 * @property {boolean} likedByViewer
+	 * @property {boolean} [repostedByViewer]
+	 * @property {number | null} [repostedAt]
+	 * @property {string | null} [repostedByName]
+	 * @property {string | null} [repostedByUsername]
 	 * @property {boolean} isOwner
 	 * @property {TimedComment[] | undefined} [timedComments]
 	 */
@@ -47,6 +58,8 @@
 	 *   signedIn?: boolean,
 	 *   viewerName?: string | null,
 	 *   viewerImage?: string | null,
+	 *   showCommentForm?: boolean,
+	 *   linkBase?: string,
 	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
 	 *   ondeleted?: () => void
 	 * }}
@@ -56,6 +69,8 @@
 		signedIn = false,
 		viewerName = null,
 		viewerImage = null,
+		showCommentForm = true,
+		linkBase = '',
 		oncommented,
 		ondeleted
 	} = $props();
@@ -65,10 +80,62 @@
 	const liked = $derived(likeOverride?.liked ?? track.likedByViewer);
 	const likeCount = $derived(likeOverride?.count ?? track.likeCount);
 
+	/** @type {{ reposted: boolean, count: number } | null} */
+	let repostOverride = $state(null);
+	const reposted = $derived(repostOverride?.reposted ?? track.repostedByViewer ?? false);
+	const repostCount = $derived(repostOverride?.count ?? track.repostCount ?? 0);
+
 	let commentBody = $state('');
 	let commentBusy = $state(false);
 	/** @type {string | null} */
 	let commentNote = $state(null);
+
+	/** True while the pointer is over the waveform (not the whole card). */
+	let waveHovered = $state(false);
+	/** Keeps the bar open when moving from the waveform onto the comment form. */
+	let commentHovered = $state(false);
+	let focusWithin = $state(false);
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	let waveLeaveTimer = null;
+
+	// Touch / stylus devices have no hover — keep the comment row always visible.
+	// SSR fallback assumes a hover-capable pointer so desktop does not flash open.
+	const canHover = new MediaQuery('hover: hover', true);
+
+	/**
+	 * Waveform hover opens the bar; a short leave delay lets the pointer reach the
+	 * comment form before the row collapses.
+	 * @param {boolean} hovering
+	 */
+	function handleWaveHover(hovering) {
+		if (waveLeaveTimer != null) {
+			clearTimeout(waveLeaveTimer);
+			waveLeaveTimer = null;
+		}
+		if (hovering) {
+			waveHovered = true;
+			return;
+		}
+		waveLeaveTimer = setTimeout(() => {
+			waveHovered = false;
+			waveLeaveTimer = null;
+		}, 120);
+	}
+
+	onDestroy(() => {
+		if (waveLeaveTimer != null) clearTimeout(waveLeaveTimer);
+	});
+
+	// A draft or a fresh confirmation keeps the bar open, so a stray mouse-out cannot discard either.
+	// On no-hover devices the bar is always open — there is no mouse to reveal it.
+	const commentBarOpen = $derived(
+		!canHover.current ||
+			waveHovered ||
+			commentHovered ||
+			focusWithin ||
+			Boolean(commentBody.trim()) ||
+			Boolean(commentNote)
+	);
 	let extraComments = $state(0);
 	const commentCount = $derived(track.commentCount + extraComments);
 
@@ -81,13 +148,29 @@
 	let menuOpen = $state(false);
 	let copied = $state(false);
 	let likeBusy = $state(false);
+	let repostBusy = $state(false);
 	let deleteBusy = $state(false);
+
+	/** Position previewed by an in-flight waveform scrub. @type {number | null} */
+	let scrubSeconds = $state(null);
 
 	const isActive = $derived(player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
 	const cardTime = $derived(isActive ? player.currentTime : 0);
+
+	/**
+	 * Each waveform owns a Wavesurfer instance and its canvases, which a long
+	 * scrolled list would otherwise accumulate one of per row. Build one only for
+	 * cards in reach of the viewport — and always for the playing card, so the
+	 * row driving the header player never blinks.
+	 */
+	let nearViewport = $state(false);
+	const showWaveform = $derived(nearViewport || isActive);
+	const displayTime = $derived(scrubSeconds ?? cardTime);
 	const durationSec = $derived((track.durationMs ?? 0) / 1000);
-	const progressPct = $derived(durationSec > 0 ? Math.min((cardTime / durationSec) * 100, 100) : 0);
+	const progressPct = $derived(
+		durationSec > 0 ? Math.min((displayTime / durationSec) * 100, 100) : 0
+	);
 
 	const durationMs = $derived(track.durationMs ?? 0);
 
@@ -114,8 +197,8 @@
 
 	/** The single marker the playhead is currently sitting on, if any. */
 	const playheadMarker = $derived.by(() => {
-		if (!isActive || markers.length === 0) return null;
-		const nowMs = cardTime * 1000;
+		if (markers.length === 0 || (!isActive && scrubSeconds == null)) return null;
+		const nowMs = displayTime * 1000;
 		let closest = null;
 		let closestDelta = Infinity;
 		for (const marker of markers) {
@@ -188,6 +271,21 @@
 			}
 		} finally {
 			likeBusy = false;
+			menuOpen = false;
+		}
+	}
+
+	async function toggleRepost() {
+		if (!signedIn || track.isOwner || repostBusy) return;
+		repostBusy = true;
+		try {
+			const res = await fetch(`/api/tracks/${track.id}/repost`, { method: 'POST' });
+			if (res.ok) {
+				const data = await res.json();
+				repostOverride = { reposted: data.reposted, count: data.repostCount };
+			}
+		} finally {
+			repostBusy = false;
 			menuOpen = false;
 		}
 	}
@@ -272,11 +370,33 @@
 			menuOpen = false;
 		}
 	}
+
+	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
+	function handleFocusOut(event) {
+		const next = /** @type {Node | null} */ (event.relatedTarget);
+		if (!next || !event.currentTarget.contains(next)) focusWithin = false;
+	}
+
+	/**
+	 * An element takes only one transition directive, so the fade is folded into slide's own css.
+	 * @param {Element} node
+	 * @param {import('svelte/transition').SlideParams} [params]
+	 * @returns {import('svelte/transition').TransitionConfig}
+	 */
+	function slideFade(node, params) {
+		const config = slide(node, params);
+		return { ...config, css: (t, u) => `${config.css?.(t, u) ?? ''};opacity:${t}` };
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<article class="track-card">
+<article
+	class="track-card"
+	onfocusin={() => (focusWithin = true)}
+	onfocusout={handleFocusOut}
+	{@attach whileNearViewport((visible) => (nearViewport = visible))}
+>
 	<div class="cover">
 		{#if track.hasCover}
 			<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
@@ -302,7 +422,9 @@
 
 			<div class="titles">
 				{#if track.username}
-					<a class="artist" href="/users/{track.username}">{track.artist || track.uploaderName}</a>
+					<a class="artist" href="{linkBase}/users/{track.username}">
+						{track.artist || track.uploaderName}
+					</a>
 				{:else}
 					<span class="artist">{track.artist || track.uploaderName}</span>
 				{/if}
@@ -310,6 +432,16 @@
 			</div>
 
 			<div class="aside">
+				{#if track.repostedAt}
+					<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
+						<IconRepeat size={12} stroke={2} aria-hidden="true" />
+						{#if track.repostedByUsername}
+							Reposted by @{track.repostedByUsername}
+						{:else}
+							Reposted
+						{/if}
+					</span>
+				{/if}
 				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
 					{relativeTime(track.createdAt)}
 				</span>
@@ -349,6 +481,19 @@
 								<span class="menu-count">{likeCount}</span>
 							{/if}
 						</button>
+						{#if !track.isOwner}
+							<button
+								type="button"
+								role="menuitem"
+								disabled={!signedIn || repostBusy}
+								onclick={toggleRepost}
+							>
+								{reposted ? 'Remove repost' : 'Repost'}
+								{#if repostCount > 0}
+									<span class="menu-count">{repostCount}</span>
+								{/if}
+							</button>
+						{/if}
 						<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
 						{#if track.isOwner}
 							<button
@@ -367,18 +512,26 @@
 		</div>
 
 		<div class="wave-row">
-			<Waveform
-				peaks={track.waveform}
-				durationMs={track.durationMs}
-				currentTime={cardTime}
-				onseek={handleSeek}
-			/>
-			{#if isActive}
+			{#if showWaveform}
+				<Waveform
+					peaks={track.waveform}
+					durationMs={track.durationMs}
+					currentTime={cardTime}
+					label="Seek within {track.title}"
+					onseek={handleSeek}
+					onscrub={(seconds) => (scrubSeconds = seconds)}
+					onhover={handleWaveHover}
+				/>
+			{:else}
+				<!-- Same height as the real waveform, so mounting one shifts nothing. -->
+				<div class="wave-placeholder" aria-hidden="true"></div>
+			{/if}
+			{#if isActive || scrubSeconds != null}
 				<span
 					class="time-chip current"
 					style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
 				>
-					{formatDuration(cardTime * 1000)}
+					{formatDuration(displayTime * 1000)}
 				</span>
 			{/if}
 			<span class="time-chip total">{formatDuration(track.durationMs)}</span>
@@ -412,8 +565,16 @@
 			{/if}
 		</div>
 
-		{#if signedIn}
-			<form class="comment-row" onsubmit={submitComment}>
+		{#if signedIn && showCommentForm && commentBarOpen}
+			<form
+				class="comment-row"
+				transition:slideFade={{
+					duration: prefersReducedMotion.current || !canHover.current ? 0 : 200
+				}}
+				onsubmit={submitComment}
+				onmouseenter={() => (commentHovered = true)}
+				onmouseleave={() => (commentHovered = false)}
+			>
 				<Avatar src={viewerImage} name={viewerName} />
 				<input
 					type="text"
@@ -457,9 +618,10 @@
 		padding: 1rem;
 	}
 
+	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list. */
 	.cover {
-		width: clamp(6.5rem, 16vw, 10.5rem);
-		height: clamp(6.5rem, 16vw, 10.5rem);
+		width: var(--track-card-cover-size, 10rem);
+		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
 	}
 
@@ -468,7 +630,9 @@
 		display: block;
 		width: 100%;
 		height: 100%;
-		border: 1px solid var(--ink);
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
+		box-shadow: 3px 3px 0 var(--cover-shadow);
 		object-fit: cover;
 	}
 
@@ -483,8 +647,12 @@
 	.body {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
 		min-width: 0;
+	}
+
+	/* Spacing lives on the children, not as a flex gap, so `slide` can collapse it with the row. */
+	.body > * + * {
+		margin-top: 0.75rem;
 	}
 
 	.head {
@@ -568,6 +736,26 @@
 		white-space: nowrap;
 	}
 
+	.repost-badge {
+		display: inline-flex;
+		gap: 0.25rem;
+		align-items: center;
+		padding: 0.2rem 0.4rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+		background: color-mix(in srgb, var(--accent) 30%, var(--paper));
+		color: var(--ink);
+		font-size: 0.6rem;
+		font-weight: 900;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.repost-badge :global(svg) {
+		display: block;
+	}
+
 	.tag {
 		padding: 0.2rem 0.6rem;
 		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
@@ -582,6 +770,11 @@
 
 	.wave-row {
 		position: relative;
+	}
+
+	/* Matches the Waveform component's default height. */
+	.wave-placeholder {
+		height: 66px;
 	}
 
 	.time-chip {
@@ -606,6 +799,8 @@
 
 	.time-chip.total {
 		right: 0;
+		background: var(--accent);
+		color: var(--on-accent);
 	}
 
 	.marker {
@@ -758,9 +953,9 @@
 		display: grid;
 		min-width: 11rem;
 		padding: 0.3rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--hard-border);
 		background: var(--paper);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
 	.menu button,

@@ -21,7 +21,21 @@
 						magenta: { value: '#ff3d8a', onAccent: '#11110f' },
 						orange: { value: '#ff8a3d', onAccent: '#11110f' }
 					};
-					var accent = accents[localStorage.getItem('accent')] || accents.lime;
+					var storedAccent = localStorage.getItem('accent');
+					var custom = localStorage.getItem('accent-custom');
+					if (storedAccent === 'custom' && /^#[0-9a-f]{6}$/i.test(custom || '')) {
+						// Same luminance rule as onAccentFor() in src/lib/stores/brand.js.
+						var lum = [1, 3, 5].reduce(function (total, i, index) {
+							var c = parseInt(custom.slice(i, i + 2), 16) / 255;
+							c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+							return total + [0.2126, 0.7152, 0.0722][index] * c;
+						}, 0);
+						accents.custom = {
+							value: custom.toLowerCase(),
+							onAccent: lum > 0.179 ? '#11110f' : '#f2f0e8'
+						};
+					}
+					var accent = accents[storedAccent] || accents.lime;
 					root.style.setProperty('--accent', accent.value);
 					root.style.setProperty('--on-accent', accent.onAccent);
 				} catch (e) {}

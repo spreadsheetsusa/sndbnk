@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Audiowide&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -19,6 +19,11 @@
 	--muted: #696861;
 	--inverse: #11110f;
 	--on-inverse: #f2f0e8;
+	/* Raised panels/buttons: hard edge + offset block shadow */
+	--hard-border: var(--ink);
+	--hard-shadow: var(--ink);
+	/* Cover art keeps a neutral offset shadow (not accent-tinted) */
+	--cover-shadow: var(--ink);
 	/* Chromatic aberration fringes for display type */
 	--chroma-red: #ff2f4f;
 	--chroma-cyan: #21e0ff;
@@ -30,6 +35,10 @@
 	--site-shell-pad-x: clamp(1rem, 3.5vw, 4rem);
 	--site-content-max: var(--site-shell-max);
 	--site-content-max-wide: var(--site-shell-max);
+	--site-header-height: 5rem;
+	--site-header-gap: clamp(0.75rem, 2vw, 1.25rem);
+	/* Card rail beside feed/list pages (Discover, etc.) */
+	--site-sidebar-width: 20rem;
 	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
@@ -49,6 +58,11 @@
 	--muted: #a8a69c;
 	--inverse: #050504;
 	--on-inverse: #f2f0e8;
+	/* Accent edge + darkened accent so the offset shadow tracks the chosen accent */
+	--hard-border: var(--accent);
+	--hard-shadow: color-mix(in srgb, var(--accent) 42%, black);
+	/* Cover art stays on translucent ink so it doesn't pick up the accent tint */
+	--cover-shadow: color-mix(in srgb, var(--ink) 28%, transparent);
 	--chroma-red: #ff5a72;
 	--chroma-cyan: #57e9ff;
 	--glitch-blend: screen;
@@ -111,7 +125,7 @@ a {
 }
 
 .pressable:active:not(:disabled) {
-	box-shadow: 1px 1px 0 var(--ink);
+	box-shadow: 1px 1px 0 var(--hard-shadow);
 	transform: translate(4px, 4px);
 }
 

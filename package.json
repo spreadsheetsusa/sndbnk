@@ -19,14 +19,18 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
+		"stripe:bootstrap": "bun ./scripts/stripe-bootstrap.js",
 		"auth:schema": "bun x --bun better-auth generate --config src/lib/server/auth.js --output src/lib/server/db/auth.schema.js --yes"
 	},
 	"dependencies": {
+		"@stripe/stripe-js": "^9.12.1",
 		"@tabler/icons-svelte-runes": "^3.46.0",
 		"better-auth": "^1.6.23",
 		"drizzle-orm": "^0.45.2",
 		"music-metadata": "^11.14.0",
+		"nodemailer": "^9.0.3",
 		"ssh2": "^1.17.0",
+		"stripe": "^22.4.0",
 		"taglib-wasm": "^1.6.1",
 		"wavesurfer.js": "^7.12.11"
 	},
@@ -35,6 +39,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^22",
+		"@types/nodemailer": "^8.0.1",
 		"@types/ssh2": "^1.15.5",
 		"auth": "^1.6.23",
 		"drizzle-kit": "^0.31.10",

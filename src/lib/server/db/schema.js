@@ -10,8 +10,55 @@ export const task = sqliteTable('task', {
 	priority: integer('priority').notNull().default(1)
 });
 
-/** @typedef {'basic' | 'premium'} Plan */
+/** @typedef {'basic' | 'premium' | 'business'} Plan */
 /** @typedef {'none' | 'pending' | 'active'} CustomDomainStatus */
+/** @typedef {'month' | 'year'} BillingInterval */
+
+/**
+ * Entitlements per tier, editable from the admin panel. Stripe owns the money
+ * (Prices, Coupons, subscription state); this table owns the limits.
+ */
+export const plan = sqliteTable('plan', {
+	id: text('id').primaryKey(),
+	label: text('label').notNull(),
+	blurb: text('blurb').notNull().default(''),
+	/** JSON array of bullet strings shown on the pricing page. */
+	features: text('features').notNull().default('[]'),
+	/** Null means unlimited. */
+	maxTracks: integer('max_tracks'),
+	/** Null means unlimited. Only meters tracks stored on the `local` adapter. */
+	maxLocalBytes: integer('max_local_bytes'),
+	allowStorageAdapters: integer('allow_storage_adapters', { mode: 'boolean' })
+		.notNull()
+		.default(false),
+	allowSubdomain: integer('allow_subdomain', { mode: 'boolean' }).notNull().default(false),
+	allowCustomDomain: integer('allow_custom_domain', { mode: 'boolean' }).notNull().default(false),
+	/** Display amounts in cents. Stripe remains the charging authority. */
+	monthlyAmount: integer('monthly_amount').notNull().default(0),
+	yearlyAmount: integer('yearly_amount').notNull().default(0),
+	currency: text('currency').notNull().default('usd'),
+	stripeProductId: text('stripe_product_id'),
+	stripePriceMonthlyId: text('stripe_price_monthly_id'),
+	stripePriceYearlyId: text('stripe_price_yearly_id'),
+	sortOrder: integer('sort_order').notNull().default(0),
+	active: integer('active', { mode: 'boolean' }).notNull().default(true),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.$defaultFn(() => new Date())
+		.notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.$defaultFn(() => new Date())
+		.$onUpdate(() => new Date())
+		.notNull()
+});
+
+/** Processed webhook ids, so a Stripe redelivery is a no-op. */
+export const stripeEvent = sqliteTable('stripe_event', {
+	id: text('id').primaryKey(),
+	type: text('type').notNull(),
+	receivedAt: integer('received_at', { mode: 'timestamp_ms' })
+		.$defaultFn(() => new Date())
+		.notNull()
+});
 
 export const profile = sqliteTable('profile', {
 	userId: text('user_id')
@@ -29,6 +76,11 @@ export const profile = sqliteTable('profile', {
 	customDomainVerifiedAt: integer('custom_domain_verified_at', { mode: 'timestamp_ms' }),
 	stripeCustomerId: text('stripe_customer_id'),
 	stripeSubscriptionId: text('stripe_subscription_id'),
+	planInterval: text('plan_interval'),
+	/** Stripe subscription status, or `grandfathered` for pre-billing premium accounts. */
+	subscriptionStatus: text('subscription_status'),
+	currentPeriodEnd: integer('current_period_end', { mode: 'timestamp_ms' }),
+	cancelAtPeriodEnd: integer('cancel_at_period_end', { mode: 'boolean' }).notNull().default(false),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
 		.$defaultFn(() => new Date())
 		.notNull(),
@@ -127,6 +179,7 @@ export const track = sqliteTable(
 		codec: text('codec'),
 		/** JSON array of ~1000 peak ints (0-100) for waveform rendering. */
 		waveform: text('waveform'),
+		published: integer('published', { mode: 'boolean' }).notNull().default(true),
 		storageAdapter: text('storage_adapter').notNull().default('local'),
 		folderKey: text('folder_key').notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
@@ -137,7 +190,12 @@ export const track = sqliteTable(
 			.$onUpdate(() => new Date())
 			.notNull()
 	},
-	(table) => [index('track_createdAt_idx').on(table.createdAt)]
+	// Composite (at, id) indexes to match the keyset pagination order exactly:
+	// the feed walks all tracks, library and profiles walk one user's.
+	(table) => [
+		index('track_createdAt_id_idx').on(table.createdAt, table.id),
+		index('track_userId_createdAt_idx').on(table.userId, table.createdAt, table.id)
+	]
 );
 
 export const storageSettingRelations = relations(storageSetting, ({ one }) => ({
@@ -153,7 +211,8 @@ export const trackRelations = relations(track, ({ one, many }) => ({
 		references: [user.id]
 	}),
 	comments: many(trackComment),
-	likes: many(trackLike)
+	likes: many(trackLike),
+	reposts: many(trackRepost)
 }));
 
 export const trackComment = sqliteTable(
@@ -213,6 +272,68 @@ export const trackLikeRelations = relations(trackLike, ({ one }) => ({
 	user: one(user, {
 		fields: [trackLike.userId],
 		references: [user.id]
+	})
+}));
+
+export const trackRepost = sqliteTable(
+	'track_repost',
+	{
+		trackId: text('track_id')
+			.notNull()
+			.references(() => track.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.trackId, table.userId] }),
+		index('track_repost_userId_createdAt_idx').on(table.userId, table.createdAt, table.trackId)
+	]
+);
+
+export const trackRepostRelations = relations(trackRepost, ({ one }) => ({
+	track: one(track, {
+		fields: [trackRepost.trackId],
+		references: [track.id]
+	}),
+	user: one(user, {
+		fields: [trackRepost.userId],
+		references: [user.id]
+	})
+}));
+
+export const follow = sqliteTable(
+	'follow',
+	{
+		followerId: text('follower_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		followingId: text('following_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.followerId, table.followingId] }),
+		index('follow_followingId_idx').on(table.followingId)
+	]
+);
+
+export const followRelations = relations(follow, ({ one }) => ({
+	follower: one(user, {
+		fields: [follow.followerId],
+		references: [user.id],
+		relationName: 'follower'
+	}),
+	following: one(user, {
+		fields: [follow.followingId],
+		references: [user.id],
+		relationName: 'following'
 	})
 }));
 

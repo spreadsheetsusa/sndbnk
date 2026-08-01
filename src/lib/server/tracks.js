@@ -1,12 +1,23 @@
 import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
+import {
+	decodeCursor,
+	encodeCursor,
+	keysetComparator,
+	keysetCondition,
+	keysetOrder,
+	keysetPage
+} from '#lib/server/cursor';
 import { db } from '#lib/server/db';
-import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
+import { profile, track, trackComment, trackLike, trackRepost, user } from '#lib/server/db/schema';
 import { generateWaveformPeaks, parseWaveform } from '#lib/server/media/waveform';
+import { checkUploadAllowed } from '#lib/server/quota';
 import { getOrCreateStorageSetting, getStorageAdapter } from '#lib/server/storage';
 
 const AUDIO_MAX_BYTES = 100 * 1024 * 1024;
 const COVER_MAX_BYTES = 5 * 1024 * 1024;
+
+export const TRACK_PAGE_SIZE = 24;
 
 /** @type {Record<string, string>} */
 const AUDIO_EXT_BY_MIME = {
@@ -211,13 +222,6 @@ export function validateCoverFile(file) {
 
 /**
  * @param {string} userId
- */
-export async function listTracksForUser(userId) {
-	return db.select().from(track).where(eq(track.userId, userId)).orderBy(desc(track.createdAt));
-}
-
-/**
- * @param {string} userId
  * @param {string} trackId
  */
 export async function getOwnedTrack(userId, trackId) {
@@ -257,6 +261,13 @@ export async function createTrackFromForm(userId, formData) {
 	const setting = await getOrCreateStorageSetting(userId);
 	const adapterId = /** @type {'local' | 'ssh'} */ (setting.adapter === 'ssh' ? 'ssh' : 'local');
 
+	const quota = await checkUploadAllowed(userId, {
+		newTrack: true,
+		addedBytes: audioResult.bytes + (coverResult?.bytes ?? 0),
+		adapter: adapterId
+	});
+	if (!quota.ok) return quota;
+
 	let storage;
 	try {
 		storage = await getStorageAdapter(userId, adapterId);
@@ -288,6 +299,7 @@ export async function createTrackFromForm(userId, formData) {
 		coverMime: coverResult?.mime ?? null,
 		coverBytes: coverResult?.bytes ?? null,
 		waveform: peaks ? JSON.stringify(peaks) : null,
+		published: true,
 		storageAdapter: adapterId,
 		folderKey,
 		createdAt: now,
@@ -365,6 +377,17 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 		patch.coverBytes = validated.bytes;
 	}
 
+	if (audioResult || coverResult) {
+		const quota = await checkUploadAllowed(userId, {
+			newTrack: false,
+			addedBytes: (audioResult?.bytes ?? 0) + (coverResult?.bytes ?? 0),
+			adapter: existing.storageAdapter,
+			replacesBytes:
+				(audioResult ? existing.audioBytes : 0) + (coverResult ? (existing.coverBytes ?? 0) : 0)
+		});
+		if (!quota.ok) return quota;
+	}
+
 	if (replaceAudio || replaceCover) {
 		let storage;
 		try {
@@ -414,6 +437,25 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 /**
  * @param {string} userId
  * @param {string} trackId
+ * @param {boolean} published
+ */
+export async function setTrackPublished(userId, trackId, published) {
+	const existing = await getOwnedTrack(userId, trackId);
+	if (!existing) {
+		return { ok: false, message: 'Track not found.' };
+	}
+
+	await db
+		.update(track)
+		.set({ published, updatedAt: new Date() })
+		.where(and(eq(track.id, trackId), eq(track.userId, userId)));
+
+	return { ok: true, published };
+}
+
+/**
+ * @param {string} userId
+ * @param {string} trackId
  */
 export async function deleteTrackForUser(userId, trackId) {
 	const existing = await getOwnedTrack(userId, trackId);
@@ -442,6 +484,16 @@ export async function deleteTrackForUser(userId, trackId) {
 export async function getTrackById(trackId) {
 	const rows = await db.select().from(track).where(eq(track.id, trackId)).limit(1);
 	return rows[0] ?? null;
+}
+
+/**
+ * Unpublished tracks stay reachable for their owner (library playback, edit page)
+ * and read as missing to everyone else.
+ * @param {typeof track.$inferSelect} row
+ * @param {string | null | undefined} viewerId
+ */
+export function canViewTrack(row, viewerId) {
+	return row.published || row.userId === viewerId;
 }
 
 /**
@@ -483,18 +535,33 @@ export async function ensureTrackWaveform(row) {
 }
 
 /**
- * Like/comment counts and viewer-like state for a set of tracks.
+ * @typedef {Object} TrackSocial
+ * @property {number} likeCount
+ * @property {number} commentCount
+ * @property {number} repostCount
+ * @property {boolean} likedByViewer
+ * @property {boolean} repostedByViewer
+ */
+
+/**
+ * Like/comment/repost counts and viewer state for a set of tracks.
  * @param {string[]} trackIds
  * @param {string | null} viewerId
- * @returns {Promise<Map<string, { likeCount: number, commentCount: number, likedByViewer: boolean }>>}
+ * @returns {Promise<Map<string, TrackSocial>>}
  */
 export async function getSocialForTracks(trackIds, viewerId) {
-	/** @type {Map<string, { likeCount: number, commentCount: number, likedByViewer: boolean }>} */
+	/** @type {Map<string, TrackSocial>} */
 	const map = new Map();
 	if (trackIds.length === 0) return map;
 
 	for (const id of trackIds) {
-		map.set(id, { likeCount: 0, commentCount: 0, likedByViewer: false });
+		map.set(id, {
+			likeCount: 0,
+			commentCount: 0,
+			repostCount: 0,
+			likedByViewer: false,
+			repostedByViewer: false
+		});
 	}
 
 	const likeCounts = await db
@@ -517,14 +584,35 @@ export async function getSocialForTracks(trackIds, viewerId) {
 		if (entry) entry.commentCount = row.n;
 	}
 
+	const repostCounts = await db
+		.select({ trackId: trackRepost.trackId, n: count() })
+		.from(trackRepost)
+		.where(inArray(trackRepost.trackId, trackIds))
+		.groupBy(trackRepost.trackId);
+	for (const row of repostCounts) {
+		const entry = map.get(row.trackId);
+		if (entry) entry.repostCount = row.n;
+	}
+
 	if (viewerId) {
-		const likedRows = await db
-			.select({ trackId: trackLike.trackId })
-			.from(trackLike)
-			.where(and(inArray(trackLike.trackId, trackIds), eq(trackLike.userId, viewerId)));
+		const [likedRows, repostedRows] = await Promise.all([
+			db
+				.select({ trackId: trackLike.trackId })
+				.from(trackLike)
+				.where(and(inArray(trackLike.trackId, trackIds), eq(trackLike.userId, viewerId))),
+			db
+				.select({ trackId: trackRepost.trackId })
+				.from(trackRepost)
+				.where(and(inArray(trackRepost.trackId, trackIds), eq(trackRepost.userId, viewerId)))
+		]);
+
 		for (const row of likedRows) {
 			const entry = map.get(row.trackId);
 			if (entry) entry.likedByViewer = true;
+		}
+		for (const row of repostedRows) {
+			const entry = map.get(row.trackId);
+			if (entry) entry.repostedByViewer = true;
 		}
 	}
 
@@ -626,9 +714,18 @@ export async function listTimedCommentsForTracks(trackIds) {
  * Serialize a track row (+uploader username, +social) for player card UIs.
  * Backfills waveform peaks from stored audio when missing.
  *
+ * The `uploader` wrapper is the whole list row, so repost attribution set by
+ * feed and profile queries rides along without a separate argument.
+ *
  * @param {typeof track.$inferSelect} row
- * @param {{ username: string | null, uploaderName: string | null }} uploader
- * @param {{ likeCount: number, commentCount: number, likedByViewer: boolean } | undefined} social
+ * @param {{
+ *   username: string | null,
+ *   uploaderName: string | null,
+ *   repostedAt?: number | null,
+ *   repostedByName?: string | null,
+ *   repostedByUsername?: string | null
+ * }} uploader
+ * @param {TrackSocial | undefined} social
  * @param {{ id: string } | null | undefined} viewer
  * @param {TimedComment[] | undefined} [timedComments]
  */
@@ -642,13 +739,21 @@ export async function serializeTrackForPlayer(row, uploader, social, viewer, tim
 		genre: row.genre,
 		durationMs: row.durationMs,
 		hasCover: Boolean(row.coverFilename),
+		published: Boolean(row.published),
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
+		// Position in the paged list, so the client can resume from any item.
+		cursor: encodeCursor(uploader.repostedAt ?? row.createdAt ?? Date.now(), row.id),
 		username: uploader.username,
 		uploaderName: uploaderName(uploader),
 		waveform,
 		likeCount: social?.likeCount ?? 0,
 		commentCount: social?.commentCount ?? 0,
+		repostCount: social?.repostCount ?? 0,
 		likedByViewer: social?.likedByViewer ?? false,
+		repostedByViewer: social?.repostedByViewer ?? false,
+		repostedAt: uploader.repostedAt ?? null,
+		repostedByName: uploader.repostedByName ?? null,
+		repostedByUsername: uploader.repostedByUsername ?? null,
 		isOwner: Boolean(viewer && viewer.id === row.userId),
 		timedComments: timedComments ?? []
 	};
@@ -662,10 +767,78 @@ function uploaderName(uploader) {
 }
 
 /**
- * Track rows with uploader profile info for a user, newest first.
- * @param {string} userId
+ * Serialize a page of list rows, batching the social and timed-comment lookups
+ * across the whole page rather than per track.
+ *
+ * @param {Array<Parameters<typeof serializeTrackForPlayer>[1] & { track: typeof track.$inferSelect }>} rows
+ * @param {{ id: string } | null | undefined} viewer
  */
-export async function listTracksWithUploader(userId) {
+export async function serializeTrackRows(rows, viewer) {
+	const trackIds = rows.map((row) => row.track.id);
+	const [social, timedComments] = await Promise.all([
+		getSocialForTracks(trackIds, viewer?.id ?? null),
+		listTimedCommentsForTracks(trackIds)
+	]);
+
+	return Promise.all(
+		rows.map((row) =>
+			serializeTrackForPlayer(
+				row.track,
+				row,
+				social.get(row.track.id),
+				viewer,
+				timedComments.get(row.track.id)
+			)
+		)
+	);
+}
+
+/**
+ * @typedef {{
+ *   track: typeof track.$inferSelect,
+ *   username: string | null,
+ *   uploaderName: string | null,
+ *   repostedAt: number | null
+ * }} ProfileItemRow
+ */
+
+/**
+ * @typedef {{
+ *   limit?: number,
+ *   cursor?: string | null,
+ *   direction?: import('#lib/server/cursor').Direction,
+ *   inclusive?: boolean
+ * }} PageOptions
+ */
+
+/**
+ * A repost is placed by when it was reposted, not when it was uploaded.
+ * @param {ProfileItemRow} row
+ */
+function itemSortAt(row) {
+	return row.repostedAt ?? row.track.createdAt?.getTime() ?? 0;
+}
+
+/**
+ * @param {ProfileItemRow} row
+ */
+function itemCursor(row) {
+	return encodeCursor(itemSortAt(row), row.track.id);
+}
+
+/**
+ * One keyset page of a user's own uploads.
+ * @param {string} userId
+ * @param {{ publishedOnly?: boolean, decoded: { ms: number, id: string } | null } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
+ */
+function selectOwnTracks(userId, { publishedOnly, decoded, limit, direction, inclusive }) {
+	/** @type {import('drizzle-orm').SQL[]} */
+	const conditions = [eq(track.userId, userId)];
+	if (publishedOnly) conditions.push(eq(track.published, true));
+	if (decoded) {
+		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
+	}
+
 	return db
 		.select({
 			track: track,
@@ -675,8 +848,99 @@ export async function listTracksWithUploader(userId) {
 		.from(track)
 		.leftJoin(profile, eq(profile.userId, track.userId))
 		.leftJoin(user, eq(user.id, track.userId))
-		.where(eq(track.userId, userId))
-		.orderBy(desc(track.createdAt));
+		.where(and(...conditions))
+		.orderBy(...keysetOrder(track.createdAt, track.id, direction))
+		.limit(limit + 1);
+}
+
+/**
+ * Track rows with uploader profile info for a user, newest first.
+ * @param {string} userId
+ * @param {{ publishedOnly?: boolean } & PageOptions} [options]
+ * @returns {Promise<{ rows: ProfileItemRow[], nextCursor: string | null }>}
+ */
+export async function listTracksWithUploader(
+	userId,
+	{
+		publishedOnly = false,
+		limit = TRACK_PAGE_SIZE,
+		cursor = null,
+		direction = 'older',
+		inclusive = false
+	} = {}
+) {
+	const decoded = cursor ? decodeCursor(cursor) : null;
+	const own = await selectOwnTracks(userId, {
+		publishedOnly,
+		decoded,
+		limit,
+		direction,
+		inclusive
+	});
+
+	/** @type {ProfileItemRow[]} */
+	const rows = own.map((row) => ({ ...row, repostedAt: null }));
+	return keysetPage(rows, limit, itemCursor, direction);
+}
+
+/**
+ * A creator's own tracks plus the tracks they reposted, newest event first.
+ * Reposts of unpublished tracks are never returned.
+ *
+ * Both sources are walked as independent keysets over the same `(at, id)` space
+ * and merged in memory, so the page boundary lands in the same place regardless
+ * of which source a given item came from.
+ *
+ * @param {string} userId
+ * @param {{ publishedOnly?: boolean } & PageOptions} [options]
+ * @returns {Promise<{ rows: ProfileItemRow[], nextCursor: string | null }>}
+ */
+export async function listProfileItemsWithUploader(
+	userId,
+	{
+		publishedOnly = false,
+		limit = TRACK_PAGE_SIZE,
+		cursor = null,
+		direction = 'older',
+		inclusive = false
+	} = {}
+) {
+	const decoded = cursor ? decodeCursor(cursor) : null;
+
+	/** @type {import('drizzle-orm').SQL[]} */
+	const repostConditions = [eq(trackRepost.userId, userId), eq(track.published, true)];
+	if (decoded) {
+		repostConditions.push(
+			keysetCondition(trackRepost.createdAt, trackRepost.trackId, decoded, direction, inclusive)
+		);
+	}
+
+	const [own, reposted] = await Promise.all([
+		selectOwnTracks(userId, { publishedOnly, decoded, limit, direction, inclusive }),
+		db
+			.select({
+				track: track,
+				username: profile.username,
+				uploaderName: user.name,
+				repostedAt: trackRepost.createdAt
+			})
+			.from(trackRepost)
+			.innerJoin(track, eq(track.id, trackRepost.trackId))
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.leftJoin(user, eq(user.id, track.userId))
+			.where(and(...repostConditions))
+			.orderBy(...keysetOrder(trackRepost.createdAt, trackRepost.trackId, direction))
+			.limit(limit + 1)
+	]);
+
+	/** @type {ProfileItemRow[]} */
+	const rows = [
+		...own.map((row) => ({ ...row, repostedAt: /** @type {number | null} */ (null) })),
+		...reposted.map((row) => ({ ...row, repostedAt: row.repostedAt?.getTime() ?? null }))
+	];
+
+	rows.sort(keysetComparator(itemSortAt, (row) => row.track.id, direction));
+	return keysetPage(rows, limit, itemCursor, direction);
 }
 
 /**

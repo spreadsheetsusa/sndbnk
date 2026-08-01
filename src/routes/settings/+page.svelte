@@ -11,7 +11,7 @@
 
 	const tabs = [
 		{ id: 'profile', label: 'Profile' },
-		{ id: 'plan', label: 'Plan' },
+		{ id: 'billing', label: 'Billing' },
 		{ id: 'domain', label: 'Domain' },
 		{ id: 'storage', label: 'Storage' }
 	];
@@ -61,7 +61,7 @@
 	}
 
 	let profileBusy = $state(false);
-	let planBusy = $state(false);
+	let billingBusy = $state(false);
 	let domainBusy = $state(false);
 	let storageBusy = $state(false);
 	let avatarBusy = $state(false);
@@ -69,7 +69,7 @@
 	/** @type {string | null} */
 	let userAdapter = $state(null);
 
-	const isPremium = $derived(data.profile.plan === 'premium');
+	const canHost = $derived(data.billing.allowSubdomain || data.billing.allowCustomDomain);
 	const nameValue = $derived(form?.name ?? data.user.name);
 	const usernameValue = $derived(form?.username ?? data.profile.username);
 	const bioValue = $derived(form?.bio ?? data.profile.bio);
@@ -89,12 +89,12 @@
 	const isSshAdapter = $derived(selectedAdapter === 'ssh');
 
 	/**
-	 * @param {'profile' | 'plan' | 'domain' | 'storage' | 'avatar'} which
+	 * @param {'profile' | 'billing' | 'domain' | 'storage' | 'avatar'} which
 	 */
 	function busyHandler(which) {
 		return () => {
 			if (which === 'profile') profileBusy = true;
-			if (which === 'plan') planBusy = true;
+			if (which === 'billing') billingBusy = true;
 			if (which === 'domain') domainBusy = true;
 			if (which === 'storage') storageBusy = true;
 			if (which === 'avatar') avatarBusy = true;
@@ -104,7 +104,7 @@
 					await update();
 				} finally {
 					if (which === 'profile') profileBusy = false;
-					if (which === 'plan') planBusy = false;
+					if (which === 'billing') billingBusy = false;
 					if (which === 'domain') domainBusy = false;
 					if (which === 'storage') storageBusy = false;
 					if (which === 'avatar') avatarBusy = false;
@@ -112,6 +112,65 @@
 			};
 		};
 	}
+
+	/**
+	 * @param {number} cents
+	 */
+	function money(cents) {
+		const dollars = cents / 100;
+		return dollars % 1 === 0 ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+	}
+
+	/**
+	 * @param {number} bytes
+	 */
+	function bytes(value) {
+		if (value < 1024) return `${value} B`;
+		const units = ['KB', 'MB', 'GB', 'TB'];
+		let scaled = value / 1024;
+		let unit = 0;
+		while (scaled >= 1024 && unit < units.length - 1) {
+			scaled /= 1024;
+			unit += 1;
+		}
+		return `${scaled >= 10 ? Math.round(scaled) : scaled.toFixed(1)} ${units[unit]}`;
+	}
+
+	/**
+	 * @param {number} used
+	 * @param {number | null} cap
+	 */
+	function fillPercent(used, cap) {
+		if (!cap) return 0;
+		return Math.min(100, Math.round((used / cap) * 100));
+	}
+
+	/** @type {Record<string, string>} */
+	const STATUS_COPY = {
+		active: 'Active',
+		trialing: 'Trialing',
+		past_due: 'Payment failed — retrying',
+		unpaid: 'Unpaid',
+		canceled: 'Canceled',
+		incomplete: 'Awaiting payment',
+		incomplete_expired: 'Checkout expired',
+		paused: 'Paused',
+		grandfathered: 'Complimentary'
+	};
+
+	const statusLabel = $derived(
+		data.billing.status
+			? (STATUS_COPY[data.billing.status] ?? data.billing.status)
+			: 'No subscription'
+	);
+
+	const renewsOn = $derived(
+		data.billing.currentPeriodEnd
+			? new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(
+					new Date(data.billing.currentPeriodEnd)
+				)
+			: null
+	);
 
 	/**
 	 * @param {Event & { currentTarget: HTMLInputElement }} event
@@ -135,9 +194,11 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow eyebrow-chip accent-text">Account</p>
-		<h1 class="display-face">Settings</h1>
-		<p class="intro">Your identity, plan, and where the world finds you.</p>
+		<header class="page-head">
+			<p class="eyebrow eyebrow-chip accent-text">Account</p>
+			<h1 class="display-face">Settings</h1>
+			<p class="intro">Your identity, plan, and where the world finds you.</p>
+		</header>
 
 		<div class="tab-bar" role="tablist" aria-label="Settings sections">
 			{#each tabs as tab (tab.id)}
@@ -287,48 +348,161 @@
 			</div>
 		{/if}
 
-		{#if activeTab === 'plan'}
-			<div class="block" role="tabpanel" id="panel-plan" aria-labelledby="tab-plan">
+		{#if activeTab === 'billing'}
+			<div class="block" role="tabpanel" id="panel-billing" aria-labelledby="tab-billing">
 				<div class="block-head">
-					<h2>Plan</h2>
-					<p>
-						Pick freely for now — payments land later. Current:
-						<strong class="plan-pill">{data.profile.plan}</strong>
-					</p>
+					<h2>Billing</h2>
+					<p>Your plan, what you are using, and where to change your card.</p>
 				</div>
 
-				{#if form?.planMessage && !planBusy}
-					<div class="banner error" role="alert">{form.planMessage}</div>
+				{#if form?.billingMessage && !billingBusy}
+					<div class="banner error" role="alert">{form.billingMessage}</div>
 				{/if}
-				{#if form?.planSuccess && !planBusy}
-					<div class="banner ok" role="status">{form.planSuccess}</div>
+				{#if form?.billingSuccess && !billingBusy}
+					<div class="banner ok" role="status">{form.billingSuccess}</div>
 				{/if}
 
-				<div class="plan-grid">
-					{#each ['basic', 'premium'] as planId (planId)}
-						{@const detail = data.planDetails[planId]}
-						<article class="plan" class:active={data.profile.plan === planId}>
-							<h3 class="display-face">{detail.label}</h3>
-							<p class="plan-summary">{detail.summary}</p>
-							<ul>
-								{#each detail.features as feature (feature)}
-									<li>{feature}</li>
-								{/each}
-							</ul>
-							<form method="POST" action="?/setPlan&tab=plan" use:enhance={busyHandler('plan')}>
-								<input type="hidden" name="plan" value={planId} />
-								<button
-									class="pressable"
-									class:ghost={data.profile.plan === planId}
-									type="submit"
-									disabled={planBusy || data.profile.plan === planId}
-								>
-									{data.profile.plan === planId ? 'Current plan' : `Choose ${detail.label}`}
-								</button>
-							</form>
-						</article>
-					{/each}
+				<div class="current-plan">
+					<div class="current-head">
+						<div>
+							<p class="eyebrow">Current plan</p>
+							<h3 class="display-face">{data.billing.planLabel}</h3>
+							<p class="plan-summary">{data.billing.planBlurb}</p>
+						</div>
+						<div class="current-meta">
+							<p class="status status-{data.billing.status ?? 'none'}">{statusLabel}</p>
+							{#if data.billing.interval}
+								<p class="hint">
+									{money(
+										data.billing.interval === 'year'
+											? data.billing.yearlyAmount
+											: data.billing.monthlyAmount
+									)} / {data.billing.interval === 'year' ? 'year' : 'month'}
+								</p>
+							{/if}
+							{#if renewsOn}
+								<p class="hint">
+									{data.billing.cancelAtPeriodEnd ? 'Ends' : 'Renews'}
+									{renewsOn}
+								</p>
+							{/if}
+						</div>
+					</div>
+
+					{#if data.billing.cancelAtPeriodEnd}
+						<p class="notice" role="status">
+							Your subscription is set to end on {renewsOn}. You keep every feature until then.
+						</p>
+					{/if}
 				</div>
+
+				<div class="usage" aria-label="Usage">
+					<div class="meter">
+						<div class="meter-head">
+							<span class="meter-label">Tracks</span>
+							<span class="meter-value">
+								{data.usage.trackCount}
+								{#if data.usage.maxTracks !== null}/ {data.usage.maxTracks}{:else}
+									/ unlimited
+								{/if}
+							</span>
+						</div>
+						{#if data.usage.maxTracks !== null}
+							<div
+								class="meter-track"
+								role="progressbar"
+								aria-valuenow={data.usage.trackCount}
+								aria-valuemin="0"
+								aria-valuemax={data.usage.maxTracks}
+								aria-label="Tracks used"
+							>
+								<span
+									class="meter-fill"
+									style="width: {fillPercent(data.usage.trackCount, data.usage.maxTracks)}%"
+								></span>
+							</div>
+						{/if}
+					</div>
+
+					<div class="meter">
+						<div class="meter-head">
+							<span class="meter-label">Hosted storage</span>
+							<span class="meter-value">
+								{bytes(data.usage.localBytes)}
+								{#if data.usage.maxLocalBytes !== null}
+									/ {bytes(data.usage.maxLocalBytes)}
+								{:else}
+									/ unlimited
+								{/if}
+							</span>
+						</div>
+						{#if data.usage.maxLocalBytes !== null}
+							<div
+								class="meter-track"
+								role="progressbar"
+								aria-valuenow={data.usage.localBytes}
+								aria-valuemin="0"
+								aria-valuemax={data.usage.maxLocalBytes}
+								aria-label="Hosted storage used"
+							>
+								<span
+									class="meter-fill"
+									style="width: {fillPercent(data.usage.localBytes, data.usage.maxLocalBytes)}%"
+								></span>
+							</div>
+						{/if}
+						<p class="hint">
+							Only counts uploads on SNDBNK's storage — your own server is uncounted.
+						</p>
+					</div>
+				</div>
+
+				{#if !data.billing.enabled}
+					<div class="banner error" role="alert">
+						Billing is not configured on this server, so plans cannot be changed here.
+					</div>
+				{:else if data.billing.hasSubscription}
+					<div class="billing-actions">
+						<form method="POST" action="?/openPortal&tab=billing">
+							<button class="pressable" type="submit"
+								>Manage card, invoices, and cancellation</button
+							>
+						</form>
+						<p class="hint">Opens Stripe's billing portal. Changes come back here automatically.</p>
+					</div>
+
+					<div class="switch-grid">
+						{#each data.plans.filter((option) => option.purchasable) as option (option.id)}
+							{#each ['month', 'year'] as interval (interval)}
+								{@const amount = interval === 'year' ? option.yearlyAmount : option.monthlyAmount}
+								{@const isCurrent =
+									option.id === data.billing.planId && interval === data.billing.interval}
+								{#if !isCurrent}
+									<form
+										method="POST"
+										action="?/changePlan&tab=billing"
+										use:enhance={busyHandler('billing')}
+									>
+										<input type="hidden" name="plan" value={option.id} />
+										<input type="hidden" name="interval" value={interval} />
+										<button class="pressable ghost" type="submit" disabled={billingBusy}>
+											Switch to {option.label} · {money(amount)}/{interval === 'year' ? 'yr' : 'mo'}
+										</button>
+									</form>
+								{/if}
+							{/each}
+						{/each}
+					</div>
+				{:else}
+					<div class="billing-actions">
+						<a class="cta pressable" href="/plans">See plans and upgrade</a>
+						<p class="hint">
+							{data.billing.status === 'grandfathered'
+								? 'Your plan is complimentary — no card on file and nothing to pay.'
+								: 'Paid plans unlock your own subdomain, custom domains, and bring-your-own storage.'}
+						</p>
+					</div>
+				{/if}
 			</div>
 		{/if}
 
@@ -337,11 +511,10 @@
 				<div class="block-head">
 					<h2>Domain</h2>
 					<p>
-						{#if isPremium}
+						{#if canHost}
 							Your subdomain is live. Optionally connect a custom domain with a CNAME.
 						{:else}
-							Upgrade to Premium to unlock <strong>{data.profile.username}.{data.baseDomain}</strong
-							>
+							Upgrade to unlock <strong>{data.profile.username}.{data.baseDomain}</strong>
 							and custom domains.
 						{/if}
 					</p>
@@ -354,7 +527,7 @@
 					<div class="banner ok" role="status">{form.domainSuccess}</div>
 				{/if}
 
-				{#if isPremium}
+				{#if canHost}
 					<div class="domain-panel">
 						<div class="url-row">
 							<span class="url-label">Subdomain</span>
@@ -439,13 +612,10 @@
 				{:else}
 					<div class="locked">
 						<p>
-							Premium unlocks <span class="mono">{data.profile.username}.{data.baseDomain}</span> and
-							CNAME custom domains.
+							Premium and Business unlock
+							<span class="mono">{data.profile.username}.{data.baseDomain}</span> plus CNAME custom domains.
 						</p>
-						<form method="POST" action="?/setPlan&tab=domain" use:enhance={busyHandler('plan')}>
-							<input type="hidden" name="plan" value="premium" />
-							<button class="pressable" type="submit" disabled={planBusy}>Switch to Premium</button>
-						</form>
+						<a class="cta pressable" href="/plans">See plans</a>
 					</div>
 				{/if}
 			</div>
@@ -461,6 +631,16 @@
 					</p>
 				</div>
 
+				{#if !data.billing.allowStorageAdapters}
+					<div class="locked">
+						<p>
+							Bringing your own storage needs Premium or Business. On {data.billing.planLabel} your uploads
+							stay on SNDBNK.
+						</p>
+						<a class="cta pressable" href="/plans">See plans</a>
+					</div>
+				{/if}
+
 				{#if form?.storageMessage && !storageBusy}
 					<div class="banner error" role="alert">{form.storageMessage}</div>
 				{/if}
@@ -472,20 +652,23 @@
 					<fieldset class="adapter-list">
 						<legend class="visually-hidden">Storage adapter</legend>
 						{#each data.storageAdapters as adapter (adapter.id)}
-							<label class="adapter-option" class:disabled={!adapter.enabled}>
+							{@const needsUpgrade = adapter.id !== 'local' && !data.billing.allowStorageAdapters}
+							<label class="adapter-option" class:disabled={!adapter.enabled || needsUpgrade}>
 								<input
 									type="radio"
 									name="adapter"
 									value={adapter.id}
 									checked={selectedAdapter === adapter.id}
 									onchange={() => (userAdapter = adapter.id)}
-									disabled={!adapter.enabled || storageBusy}
+									disabled={!adapter.enabled || needsUpgrade || storageBusy}
 								/>
 								<span class="adapter-copy">
 									<span class="adapter-label">
 										{adapter.label}
 										{#if !adapter.enabled}
 											<span class="coming-soon">Coming soon</span>
+										{:else if needsUpgrade}
+											<span class="coming-soon">Premium</span>
 										{/if}
 									</span>
 									<span class="adapter-desc">{adapter.description}</span>
@@ -599,32 +782,36 @@
 	main {
 		width: min(100%, var(--site-content-max));
 		margin: 0 auto;
-		padding-top: clamp(1.25rem, 4vw, 2.5rem);
+		padding-top: clamp(0.75rem, 2vw, 1.25rem);
 	}
 
-	main > .eyebrow {
-		margin: 0 0 0.75rem;
+	.page-head {
+		margin-bottom: 2.5rem;
+	}
+
+	.page-head > .eyebrow {
+		margin: 0 0 0.35rem;
 	}
 
 	h1 {
 		margin: 0;
-		font-size: clamp(3.2rem, 9vw, 5.5rem);
-		line-height: 0.92;
+		font-size: clamp(2.4rem, 6vw, 3.75rem);
+		line-height: 0.95;
 		animation: rise 0.65s ease both;
 	}
 
 	.intro {
 		max-width: 34rem;
-		margin: 1rem 0 0;
+		margin: 0.4rem 0 0;
 		color: var(--muted);
-		line-height: 1.5;
+		line-height: 1.4;
 		animation: rise 0.75s ease 0.05s both;
 	}
 
 	.tab-bar {
 		display: flex;
 		gap: clamp(1.15rem, 3.5vw, 2.25rem);
-		margin-top: clamp(2.5rem, 6.5vw, 3.75rem);
+		margin-top: 0;
 		padding-top: 0.25rem;
 		overflow-x: auto;
 		scrollbar-width: none;
@@ -674,7 +861,7 @@
 
 	.block-head h2 {
 		margin: 0.35rem 0 0.5rem;
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: clamp(2rem, 5vw, 2.75rem);
 		font-weight: 400;
 		letter-spacing: -0.03em;
@@ -684,19 +871,6 @@
 		margin: 0;
 		color: var(--muted);
 		line-height: 1.5;
-	}
-
-	.plan-pill {
-		display: inline-block;
-		margin-left: 0.15rem;
-		padding: 0.1rem 0.4rem;
-		border: 1px solid var(--ink);
-		color: var(--on-accent);
-		background: var(--accent);
-		font-size: 0.75rem;
-		font-weight: 900;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
 	}
 
 	form {
@@ -958,7 +1132,7 @@
 		border: 1px solid var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 		font-size: 0.72rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
@@ -968,15 +1142,13 @@
 
 	.pressable:disabled {
 		opacity: 0.55;
-		box-shadow: 2px 2px 0 var(--ink);
+		box-shadow: 2px 2px 0 var(--hard-shadow);
 		cursor: not-allowed;
 	}
 
-	.pressable.ghost {
-		background: transparent;
-	}
-
+	.pressable.ghost,
 	.pressable.danger {
+		border-color: var(--hard-border);
 		background: transparent;
 	}
 
@@ -998,55 +1170,149 @@
 		background: var(--accent);
 	}
 
-	.plan-grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 1.25rem;
+	.current-plan {
 		margin-top: 1.5rem;
+		padding: 1.35rem;
+		border: 1px solid var(--hard-border);
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
+		box-shadow: 6px 6px 0 var(--hard-shadow);
 	}
 
-	.plan {
+	.current-head {
 		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		padding: 1.25rem 1.25rem 1.35rem;
-		border: 1px solid var(--ink);
-		background: transparent;
+		flex-wrap: wrap;
+		gap: 1rem;
+		align-items: flex-start;
+		justify-content: space-between;
 	}
 
-	.plan.active {
-		background: rgb(200 255 61 / 22%);
-		box-shadow: 6px 6px 0 var(--ink);
+	.current-head .eyebrow {
+		margin: 0 0 0.4rem;
 	}
 
-	.plan h3 {
+	.current-head h3 {
 		margin: 0;
 		font-size: 1.8rem;
 		line-height: 1;
 	}
 
 	.plan-summary {
-		margin: 0;
+		margin: 0.4rem 0 0;
 		color: var(--muted);
-		font-size: 0.9rem;
+		font-size: 0.88rem;
 		line-height: 1.45;
 	}
 
-	.plan ul {
-		flex: 1;
-		margin: 0.25rem 0 0.5rem;
-		padding: 0 0 0 1.1rem;
-		color: var(--ink);
-		font-size: 0.85rem;
+	.current-meta {
+		text-align: right;
+	}
+
+	.current-meta .hint {
+		margin: 0.3rem 0 0;
+	}
+
+	.status {
+		display: inline-block;
+		margin: 0;
+		padding: 0.2rem 0.5rem;
+		border: 1px solid var(--ink);
+		font-size: 0.65rem;
+		font-weight: 900;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+	}
+
+	.status-active,
+	.status-trialing,
+	.status-grandfathered {
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.notice {
+		margin: 1.1rem 0 0;
+		padding-top: 1rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+		font-size: 0.82rem;
+		font-weight: 700;
 		line-height: 1.45;
 	}
 
-	.plan form {
-		margin-top: auto;
+	.usage {
+		display: grid;
+		gap: 1.5rem;
+		margin-top: 2rem;
 	}
 
-	.plan button {
+	.meter-head {
+		display: flex;
+		gap: 1rem;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: 0.5rem;
+	}
+
+	.meter-label {
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.meter-value {
+		color: var(--muted);
+		font-size: 0.78rem;
+	}
+
+	.meter-track {
+		height: 0.85rem;
+		border: 1px solid var(--ink);
+		background: transparent;
+	}
+
+	.meter-fill {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+	}
+
+	.meter .hint {
+		margin: 0.5rem 0 0;
+	}
+
+	.billing-actions {
+		margin-top: 2rem;
+	}
+
+	.billing-actions .hint {
+		margin: 0.7rem 0 0;
+	}
+
+	.switch-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+		gap: 0.75rem;
+		margin-top: 1.5rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.switch-grid button {
 		width: 100%;
+	}
+
+	.cta {
+		display: inline-block;
+		padding: 0.8rem 1.15rem;
+		border: 1px solid var(--ink);
+		color: var(--on-accent);
+		background: var(--accent);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
+		font-size: 0.7rem;
+		font-weight: 900;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+		text-decoration: none;
 	}
 
 	.domain-panel {
@@ -1161,8 +1427,8 @@
 	}
 
 	@media (max-width: 720px) {
-		.plan-grid {
-			grid-template-columns: 1fr;
+		.current-meta {
+			text-align: left;
 		}
 
 		.url-row {

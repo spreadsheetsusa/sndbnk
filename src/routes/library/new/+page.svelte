@@ -274,9 +274,11 @@
 	<SiteHeader />
 
 	<main>
-		<p class="eyebrow eyebrow-chip accent-text">Library</p>
-		<h1 class="display-face">Upload track</h1>
-		<p class="intro">Attach audio first — we fill metadata from the file when available.</p>
+		<header class="page-head">
+			<p class="eyebrow eyebrow-chip accent-text">Library</p>
+			<h1 class="display-face">Upload track</h1>
+			<p class="intro">Attach audio first — we fill metadata from the file when available.</p>
+		</header>
 
 		<section class="block" aria-labelledby="upload-heading">
 			<div class="block-head">
@@ -479,30 +481,34 @@
 	main {
 		width: min(100%, var(--site-content-max));
 		margin: 0 auto;
-		padding-top: clamp(1.25rem, 4vw, 2.5rem);
+		padding-top: clamp(0.75rem, 2vw, 1.25rem);
 	}
 
-	main > .eyebrow {
-		margin: 0 0 0.75rem;
+	.page-head {
+		margin-bottom: 2.5rem;
+	}
+
+	.page-head > .eyebrow {
+		margin: 0 0 0.35rem;
 	}
 
 	h1 {
 		margin: 0;
-		font-size: clamp(3.2rem, 9vw, 5.5rem);
-		line-height: 0.92;
+		font-size: clamp(2.4rem, 6vw, 3.75rem);
+		line-height: 0.95;
 		animation: rise 0.65s ease both;
 	}
 
 	.intro {
 		max-width: 34rem;
-		margin: 1rem 0 0;
+		margin: 0.4rem 0 0;
 		color: var(--muted);
-		line-height: 1.5;
+		line-height: 1.4;
 		animation: rise 0.75s ease 0.05s both;
 	}
 
 	.block {
-		margin-top: clamp(2.75rem, 7vw, 4rem);
+		margin-top: 0;
 		padding-top: clamp(1.75rem, 4vw, 2.25rem);
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.8s ease both;
@@ -510,7 +516,7 @@
 
 	.block-head h2 {
 		margin: 0.35rem 0 0.5rem;
-		font-family: Georgia, 'Times New Roman', serif;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: clamp(2rem, 5vw, 2.75rem);
 		font-weight: 400;
 		letter-spacing: -0.03em;
@@ -655,7 +661,9 @@
 		display: block;
 		width: 10rem;
 		height: 10rem;
-		border: 1px solid var(--ink);
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
+		box-shadow: 3px 3px 0 var(--hard-shadow);
 		object-fit: cover;
 	}
 
@@ -683,7 +691,7 @@
 		border: 1px solid var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
-		box-shadow: 5px 5px 0 var(--ink);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
 		font-size: 0.72rem;
 		font-weight: 900;
 		letter-spacing: 0.08em;
@@ -694,11 +702,12 @@
 
 	.pressable:disabled {
 		opacity: 0.55;
-		box-shadow: 2px 2px 0 var(--ink);
+		box-shadow: 2px 2px 0 var(--hard-shadow);
 		cursor: not-allowed;
 	}
 
 	.pressable.ghost {
+		border-color: var(--hard-border);
 		background: transparent;
 	}
 

@@ -29,7 +29,11 @@ CREATE TABLE IF NOT EXISTS user (
 	email_verified integer DEFAULT false NOT NULL,
 	image text,
 	created_at integer NOT NULL,
-	updated_at integer NOT NULL
+	updated_at integer NOT NULL,
+	role text,
+	banned integer DEFAULT false,
+	ban_reason text,
+	ban_expires integer
 );
 CREATE UNIQUE INDEX IF NOT EXISTS user_email_unique ON user (email);
 
@@ -42,6 +46,7 @@ CREATE TABLE IF NOT EXISTS session (
 	ip_address text,
 	user_agent text,
 	user_id text NOT NULL,
+	impersonated_by text,
 	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
 );
 CREATE UNIQUE INDEX IF NOT EXISTS session_token_unique ON session (token);
@@ -75,6 +80,34 @@ CREATE TABLE IF NOT EXISTS verification (
 );
 CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification (identifier);
 
+CREATE TABLE IF NOT EXISTS plan (
+	id text PRIMARY KEY NOT NULL,
+	label text NOT NULL,
+	blurb text DEFAULT '' NOT NULL,
+	features text DEFAULT '[]' NOT NULL,
+	max_tracks integer,
+	max_local_bytes integer,
+	allow_storage_adapters integer DEFAULT false NOT NULL,
+	allow_subdomain integer DEFAULT false NOT NULL,
+	allow_custom_domain integer DEFAULT false NOT NULL,
+	monthly_amount integer DEFAULT 0 NOT NULL,
+	yearly_amount integer DEFAULT 0 NOT NULL,
+	currency text DEFAULT 'usd' NOT NULL,
+	stripe_product_id text,
+	stripe_price_monthly_id text,
+	stripe_price_yearly_id text,
+	sort_order integer DEFAULT 0 NOT NULL,
+	active integer DEFAULT true NOT NULL,
+	created_at integer NOT NULL,
+	updated_at integer NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS stripe_event (
+	id text PRIMARY KEY NOT NULL,
+	type text NOT NULL,
+	received_at integer NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS profile (
 	user_id text PRIMARY KEY NOT NULL,
 	username text NOT NULL,
@@ -89,6 +122,10 @@ CREATE TABLE IF NOT EXISTS profile (
 	custom_domain_verified_at integer,
 	stripe_customer_id text,
 	stripe_subscription_id text,
+	plan_interval text,
+	subscription_status text,
+	current_period_end integer,
+	cancel_at_period_end integer DEFAULT false NOT NULL,
 	created_at integer NOT NULL,
 	updated_at integer NOT NULL,
 	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
@@ -145,6 +182,7 @@ CREATE TABLE IF NOT EXISTS track (
 	channels integer,
 	codec text,
 	waveform text,
+	published integer DEFAULT 1 NOT NULL,
 	storage_adapter text DEFAULT 'local' NOT NULL,
 	folder_key text NOT NULL,
 	created_at integer NOT NULL,
@@ -152,6 +190,10 @@ CREATE TABLE IF NOT EXISTS track (
 	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
 );
 CREATE INDEX IF NOT EXISTS track_userId_idx ON track (user_id);
+-- Keyset pagination walks (created_at, id); these must match that order or every
+-- page after the first degrades into a scan.
+CREATE INDEX IF NOT EXISTS track_createdAt_id_idx ON track (created_at, id);
+CREATE INDEX IF NOT EXISTS track_userId_createdAt_idx ON track (user_id, created_at, id);
 
 CREATE TABLE IF NOT EXISTS track_comment (
 	id text PRIMARY KEY NOT NULL,
@@ -173,6 +215,26 @@ CREATE TABLE IF NOT EXISTS track_like (
 	FOREIGN KEY (track_id) REFERENCES track(id) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
 );
+
+CREATE TABLE IF NOT EXISTS track_repost (
+	track_id text NOT NULL,
+	user_id text NOT NULL,
+	created_at integer NOT NULL,
+	PRIMARY KEY (track_id, user_id),
+	FOREIGN KEY (track_id) REFERENCES track(id) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS track_repost_userId_createdAt_idx ON track_repost (user_id, created_at, track_id);
+
+CREATE TABLE IF NOT EXISTS follow (
+	follower_id text NOT NULL,
+	following_id text NOT NULL,
+	created_at integer NOT NULL,
+	PRIMARY KEY (follower_id, following_id),
+	FOREIGN KEY (follower_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (following_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS follow_followingId_idx ON follow (following_id);
 `);
 
 /**
@@ -196,11 +258,24 @@ function ensureColumns(table, columns) {
 	}
 }
 
+ensureColumns('user', [
+	['role', 'text'],
+	['banned', 'integer DEFAULT false'],
+	['ban_reason', 'text'],
+	['ban_expires', 'integer']
+]);
+
+ensureColumns('session', [['impersonated_by', 'text']]);
+
 ensureColumns('profile', [
 	['bio', 'text'],
 	['location', 'text'],
 	['avatar_filename', 'text'],
-	['avatar_mime', 'text']
+	['avatar_mime', 'text'],
+	['plan_interval', 'text'],
+	['subscription_status', 'text'],
+	['current_period_end', 'integer'],
+	['cancel_at_period_end', 'integer NOT NULL DEFAULT false']
 ]);
 
 ensureColumns('track', [
@@ -209,8 +284,119 @@ ensureColumns('track', [
 	['sample_rate', 'integer'],
 	['channels', 'integer'],
 	['codec', 'text'],
-	['waveform', 'text']
+	['waveform', 'text'],
+	['published', 'integer NOT NULL DEFAULT 1']
 ]);
+
+// Seed the tiers. INSERT OR IGNORE so re-running never clobbers admin panel edits.
+// Stripe price ids stay null here; `bun run stripe:bootstrap` fills them per environment.
+const GIB = 1024 * 1024 * 1024;
+
+const seedPlan = db.prepare(`
+INSERT OR IGNORE INTO plan (
+	id, label, blurb, features, max_tracks, max_local_bytes,
+	allow_storage_adapters, allow_subdomain, allow_custom_domain,
+	monthly_amount, yearly_amount, currency, sort_order, active,
+	created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, true, ?, ?)
+`);
+
+const now = Date.now();
+
+/** @type {Array<[string, string, string, string[], number | null, number | null, boolean, boolean, boolean, number, number, number]>} */
+const seeds = [
+	[
+		'basic',
+		'Basic',
+		'A public profile on SNDBNK, free forever.',
+		['Public profile at sndbnk.com/users/you', 'Up to 10 tracks', 'Hosted storage'],
+		10,
+		null,
+		false,
+		false,
+		false,
+		0,
+		0,
+		0
+	],
+	[
+		'premium',
+		'Premium',
+		'Your own subdomain, your own storage.',
+		[
+			'Everything in Basic',
+			'Up to 100 tracks',
+			'Subdomain at you.sndbnk.com',
+			'Custom domain via CNAME',
+			'Bring your own storage'
+		],
+		100,
+		null,
+		true,
+		true,
+		true,
+		500,
+		4900,
+		1
+	],
+	[
+		'business',
+		'Business',
+		'Unlimited tracks on your own domain.',
+		[
+			'Everything in Premium',
+			'Unlimited tracks',
+			'25 GB of hosted storage',
+			'Map your own TLD to your profile'
+		],
+		null,
+		25 * GIB,
+		true,
+		true,
+		true,
+		1000,
+		9800,
+		2
+	]
+];
+
+for (const [
+	id,
+	label,
+	blurb,
+	features,
+	maxTracks,
+	maxLocalBytes,
+	adapters,
+	subdomain,
+	customDomain,
+	monthly,
+	yearly,
+	sortOrder
+] of seeds) {
+	seedPlan.run(
+		id,
+		label,
+		blurb,
+		JSON.stringify(features),
+		maxTracks,
+		maxLocalBytes,
+		adapters,
+		subdomain,
+		customDomain,
+		monthly,
+		yearly,
+		sortOrder,
+		now,
+		now
+	);
+}
+
+// Accounts that got premium from the pre-billing plan toggle keep it without a subscription.
+db.exec(`
+UPDATE profile SET subscription_status = 'grandfathered'
+WHERE plan <> 'basic' AND stripe_subscription_id IS NULL AND subscription_status IS NULL
+`);
 
 const tables = db
 	.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")

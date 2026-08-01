@@ -7,7 +7,10 @@
 		CUSTOM_LINK_ID,
 		LINK_PRESETS,
 		MAX_PROFILE_LINKS,
-		isPresetLabel
+		isBareUrlPrefix,
+		isPresetLabel,
+		urlPlaceholderForPreset,
+		urlPrefixForPreset
 	} from '#lib/profile-links.js';
 
 	/**
@@ -48,11 +51,27 @@
 		return LINK_PRESETS.find((preset) => preset.id === row.preset)?.label ?? '';
 	}
 
+	/**
+	 * Swap the stub URL when the type changes, but leave a customized URL alone.
+	 * @param {{ preset: string, url: string }} row
+	 * @param {Event & { currentTarget: HTMLSelectElement }} event
+	 */
+	function onPresetChange(row, event) {
+		const previous = row.preset;
+		row.preset = event.currentTarget.value;
+		if (previous === row.preset) return;
+		if (isBareUrlPrefix(row.url)) {
+			row.url = urlPrefixForPreset(row.preset);
+		}
+	}
+
 	// svelte-ignore state_referenced_locally
 	let rows = $state(initialLinks.map(toRow));
 
 	function addRow() {
-		rows = [...rows, toRow({ label: '', url: '' })];
+		const row = toRow({ label: '', url: '' });
+		row.url = urlPrefixForPreset(row.preset);
+		rows = [...rows, row];
 	}
 
 	/**
@@ -83,7 +102,11 @@
 
 				<input type="hidden" name="link.{index}.label" value={labelFor(row)} />
 
-				<select bind:value={row.preset} aria-label="Link {index + 1} type">
+				<select
+					value={row.preset}
+					onchange={(event) => onPresetChange(row, event)}
+					aria-label="Link {index + 1} type"
+				>
 					{#each LINK_PRESETS as preset (preset.id)}
 						<option value={preset.id}>{preset.label}</option>
 					{/each}
@@ -106,7 +129,7 @@
 					name="link.{index}.url"
 					bind:value={row.url}
 					inputmode="url"
-					placeholder="https://example.com"
+					placeholder={urlPlaceholderForPreset(row.preset)}
 					maxlength="500"
 					autocapitalize="none"
 					spellcheck="false"

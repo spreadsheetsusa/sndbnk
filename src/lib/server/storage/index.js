@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 
+import { canUseStorageAdapters } from '#lib/server/billing/plans';
 import { db } from '#lib/server/db';
-import { storageSetting } from '#lib/server/db/schema';
+import { profile, storageSetting } from '#lib/server/db/schema';
 import { decryptSecret, encryptSecret } from './crypto.js';
 import { createLocalAdapter } from './local.js';
 import { createSshAdapter } from './ssh.js';
@@ -104,6 +105,21 @@ export async function getStorageSettingPublic(userId) {
 export async function saveStorageSetting(userId, input) {
 	if (!isEnabledAdapter(input.adapter)) {
 		return { ok: false, message: 'Choose Local or SSH / own server.' };
+	}
+
+	if (input.adapter !== 'local') {
+		const rows = await db
+			.select({ plan: profile.plan })
+			.from(profile)
+			.where(eq(profile.userId, userId))
+			.limit(1);
+
+		if (!canUseStorageAdapters(rows[0]?.plan)) {
+			return {
+				ok: false,
+				message: 'Bringing your own storage needs Premium or Business. See Settings → Billing.'
+			};
+		}
 	}
 
 	const existing = await getOrCreateStorageSetting(userId);
