@@ -60,6 +60,9 @@ export class TrackList {
 	#getContainer;
 	/** @type {Set<AbortController>} */
 	#pending = new Set();
+	/** Held while a restore is still positioning the page, so a sentinel that is
+	 * already in range cannot page underneath it and undo the alignment. */
+	#restoring = false;
 	/** Ids already held, so a track added mid-scroll cannot appear twice. */
 	#seen = new Set();
 
@@ -95,12 +98,12 @@ export class TrackList {
 	 * @returns {Promise<boolean>}
 	 */
 	async autoLoadOlder() {
-		return this.error ? false : this.loadOlder();
+		return this.error || this.#restoring ? false : this.loadOlder();
 	}
 
 	/** @returns {Promise<boolean>} */
 	async autoLoadNewer() {
-		return this.error ? false : this.loadNewer();
+		return this.error || this.#restoring ? false : this.loadNewer();
 	}
 
 	/** @returns {Promise<boolean>} whether any new tracks were appended */
@@ -211,14 +214,27 @@ export class TrackList {
 	 * @param {ListAnchor} anchor
 	 */
 	async restoreAnchor(anchor) {
-		if (!(await this.restoreAround(anchor.cursor))) return;
-		await tick();
+		this.#restoring = true;
 
-		// Rows below the fold are laid out from their estimated size until they are
-		// scrolled near, so the first alignment lands close and the second lands it.
-		this.#alignTo(anchor);
-		await new Promise(requestAnimationFrame);
-		this.#alignTo(anchor);
+		try {
+			if (!(await this.restoreAround(anchor.cursor))) return;
+			await tick();
+
+			// Rows below the fold are laid out from their estimated size until they
+			// are scrolled near, so the first alignment lands close.
+			this.#alignTo(anchor);
+			await new Promise(requestAnimationFrame);
+
+			// A window of short rows can be too short to scroll the anchor as high up
+			// as it was, leaving the page clamped at its own end. Extend it downward
+			// until the position exists, or until there is nothing left to add.
+			while (this.#alignTo(anchor) > 1) {
+				if (!(await this.loadOlder())) break;
+				await tick();
+			}
+		} finally {
+			this.#restoring = false;
+		}
 	}
 
 	/**
@@ -238,6 +254,7 @@ export class TrackList {
 
 	/**
 	 * @param {ListAnchor} anchor
+	 * @returns {number} pixels the page fell short of the wanted position
 	 */
 	#alignTo(anchor) {
 		const container = this.#getContainer();
@@ -247,12 +264,13 @@ export class TrackList {
 			container?.querySelector(`[data-cursor="${CSS.escape(anchor.cursor)}"]`) ??
 				container?.querySelector('[data-cursor]')
 		);
-		if (!node) return;
+		if (!node) return 0;
 
 		const top = documentTop(node) - anchor.offset;
 		// Explicitly instant: the app sets `scroll-behavior: smooth` globally, and
 		// animating a jump the reader never asked for reads as a lurch.
 		if (Math.abs(top - window.scrollY) > 1) window.scrollTo({ top, behavior: 'instant' });
+		return top - window.scrollY;
 	}
 
 	/**
