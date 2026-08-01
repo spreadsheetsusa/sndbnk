@@ -3,7 +3,9 @@
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import ProfileLinksEditor from '#lib/components/settings/ProfileLinksEditor.svelte';
 
 	let { data, form } = $props();
 
@@ -62,6 +64,7 @@
 	let planBusy = $state(false);
 	let domainBusy = $state(false);
 	let storageBusy = $state(false);
+	let avatarBusy = $state(false);
 
 	/** @type {string | null} */
 	let userAdapter = $state(null);
@@ -69,6 +72,14 @@
 	const isPremium = $derived(data.profile.plan === 'premium');
 	const nameValue = $derived(form?.name ?? data.user.name);
 	const usernameValue = $derived(form?.username ?? data.profile.username);
+	const bioValue = $derived(form?.bio ?? data.profile.bio);
+	/** Null until the field is touched, so the counter starts from the loaded value. */
+	let bioTyped = $state(/** @type {number | null} */ (null));
+	const bioLength = $derived(bioTyped ?? bioValue.length);
+	const locationValue = $derived(form?.location ?? data.profile.location);
+	const linkRows = $derived(form?.links ?? data.links);
+	// Remount the editor whenever the server-side set changes, so its row state reseeds.
+	const linksKey = $derived(JSON.stringify(linkRows));
 	const domainValue = $derived(form?.customDomain ?? data.profile.customDomain ?? '');
 	const selectedAdapter = $derived(userAdapter ?? form?.adapter ?? data.storage.adapter);
 	const sshHostValue = $derived(form?.sshHost ?? data.storage.sshHost);
@@ -78,7 +89,7 @@
 	const isSshAdapter = $derived(selectedAdapter === 'ssh');
 
 	/**
-	 * @param {'profile' | 'plan' | 'domain' | 'storage'} which
+	 * @param {'profile' | 'plan' | 'domain' | 'storage' | 'avatar'} which
 	 */
 	function busyHandler(which) {
 		return () => {
@@ -86,6 +97,7 @@
 			if (which === 'plan') planBusy = true;
 			if (which === 'domain') domainBusy = true;
 			if (which === 'storage') storageBusy = true;
+			if (which === 'avatar') avatarBusy = true;
 
 			return async ({ update }) => {
 				try {
@@ -95,9 +107,19 @@
 					if (which === 'plan') planBusy = false;
 					if (which === 'domain') domainBusy = false;
 					if (which === 'storage') storageBusy = false;
+					if (which === 'avatar') avatarBusy = false;
 				}
 			};
 		};
+	}
+
+	/**
+	 * @param {Event & { currentTarget: HTMLInputElement }} event
+	 */
+	function submitOnPick(event) {
+		if (event.currentTarget.files?.length) {
+			event.currentTarget.form?.requestSubmit();
+		}
 	}
 </script>
 
@@ -140,7 +162,58 @@
 			<div class="block" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
 				<div class="block-head">
 					<h2>Profile</h2>
-					<p>Display name and username. Email stays your sign-in.</p>
+					<p>How you appear across SNDBNK. Email stays your sign-in.</p>
+				</div>
+
+				{#if form?.avatarMessage && !avatarBusy}
+					<div class="banner error" role="alert">{form.avatarMessage}</div>
+				{/if}
+				{#if form?.avatarSuccess && !avatarBusy}
+					<div class="banner ok" role="status">{form.avatarSuccess}</div>
+				{/if}
+
+				<div class="avatar-block">
+					<Avatar src={data.user.image} name={data.user.name} size="5rem" />
+					<div class="avatar-copy">
+						<p class="avatar-title">Avatar</p>
+						<p class="hint">
+							Square works best. JPG, PNG, or WebP up to 2MB. Shown in the header, on your profile,
+							and next to your comments.
+						</p>
+						<div class="avatar-actions">
+							<form
+								class="inline-form"
+								method="POST"
+								action="?/uploadAvatar&tab=profile"
+								enctype="multipart/form-data"
+								use:enhance={busyHandler('avatar')}
+							>
+								<label class="file-btn" for="avatar">
+									{avatarBusy ? 'Uploading…' : data.user.image ? 'Replace' : 'Upload'}
+								</label>
+								<input
+									id="avatar"
+									class="visually-hidden"
+									name="avatar"
+									type="file"
+									accept="image/jpeg,image/png,image/webp"
+									disabled={avatarBusy}
+									onchange={submitOnPick}
+								/>
+							</form>
+
+							{#if data.user.image}
+								<form
+									class="inline-form"
+									method="POST"
+									action="?/removeAvatar&tab=profile"
+									use:enhance={busyHandler('avatar')}
+								>
+									<button class="text-btn" type="submit" disabled={avatarBusy}>Remove</button>
+								</form>
+							{/if}
+						</div>
+					</div>
 				</div>
 
 				{#if form?.profileMessage && !profileBusy}
@@ -174,6 +247,34 @@
 					<p class="hint">
 						Path URL: {PUBLIC_BASE_DOMAIN}/users/<strong>{usernameValue || 'you'}</strong>
 					</p>
+
+					<label for="bio">Bio</label>
+					<textarea
+						id="bio"
+						class="bio"
+						name="bio"
+						rows="4"
+						maxlength={data.limits.bio}
+						placeholder="What you make, where you're headed."
+						value={bioValue}
+						oninput={(event) => (bioTyped = event.currentTarget.value.length)}></textarea>
+					<p class="hint" aria-live="polite">{bioLength} / {data.limits.bio} characters</p>
+
+					<label for="location">Location</label>
+					<input
+						id="location"
+						name="location"
+						type="text"
+						value={locationValue}
+						maxlength={data.limits.location}
+						placeholder="Berlin, DE"
+						autocomplete="address-level2"
+					/>
+					<p class="hint">Optional. Shown under your name on your public profile.</p>
+
+					{#key linksKey}
+						<ProfileLinksEditor initialLinks={linkRows} />
+					{/key}
 
 					<label for="email">Email</label>
 					<input id="email" type="email" value={data.user.email} disabled />
@@ -650,6 +751,92 @@
 
 	textarea:focus {
 		box-shadow: 4px 4px 0 var(--accent);
+	}
+
+	textarea.bio {
+		min-height: 6rem;
+		font-family: inherit;
+		font-size: 0.95rem;
+	}
+
+	.avatar-block {
+		display: flex;
+		gap: 1.15rem;
+		align-items: flex-start;
+		margin-top: 1.5rem;
+		padding-bottom: 1.5rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.avatar-copy {
+		min-width: 0;
+	}
+
+	.avatar-title {
+		margin: 0 0 0.5rem;
+		font-size: 0.7rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.avatar-copy .hint {
+		max-width: 34rem;
+		margin-bottom: 0.85rem;
+	}
+
+	.avatar-actions {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+	}
+
+	.inline-form {
+		display: inline-flex;
+		margin: 0;
+	}
+
+	.file-btn {
+		display: inline-flex;
+		align-items: center;
+		margin: 0;
+		padding: 0.55rem 0.85rem;
+		border: 1px solid var(--ink);
+		color: var(--ink);
+		background: transparent;
+		font-size: 0.7rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.file-btn:hover {
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.text-btn {
+		padding: 0;
+		border: 0;
+		color: var(--muted);
+		background: transparent;
+		font-size: 0.7rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-decoration: underline;
+		text-transform: uppercase;
+		text-underline-offset: 0.25rem;
+		cursor: pointer;
+	}
+
+	.text-btn:hover:not(:disabled) {
+		color: var(--ink);
+	}
+
+	.text-btn:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
 	}
 
 	.visually-hidden {

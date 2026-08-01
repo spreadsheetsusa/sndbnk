@@ -3,6 +3,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme inline {
+	--color-accent: var(--accent);
+	--color-on-accent: var(--on-accent);
+	--color-ink: var(--ink);
+	--color-paper: var(--paper);
+	--color-muted: var(--muted);
+}
+
 :root {
 	--accent: #c8ff3d;
 	--on-accent: #11110f;
@@ -20,8 +28,8 @@
 	/* Shared page rail so SiteHeader stays aligned across routes */
 	--site-shell-max: 1600px;
 	--site-shell-pad-x: clamp(1rem, 3.5vw, 4rem);
-	--site-content-max: 920px;
-	--site-content-max-wide: 1100px;
+	--site-content-max: var(--site-shell-max);
+	--site-content-max-wide: var(--site-shell-max);
 	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;

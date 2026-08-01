@@ -3,7 +3,7 @@
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import GlobalPlayerBar from '#lib/components/player/GlobalPlayerBar.svelte';
-	import { accent } from '#lib/stores/brand.js';
+	import { initAccent } from '#lib/stores/brand.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { initTheme } from '#lib/stores/theme.js';
 
@@ -11,11 +11,12 @@
 
 	onMount(() => {
 		initTheme();
+		initAccent();
 	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-<div class="app-shell" class:has-player={player.current} style:--accent={$accent}>
+<div class="app-shell" class:has-player={player.current}>
 	{@render children()}
 	<GlobalPlayerBar />
 </div>

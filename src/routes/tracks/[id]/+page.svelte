@@ -1,5 +1,6 @@
 <script>
 	import { goto, invalidateAll } from '$app/navigation';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import { player } from '#lib/player/player.svelte.js';
@@ -66,6 +67,7 @@
 				track={data.track}
 				signedIn={Boolean(data.viewer)}
 				viewerName={data.viewer?.name ?? null}
+				viewerImage={data.viewer?.image ?? null}
 				oncommented={() => invalidateAll()}
 				ondeleted={handleDeleted}
 			/>
@@ -96,9 +98,7 @@
 				<ul class="comment-list">
 					{#each data.comments as comment (comment.id)}
 						<li>
-							<span class="comment-avatar" aria-hidden="true">
-								{comment.userName.trim().charAt(0).toUpperCase() || '?'}
-							</span>
+							<Avatar src={comment.userImage} name={comment.userName} />
 							<div class="comment-body">
 								<p class="comment-meta">
 									<span class="comment-author">{comment.userName}</span>
@@ -197,21 +197,8 @@
 		display: flex;
 		gap: 0.65rem;
 		align-items: flex-start;
-	}
-
-	.comment-avatar {
-		display: inline-flex;
-		width: 2rem;
-		height: 2rem;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		background: color-mix(in srgb, var(--ink) 10%, transparent);
-		color: var(--ink);
-		font-size: 0.8rem;
-		font-weight: 900;
-		flex-shrink: 0;
+		--avatar-bg: color-mix(in srgb, var(--ink) 10%, transparent);
+		--avatar-color: var(--ink);
 	}
 
 	.comment-body {

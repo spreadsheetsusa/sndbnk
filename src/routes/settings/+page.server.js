@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { and, eq, ne } from 'drizzle-orm';
 
 import { auth } from '#lib/server/auth';
+import { removeAvatar, saveAvatar } from '#lib/server/avatar';
 import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
 import {
@@ -9,6 +10,14 @@ import {
 	validateDomain,
 	verifyCustomDomain
 } from '#lib/server/domain-verify';
+import {
+	MAX_BIO_LENGTH,
+	MAX_LOCATION_LENGTH,
+	listLinksForUser,
+	readLinkEntries,
+	replaceLinksForUser,
+	validateProfileLinks
+} from '#lib/server/profile-links';
 import { PLAN_DETAILS, canUseCustomDomain, isPlan } from '#lib/server/plans';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import {
@@ -34,19 +43,28 @@ export const load = async ({ locals }) => {
 
 	const urls = buildPublicUrls(row);
 	const storage = await getStorageSettingPublic(locals.user.id);
+	const links = await listLinksForUser(locals.user.id);
 
 	return {
 		user: {
 			id: locals.user.id,
 			name: locals.user.name,
-			email: locals.user.email
+			email: locals.user.email,
+			image: locals.user.image ?? null
 		},
 		profile: {
 			username: row.username,
 			plan: row.plan,
+			bio: row.bio ?? '',
+			location: row.location ?? '',
 			customDomain: row.customDomain,
 			customDomainStatus: row.customDomainStatus,
 			domainVerifyToken: row.domainVerifyToken
+		},
+		links,
+		limits: {
+			bio: MAX_BIO_LENGTH,
+			location: MAX_LOCATION_LENGTH
 		},
 		urls,
 		baseDomain: PUBLIC_BASE_DOMAIN,
@@ -65,22 +83,40 @@ export const actions = {
 		const formData = await request.formData();
 		const name = formData.get('name')?.toString().trim() ?? '';
 		const usernameRaw = formData.get('username')?.toString() ?? '';
+		const bio = formData.get('bio')?.toString().trim() ?? '';
+		const location = formData.get('location')?.toString().trim() ?? '';
+		const linkEntries = readLinkEntries(formData);
 		const usernameResult = validateUsername(usernameRaw);
 
+		/** @param {string} message */
+		const invalid = (message) => ({
+			profileMessage: message,
+			name,
+			username: usernameRaw.trim(),
+			bio,
+			location,
+			links: linkEntries
+		});
+
 		if (!name) {
-			return fail(400, {
-				profileMessage: 'Name is required.',
-				name,
-				username: usernameRaw.trim()
-			});
+			return fail(400, invalid('Name is required.'));
 		}
 
 		if (!usernameResult.ok) {
-			return fail(400, {
-				profileMessage: usernameResult.message,
-				name,
-				username: usernameRaw.trim()
-			});
+			return fail(400, invalid(usernameResult.message));
+		}
+
+		if (bio.length > MAX_BIO_LENGTH) {
+			return fail(400, invalid(`Bio must be ${MAX_BIO_LENGTH} characters or fewer.`));
+		}
+
+		if (location.length > MAX_LOCATION_LENGTH) {
+			return fail(400, invalid(`Location must be ${MAX_LOCATION_LENGTH} characters or fewer.`));
+		}
+
+		const linksResult = validateProfileLinks(linkEntries);
+		if (!linksResult.ok) {
+			return fail(400, invalid(linksResult.message));
 		}
 
 		const { username } = usernameResult;
@@ -91,11 +127,7 @@ export const actions = {
 			.limit(1);
 
 		if (taken.length > 0) {
-			return fail(400, {
-				profileMessage: 'That username is already taken.',
-				name,
-				username
-			});
+			return fail(400, invalid('That username is already taken.'));
 		}
 
 		try {
@@ -104,19 +136,52 @@ export const actions = {
 				headers: request.headers
 			});
 		} catch {
-			return fail(500, {
-				profileMessage: 'Could not update your name. Try again.',
-				name,
-				username
-			});
+			return fail(500, invalid('Could not update your name. Try again.'));
 		}
 
 		await db
 			.update(profile)
-			.set({ username, updatedAt: new Date() })
+			.set({
+				username,
+				bio: bio || null,
+				location: location || null,
+				updatedAt: new Date()
+			})
 			.where(eq(profile.userId, locals.user.id));
 
+		await replaceLinksForUser(locals.user.id, linksResult.links);
+
 		return { profileSuccess: 'Profile updated.' };
+	},
+
+	uploadAvatar: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const file = formData.get('avatar');
+
+		if (!(typeof File !== 'undefined' && file instanceof File && file.size > 0)) {
+			return fail(400, { avatarMessage: 'Choose an image to upload.' });
+		}
+
+		const result = await saveAvatar(locals.user.id, file, request.headers);
+		if (!result.ok) {
+			return fail(400, { avatarMessage: result.message });
+		}
+
+		return { avatarSuccess: 'Avatar updated.' };
+	},
+
+	removeAvatar: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		await removeAvatar(locals.user.id, request.headers);
+
+		return { avatarSuccess: 'Avatar removed.' };
 	},
 
 	setPlan: async ({ locals, request }) => {

@@ -79,6 +79,10 @@ CREATE TABLE IF NOT EXISTS profile (
 	user_id text PRIMARY KEY NOT NULL,
 	username text NOT NULL,
 	plan text DEFAULT 'basic' NOT NULL,
+	bio text,
+	location text,
+	avatar_filename text,
+	avatar_mime text,
 	custom_domain text,
 	custom_domain_status text DEFAULT 'none' NOT NULL,
 	domain_verify_token text,
@@ -91,6 +95,17 @@ CREATE TABLE IF NOT EXISTS profile (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS profile_username_unique ON profile (username);
 CREATE UNIQUE INDEX IF NOT EXISTS profile_custom_domain_unique ON profile (custom_domain);
+
+CREATE TABLE IF NOT EXISTS profile_link (
+	id text PRIMARY KEY NOT NULL,
+	user_id text NOT NULL,
+	label text NOT NULL,
+	url text NOT NULL,
+	position integer DEFAULT 0 NOT NULL,
+	created_at integer NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS profile_link_userId_idx ON profile_link (user_id);
 
 CREATE TABLE IF NOT EXISTS storage_setting (
 	user_id text PRIMARY KEY NOT NULL,
@@ -180,6 +195,13 @@ function ensureColumns(table, columns) {
 		console.log(`Added column ${table}.${name}`);
 	}
 }
+
+ensureColumns('profile', [
+	['bio', 'text'],
+	['location', 'text'],
+	['avatar_filename', 'text'],
+	['avatar_mime', 'text']
+]);
 
 ensureColumns('track', [
 	['duration_ms', 'integer'],

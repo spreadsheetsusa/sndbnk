@@ -1,8 +1,26 @@
 <script>
+	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
+	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
+	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
+	import IconSend from '@tabler/icons-svelte-runes/icons/send';
+	import { fade } from 'svelte/transition';
+
+	import Avatar from '#lib/components/Avatar.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+
+	/**
+	 * @typedef {Object} TimedComment
+	 * @property {string} id
+	 * @property {string} body
+	 * @property {number} atMs
+	 * @property {number} createdAt
+	 * @property {string} userId
+	 * @property {string} userName
+	 * @property {string | null} userImage
+	 */
 
 	/**
 	 * @typedef {Object} CardTrack
@@ -20,6 +38,7 @@
 	 * @property {number} commentCount
 	 * @property {boolean} likedByViewer
 	 * @property {boolean} isOwner
+	 * @property {TimedComment[] | undefined} [timedComments]
 	 */
 
 	/**
@@ -27,11 +46,19 @@
 	 *   track: CardTrack,
 	 *   signedIn?: boolean,
 	 *   viewerName?: string | null,
-	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string }) => void,
+	 *   viewerImage?: string | null,
+	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
 	 *   ondeleted?: () => void
 	 * }}
 	 */
-	let { track, signedIn = false, viewerName = null, oncommented, ondeleted } = $props();
+	let {
+		track,
+		signedIn = false,
+		viewerName = null,
+		viewerImage = null,
+		oncommented,
+		ondeleted
+	} = $props();
 
 	/** @type {{ liked: boolean, count: number } | null} */
 	let likeOverride = $state(null);
@@ -45,6 +72,12 @@
 	let extraComments = $state(0);
 	const commentCount = $derived(track.commentCount + extraComments);
 
+	/**
+	 * Comments posted from this card since load, so markers appear without a reload.
+	 * @type {TimedComment[]}
+	 */
+	let postedComments = $state([]);
+
 	let menuOpen = $state(false);
 	let copied = $state(false);
 	let likeBusy = $state(false);
@@ -55,7 +88,53 @@
 	const cardTime = $derived(isActive ? player.currentTime : 0);
 	const durationSec = $derived((track.durationMs ?? 0) / 1000);
 	const progressPct = $derived(durationSec > 0 ? Math.min((cardTime / durationSec) * 100, 100) : 0);
-	const viewerInitial = $derived((viewerName ?? '?').trim().charAt(0).toUpperCase() || '?');
+
+	const durationMs = $derived(track.durationMs ?? 0);
+
+	/** Loaded + freshly posted timed comments, positioned along the waveform. */
+	const markers = $derived.by(() => {
+		if (durationMs <= 0) return [];
+		const seen = new Set(postedComments.map((c) => c.id));
+		const all = [...(track.timedComments ?? []).filter((c) => !seen.has(c.id)), ...postedComments];
+		return all
+			.slice()
+			.sort((a, b) => a.atMs - b.atMs)
+			.map((comment) => ({
+				...comment,
+				leftPct: Math.min(Math.max((comment.atMs / durationMs) * 100, 0), 100)
+			}));
+	});
+
+	/**
+	 * How close the playhead must be to a marker before its tooltip opens.
+	 * Scales with duration so long tracks do not need pixel-perfect timing,
+	 * but stays bounded so markers on a long mix do not all stay open.
+	 */
+	const tooltipWindowMs = $derived(Math.min(Math.max(durationMs * 0.01, 1000), 4000));
+
+	/** The single marker the playhead is currently sitting on, if any. */
+	const playheadMarker = $derived.by(() => {
+		if (!isActive || markers.length === 0) return null;
+		const nowMs = cardTime * 1000;
+		let closest = null;
+		let closestDelta = Infinity;
+		for (const marker of markers) {
+			const delta = Math.abs(nowMs - marker.atMs);
+			if (delta <= tooltipWindowMs && delta < closestDelta) {
+				closest = marker;
+				closestDelta = delta;
+			}
+		}
+		return closest;
+	});
+
+	/** @type {string | null} */
+	let hoveredMarkerId = $state(null);
+
+	// Hovering wins over the playhead so a comment can be read on demand.
+	const activeMarker = $derived(
+		markers.find((marker) => marker.id === hoveredMarkerId) ?? playheadMarker
+	);
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
 	function asPlayerTrack() {
@@ -156,6 +235,9 @@
 				const data = await res.json();
 				commentBody = '';
 				extraComments += 1;
+				if (data.comment.atMs != null) {
+					postedComments = [...postedComments, data.comment];
+				}
 				commentNote =
 					data.comment.atMs != null
 						? `Comment added at ${formatDuration(data.comment.atMs)}`
@@ -211,13 +293,11 @@
 				aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
 				onclick={togglePlay}
 			>
-				<svg viewBox="0 0 24 24" aria-hidden="true">
-					{#if isPlaying}
-						<path d="M8 5h3v14H8zM13 5h3v14h-3z" />
-					{:else}
-						<path d="M8 5l11 7-11 7z" />
-					{/if}
-				</svg>
+				{#if isPlaying}
+					<IconPlayerPauseFilled size={18} aria-hidden="true" />
+				{:else}
+					<IconPlayerPlayFilled size={18} aria-hidden="true" />
+				{/if}
 			</button>
 
 			<div class="titles">
@@ -247,11 +327,7 @@
 					aria-haspopup="menu"
 					onclick={() => (menuOpen = !menuOpen)}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<circle cx="5" cy="12" r="1.6" />
-						<circle cx="12" cy="12" r="1.6" />
-						<circle cx="19" cy="12" r="1.6" />
-					</svg>
+					<IconDots size={16} stroke={1.75} aria-hidden="true" />
 				</button>
 
 				{#if menuOpen}
@@ -306,11 +382,39 @@
 				</span>
 			{/if}
 			<span class="time-chip total">{formatDuration(track.durationMs)}</span>
+
+			{#each markers as marker (marker.id)}
+				<button
+					type="button"
+					class="marker"
+					class:active={activeMarker?.id === marker.id}
+					style:left="{marker.leftPct}%"
+					aria-label="{marker.userName} commented at {formatDuration(marker.atMs)}: {marker.body}"
+					onclick={() => handleSeek(marker.atMs / 1000)}
+					onmouseenter={() => (hoveredMarkerId = marker.id)}
+					onmouseleave={() => (hoveredMarkerId = null)}
+					onfocus={() => (hoveredMarkerId = marker.id)}
+					onblur={() => (hoveredMarkerId = null)}
+				>
+					<Avatar src={marker.userImage} name={marker.userName} size="1.15rem" />
+				</button>
+			{/each}
+
+			{#if activeMarker}
+				<div
+					class="marker-tip"
+					style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
+					transition:fade={{ duration: 120 }}
+				>
+					<span class="tip-name">{activeMarker.userName}</span>
+					<span class="tip-body">{activeMarker.body}</span>
+				</div>
+			{/if}
 		</div>
 
 		{#if signedIn}
 			<form class="comment-row" onsubmit={submitComment}>
-				<span class="avatar" aria-hidden="true">{viewerInitial}</span>
+				<Avatar src={viewerImage} name={viewerName} />
 				<input
 					type="text"
 					name="comment"
@@ -326,9 +430,7 @@
 					aria-label="Post comment"
 					disabled={commentBusy || !commentBody.trim()}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M3 12l18-8-6 8 6 8z" fill="none" stroke-width="1.6" stroke-linejoin="round" />
-					</svg>
+					<IconSend size={16} stroke={1.75} aria-hidden="true" />
 				</button>
 				{#if commentNote}
 					<span class="comment-note" role="status">{commentNote}</span>
@@ -406,10 +508,8 @@
 		flex-shrink: 0;
 	}
 
-	.play-btn svg {
-		width: 1.1rem;
-		height: 1.1rem;
-		fill: currentColor;
+	.play-btn :global(svg) {
+		display: block;
 	}
 
 	.titles {
@@ -508,26 +608,63 @@
 		right: 0;
 	}
 
+	.marker {
+		position: absolute;
+		top: 50%;
+		z-index: 3;
+		display: inline-flex;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		transform: translate(-50%, -50%);
+		cursor: pointer;
+		--avatar-border: 1px solid var(--paper);
+		--avatar-font-size: 0.55rem;
+	}
+
+	.marker:hover,
+	.marker.active {
+		transform: translate(-50%, -50%) scale(1.15);
+		--avatar-border: 1px solid var(--ink);
+	}
+
+	.marker-tip {
+		position: absolute;
+		top: calc(50% + 1.1rem);
+		z-index: 4;
+		display: flex;
+		max-width: min(18rem, 90%);
+		gap: 0.35rem;
+		align-items: baseline;
+		padding: 0.22rem 0.5rem;
+		border-radius: 999px;
+		background: var(--inverse);
+		color: var(--on-inverse);
+		font-size: 0.68rem;
+		line-height: 1.35;
+		transform: translateX(-50%);
+		pointer-events: none;
+	}
+
+	.tip-name {
+		font-weight: 900;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.tip-body {
+		overflow: hidden;
+		color: color-mix(in srgb, var(--on-inverse) 80%, transparent);
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
 	.comment-row {
 		position: relative;
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
-	}
-
-	.avatar {
-		display: inline-flex;
-		width: 2rem;
-		height: 2rem;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		background: var(--accent);
-		color: var(--on-accent);
-		font-size: 0.8rem;
-		font-weight: 900;
-		flex-shrink: 0;
 	}
 
 	.comment-row input {
@@ -559,10 +696,8 @@
 		flex-shrink: 0;
 	}
 
-	.send-btn svg {
-		width: 1rem;
-		height: 1rem;
-		stroke: currentColor;
+	.send-btn :global(svg) {
+		display: block;
 	}
 
 	.send-btn:not(:disabled):hover {
@@ -611,10 +746,8 @@
 		background: var(--accent);
 	}
 
-	.more-btn svg {
-		width: 1rem;
-		height: 1rem;
-		fill: currentColor;
+	.more-btn :global(svg) {
+		display: block;
 	}
 
 	.menu {

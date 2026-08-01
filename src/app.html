@@ -7,12 +7,23 @@
 		<script>
 			(function () {
 				try {
+					var root = document.documentElement;
 					var stored = localStorage.getItem('theme');
 					var dark =
 						stored === 'dark' ||
 						(stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-					document.documentElement.classList.toggle('dark', dark);
-					document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+					root.classList.toggle('dark', dark);
+					root.style.colorScheme = dark ? 'dark' : 'light';
+
+					var accents = {
+						lime: { value: '#c8ff3d', onAccent: '#11110f' },
+						cyan: { value: '#3de0ff', onAccent: '#11110f' },
+						magenta: { value: '#ff3d8a', onAccent: '#11110f' },
+						orange: { value: '#ff8a3d', onAccent: '#11110f' }
+					};
+					var accent = accents[localStorage.getItem('accent')] || accents.lime;
+					root.style.setProperty('--accent', accent.value);
+					root.style.setProperty('--on-accent', accent.onAccent);
 				} catch (e) {}
 			})();
 		</script>

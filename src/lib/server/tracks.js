@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
@@ -543,7 +543,8 @@ export async function listCommentsForTrack(trackId) {
 			atMs: trackComment.atMs,
 			createdAt: trackComment.createdAt,
 			userId: trackComment.userId,
-			userName: user.name
+			userName: user.name,
+			userImage: user.image
 		})
 		.from(trackComment)
 		.leftJoin(user, eq(user.id, trackComment.userId))
@@ -556,8 +557,69 @@ export async function listCommentsForTrack(trackId) {
 		atMs: row.atMs,
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
 		userId: row.userId,
-		userName: row.userName ?? 'Unknown'
+		userName: row.userName ?? 'Unknown',
+		userImage: row.userImage ?? null
 	}));
+}
+
+/**
+ * @typedef {Object} TimedComment
+ * @property {string} id
+ * @property {string} body
+ * @property {number} atMs
+ * @property {number} createdAt
+ * @property {string} userId
+ * @property {string} userName
+ * @property {string | null} userImage
+ */
+
+/**
+ * Timestamped comments (`atMs` set) for a set of tracks, oldest position first.
+ * Powers the avatar markers drawn on track waveforms.
+ *
+ * @param {string[]} trackIds
+ * @returns {Promise<Map<string, TimedComment[]>>}
+ */
+export async function listTimedCommentsForTracks(trackIds) {
+	/** @type {Map<string, TimedComment[]>} */
+	const map = new Map();
+	if (trackIds.length === 0) return map;
+
+	for (const id of trackIds) {
+		map.set(id, []);
+	}
+
+	const rows = await db
+		.select({
+			id: trackComment.id,
+			trackId: trackComment.trackId,
+			body: trackComment.body,
+			atMs: trackComment.atMs,
+			createdAt: trackComment.createdAt,
+			userId: trackComment.userId,
+			userName: user.name,
+			userImage: user.image
+		})
+		.from(trackComment)
+		.leftJoin(user, eq(user.id, trackComment.userId))
+		.where(and(inArray(trackComment.trackId, trackIds), isNotNull(trackComment.atMs)))
+		.orderBy(asc(trackComment.atMs));
+
+	for (const row of rows) {
+		const entry = map.get(row.trackId);
+		if (!entry) continue;
+		entry.push({
+			id: row.id,
+			body: row.body,
+			atMs: row.atMs ?? 0,
+			createdAt: row.createdAt?.getTime() ?? Date.now(),
+			userId: row.userId,
+			userName: row.userName ?? 'Unknown',
+			userImage: row.userImage ?? null
+		});
+	}
+
+	return map;
 }
 
 /**
@@ -568,8 +630,9 @@ export async function listCommentsForTrack(trackId) {
  * @param {{ username: string | null, uploaderName: string | null }} uploader
  * @param {{ likeCount: number, commentCount: number, likedByViewer: boolean } | undefined} social
  * @param {{ id: string } | null | undefined} viewer
+ * @param {TimedComment[] | undefined} [timedComments]
  */
-export async function serializeTrackForPlayer(row, uploader, social, viewer) {
+export async function serializeTrackForPlayer(row, uploader, social, viewer, timedComments) {
 	const waveform = await ensureTrackWaveform(row);
 
 	return {
@@ -586,7 +649,8 @@ export async function serializeTrackForPlayer(row, uploader, social, viewer) {
 		likeCount: social?.likeCount ?? 0,
 		commentCount: social?.commentCount ?? 0,
 		likedByViewer: social?.likedByViewer ?? false,
-		isOwner: Boolean(viewer && viewer.id === row.userId)
+		isOwner: Boolean(viewer && viewer.id === row.userId),
+		timedComments: timedComments ?? []
 	};
 }
 

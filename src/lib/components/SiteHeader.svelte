@@ -1,19 +1,24 @@
 <script>
+	import IconMenu2 from '@tabler/icons-svelte-runes/icons/menu-2';
+	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+	import { ACCENTS, accent, setAccent } from '#lib/stores/brand.js';
+	import { resolvedTheme, setThemePreference, themePreference } from '#lib/stores/theme.js';
 
-	const nav = $derived(page.data.nav ?? { name: null, username: null });
+	const nav = $derived(page.data.nav ?? { name: null, username: null, image: null });
 	const signedIn = $derived(Boolean(nav.name));
+	const appearanceValue = $derived(
+		$themePreference === 'light' || $themePreference === 'dark' ? $themePreference : $resolvedTheme
+	);
 
-	let open = $state(false);
-	/** @type {HTMLDivElement | undefined} */
-	let menuWrap = $state();
-	/** @type {HTMLButtonElement | undefined} */
-	let toggleButton = $state();
+	let guestMenuOpen = $state(false);
+	let accountMenuOpen = $state(false);
 
-	const menuLabel = $derived(open ? 'Close menu' : 'Open menu');
+	const guestMenuLabel = $derived(guestMenuOpen ? 'Close menu' : 'Open menu');
 
 	/**
 	 * @param {string} href
@@ -24,51 +29,81 @@
 	}
 
 	/**
-	 * @param {KeyboardEvent} event
+	 * @param {Event} event
 	 */
-	function handleKeydown(event) {
-		if (event.key === 'Escape' && open) {
-			open = false;
-			toggleButton?.focus();
+	function handleAppearanceChange(event) {
+		const value = /** @type {HTMLSelectElement} */ (event.currentTarget).value;
+		if (value === 'light' || value === 'dark') {
+			setThemePreference(value);
 		}
 	}
 
-	/**
-	 * @param {PointerEvent} event
-	 */
-	function handlePointerDown(event) {
-		if (!open || !menuWrap) return;
+	/** @type {import('svelte/attachments').Attachment} */
+	function accountMenuAttach(node) {
+		/** @param {PointerEvent} event */
+		function onPointerDown(event) {
+			if (!accountMenuOpen) return;
+			const target = /** @type {Node | null} */ (event.target);
+			if (!target || node.contains(target)) return;
 
-		const target = /** @type {Node | null} */ (event.target);
-		if (target && !menuWrap.contains(target)) {
-			open = false;
+			// Defer so native <select> option picks can apply before the panel unmounts.
+			queueMicrotask(() => {
+				if (!accountMenuOpen) return;
+				if (node.contains(document.activeElement)) return;
+				accountMenuOpen = false;
+			});
 		}
+
+		/** @param {KeyboardEvent} event */
+		function onKeydown(event) {
+			if (event.key !== 'Escape' || !accountMenuOpen) return;
+			accountMenuOpen = false;
+			node.querySelector('button')?.focus();
+		}
+
+		document.addEventListener('pointerdown', onPointerDown);
+		window.addEventListener('keydown', onKeydown);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown);
+			window.removeEventListener('keydown', onKeydown);
+		};
+	}
+
+	/** @type {import('svelte/attachments').Attachment} */
+	function guestMenuAttach(node) {
+		/** @param {PointerEvent} event */
+		function onPointerDown(event) {
+			if (!guestMenuOpen) return;
+			const target = /** @type {Node | null} */ (event.target);
+			if (target && !node.contains(target)) {
+				guestMenuOpen = false;
+			}
+		}
+
+		/** @param {KeyboardEvent} event */
+		function onKeydown(event) {
+			if (event.key !== 'Escape' || !guestMenuOpen) return;
+			guestMenuOpen = false;
+			node.querySelector('button')?.focus();
+		}
+
+		document.addEventListener('pointerdown', onPointerDown);
+		window.addEventListener('keydown', onKeydown);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown);
+			window.removeEventListener('keydown', onKeydown);
+		};
 	}
 
 	afterNavigate(() => {
-		open = false;
+		guestMenuOpen = false;
+		accountMenuOpen = false;
 	});
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
-<svelte:document onpointerdown={handlePointerDown} />
-
-{#snippet navLinks()}
-	{#if signedIn}
-		<a href="/library" aria-current={current('/library')}>Library</a>
-		<a href="/settings" aria-current={current('/settings')}>Settings</a>
-		{#if nav.username}
-			<a href="/users/{nav.username}" aria-current={current(`/users/${nav.username}`)}>
-				View profile
-			</a>
-		{/if}
-		<form method="POST" action="/?/signOut" use:enhance>
-			<button type="submit">Sign out</button>
-		</form>
-	{:else}
-		<a href="/signin" aria-current={current('/signin')}>Sign in</a>
-		<a class="nav-cta" href="/signup" aria-current={current('/signup')}>Create account</a>
-	{/if}
+{#snippet guestLinks()}
+	<a href="/signin" aria-current={current('/signin')}>Sign in</a>
+	<a class="nav-cta" href="/signup" aria-current={current('/signup')}>Create account</a>
 {/snippet}
 
 <header class="site-header">
@@ -77,50 +112,114 @@
 	</a>
 
 	<div class="header-end">
-		<nav class="inline-nav" aria-label="Main">
-			{@render navLinks()}
-		</nav>
+		{#if signedIn}
+			<nav class="mode-strip" aria-label="Primary">
+				<a class="mode-btn" href="/feed" aria-current={current('/feed')}>Feed</a>
+				<a class="mode-btn" href="/library" aria-current={current('/library')}> Library </a>
+				{#if nav.username}
+					<a
+						class="mode-btn"
+						href="/users/{nav.username}"
+						aria-current={current(`/users/${nav.username}`)}
+					>
+						My Profile
+					</a>
+				{/if}
+			</nav>
 
-		<ThemeToggle />
+			<div class="account-wrap" {@attach accountMenuAttach}>
+				<button
+					type="button"
+					class="avatar-btn"
+					aria-expanded={accountMenuOpen}
+					aria-haspopup="true"
+					aria-controls="account-menu"
+					aria-label="Account menu"
+					title="Account menu"
+					onclick={() => (accountMenuOpen = !accountMenuOpen)}
+				>
+					<Avatar src={nav.image} name={nav.name} size="2.25rem" />
+				</button>
 
-		<div class="menu-wrap" bind:this={menuWrap}>
-			<button
-				bind:this={toggleButton}
-				type="button"
-				class="menu-toggle"
-				aria-expanded={open}
-				aria-controls="site-menu"
-				aria-label={menuLabel}
-				title={menuLabel}
-				onclick={() => (open = !open)}
-			>
-				<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-					{#if open}
-						<path
-							d="M6 6l12 12M18 6L6 18"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.75"
-							stroke-linecap="round"
-						/>
+				{#if accountMenuOpen}
+					<div id="account-menu" class="account-panel" aria-label="Account menu">
+						<div class="accent-row">
+							<span id="accent-label">Accent</span>
+							<div class="swatches" role="group" aria-labelledby="accent-label">
+								{#each ACCENTS as option (option.id)}
+									<button
+										type="button"
+										class="swatch"
+										style:--swatch={option.value}
+										aria-pressed={$accent === option.id}
+										aria-label={option.label}
+										title={option.label}
+										onclick={() => setAccent(option.id)}
+									></button>
+								{/each}
+							</div>
+						</div>
+
+						<label class="appearance-row">
+							<span>Appearance</span>
+							<select
+								value={appearanceValue}
+								aria-label="Appearance"
+								onchange={handleAppearanceChange}
+							>
+								<option value="light">Light</option>
+								<option value="dark">Dark</option>
+								<option value="disco" disabled>Disco</option>
+							</select>
+						</label>
+
+						<hr class="account-divider" />
+
+						<a class="account-item" href="/settings" aria-current={current('/settings')}>
+							Settings
+						</a>
+
+						<hr class="account-divider" />
+
+						<form method="POST" action="/?/signOut" use:enhance>
+							<button type="submit" class="account-item">
+								Sign out{nav.username ? ` (${nav.username})` : ''}
+							</button>
+						</form>
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<nav class="inline-nav" aria-label="Main">
+				{@render guestLinks()}
+			</nav>
+
+			<ThemeToggle />
+
+			<div class="menu-wrap" {@attach guestMenuAttach}>
+				<button
+					type="button"
+					class="menu-toggle"
+					aria-expanded={guestMenuOpen}
+					aria-controls="site-menu"
+					aria-label={guestMenuLabel}
+					title={guestMenuLabel}
+					onclick={() => (guestMenuOpen = !guestMenuOpen)}
+				>
+					{#if guestMenuOpen}
+						<IconX size={18} stroke={1.75} aria-hidden="true" />
 					{:else}
-						<path
-							d="M4 7h16M4 12h16M4 17h16"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.75"
-							stroke-linecap="round"
-						/>
+						<IconMenu2 size={18} stroke={1.75} aria-hidden="true" />
 					{/if}
-				</svg>
-			</button>
+				</button>
 
-			{#if open}
-				<nav id="site-menu" class="menu-panel" aria-label="Main menu">
-					{@render navLinks()}
-				</nav>
-			{/if}
-		</div>
+				{#if guestMenuOpen}
+					<nav id="site-menu" class="menu-panel" aria-label="Main menu">
+						{@render guestLinks()}
+					</nav>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </header>
 
@@ -132,7 +231,7 @@
 		justify-content: space-between;
 		min-height: 5rem;
 		margin-bottom: var(--site-header-gap, clamp(2rem, 5vw, 3.5rem));
-		border-bottom: 1px solid var(--ink);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 	}
 
 	.logo {
@@ -144,8 +243,200 @@
 
 	.header-end {
 		display: flex;
-		gap: clamp(0.75rem, 2vw, 1.75rem);
+		gap: clamp(0.75rem, 2vw, 1.25rem);
 		align-items: center;
+	}
+
+	.mode-strip {
+		display: inline-flex;
+		align-items: stretch;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		box-shadow: 3px 3px 0 var(--ink);
+	}
+
+	.mode-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 2.25rem;
+		padding: 0.4rem 0.85rem;
+		border: 0;
+		border-right: 1px solid var(--ink);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+		font-size: 0.7rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		text-decoration: none;
+		text-transform: uppercase;
+		white-space: nowrap;
+		transition:
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+			background 120ms ease,
+			box-shadow 120ms ease,
+			color 120ms ease;
+	}
+
+	.mode-btn:last-child {
+		border-right: 0;
+	}
+
+	.mode-btn:hover {
+		background: color-mix(in srgb, var(--accent) 35%, var(--paper));
+	}
+
+	.mode-btn[aria-current='page'] {
+		color: var(--on-accent);
+		background: var(--accent);
+		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+		transform: translate(1px, 1px);
+	}
+
+	.account-wrap {
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.avatar-btn {
+		display: inline-flex;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		cursor: pointer;
+		flex-shrink: 0;
+		transition:
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+			opacity 120ms ease;
+	}
+
+	.avatar-btn:hover {
+		opacity: 0.85;
+	}
+
+	.avatar-btn:active,
+	.avatar-btn[aria-expanded='true'] {
+		transform: translate(1px, 1px);
+	}
+
+	.account-panel {
+		position: absolute;
+		z-index: 20;
+		top: calc(100% + 0.5rem);
+		right: 0;
+		display: grid;
+		min-width: 14.5rem;
+		padding: 0.4rem;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		box-shadow: 5px 5px 0 var(--ink);
+	}
+
+	.account-item {
+		display: block;
+		width: 100%;
+		padding: 0.6rem 0.7rem;
+		border: 0;
+		color: var(--ink);
+		background: transparent;
+		font-size: 0.75rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		text-align: left;
+		text-decoration: none;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.account-item[aria-current='page'],
+	.account-item:hover {
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.appearance-row {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.45rem 0.7rem;
+		color: var(--ink);
+		font-size: 0.75rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.appearance-row select {
+		min-width: 6.5rem;
+		padding: 0.3rem 0.4rem;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		color: var(--ink);
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.accent-row {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.45rem 0.7rem;
+		color: var(--ink);
+		font-size: 0.75rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.swatches {
+		display: inline-flex;
+		gap: 0.35rem;
+		align-items: center;
+	}
+
+	.swatch {
+		width: 1.15rem;
+		height: 1.15rem;
+		padding: 0;
+		border: 1px solid var(--ink);
+		border-radius: 50%;
+		background: var(--swatch);
+		cursor: pointer;
+		transition:
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+			box-shadow 120ms ease,
+			opacity 120ms ease;
+	}
+
+	.swatch:hover {
+		opacity: 0.85;
+	}
+
+	.swatch:active,
+	.swatch[aria-pressed='true'] {
+		box-shadow:
+			0 0 0 2px var(--paper),
+			0 0 0 3px var(--ink);
+		transform: translate(1px, 1px);
+	}
+
+	.account-divider {
+		width: 100%;
+		height: 0;
+		margin: 0.25rem 0;
+		border: 0;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+	}
+
+	.account-panel form {
+		display: block;
+		margin: 0;
 	}
 
 	.inline-nav {
@@ -156,33 +447,15 @@
 		justify-content: flex-end;
 	}
 
-	.inline-nav form {
-		display: flex;
-		align-items: center;
-	}
-
-	.inline-nav a,
-	.inline-nav button {
+	.inline-nav a {
 		color: var(--ink);
 		font-size: 0.75rem;
 		font-weight: 800;
 		letter-spacing: 0.06em;
-		text-decoration: none;
-		text-transform: uppercase;
-	}
-
-	.inline-nav button {
-		padding: 0;
-		border: 0;
-		background: transparent;
-		cursor: pointer;
-	}
-
-	.inline-nav a:not(.nav-cta),
-	.inline-nav button {
 		text-decoration: underline;
 		text-decoration-thickness: 1px;
 		text-underline-offset: 0.3em;
+		text-transform: uppercase;
 	}
 
 	.inline-nav a[aria-current='page'] {
@@ -194,6 +467,7 @@
 		border: 1px solid var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
+		text-decoration: none;
 	}
 
 	.menu-wrap {
@@ -226,10 +500,8 @@
 		transform: translate(1px, 1px);
 	}
 
-	.menu-toggle svg {
+	.menu-toggle :global(svg) {
 		display: block;
-		width: 1.125rem;
-		height: 1.125rem;
 	}
 
 	.menu-panel {
@@ -245,8 +517,7 @@
 		box-shadow: 5px 5px 0 var(--ink);
 	}
 
-	.menu-panel a,
-	.menu-panel button {
+	.menu-panel a {
 		display: block;
 		width: 100%;
 		padding: 0.6rem 0.7rem;
@@ -273,8 +544,7 @@
 		background: var(--accent);
 	}
 
-	.menu-panel a:hover,
-	.menu-panel button:hover {
+	.menu-panel a:hover {
 		color: var(--on-accent);
 		background: var(--accent);
 	}
@@ -282,6 +552,11 @@
 	@media (max-width: 720px) {
 		.site-header {
 			min-height: 4.5rem;
+		}
+
+		.mode-btn {
+			padding: 0.4rem 0.65rem;
+			font-size: 0.65rem;
 		}
 
 		.inline-nav {

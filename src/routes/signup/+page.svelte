@@ -1,4 +1,7 @@
 <script>
+	import IconAlertCircle from '@tabler/icons-svelte-runes/icons/alert-circle';
+	import IconArrowLeft from '@tabler/icons-svelte-runes/icons/arrow-left';
+	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import { enhance } from '$app/forms';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
@@ -49,7 +52,9 @@
 
 			{#if form?.message && !submitting}
 				<div class="form-error" id="form-error" role="alert" aria-live="polite">
-					<span aria-hidden="true">!</span>
+					<span class="form-error-icon" aria-hidden="true">
+						<IconAlertCircle size={16} stroke={1.75} />
+					</span>
 					{form.message}
 				</div>
 			{/if}
@@ -119,13 +124,18 @@
 
 				<button class="pressable" type="submit" disabled={submitting}>
 					{submitting ? 'Creating account…' : 'Create account'}
-					{#if !submitting}<span aria-hidden="true">↗</span>{/if}
+					{#if !submitting}
+						<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
+					{/if}
 				</button>
 			</form>
 
 			<p class="switch-auth">Already have an account? <a href="/signin">Sign in</a></p>
 		</div>
-		<a class="back-link" href="/">← Back home</a>
+		<a class="back-link" href="/">
+			<IconArrowLeft size={14} stroke={1.75} aria-hidden="true" />
+			Back home
+		</a>
 	</section>
 </main>
 
@@ -263,14 +273,17 @@
 		line-height: 1.4;
 	}
 
-	.form-error span {
+	.form-error-icon {
 		display: grid;
 		width: 1.5rem;
 		aspect-ratio: 1;
 		place-items: center;
 		color: var(--on-accent);
 		background: var(--accent);
-		font-weight: 900;
+	}
+
+	.form-error-icon :global(svg) {
+		display: block;
 	}
 
 	form {
@@ -345,17 +358,22 @@
 
 	.switch-auth a,
 	.back-link {
+		display: inline-flex;
+		gap: 0.35rem;
+		align-items: center;
+		width: fit-content;
+		margin-top: 3rem;
 		color: var(--ink);
+		font-size: 0.7rem;
 		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		text-underline-offset: 0.25rem;
 	}
 
-	.back-link {
-		width: fit-content;
-		margin-top: 3rem;
-		font-size: 0.7rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
+	.back-link :global(svg) {
+		display: block;
+		flex-shrink: 0;
 	}
 
 	@media (max-width: 800px) {

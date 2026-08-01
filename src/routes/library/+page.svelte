@@ -47,6 +47,7 @@
 								{track}
 								signedIn={true}
 								viewerName={data.user.name}
+								viewerImage={data.user.image}
 								ondeleted={() => invalidateAll()}
 							/>
 						</li>

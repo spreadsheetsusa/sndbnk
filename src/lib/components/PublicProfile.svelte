@@ -1,7 +1,11 @@
 <script>
+	import IconMapPin from '@tabler/icons-svelte-runes/icons/map-pin';
 	import { invalidateAll } from '$app/navigation';
+	import Avatar from '#lib/components/Avatar.svelte';
+	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
+	import { displayUrl } from '#lib/profile-links.js';
 
 	/**
 	 * @typedef {{
@@ -9,9 +13,13 @@
 	 *     username: string,
 	 *     name: string,
 	 *     plan: string,
+	 *     bio: string | null,
+	 *     location: string | null,
+	 *     avatarUrl: string | null,
 	 *     customDomain: string | null,
 	 *     customDomainStatus: string
 	 *   },
+	 *   links: Array<{ id: string, label: string, url: string }>,
 	 *   urls: {
 	 *     pathUrl: string,
 	 *     subdomainUrl: string | null,
@@ -20,7 +28,7 @@
 	 *   },
 	 *   tracks: import('#lib/components/player/TrackCard.svelte').CardTrack[],
 	 *   viaTenantHost: boolean,
-	 *   viewer: { id: string, name: string, isOwner: boolean } | null
+	 *   viewer: { id: string, name: string, image: string | null, isOwner: boolean } | null
 	 * }} ProfilePageData
 	 */
 
@@ -46,7 +54,40 @@
 				</div>
 				<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
 			</div>
-			<p class="handle">@{data.profile.username}</p>
+
+			<div class="identity">
+				<Avatar src={data.profile.avatarUrl} name={data.profile.name} size="4.5rem" />
+				<div class="identity-copy">
+					<p class="handle">@{data.profile.username}</p>
+					{#if data.profile.location}
+						<p class="location">
+							<IconMapPin size={15} stroke={1.75} />
+							{data.profile.location}
+						</p>
+					{/if}
+				</div>
+			</div>
+
+			{#if data.profile.bio}
+				<p class="bio">{data.profile.bio}</p>
+			{/if}
+
+			{#if data.links.length > 0}
+				<ul class="link-list" aria-label="Links">
+					{#each data.links as link (link.id)}
+						<li>
+							<a href={link.url} target="_blank" rel="me noopener nofollow">
+								<span class="link-glyph" aria-hidden="true">
+									<ProfileLinkIcon label={link.label} />
+								</span>
+								<span class="link-label">{link.label}</span>
+								<span class="link-url">{displayUrl(link.url)}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
 			{#if data.tracks.length === 0}
 				<p class="lede">
 					This space is ready for sound. Tracks, releases, and the rest of SNDBNK will land here.
@@ -94,6 +135,7 @@
 								{track}
 								signedIn={Boolean(data.viewer)}
 								viewerName={data.viewer?.name ?? null}
+								viewerImage={data.viewer?.image ?? null}
 								ondeleted={() => invalidateAll()}
 							/>
 						</li>
@@ -163,12 +205,95 @@
 		letter-spacing: -0.03em;
 	}
 
+	.identity {
+		display: flex;
+		gap: 1rem;
+		align-items: center;
+		margin-top: 1.15rem;
+	}
+
+	.identity-copy {
+		min-width: 0;
+	}
+
 	.handle {
-		margin: 0.85rem 0 0;
+		margin: 0;
 		color: var(--muted);
 		font-size: 1.05rem;
 		font-weight: 700;
 		letter-spacing: 0.04em;
+	}
+
+	.location {
+		display: flex;
+		gap: 0.3rem;
+		align-items: center;
+		margin: 0.35rem 0 0;
+		color: var(--muted);
+		font-size: 0.85rem;
+	}
+
+	.bio {
+		max-width: 34rem;
+		margin: 1.35rem 0 0;
+		font-size: 1rem;
+		line-height: 1.6;
+		white-space: pre-line;
+		animation: rise 0.8s ease 0.06s both;
+	}
+
+	.link-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin: 1.5rem 0 0;
+		padding: 0;
+		list-style: none;
+		animation: rise 0.85s ease 0.12s both;
+	}
+
+	.link-list a {
+		display: inline-flex;
+		gap: 0.45rem;
+		align-items: center;
+		padding: 0.45rem 0.7rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		color: var(--ink);
+		text-decoration: none;
+		transition:
+			border-color 120ms ease,
+			background 120ms ease,
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+	}
+
+	.link-list a:hover {
+		border-color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+
+	.link-list a:active {
+		transform: translate(1px, 1px);
+	}
+
+	.link-glyph {
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.link-label {
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.link-url {
+		max-width: 14rem;
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 0.72rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.lede {
@@ -317,6 +442,10 @@
 		.url-list li {
 			grid-template-columns: 1fr;
 			gap: 0.25rem;
+		}
+
+		.link-url {
+			display: none;
 		}
 	}
 </style>

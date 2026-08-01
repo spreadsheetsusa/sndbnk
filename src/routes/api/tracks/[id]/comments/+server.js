@@ -58,7 +58,8 @@ export async function POST({ locals, params, request }) {
 			atMs,
 			createdAt: createdAt.getTime(),
 			userId: locals.user.id,
-			userName: locals.user.name ?? 'You'
+			userName: locals.user.name ?? 'You',
+			userImage: locals.user.image ?? null
 		}
 	});
 }

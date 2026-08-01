@@ -1,4 +1,12 @@
 <script>
+	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
+	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
+	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
+	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
+	import IconPlayerSkipBackFilled from '@tabler/icons-svelte-runes/icons/player-skip-back-filled';
+	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
+	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
+	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { player } from '#lib/player/player.svelte.js';
@@ -83,7 +91,7 @@
 									aria-label="Remove {queued.title} from queue"
 									onclick={() => player.removeFromQueue(index)}
 								>
-									&times;
+									<IconX size={14} stroke={1.75} aria-hidden="true" />
 								</button>
 							</li>
 						{/each}
@@ -100,9 +108,7 @@
 					aria-label="Previous"
 					onclick={() => player.previous()}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M7 5v14M18 5l-9 7 9 7z" />
-					</svg>
+					<IconPlayerSkipBackFilled size={15} aria-hidden="true" />
 				</button>
 				<button
 					type="button"
@@ -110,13 +116,11 @@
 					aria-label={player.playing ? 'Pause' : 'Play'}
 					onclick={() => player.toggle()}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						{#if player.playing}
-							<path d="M8 5h3v14H8zM13 5h3v14h-3z" />
-						{:else}
-							<path d="M8 5l11 7-11 7z" />
-						{/if}
-					</svg>
+					{#if player.playing}
+						<IconPlayerPauseFilled size={18} aria-hidden="true" />
+					{:else}
+						<IconPlayerPlayFilled size={18} aria-hidden="true" />
+					{/if}
 				</button>
 				<button
 					type="button"
@@ -125,9 +129,7 @@
 					disabled={player.queue.length === 0}
 					onclick={() => player.next()}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M17 5v14M6 5l9 7-9 7z" />
-					</svg>
+					<IconPlayerSkipForwardFilled size={15} aria-hidden="true" />
 				</button>
 			</div>
 
@@ -180,11 +182,11 @@
 						aria-pressed={track.likedByViewer}
 						onclick={toggleLike}
 					>
-						<svg viewBox="0 0 24 24" aria-hidden="true">
-							<path
-								d="M12 21s-7.5-4.8-9.7-9.2C.8 8.7 2.7 5 6.2 5c2 0 3.5 1.1 4.3 2.6l1.5 2.2 1.5-2.2C14.3 6.1 15.8 5 17.8 5c3.5 0 5.4 3.7 3.9 6.8C19.5 16.2 12 21 12 21z"
-							/>
-						</svg>
+						{#if track.likedByViewer}
+							<IconHeartFilled size={16} aria-hidden="true" />
+						{:else}
+							<IconHeart size={16} stroke={1.75} aria-hidden="true" />
+						{/if}
 					</button>
 				{/if}
 				<button
@@ -195,10 +197,7 @@
 					aria-expanded={queueOpen}
 					onclick={() => (queueOpen = !queueOpen)}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M4 6h16M4 11h16M4 16h9" fill="none" stroke-width="2" />
-						<path d="M16 15l5 3-5 3z" stroke="none" />
-					</svg>
+					<IconPlaylist size={16} stroke={1.75} aria-hidden="true" />
 					{#if player.queue.length > 0}
 						<span class="queue-count">{player.queue.length}</span>
 					{/if}
@@ -254,13 +253,8 @@
 		cursor: default;
 	}
 
-	.transport-btn svg {
-		width: 0.95rem;
-		height: 0.95rem;
-		fill: currentColor;
-		stroke: currentColor;
-		stroke-width: 1.5;
-		stroke-linejoin: round;
+	.transport-btn :global(svg) {
+		display: block;
 	}
 
 	.transport-btn.play {
@@ -417,21 +411,13 @@
 		cursor: pointer;
 	}
 
-	.icon-btn svg {
-		width: 1rem;
-		height: 1rem;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.6;
+	.icon-btn :global(svg) {
+		display: block;
 	}
 
 	.icon-btn.active {
 		color: var(--on-accent);
 		background: var(--accent);
-	}
-
-	.icon-btn.active svg {
-		fill: currentColor;
 	}
 
 	.icon-btn:hover {
@@ -544,16 +530,21 @@
 	}
 
 	.queue-remove {
+		display: inline-flex;
 		width: 1.6rem;
 		height: 1.6rem;
+		align-items: center;
+		justify-content: center;
 		padding: 0;
 		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
 		color: var(--muted);
 		background: transparent;
-		font-size: 0.9rem;
-		line-height: 1;
 		cursor: pointer;
 		flex-shrink: 0;
+	}
+
+	.queue-remove :global(svg) {
+		display: block;
 	}
 
 	.queue-remove:hover {

@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { accent } from '#lib/stores/brand.js';
 	import { resolvedTheme } from '#lib/stores/theme.js';
 
 	/**
@@ -115,10 +116,11 @@
 		}
 	});
 
-	// Re-resolve canvas colors when the theme flips.
+	// Re-resolve canvas colors when the theme or accent flips.
 	$effect(() => {
 		const theme = $resolvedTheme;
-		if (wavesurfer && theme) {
+		const accentId = $accent;
+		if (wavesurfer && theme && accentId) {
 			wavesurfer.setOptions(resolveColors());
 		}
 	});

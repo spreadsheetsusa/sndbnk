@@ -48,7 +48,13 @@ export function classifyHost(hostname, baseDomain = PUBLIC_BASE_DOMAIN) {
 	const host = hostname.toLowerCase();
 	const base = baseDomain.toLowerCase();
 
-	if (!host || host === base || host === `www.${base}` || host === 'localhost' || host === '127.0.0.1') {
+	if (
+		!host ||
+		host === base ||
+		host === `www.${base}` ||
+		host === 'localhost' ||
+		host === '127.0.0.1'
+	) {
 		return 'apex';
 	}
 
@@ -72,6 +78,8 @@ export async function getProfileByUsername(username) {
 			userId: profile.userId,
 			username: profile.username,
 			plan: profile.plan,
+			bio: profile.bio,
+			location: profile.location,
 			customDomain: profile.customDomain,
 			customDomainStatus: profile.customDomainStatus,
 			domainVerifyToken: profile.domainVerifyToken,
@@ -101,6 +109,8 @@ export async function getProfileByUserId(userId) {
 			userId: profile.userId,
 			username: profile.username,
 			plan: profile.plan,
+			bio: profile.bio,
+			location: profile.location,
 			customDomain: profile.customDomain,
 			customDomainStatus: profile.customDomainStatus,
 			domainVerifyToken: profile.domainVerifyToken,
@@ -130,6 +140,8 @@ export async function getProfileByCustomDomain(hostname) {
 			userId: profile.userId,
 			username: profile.username,
 			plan: profile.plan,
+			bio: profile.bio,
+			location: profile.location,
 			customDomain: profile.customDomain,
 			customDomainStatus: profile.customDomainStatus,
 			domainVerifyToken: profile.domainVerifyToken,

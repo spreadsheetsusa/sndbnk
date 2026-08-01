@@ -68,9 +68,12 @@ For dev: `ORIGIN=http://localhost:5173`, `PUBLIC_BASE_DOMAIN=localhost`.
 **Every declared variable is required.** If your `.env` predates one, the app returns 500 on every
 route at boot with `Invalid environment variables` — copy the missing line from `.env.example`.
 
-**`.env` is currently tracked in git** (a temporary deploy workaround, see
-[docs/known-issues.md](docs/known-issues.md)), so do not add new secrets to it. The SQLite file is
-gitignored. Both persist across sessions via the VM snapshot.
+- **Runtime is Bun, not Node.** The DB layer imports `bun:sqlite` (`src/lib/server/db/index.js`), so the app only runs under Bun. Start dev with `bun run dev` (Vite on `http://localhost:5174`). Standard scripts are in `package.json`.
+- **Env vars** live in `.env` (see `.env.example`): `DATABASE_URL`, `ORIGIN`, `BETTER_AUTH_SECRET`. For dev, `ORIGIN=http://localhost:5174`. Both `.env` and the SQLite file are gitignored but persist across sessions via the VM snapshot.
+- **DB schema:** apply with `bun run drizzle-kit push --force`. The plain `bun run db:push` (no flag) prompts for TTY confirmation and fails in non-interactive shells. The SQLite file lives at `DATABASE_URL` (`local.db`).
+- **Auth schema generation:** `bun run auth:schema` runs the better-auth CLI under Bun so it can load `bun:sqlite`. The generated `src/lib/server/db/auth.schema.js` is committed.
+- **Lint:** `bun run lint` (`prettier --check`). A few committed files currently fail the check; that is pre-existing and unrelated to setup.
+- **Core flow to smoke-test:** register at `/signup` or log in at `/signin`; both redirect to `/`, where the authenticated header shows the user and provides sign-out.
 
 ## Smoke test
 
@@ -94,8 +97,12 @@ comprehensive Svelte 5 and SvelteKit documentation. Use it rather than recalling
   
 ## Learned User Preferences
 
-- Prefer a shared site header with a hamburger that opens a local dropdown menu, not a slide-in drawer/panel.
+- Prefer menus that open as local dropdowns/popovers anchored to their trigger, never slide-in drawers or panels.
+- In the signed-in header, put Settings, Appearance, and Sign out behind an avatar-circle dropdown, and render primary nav (Library, My Profile) as Winamp-style pressed mode buttons.
 - Prefer track listings without card borders or backgrounds; secondary track actions should sit in an ellipsis menu.
+- Prefer subtle, low-prominence borders and separators (e.g. reduced opacity) in both light and dark mode.
+- Use Tabler icon components for all UI iconography instead of inline SVG glyphs or typographic arrows.
+- When changing a shared UI pattern, apply it to every instance site-wide, not just the element the user pointed at.
 
 ## Learned Workspace Facts
 
@@ -105,3 +112,6 @@ comprehensive Svelte 5 and SvelteKit documentation. Use it rather than recalling
 - Beyond `DATABASE_URL` / `ORIGIN` / `BETTER_AUTH_SECRET`, local/runtime env also needs `PUBLIC_BASE_DOMAIN`, `MEDIA_ROOT`, `BODY_SIZE_LIMIT`, and `STORAGE_SECRET` (see `.env.example`).
 - Shared chrome lives in `#lib/components/SiteHeader.svelte` and is included per page (not via a nested layout).
 - Client upload autofill uses `#lib/media/audio-metadata.js` (`music-metadata`); server-side tag gap-fill uses `#lib/server/media/embed-tags.js` (`taglib-wasm`).
+- Import icons from `@tabler/icons-svelte-runes` using per-icon paths (`@tabler/icons-svelte-runes/icons/heart`); the plain `@tabler/icons-svelte` package is Svelte 4 (`$$props`) and fails under the runes mode that `vite.config.js` forces, and barrel imports make Vite compile the whole icon set.
+- `vite.config.js` forces runes mode for every non-`node_modules` file and pins the dev server to port 5174.
+- The accent color is global: the `accent` writable in `#lib/stores/brand.js` drives the `--accent` / `--on-accent` CSS custom properties (defaults in `src/routes/layout.css`); do not hardcode the accent hex in components.

@@ -9,7 +9,7 @@ const APEX_ONLY_PREFIXES = ['/settings', '/signin', '/signup', '/library', '/api
 /**
  * Paths that resolve normally on tenant hosts (public playback surfaces).
  */
-const TENANT_ALLOWED_PREFIXES = ['/tracks', '/api/media', '/api/tracks'];
+const TENANT_ALLOWED_PREFIXES = ['/tracks', '/api/media', '/api/avatar', '/api/tracks'];
 
 /**
  * Paths that should not be rewritten on tenant hosts (framework/assets/auth API).

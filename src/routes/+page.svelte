@@ -1,4 +1,5 @@
 <script>
+	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
@@ -49,9 +50,10 @@
 						<p class="welcome">Good to have you here, {shortName}.</p>
 					{:else}
 						<div class="hero-actions">
-							<a class="primary-action pressable" href="/signup"
-								>Create account <span aria-hidden="true">↗</span></a
-							>
+							<a class="primary-action pressable" href="/signup">
+								Create account
+								<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
+							</a>
 							<a class="text-action" href="/signin">Sign in</a>
 						</div>
 					{/if}

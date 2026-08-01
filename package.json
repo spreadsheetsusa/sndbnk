@@ -22,6 +22,7 @@
 		"auth:schema": "bun x --bun better-auth generate --config src/lib/server/auth.js --output src/lib/server/db/auth.schema.js --yes"
 	},
 	"dependencies": {
+		"@tabler/icons-svelte-runes": "^3.46.0",
 		"better-auth": "^1.6.23",
 		"drizzle-orm": "^0.45.2",
 		"music-metadata": "^11.14.0",

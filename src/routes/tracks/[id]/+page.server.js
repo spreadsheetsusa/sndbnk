@@ -14,13 +14,18 @@ export const load = async ({ locals, params }) => {
 	}
 
 	const social = await getSocialForTracks([row.track.id], locals.user?.id ?? null);
+	const comments = await listCommentsForTrack(row.track.id);
+	const timedComments = comments
+		.filter((comment) => comment.atMs != null)
+		.map((comment) => ({ ...comment, atMs: /** @type {number} */ (comment.atMs) }))
+		.sort((a, b) => a.atMs - b.atMs);
 	const track = await serializeTrackForPlayer(
 		row.track,
 		row,
 		social.get(row.track.id),
-		locals.user
+		locals.user,
+		timedComments
 	);
-	const comments = await listCommentsForTrack(row.track.id);
 
 	return {
 		track,
@@ -30,7 +35,8 @@ export const load = async ({ locals, params }) => {
 		viewer: locals.user
 			? {
 					id: locals.user.id,
-					name: locals.user.name
+					name: locals.user.name,
+					image: locals.user.image ?? null
 				}
 			: null
 	};

@@ -1,4 +1,6 @@
 <script>
+	import IconMoon from '@tabler/icons-svelte-runes/icons/moon';
+	import IconSun from '@tabler/icons-svelte-runes/icons/sun';
 	import { resolvedTheme, toggleTheme } from '#lib/stores/theme.js';
 
 	const nextTheme = $derived($resolvedTheme === 'dark' ? 'light' : 'dark');
@@ -7,26 +9,9 @@
 
 <button type="button" class="theme-toggle" onclick={toggleTheme} aria-label={label} title={label}>
 	{#if $resolvedTheme === 'dark'}
-		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-			<circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.75" />
-			<path
-				d="M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.75"
-				stroke-linecap="round"
-			/>
-		</svg>
+		<IconSun size={18} stroke={1.75} aria-hidden="true" />
 	{:else}
-		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-			<path
-				d="M16.4 14.2A6.5 6.5 0 0 1 9.8 7.6 6.6 6.6 0 1 0 16.4 14.2Z"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.75"
-				stroke-linejoin="round"
-			/>
-		</svg>
+		<IconMoon size={18} stroke={1.75} aria-hidden="true" />
 	{/if}
 </button>
 
@@ -59,9 +44,7 @@
 		transform: translate(1px, 1px);
 	}
 
-	.theme-toggle svg {
-		width: 1.125rem;
-		height: 1.125rem;
+	.theme-toggle :global(svg) {
 		display: block;
 	}
 </style>

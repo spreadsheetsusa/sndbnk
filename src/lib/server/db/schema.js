@@ -19,6 +19,10 @@ export const profile = sqliteTable('profile', {
 		.references(() => user.id, { onDelete: 'cascade' }),
 	username: text('username').notNull().unique(),
 	plan: text('plan').notNull().default('basic'),
+	bio: text('bio'),
+	location: text('location'),
+	avatarFilename: text('avatar_filename'),
+	avatarMime: text('avatar_mime'),
 	customDomain: text('custom_domain').unique(),
 	customDomainStatus: text('custom_domain_status').notNull().default('none'),
 	domainVerifyToken: text('domain_verify_token'),
@@ -34,9 +38,40 @@ export const profile = sqliteTable('profile', {
 		.notNull()
 });
 
-export const profileRelations = relations(profile, ({ one }) => ({
+export const profileRelations = relations(profile, ({ one, many }) => ({
 	user: one(user, {
 		fields: [profile.userId],
+		references: [user.id]
+	}),
+	links: many(profileLink)
+}));
+
+export const profileLink = sqliteTable(
+	'profile_link',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		label: text('label').notNull(),
+		url: text('url').notNull(),
+		position: integer('position').notNull().default(0),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [index('profile_link_userId_idx').on(table.userId)]
+);
+
+export const profileLinkRelations = relations(profileLink, ({ one }) => ({
+	profile: one(profile, {
+		fields: [profileLink.userId],
+		references: [profile.userId]
+	}),
+	user: one(user, {
+		fields: [profileLink.userId],
 		references: [user.id]
 	})
 }));
@@ -60,46 +95,50 @@ export const storageSetting = sqliteTable('storage_setting', {
 		.notNull()
 });
 
-export const track = sqliteTable('track', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	userId: text('user_id')
-		.notNull()
-		.references(() => user.id, { onDelete: 'cascade' }),
-	title: text('title').notNull(),
-	description: text('description'),
-	artist: text('artist'),
-	album: text('album'),
-	genre: text('genre'),
-	year: integer('year'),
-	trackNumber: integer('track_number'),
-	bpm: integer('bpm'),
-	isrc: text('isrc'),
-	comment: text('comment'),
-	audioFilename: text('audio_filename').notNull(),
-	audioMime: text('audio_mime').notNull(),
-	audioBytes: integer('audio_bytes').notNull(),
-	coverFilename: text('cover_filename'),
-	coverMime: text('cover_mime'),
-	coverBytes: integer('cover_bytes'),
-	durationMs: integer('duration_ms'),
-	bitrate: integer('bitrate'),
-	sampleRate: integer('sample_rate'),
-	channels: integer('channels'),
-	codec: text('codec'),
-	/** JSON array of ~1000 peak ints (0-100) for waveform rendering. */
-	waveform: text('waveform'),
-	storageAdapter: text('storage_adapter').notNull().default('local'),
-	folderKey: text('folder_key').notNull(),
-	createdAt: integer('created_at', { mode: 'timestamp_ms' })
-		.$defaultFn(() => new Date())
-		.notNull(),
-	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
-		.$defaultFn(() => new Date())
-		.$onUpdate(() => new Date())
-		.notNull()
-});
+export const track = sqliteTable(
+	'track',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		title: text('title').notNull(),
+		description: text('description'),
+		artist: text('artist'),
+		album: text('album'),
+		genre: text('genre'),
+		year: integer('year'),
+		trackNumber: integer('track_number'),
+		bpm: integer('bpm'),
+		isrc: text('isrc'),
+		comment: text('comment'),
+		audioFilename: text('audio_filename').notNull(),
+		audioMime: text('audio_mime').notNull(),
+		audioBytes: integer('audio_bytes').notNull(),
+		coverFilename: text('cover_filename'),
+		coverMime: text('cover_mime'),
+		coverBytes: integer('cover_bytes'),
+		durationMs: integer('duration_ms'),
+		bitrate: integer('bitrate'),
+		sampleRate: integer('sample_rate'),
+		channels: integer('channels'),
+		codec: text('codec'),
+		/** JSON array of ~1000 peak ints (0-100) for waveform rendering. */
+		waveform: text('waveform'),
+		storageAdapter: text('storage_adapter').notNull().default('local'),
+		folderKey: text('folder_key').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [index('track_createdAt_idx').on(table.createdAt)]
+);
 
 export const storageSettingRelations = relations(storageSetting, ({ one }) => ({
 	user: one(user, {

@@ -25,6 +25,7 @@ export default defineConfig({
 	],
 	// Allow custom-domain Host headers when testing tenant routing locally.
 	server: {
+		port: 5174,
 		allowedHosts: true
 	}
 });

@@ -21,7 +21,13 @@ bun run db:push
 bun run dev             # http://localhost:5173
 ```
 
-Register at `/signup`, upload from `/library/new`, and view your profile at `/users/{username}`.
+Copy `.env.example` to `.env` if you do not already have one. For local tenant
+subdomains, keep `PUBLIC_BASE_DOMAIN=localhost` and open profiles at
+`http://{username}.localhost:5174` (browsers resolve `*.localhost` to loopback).
+Apex routes (`/settings`, `/signup`, `/signin`) stay on `http://localhost:5174`.
+Custom domains can be exercised in dev by pointing a hosts-file entry at
+`127.0.0.1` after verifying the domain in Settings (Vite allows arbitrary Host
+headers so tenant resolution can run).
 
 ### Tenant subdomains in dev
 
