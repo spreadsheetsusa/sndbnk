@@ -52,6 +52,11 @@
 	--track-card-wash: 0.5;
 	/* Waveform scrub band; raised under pointer: coarse. */
 	--waveform-height: 66px;
+	/* Safe-area insets: 0 in browser tabs; set under display-mode: standalone below. */
+	--safe-top: 0px;
+	--safe-right: 0px;
+	--safe-bottom: 0px;
+	--safe-left: 0px;
 	color-scheme: light;
 	font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-synthesis: none;
