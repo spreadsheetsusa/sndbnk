@@ -64,8 +64,8 @@
 	}
 
 	.grid {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(128px, 128px));
 		gap: 1.5rem 1.25rem;
 		justify-content: center;
 		margin: 0;
@@ -73,11 +73,13 @@
 		list-style: none;
 	}
 
+	.grid > li {
+		min-width: 0;
+	}
+
 	.member {
 		display: flex;
-		flex: 0 0 128px;
-		width: 128px;
-		max-width: 100%;
+		width: 100%;
 		flex-direction: column;
 		align-items: center;
 		gap: 0.65rem;
@@ -102,36 +104,49 @@
 
 	.meta {
 		display: flex;
+		width: 100%;
 		flex-direction: column;
 		align-items: center;
 		gap: 0.1rem;
-		max-width: 100%;
+		min-width: 0;
 	}
 
 	.name {
-		max-width: 100%;
+		display: -webkit-box;
+		width: 100%;
 		overflow: hidden;
 		color: var(--ink);
 		font-weight: 700;
-		line-height: 1.2;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		line-height: 1.25;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 	}
 
 	.location {
-		max-width: 100%;
+		display: -webkit-box;
+		width: 100%;
 		overflow: hidden;
 		color: color-mix(in srgb, var(--muted) 72%, transparent);
-		font-size: 0.875rem;
-		line-height: 1.2;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		font-size: 0.8125rem;
+		line-height: 1.25;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 	}
 
 	@media (max-width: 640px) {
+		.grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 1rem 0.75rem;
+		}
+
 		.member {
-			flex: 0 1 calc(50% - 0.625rem);
-			width: calc(50% - 0.625rem);
+			gap: 0.5rem;
+		}
+
+		.location {
+			display: none;
 		}
 	}
 </style>

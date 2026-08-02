@@ -5,6 +5,7 @@
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
+	import HeroVisualizer from '#lib/components/home/HeroVisualizer.svelte';
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
@@ -93,6 +94,7 @@
 
 		<main>
 			<section class="hero" aria-labelledby="hero-title">
+				<HeroVisualizer />
 				<div class="hero-copy">
 					<p class="eyebrow">A place for sound</p>
 					<h1 id="hero-title" class="display-face">Make some noise. <span>Keep it yours.</span></h1>
@@ -113,7 +115,9 @@
 					{/if}
 				</div>
 
-				<HeroSoundCard track={data.heroTrack} />
+				<div class="hero-card">
+					<HeroSoundCard track={data.heroTrack} />
+				</div>
 			</section>
 
 			{#if data.stats.trackCount > 0}
@@ -158,15 +162,19 @@
 	}
 
 	.hero {
+		position: relative;
 		display: grid;
 		grid-template-columns: minmax(0, 0.9fr) minmax(24rem, 1.1fr);
 		gap: clamp(2rem, 5vw, 6rem);
 		align-items: center;
-		margin: 1.5rem 0;
-		padding: clamp(3rem, 7vw, 7rem) 0;
+		margin: 0;
+		/* Inset copy + card from the Butterchurn edge; viz stays full-bleed via absolute inset. */
+		padding: clamp(3rem, 7vw, 7rem) clamp(1.25rem, 3.5vw, 2.75rem);
+		overflow: hidden;
 	}
 
-	.hero-copy {
+	.hero-copy,
+	.hero-card {
 		position: relative;
 		z-index: 1;
 	}
@@ -333,7 +341,7 @@
 	@media (max-width: 640px) {
 		.hero {
 			gap: 3rem;
-			padding: 3.5rem 0 4.5rem;
+			padding: 3.5rem 1.25rem 4.5rem;
 		}
 
 		h1 {
