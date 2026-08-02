@@ -22,6 +22,9 @@ export const GET = async () => {
 	const locs = [
 		`${origin}/`,
 		`${origin}/plans`,
+		`${origin}/privacy`,
+		`${origin}/terms`,
+		`${origin}/copyright`,
 		...profiles.map((row) => `${origin}/users/${row.username}`),
 		...tracks.map((row) => `${origin}/tracks/${row.id}`)
 	];

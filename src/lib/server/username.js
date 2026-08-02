@@ -42,7 +42,12 @@ export const RESERVED_USERNAMES = new Set([
 	'plans',
 	'pricing',
 	'checkout',
-	'upgrade'
+	'upgrade',
+	'privacy',
+	'terms',
+	'copyright',
+	'legal',
+	'dmca'
 ]);
 
 /**
