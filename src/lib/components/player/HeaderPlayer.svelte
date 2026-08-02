@@ -9,12 +9,25 @@
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
+	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
+	import Avatar from '#lib/components/Avatar.svelte';
 	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
+
+	/**
+	 * @typedef {Object} TimedComment
+	 * @property {string} id
+	 * @property {string} body
+	 * @property {number} atMs
+	 * @property {number} createdAt
+	 * @property {string} userId
+	 * @property {string} userName
+	 * @property {string | null} userImage
+	 */
 
 	const signedIn = $derived(Boolean(page.data.nav?.name));
 
@@ -27,12 +40,30 @@
 	/** Waveform scrub preview in seconds. @type {number | null} */
 	let scrubSeconds = $state(null);
 
+	/** @type {TimedComment[]} */
+	let timedComments = $state([]);
+	/** @type {string | null} */
+	let hoveredMarkerId = $state(null);
+
 	const progress = $derived(
 		player.duration > 0 ? Math.min(player.currentTime / player.duration, 1) : 0
 	);
 	const sliderValue = $derived(scrubbing ? scrubValue : Math.round(progress * 1000));
 	const displayTime = $derived(scrubSeconds ?? player.currentTime);
 	const durationMs = $derived(player.current?.durationMs ?? Math.round(player.duration * 1000));
+
+	const markers = $derived.by(() => {
+		if (durationMs <= 0) return [];
+		return timedComments
+			.slice()
+			.sort((a, b) => a.atMs - b.atMs)
+			.map((comment) => ({
+				...comment,
+				leftPct: Math.min(Math.max((comment.atMs / durationMs) * 100, 0), 100)
+			}));
+	});
+
+	const activeMarker = $derived(markers.find((marker) => marker.id === hoveredMarkerId) ?? null);
 
 	onMount(() => {
 		const mq = window.matchMedia('(max-width: 960px)');
@@ -43,6 +74,30 @@
 		};
 		mq.addEventListener('change', onChange);
 		return () => mq.removeEventListener('change', onChange);
+	});
+
+	// Network fetch for avatar markers — not derivable from local state.
+	$effect(() => {
+		const trackId = player.current?.id ?? null;
+		timedComments = [];
+		if (!trackId) return;
+
+		const controller = new AbortController();
+		void (async () => {
+			try {
+				const res = await fetch(`/api/tracks/${trackId}/comments`, {
+					signal: controller.signal
+				});
+				if (!res.ok) return;
+				const data = await res.json();
+				if (controller.signal.aborted || player.current?.id !== trackId) return;
+				timedComments = Array.isArray(data.comments) ? data.comments : [];
+			} catch {
+				// AbortError or network blip — leave markers empty.
+			}
+		})();
+
+		return () => controller.abort();
 	});
 
 	/**
@@ -133,6 +188,33 @@
 							onseek={handleWaveSeek}
 							onscrub={(seconds) => (scrubSeconds = seconds)}
 						/>
+						{#each markers as marker (marker.id)}
+							<button
+								type="button"
+								class="marker"
+								class:active={activeMarker?.id === marker.id}
+								style:left="{marker.leftPct}%"
+								aria-label="{marker.userName} commented at {formatDuration(
+									marker.atMs
+								)}: {marker.body}"
+								onmouseenter={() => (hoveredMarkerId = marker.id)}
+								onmouseleave={() => (hoveredMarkerId = null)}
+								onfocus={() => (hoveredMarkerId = marker.id)}
+								onblur={() => (hoveredMarkerId = null)}
+							>
+								<Avatar src={marker.userImage} name={marker.userName} size="1rem" />
+							</button>
+						{/each}
+						{#if activeMarker}
+							<div
+								class="marker-tip"
+								style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
+								transition:fade={{ duration: 120 }}
+							>
+								<span class="tip-name">{activeMarker.userName}</span>
+								<span class="tip-body">{activeMarker.body}</span>
+							</div>
+						{/if}
 					</div>
 				{:else}
 					<input
@@ -361,9 +443,64 @@
 	}
 
 	.wave-wrap {
+		position: relative;
+		display: grid;
 		flex: 1;
+		align-items: center;
 		min-width: 0;
 		min-height: 38px;
+	}
+
+	.marker {
+		position: absolute;
+		top: 50%;
+		z-index: 3;
+		display: inline-flex;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		transform: translate(-50%, -50%);
+		cursor: default;
+		--avatar-border: 1px solid var(--paper);
+		--avatar-font-size: 0.5rem;
+	}
+
+	.marker:hover,
+	.marker.active {
+		transform: translate(-50%, -50%) scale(1.15);
+		--avatar-border: 1px solid var(--ink);
+	}
+
+	.marker-tip {
+		position: absolute;
+		top: calc(50% + 1rem);
+		z-index: 4;
+		display: flex;
+		max-width: min(14rem, 90%);
+		gap: 0.3rem;
+		align-items: baseline;
+		padding: 0.18rem 0.45rem;
+		border-radius: 999px;
+		background: var(--inverse);
+		color: var(--on-inverse);
+		font-size: 0.62rem;
+		line-height: 1.35;
+		transform: translateX(-50%);
+		pointer-events: none;
+	}
+
+	.tip-name {
+		font-weight: 900;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.tip-body {
+		overflow: hidden;
+		color: color-mix(in srgb, var(--on-inverse) 80%, transparent);
+		white-space: nowrap;
+		text-overflow: ellipsis;
 	}
 
 	.time {

@@ -2,10 +2,24 @@ import { error, json } from '@sveltejs/kit';
 
 import { db } from '#lib/server/db';
 import { trackComment } from '#lib/server/db/schema';
-import { canViewTrack, getTrackById } from '#lib/server/tracks';
+import { canViewTrack, getTrackById, listTimedCommentsForTracks } from '#lib/server/tracks';
 
 const BODY_MAX_LENGTH = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Timed comments for the header player avatar markers.
+ * Public for any track the viewer may listen to.
+ */
+export async function GET({ locals, params }) {
+	const row = await getTrackById(params.id);
+	if (!row || !canViewTrack(row, locals.user?.id ?? null)) {
+		error(404, 'Track not found');
+	}
+
+	const map = await listTimedCommentsForTracks([row.id]);
+	return json({ comments: map.get(row.id) ?? [] });
+}
 
 export async function POST({ locals, params, request }) {
 	if (!locals.user) {
