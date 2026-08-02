@@ -102,19 +102,32 @@ jobs:
             env, order = parse_env(p)
 
             # Prefer secrets/values already live on the server before this pull.
+            # Keep raw assignment text (including quotes) so SMTP passwords with
+            # $, &, |, etc. round-trip without bash/systemd reinterpretation.
+            preserve_keys = (
+                "BETTER_AUTH_SECRET",
+                "STORAGE_SECRET",
+                "DATABASE_URL",
+                "MEDIA_ROOT",
+                "BODY_SIZE_LIMIT",
+                "MAIL_TRANSPORT",
+                "MAIL_FROM",
+                "SMTP_HOST",
+                "SMTP_PORT",
+                "SMTP_SECURE",
+                "SMTP_USER",
+                "SMTP_PASSWORD",
+                "STRIPE_SECRET_KEY",
+                "PUBLIC_STRIPE_PUBLISHABLE_KEY",
+                "STRIPE_WEBHOOK_SECRET",
+            )
             pre_pull = Path(os.environ.get("PRE_PULL_ENV", "/tmp/sndbnk.env.pre-pull"))
             if pre_pull.exists():
                 prev, _ = parse_env(pre_pull)
-                for key in (
-                    "BETTER_AUTH_SECRET",
-                    "STORAGE_SECRET",
-                    "DATABASE_URL",
-                    "MEDIA_ROOT",
-                    "BODY_SIZE_LIMIT",
-                ):
-                    prev_val = clean(prev.get(key, ""))
-                    if prev_val:
-                        env[key] = prev_val
+                for key in preserve_keys:
+                    prev_raw = prev.get(key, "").strip()
+                    if clean(prev_raw):
+                        env[key] = prev_raw
                         print(f"Preserved {key} from pre-pull .env")
 
             if clean(env.get("ORIGIN", "")) != "https://sndbnk.com":
@@ -171,6 +184,11 @@ jobs:
             for key in managed:
                 if key not in seen:
                     out.append(f"{key}={env[key]}")
+            # Append preserved secrets that exist only on the server (not in tracked .env).
+            for key in preserve_keys:
+                if key not in seen and key not in managed and clean(env.get(key, "")):
+                    out.append(f"{key}={env[key]}")
+                    seen.add(key)
             p.write_text("\n".join(out).rstrip() + "\n")
             PY
             chmod 600 .env
@@ -230,10 +248,24 @@ jobs:
             bun install
 
             echo "Applying database schema..."
-            set -a
-            # shellcheck disable=SC1091
-            . "$APP_DIR/.env"
-            set +a
+            # Export via Python/shlex so SMTP passwords with $, &, |, etc. stay intact.
+            eval "$(
+              python3 - <<'PY'
+            from pathlib import Path
+            import shlex
+
+            for line in Path("/var/www/sndbnk/.env").read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, raw = line.split("=", 1)
+                key = key.strip()
+                if not key:
+                    continue
+                value = raw.strip().strip('"').strip("'")
+                print(f"export {key}={shlex.quote(value)}")
+            PY
+            )"
             bun run db:push
 
             echo "Building the project..."
