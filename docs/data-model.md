@@ -174,51 +174,36 @@ means 404, redirect, or lazy create.
 
 ## Changing the schema
 
-1. Edit [`src/lib/server/db/schema.js`](../src/lib/server/db/schema.js).
-2. **Also edit [`scripts/push-sqlite-schema.js`](../scripts/push-sqlite-schema.js)** — this is the
-   easy step to miss, and missing it breaks production. New table → add a
-   `CREATE TABLE IF NOT EXISTS`. New column → add it to the `CREATE TABLE` **and** to the matching
-   `ensureColumns()` call.
-3. Apply locally: `bun run db:push`.
-4. Verify: `bun run dev` and exercise the affected surface.
+sndbnk uses **Drizzle Kit generate + migrate** (codebase-first). The human-facing walkthrough is the
+standalone page [`docs/drizzle-migrations.html`](drizzle-migrations.html).
 
-### Why there are two schema sources
+1. Edit [`src/lib/server/db/schema.js`](../src/lib/server/db/schema.js) (auth tables: regenerate with
+   `bun run auth:schema && bun run format` first).
+2. `bun run db:generate` — writes SQL under [`drizzle/`](../drizzle/) plus a snapshot in
+   `drizzle/meta/`. Commit those files with the schema change.
+3. **Review the SQL.** Renames may show up as drop+add; `NOT NULL` without a default fails on SQLite
+   for existing rows.
+4. Apply locally: `bun run db:migrate`.
+5. Verify: `bun run dev` and exercise the affected surface.
 
-`drizzle-kit push` loads `better-sqlite3`, which Bun cannot open, so this project ships a
-hand-written DDL script that uses `bun:sqlite` directly. `bun run db:push` runs that script, and so
-does the production deploy. There is no `drizzle/` migration folder; `db:generate` / `db:migrate` /
-`db:studio` exist in `package.json` but have never been used. `bun run db:push:kit` runs
-`drizzle-kit push` under Node as a local escape hatch.
+Production deploy runs `bun run db:backup` (when the DB file exists) then `bun run db:migrate` before
+build/restart.
 
-So the push script is the migration system, and it has to handle both a fresh database and an
-existing one.
+### Why migrate is a Bun script
 
-### Adding a column to an existing table
+`drizzle-kit migrate` / `push` / `studio` load `better-sqlite3`, which Bun cannot open. Generate still
+uses Drizzle Kit; apply uses [`scripts/migrate-sqlite.js`](../scripts/migrate-sqlite.js) and
+`drizzle-orm/bun-sqlite/migrator`. `bun run db:push:kit` and `bun run db:studio` run the Kit CLI
+under Node for local prototyping / browsing. The old hand-written
+[`scripts/push-sqlite-schema.js`](../scripts/push-sqlite-schema.js) is retired and exits with
+instructions.
 
-`CREATE TABLE IF NOT EXISTS` is a no-op against a table that already exists, so it will never add a
-column. That is what `ensureColumns()` is for — it reads `pragma_table_info` and issues
-`ALTER TABLE … ADD COLUMN` only for what is missing, which makes it safe to re-run on every deploy:
+Existing databases created before `drizzle/` existed are cut over automatically: if app tables are
+present and `__drizzle_migrations` is empty, the migrate script records `0000_baseline` as applied
+without re-running its `CREATE TABLE` statements, then applies any newer migrations.
 
-```js
-function ensureColumns(table, columns) {
-	const existing = new Set(
-		db
-			.query(`SELECT name FROM pragma_table_info('${table}')`)
-			.all()
-			.map((row) => row.name)
-	);
+### Adding a column
 
-	for (const [name, typeSql] of columns) {
-		if (existing.has(name)) continue;
-		db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${typeSql}`);
-		console.log(`Added column ${table}.${name}`);
-	}
-}
-```
-
-A new column therefore needs **two** edits in the script: the `CREATE TABLE` body, so fresh databases
-get it, and the `ensureColumns()` list, so existing ones do. Adding it to only one is the failure
-mode that shipped a broken production schema once already.
-
-SQLite's `ADD COLUMN` cannot add a `NOT NULL` column without a default, so prefer nullable columns
-or supply a default.
+Prefer nullable columns (or supply a `DEFAULT`). SQLite's `ADD COLUMN` cannot add `NOT NULL` without
+a default on a table that already has rows. Generate the migration, read the `ALTER TABLE`, migrate
+locally, then ship.

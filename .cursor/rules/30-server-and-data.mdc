@@ -26,10 +26,9 @@ query — if the query does not exist yet, add a named function to the relevant 
 - Single-row reads `.limit(1)` and `return rows[0] ?? null`.
 - **`src/lib/server/db/auth.schema.js` is generated.** Regenerate with `bun run auth:schema` followed
   by `bun run format` (the CLI emits double quotes); never hand-edit it.
-- **Any schema change also needs an edit to `scripts/push-sqlite-schema.js`** — that script is the
-  migration system. A new column goes in **two** places there: the `CREATE TABLE` body (fresh
-  databases) and the matching `ensureColumns()` list (existing databases, via `ALTER TABLE`).
-  `CREATE TABLE IF NOT EXISTS` alone never adds a column. See `docs/data-model.md`.
+- **Schema changes use Drizzle migrations.** Edit `schema.js`, then `bun run db:generate`, review
+  the SQL under `drizzle/`, and apply with `bun run db:migrate`. Do not maintain a parallel DDL
+  script. See `.cursor/rules/35-schema-migrations.mdc` and `docs/drizzle-migrations.html`.
 - **A new env var needs `src/env.js`, `.env.example`, and the deploy workflow's managed list.** Every
   declared variable is required, so omitting one 500s every route at boot.
 

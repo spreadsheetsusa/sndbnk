@@ -12,9 +12,8 @@ alwaysApply: true
    the whole repo to make the check green.
 3. `bun run dev` and exercise the surface you changed. There is no test runner in this project, so
    manual verification is the verification.
-4. If you changed the schema, edit `scripts/push-sqlite-schema.js` to match (new columns go in both
-   the `CREATE TABLE` body and the `ensureColumns()` list) and apply it with `bun run db:push` — see
-   `docs/data-model.md`.
+4. If you changed the schema: `bun run db:generate`, review `drizzle/*.sql`, `bun run db:migrate`,
+   and commit the migration files with the schema change — see `docs/drizzle-migrations.html`.
 5. If you touched anything visual, check it in both light and dark mode.
 
 ## Smoke test
@@ -51,6 +50,6 @@ Do not call `playground-link` for code written into this repo.
 
 - `.env` and the SQLite file persist across sessions via the VM snapshot; `.env` is currently
   tracked in git, so do not add secrets to it.
-- `bun run db:push` is non-interactive. `bun run db:push:kit` runs drizzle-kit under Node as an
-  escape hatch.
+- `bun run db:migrate` is non-interactive (Bun migrator). `bun run db:push:kit` / `db:studio` run
+  drizzle-kit under Node because of `better-sqlite3`. `db:push` is retired.
 - `ffmpeg` is optional; without it uploads get placeholder waveforms instead of real peaks.
