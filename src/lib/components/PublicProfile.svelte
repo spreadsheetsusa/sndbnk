@@ -409,6 +409,15 @@
 		contain-intrinsic-size: auto 192px;
 	}
 
+	/* `content-visibility: auto` paint-contains the row and clips the absolute
+	   menu; drop containment for the open row and stack it above neighbors.
+	   `.more-btn` is in TrackCard, so it must be `:global` here. */
+	.profile-track-list li:has(:global(.more-btn[aria-expanded='true'])) {
+		position: relative;
+		z-index: 2;
+		content-visibility: visible;
+	}
+
 	.signal {
 		position: absolute;
 		z-index: -1;

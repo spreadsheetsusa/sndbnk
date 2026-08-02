@@ -3,6 +3,8 @@
 	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
 	import { PUBLIC_STRIPE_PUBLISHABLE_KEY } from '$app/env/public';
 	import { invalidateAll } from '$app/navigation';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fly } from 'svelte/transition';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
@@ -216,6 +218,10 @@
 	<SiteHeader />
 
 	<main>
+		<div class="signal-bg" aria-hidden="true">
+			<img src="/W120y.webp" alt="" width="1152" height="864" decoding="async" />
+		</div>
+
 		<header class="intro">
 			<p class="eyebrow accent-text eyebrow-chip">Pricing</p>
 			<h1 class="display-face">Pick your signal strength.</h1>
@@ -319,132 +325,147 @@
 		</section>
 
 		{#if selected}
-			<section class="checkout" aria-labelledby="checkout-title">
-				<div class="checkout-head">
-					<div>
-						<p class="eyebrow">Checkout</p>
-						<h2 id="checkout-title">
-							{selected.label} — {money(priceFor(selected))}/{interval === 'year'
-								? 'year'
-								: 'month'}
-						</h2>
-					</div>
-					<button class="text-button" type="button" onclick={cancelCheckout}>Cancel</button>
+			<div
+				class="checkout-stage"
+				transition:fly={{
+					y: '0.6rem',
+					duration: prefersReducedMotion.current ? 0 : 650,
+					opacity: 0
+				}}
+			>
+				<div class="checkout-bg" aria-hidden="true">
+					<img src="/k004I.webp" alt="" width="1360" height="752" decoding="async" />
 				</div>
 
-				{#if message}
-					<div class="banner error" role="alert" aria-live="polite">
-						<IconAlertCircle size={16} stroke={1.75} aria-hidden="true" />
-						{message}
-					</div>
-				{/if}
-
-				{#if !paymentReady}
-					<form
-						class="account-form"
-						aria-busy={starting}
-						onsubmit={(event) => {
-							event.preventDefault();
-							startCheckout();
-						}}
-					>
-						{#if needsAccount}
-							<p class="form-intro">
-								Your account is created before payment, so a declined card still leaves you a
-								working Free profile.
-							</p>
-
-							<label for="plan-name">Name</label>
-							<input id="plan-name" type="text" autocomplete="name" bind:value={name} required />
-
-							<label for="plan-username">Username</label>
-							<input
-								id="plan-username"
-								type="text"
-								autocomplete="username"
-								autocapitalize="none"
-								spellcheck="false"
-								minlength="3"
-								maxlength="30"
-								bind:value={username}
-								required
-								aria-describedby="plan-username-hint"
-							/>
-							<p class="field-hint" id="plan-username-hint">
-								Your profile lives at <span class="mono">{username || 'you'}.{data.baseDomain}</span
-								>.
-							</p>
-
-							<label for="plan-email">Email</label>
-							<input
-								id="plan-email"
-								type="email"
-								autocomplete="email"
-								bind:value={email}
-								required
-							/>
-
-							<label for="plan-password">Password</label>
-							<input
-								id="plan-password"
-								type="password"
-								autocomplete="new-password"
-								minlength="8"
-								bind:value={password}
-								required
-							/>
-						{:else}
-							<p class="form-intro">
-								Signed in as <strong>{data.account?.username}</strong>. Continue to enter payment
-								details.
-							</p>
-						{/if}
-
-						<button class="submit pressable" type="submit" disabled={starting}>
-							{starting ? 'Preparing checkout…' : 'Continue to payment'}
-						</button>
-					</form>
-				{/if}
-
-				<div class="payment" hidden={!paymentReady}>
-					<div id="payment-element"></div>
-
-					<div class="promo">
-						<label for="plan-promo">Promo code</label>
-						<div class="promo-row">
-							<input
-								id="plan-promo"
-								type="text"
-								autocapitalize="characters"
-								bind:value={promoCode}
-							/>
-							<button
-								class="ghost pressable"
-								type="button"
-								disabled={applyingPromo || !promoCode.trim()}
-								onclick={applyPromo}
-							>
-								{applyingPromo ? 'Checking…' : 'Apply'}
-							</button>
+				<section class="checkout" aria-labelledby="checkout-title">
+					<div class="checkout-head">
+						<div>
+							<p class="eyebrow">Checkout</p>
+							<h2 id="checkout-title">
+								{selected.label} — {money(priceFor(selected))}/{interval === 'year'
+									? 'year'
+									: 'month'}
+							</h2>
 						</div>
-						{#if promoNote}
-							<p class="field-hint" role="status">{promoNote}</p>
-						{/if}
+						<button class="text-button" type="button" onclick={cancelCheckout}>Cancel</button>
 					</div>
 
-					<button
-						class="submit pressable"
-						type="button"
-						disabled={confirming}
-						onclick={confirmPayment}
-					>
-						{confirming ? 'Confirming…' : `Subscribe to ${selected.label}`}
-					</button>
-					<p class="field-hint">
-						You can change or cancel any time from Settings → Billing. Cancelling keeps your tracks.
-					</p>
-				</div>
-			</section>
+					{#if message}
+						<div class="banner error" role="alert" aria-live="polite">
+							<IconAlertCircle size={16} stroke={1.75} aria-hidden="true" />
+							{message}
+						</div>
+					{/if}
+
+					{#if !paymentReady}
+						<form
+							class="account-form"
+							aria-busy={starting}
+							onsubmit={(event) => {
+								event.preventDefault();
+								startCheckout();
+							}}
+						>
+							{#if needsAccount}
+								<p class="form-intro">
+									Your account is created before payment, so a declined card still leaves you a
+									working Free profile.
+								</p>
+
+								<label for="plan-name">Name</label>
+								<input id="plan-name" type="text" autocomplete="name" bind:value={name} required />
+
+								<label for="plan-username">Username</label>
+								<input
+									id="plan-username"
+									type="text"
+									autocomplete="username"
+									autocapitalize="none"
+									spellcheck="false"
+									minlength="3"
+									maxlength="30"
+									bind:value={username}
+									required
+									aria-describedby="plan-username-hint"
+								/>
+								<p class="field-hint" id="plan-username-hint">
+									Your profile lives at <span class="mono"
+										>{username || 'you'}.{data.baseDomain}</span
+									>.
+								</p>
+
+								<label for="plan-email">Email</label>
+								<input
+									id="plan-email"
+									type="email"
+									autocomplete="email"
+									bind:value={email}
+									required
+								/>
+
+								<label for="plan-password">Password</label>
+								<input
+									id="plan-password"
+									type="password"
+									autocomplete="new-password"
+									minlength="8"
+									bind:value={password}
+									required
+								/>
+							{:else}
+								<p class="form-intro">
+									Signed in as <strong>{data.account?.username}</strong>. Continue to enter payment
+									details.
+								</p>
+							{/if}
+
+							<button class="submit pressable" type="submit" disabled={starting}>
+								{starting ? 'Preparing checkout…' : 'Continue to payment'}
+							</button>
+						</form>
+					{/if}
+
+					<div class="payment" hidden={!paymentReady}>
+						<div id="payment-element"></div>
+
+						<div class="promo">
+							<label for="plan-promo">Promo code</label>
+							<div class="promo-row">
+								<input
+									id="plan-promo"
+									type="text"
+									autocapitalize="characters"
+									bind:value={promoCode}
+								/>
+								<button
+									class="ghost pressable"
+									type="button"
+									disabled={applyingPromo || !promoCode.trim()}
+									onclick={applyPromo}
+								>
+									{applyingPromo ? 'Checking…' : 'Apply'}
+								</button>
+							</div>
+							{#if promoNote}
+								<p class="field-hint" role="status">{promoNote}</p>
+							{/if}
+						</div>
+
+						<button
+							class="submit pressable"
+							type="button"
+							disabled={confirming}
+							onclick={confirmPayment}
+						>
+							{confirming ? 'Confirming…' : `Subscribe to ${selected.label}`}
+						</button>
+						<p class="field-hint">
+							You can change or cancel any time from Settings → Billing. Cancelling keeps your
+							tracks.
+						</p>
+					</div>
+				</section>
+			</div>
 		{/if}
 	</main>
 </div>
@@ -455,6 +476,46 @@
 		min-height: 100vh;
 		margin: 0 auto;
 		padding: 0 var(--site-shell-pad-x) 5rem;
+	}
+
+	main {
+		position: relative;
+		isolation: isolate;
+	}
+
+	.signal-bg {
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: 0;
+		width: min(74%, 64rem);
+		height: min(82vh, 56rem);
+		pointer-events: none;
+		overflow: hidden;
+		-webkit-mask-image:
+			linear-gradient(to left, #000 38%, transparent 96%),
+			linear-gradient(to bottom, #000 48%, transparent 98%);
+		mask-image:
+			linear-gradient(to left, #000 38%, transparent 96%),
+			linear-gradient(to bottom, #000 48%, transparent 98%);
+		-webkit-mask-composite: source-in;
+		mask-composite: intersect;
+	}
+
+	.signal-bg img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: right top;
+	}
+
+	.intro,
+	.banner,
+	.tiers,
+	.checkout-stage {
+		position: relative;
+		z-index: 1;
 	}
 
 	.intro {
@@ -523,6 +584,7 @@
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 1.25rem;
+		margin-inline: 0.75rem;
 	}
 
 	.tier {
@@ -532,7 +594,9 @@
 		gap: 0.7rem;
 		padding: 1.5rem;
 		border: 1px solid var(--hard-border);
-		background: transparent;
+		background: color-mix(in srgb, var(--paper) 78%, transparent);
+		-webkit-backdrop-filter: blur(12px);
+		backdrop-filter: blur(12px);
 	}
 
 	.tier.featured {
@@ -556,7 +620,11 @@
 
 	.tier.current,
 	.tier.picked {
-		background: color-mix(in srgb, var(--accent) 18%, transparent);
+		background: color-mix(
+			in srgb,
+			var(--accent) 20%,
+			color-mix(in srgb, var(--paper) 72%, transparent)
+		);
 		box-shadow: 6px 6px 0 var(--hard-shadow);
 	}
 
@@ -652,12 +720,47 @@
 		cursor: not-allowed;
 	}
 
-	.checkout {
-		max-width: 34rem;
+	.checkout-stage {
+		position: relative;
 		margin: 3rem 0 0;
+		padding: 0.75rem;
+		isolation: isolate;
+	}
+
+	.checkout-bg {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		overflow: hidden;
+		-webkit-mask-image:
+			linear-gradient(to left, #000 45%, transparent 92%),
+			linear-gradient(to bottom, #000 55%, transparent 100%);
+		mask-image:
+			linear-gradient(to left, #000 45%, transparent 92%),
+			linear-gradient(to bottom, #000 55%, transparent 100%);
+		-webkit-mask-composite: source-in;
+		mask-composite: intersect;
+	}
+
+	.checkout-bg img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: right center;
+	}
+
+	.checkout {
+		position: relative;
+		z-index: 1;
+		max-width: 34rem;
 		padding: 1.75rem;
 		border: 1px solid var(--hard-border);
+		background: color-mix(in srgb, var(--paper) 78%, transparent);
 		box-shadow: 6px 6px 0 var(--hard-shadow);
+		-webkit-backdrop-filter: blur(12px);
+		backdrop-filter: blur(12px);
 	}
 
 	.checkout-head {
@@ -824,6 +927,11 @@
 		.tiers {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
+
+		.signal-bg {
+			width: min(78%, 42rem);
+			height: min(64vh, 36rem);
+		}
 	}
 
 	@media (max-width: 640px) {
@@ -833,6 +941,12 @@
 
 		.intro {
 			margin-bottom: 2rem;
+		}
+
+		.signal-bg {
+			width: min(92%, 28rem);
+			height: min(48vh, 22rem);
+			opacity: 0.72;
 		}
 
 		.lede {

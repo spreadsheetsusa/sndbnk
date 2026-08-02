@@ -44,7 +44,7 @@
 			<p class="eyebrow accent-text">Return to the signal</p>
 			<h1 id="signin-title" class="display-face">Pick up where you left off.</h1>
 		</div>
-		<p class="side-note">A place for sound, the people who make it, and the people who listen.</p>
+		<p class="side-note">An audio multi-tool for artists and creative listeners alike.</p>
 		<svg viewBox="0 0 600 120" role="img" aria-label="Abstract sound wave">
 			<path
 				d="M0 60 H45 L57 45 L68 76 L80 20 L94 102 L109 48 L124 70 L139 8 L154 112 L169 40 L184 81 L199 26 L214 96 L229 52 L244 67 L259 16 L274 105 L289 43 L304 78 L319 30 L334 91 L349 54 L364 65 L379 22 L394 99 L409 47 L424 73 L439 34 L454 87 L469 56 L484 64 L499 42 L514 76 L529 57 L544 63 L555 51 L566 68 L578 59 H600"

@@ -29,7 +29,7 @@ if (!apiKey) {
 }
 
 const stripe = new Stripe(apiKey);
-const db = new Database(dbPath, { create: false });
+const db = new Database(dbPath);
 
 const mode = apiKey.includes('_test_') ? 'sandbox/test' : 'LIVE';
 console.log(`Bootstrapping Stripe catalog in ${mode} mode against ${dbPath}\n`);
