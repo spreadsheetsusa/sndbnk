@@ -649,8 +649,14 @@
 	/* Narrow: the player takes its own row instead of squeezing the logo and nav. */
 	@media (max-width: 960px) {
 		.site-header {
+			/* Breathing room above logo/mode strip when the stacked player grows the header
+			   past min-height (align-content no longer centers, so content would pack flush). */
+			--site-header-pad-top: 0.45rem;
 			flex-wrap: wrap;
 			align-content: center;
+			padding-top: var(--site-header-pad-top);
+			/* border-box: keep the inner content box at the previous min-height. */
+			--site-header-height: calc(5rem + var(--site-header-pad-top));
 		}
 
 		.header-end {
@@ -660,7 +666,7 @@
 
 	@media (max-width: 640px) {
 		.site-header {
-			--site-header-height: 4.5rem;
+			--site-header-height: calc(4.5rem + var(--site-header-pad-top));
 		}
 
 		.mode-btn {
