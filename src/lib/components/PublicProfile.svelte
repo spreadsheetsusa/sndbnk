@@ -3,6 +3,7 @@
 	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
+	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
@@ -169,10 +170,7 @@
 	</main>
 
 	{#if !data.viaTenantHost}
-		<footer>
-			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-			<p>© {new Date().getFullYear()} SNDBNK®. All rights reserved.</p>
-		</footer>
+		<SiteFooter bordered />
 	{/if}
 </div>
 
@@ -208,13 +206,6 @@
 
 	.block {
 		min-width: 0;
-	}
-
-	.logo {
-		color: var(--ink);
-		font-size: clamp(1.5rem, 3vw, 2rem);
-		line-height: 1;
-		text-decoration: none;
 	}
 
 	.hero {
@@ -429,19 +420,6 @@
 		stroke: var(--accent);
 		stroke-width: 4;
 		vector-effect: non-scaling-stroke;
-	}
-
-	footer {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem 2rem;
-		align-items: end;
-		justify-content: space-between;
-		margin-top: clamp(3rem, 10vw, 6rem);
-		padding-top: 1.5rem;
-		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-		color: var(--muted);
-		font-size: 0.8rem;
 	}
 
 	@keyframes rise {

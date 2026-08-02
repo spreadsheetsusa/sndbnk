@@ -2,6 +2,7 @@
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
+	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
@@ -137,10 +138,7 @@
 			</section>
 		</main>
 
-		<footer>
-			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-			<p>© {new Date().getFullYear()} SNDBNK®. All rights reserved.</p>
-		</footer>
+		<SiteFooter />
 	</div>
 {/if}
 
@@ -152,13 +150,6 @@
 		padding: 0 var(--site-shell-pad-x);
 		/* Not `overflow: hidden` — that makes a scroll container and breaks the sticky header. */
 		overflow-x: clip;
-	}
-
-	.logo {
-		color: var(--ink);
-		font-size: clamp(1.5rem, 2.5vw, 2.1rem);
-		line-height: 1;
-		text-decoration: none;
 	}
 
 	.hero-actions {
@@ -317,22 +308,6 @@
 		letter-spacing: 0.15em;
 	}
 
-	footer {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem 2rem;
-		align-items: end;
-		justify-content: space-between;
-		padding: 2rem 0;
-	}
-
-	footer p {
-		margin: 0;
-		color: var(--muted);
-		font-size: 0.7rem;
-		line-height: 1.4;
-	}
-
 	@keyframes rise {
 		from {
 			opacity: 0;
@@ -393,11 +368,6 @@
 			grid-column: auto;
 			grid-row: auto;
 			justify-self: start;
-		}
-
-		footer {
-			flex-direction: column;
-			align-items: start;
 		}
 	}
 </style>
