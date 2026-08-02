@@ -21,16 +21,21 @@
 	 */
 
 	/** @type {{ track: HeroTrack | null }} */
-	let { track } = $props();
+	let { track: showcaseTrack } = $props();
 
 	/** Position previewed by an in-flight waveform scrub. @type {number | null} */
 	let scrubSeconds = $state(null);
 
+	/** Prefer the loaded player track so the splash follows now-playing. */
+	const track = $derived(player.current ?? showcaseTrack);
 	const isActive = $derived(track != null && player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
 	const displayTime = $derived(scrubSeconds ?? (isActive ? player.currentTime : 0));
 	const artistLabel = $derived(track ? track.artist || track.uploaderName : '');
-	const genreLabel = $derived(track?.genre?.trim() || 'SNDBNK');
+	const genreLabel = $derived(/** @type {HeroTrack | null} */ (track)?.genre?.trim() || 'SNDBNK');
+	const cardLabel = $derived(
+		track ? `${isActive ? 'Now playing' : 'Now featuring'} ${track.title} by ${artistLabel}` : ''
+	);
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack | null} */
 	function asPlayerTrack() {
@@ -66,11 +71,7 @@
 </script>
 
 {#if track}
-	<div
-		class="sound-card live"
-		class:playing={isPlaying}
-		aria-label="Now featuring {track.title} by {artistLabel}"
-	>
+	<div class="sound-card live" class:playing={isPlaying} aria-label={cardLabel}>
 		{#if track.hasCover}
 			<img class="cover-bleed" src="/api/media/{track.id}/cover" alt="" aria-hidden="true" />
 		{/if}
