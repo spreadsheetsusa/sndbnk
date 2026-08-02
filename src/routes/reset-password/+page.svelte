@@ -33,6 +33,7 @@
 <svelte:head>
 	<title>Reset password | SNDBNK</title>
 	<meta name="description" content="Choose a new SNDBNK password." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="auth-page">

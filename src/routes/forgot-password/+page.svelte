@@ -25,6 +25,7 @@
 <svelte:head>
 	<title>Forgot password | SNDBNK</title>
 	<meta name="description" content="Reset your SNDBNK password." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="auth-page">

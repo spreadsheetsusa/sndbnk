@@ -3,9 +3,13 @@
 	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
 	import { PUBLIC_STRIPE_PUBLISHABLE_KEY } from '$app/env/public';
 	import { invalidateAll } from '$app/navigation';
+	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data } = $props();
+
+	const plansDescription =
+		'Host your sound on SNDBNK — a free profile, your own subdomain, or your own domain with unlimited tracks.';
 
 	/** @type {'month' | 'year'} */
 	let interval = $state('month');
@@ -201,13 +205,12 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Plans and pricing | SNDBNK</title>
-	<meta
-		name="description"
-		content="Host your sound on SNDBNK — a free profile, your own subdomain, or your own domain with unlimited tracks."
-	/>
-</svelte:head>
+<SeoHead
+	title="Plans and pricing | SNDBNK"
+	description={plansDescription}
+	canonical={`${data.siteOrigin}/plans`}
+	origin={data.siteOrigin}
+/>
 
 <div class="page">
 	<SiteHeader />

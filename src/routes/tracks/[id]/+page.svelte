@@ -1,16 +1,30 @@
 <script>
 	import { goto, invalidateAll } from '$app/navigation';
 	import Avatar from '#lib/components/Avatar.svelte';
+	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { absoluteUrl, musicRecordingJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
 
-	const pageTitle = $derived(
-		`${data.track.title} by ${data.track.artist || data.track.uploaderName} | SNDBNK`
+	const artistName = $derived(data.track.artist || data.track.uploaderName);
+	const pageTitle = $derived(`${data.track.title} by ${artistName} | SNDBNK`);
+	const pageDescription = $derived(`Listen to ${data.track.title} by ${artistName} on SNDBNK.`);
+	const seoCanonical = $derived(`${data.siteOrigin}/tracks/${data.track.id}`);
+	const seoImage = $derived(data.track.hasCover ? `/api/media/${data.track.id}/cover` : null);
+	const seoJsonLd = $derived(
+		musicRecordingJsonLd({
+			name: data.track.title,
+			byArtist: artistName,
+			url: seoCanonical,
+			image: seoImage ? absoluteUrl(data.siteOrigin, seoImage) : null,
+			durationMs: data.track.durationMs,
+			description: data.description || pageDescription
+		})
 	);
 
 	/**
@@ -45,14 +59,15 @@
 	}
 </script>
 
-<svelte:head>
-	<title>{pageTitle}</title>
-	<meta
-		name="description"
-		content="Listen to {data.track.title} by {data.track.artist ||
-			data.track.uploaderName} on SNDBNK."
-	/>
-</svelte:head>
+<SeoHead
+	title={pageTitle}
+	description={pageDescription}
+	canonical={seoCanonical}
+	origin={data.siteOrigin}
+	image={seoImage}
+	type="music.song"
+	jsonLd={seoJsonLd}
+/>
 
 <div class="track-page">
 	{#if !data.viaTenantHost}

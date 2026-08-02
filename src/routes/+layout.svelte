@@ -15,7 +15,10 @@
 	});
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+	<link rel="icon" href={favicon} />
+	<meta name="theme-color" content="#0a0a0a" />
+</svelte:head>
 <div class="app-shell">
 	{@render children()}
 </div>

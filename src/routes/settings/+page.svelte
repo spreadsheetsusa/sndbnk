@@ -193,6 +193,7 @@
 		name="description"
 		content="Manage your SNDBNK profile, plan, domain, and upload storage."
 	/>
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="settings-page">

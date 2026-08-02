@@ -37,6 +37,7 @@
 <svelte:head>
 	<title>Music Library | SNDBNK</title>
 	<meta name="description" content="Your private SNDBNK track library." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="library-page">

@@ -1,11 +1,13 @@
 <script>
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
+	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
+	import { absoluteUrl, personJsonLd, webSiteJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
 
@@ -42,12 +44,43 @@
 			? `${data.profile.name} on SNDBNK — a public profile for sound.`
 			: 'An audio multi-tool for both artists and listeners.'
 	);
+
+	const seoCanonical = $derived(
+		data.mode === 'tenant-profile'
+			? `${data.siteOrigin}/users/${data.profile.username}`
+			: `${data.siteOrigin}/`
+	);
+
+	const seoImage = $derived(
+		data.mode === 'tenant-profile' ? (data.profile.avatarUrl ?? null) : null
+	);
+
+	const seoType = $derived(data.mode === 'tenant-profile' ? 'profile' : 'website');
+
+	const seoJsonLd = $derived(
+		data.mode === 'tenant-profile'
+			? personJsonLd({
+					name: data.profile.name,
+					username: data.profile.username,
+					url: seoCanonical,
+					image: data.profile.avatarUrl
+						? absoluteUrl(data.siteOrigin, data.profile.avatarUrl)
+						: null,
+					description: pageDescription
+				})
+			: webSiteJsonLd({ origin: data.siteOrigin, description: pageDescription })
+	);
 </script>
 
-<svelte:head>
-	<title>{pageTitle}</title>
-	<meta name="description" content={pageDescription} />
-</svelte:head>
+<SeoHead
+	title={pageTitle}
+	description={pageDescription}
+	canonical={seoCanonical}
+	origin={data.siteOrigin}
+	image={seoImage}
+	type={seoType}
+	jsonLd={seoJsonLd}
+/>
 
 {#if data.mode === 'tenant-profile'}
 	<div bind:this={container}>

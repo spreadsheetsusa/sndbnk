@@ -24,6 +24,7 @@
 <svelte:head>
 	<title>Create an account | SNDBNK</title>
 	<meta name="description" content="Create your SNDBNK account and join a place built for sound." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="auth-page">

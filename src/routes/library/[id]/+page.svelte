@@ -293,6 +293,7 @@
 <svelte:head>
 	<title>{data.track.title} | SNDBNK</title>
 	<meta name="description" content="Edit track metadata in your SNDBNK library." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="library-page">

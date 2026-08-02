@@ -31,6 +31,7 @@
 <svelte:head>
 	<title>Sign in | SNDBNK</title>
 	<meta name="description" content="Sign in to your SNDBNK account." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="auth-page">

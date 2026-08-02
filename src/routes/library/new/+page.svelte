@@ -269,6 +269,7 @@
 <svelte:head>
 	<title>Upload track | SNDBNK</title>
 	<meta name="description" content="Upload a new track to your SNDBNK library." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="library-page">

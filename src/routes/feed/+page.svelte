@@ -21,6 +21,7 @@
 <svelte:head>
 	<title>Feed | SNDBNK</title>
 	<meta name="description" content="Browse the latest tracks posted on SNDBNK." />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="feed-page">

@@ -14,6 +14,7 @@ const APEX_ONLY_PREFIXES = [
 	'/plans',
 	'/billing',
 	'/admin',
+	'/sitemap.xml',
 	'/api/domain-tls-check',
 	'/api/billing',
 	'/api/stripe',
