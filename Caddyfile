@@ -4,8 +4,9 @@
 # - Apex + www: managed certificates (below)
 # - Premium subdomains (*.sndbnk.com) and verified custom domains: on-demand TLS
 #   gated by /api/domain-tls-check so random hosts cannot obtain certificates.
-# - DNS: point *.sndbnk.com (and apex) at this server. Custom domains CNAME to
-#   {username}.sndbnk.com after the user verifies in Settings.
+# - DNS: point apex and *.sndbnk.com A records at this server (wildcard is required).
+#   Custom domains CNAME to {username}.sndbnk.com, or A/AAAA/ALIAS to the same IPs,
+#   after the user verifies in Settings.
 
 {
 	on_demand_tls {

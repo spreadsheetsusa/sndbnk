@@ -102,13 +102,17 @@ One creator, three public URLs, gated by plan entitlements
 - the base domain, `www.{base}`, `localhost`, `127.0.0.1`, and empty all classify as **apex**
 - a single label under the base domain is a **subdomain** — unless it is `www` or a member of
   `RESERVED_USERNAMES`, in which case it falls back to apex so infra hostnames keep working
-- anything else is a **custom** hostname, resolved by exact match against `profile.customDomain`
+- anything else is a **custom** hostname, resolved against `profile.customDomain` (with
+  `example.com` ↔ `www.example.com` pairing for simple apex names)
 
 Both the path route and the tenant `/` render from one loader,
 [`loadPublicProfilePage()`](../src/lib/server/profile-page.js), so the two surfaces cannot drift.
 
 Custom domains need DNS proof before they go `active`: a TXT record at `_sndbnk-verify.{domain}`
-plus a CNAME to `{username}.{base}`. See [`src/lib/server/domain-verify.js`](../src/lib/server/domain-verify.js).
+plus either a CNAME (or CNAME chain) to `{username}.{base}`, or A/AAAA addresses that match the
+platform edge (the resolved addresses of that subdomain, falling back to the apex). Apex domains
+typically use A/AAAA or ALIAS/ANAME because DNS forbids CNAME at the zone apex. See
+[`src/lib/server/domain-verify.js`](../src/lib/server/domain-verify.js).
 Caddy asks `/api/domain-tls-check` before issuing a certificate for any unknown host, so an
 unverified domain cannot mint TLS certs — details in [operations.md](operations.md).
 

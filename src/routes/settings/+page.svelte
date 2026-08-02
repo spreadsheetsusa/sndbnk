@@ -85,6 +85,8 @@
 	// Remount the editor whenever the server-side set changes, so its row state reseeds.
 	const linksKey = $derived(JSON.stringify(linkRows));
 	const domainValue = $derived(form?.customDomain ?? data.profile.customDomain ?? '');
+	const platformAddresses = $derived(data.domainDns?.platformAddresses ?? []);
+	const dnsIsApex = $derived(Boolean(data.domainDns?.apexDomain));
 	const selectedAdapter = $derived(userAdapter ?? form?.adapter ?? data.storage.adapter);
 	const sshHostValue = $derived(form?.sshHost ?? data.storage.sshHost);
 	const sshPortValue = $derived(form?.sshPort ?? String(data.storage.sshPort ?? 22));
@@ -106,7 +108,7 @@
 
 			return async ({ update }) => {
 				try {
-					await update();
+					await update({ reset: false });
 				} finally {
 					if (which === 'profile') profileBusy = false;
 					if (which === 'email') emailBusy = false;
@@ -588,9 +590,9 @@
 					<h2>Domain</h2>
 					<p>
 						{#if canCustomDomain}
-							Your subdomain is live. Optionally connect a custom domain with a CNAME.
+							Your subdomain is live. Optionally connect a custom domain (apex or subdomain).
 						{:else if canSubdomain}
-							Your subdomain is live. Studio unlocks a custom domain via CNAME.
+							Your subdomain is live. Studio unlocks a custom domain (apex or subdomain).
 						{:else}
 							Vault unlocks <strong>{data.profile.username}.{data.baseDomain}</strong>. Studio adds
 							custom domains.
@@ -613,19 +615,32 @@
 								<a href={data.urls.subdomainUrl}
 									>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
 								>
+							{:else}
+								<span class="mono">{data.profile.username}.{data.baseDomain}</span>
 							{/if}
 						</div>
 						<div class="url-row">
 							<span class="url-label">Path</span>
 							<a href={data.urls.pathUrl}>{data.urls.pathUrl.replace(/^https?:\/\//, '')}</a>
 						</div>
+						{#if data.urls.customDomainUrl}
+							<div class="url-row">
+								<span class="url-label">Custom</span>
+								<a href={data.urls.customDomainUrl}
+									>{data.urls.customDomainUrl.replace(/^https?:\/\//, '')}</a
+								>
+							</div>
+						{/if}
 					</div>
+					<p class="hint">
+						Subdomains work automatically once your plan includes them — no DNS for you to manage.
+					</p>
 				{:else}
 					<div class="locked">
 						<p>
 							Vault unlocks
 							<span class="mono">{data.profile.username}.{data.baseDomain}</span>. Studio adds a
-							CNAME custom domain.
+							custom domain.
 						</p>
 						<a class="cta pressable" href="/plans">See plans</a>
 					</div>
@@ -645,11 +660,14 @@
 							name="customDomain"
 							type="text"
 							value={domainValue}
-							placeholder="music.example.com"
+							placeholder="example.com or music.example.com"
 							autocapitalize="none"
 							spellcheck="false"
 						/>
-						<p class="hint">Enter the hostname visitors will type. No https://.</p>
+						<p class="hint">
+							Enter the exact hostname visitors will use (no https://). Apex domains and hostnames
+							like music.example.com are both supported.
+						</p>
 						<button class="pressable" type="submit" disabled={domainBusy}>
 							{domainBusy ? 'Saving…' : 'Save domain'}
 						</button>
@@ -666,16 +684,47 @@
 							</p>
 							<ol>
 								<li>
-									CNAME <code>{data.profile.customDomain}</code> →
-									<code>{data.urls.cnameTarget}</code>
-								</li>
-								<li>
 									TXT <code>_sndbnk-verify.{data.profile.customDomain}</code> →
 									<code>{data.profile.domainVerifyToken}</code>
 								</li>
+								{#if dnsIsApex}
+									<li>
+										Apex hosts usually cannot use a CNAME. Create an A record (and AAAA if you have
+										IPv6) for <code>{data.profile.customDomain}</code>
+										{#if platformAddresses.length > 0}
+											→
+											{#each platformAddresses as address, i (address)}
+												<code>{address}</code>{i < platformAddresses.length - 1 ? ', ' : ''}
+											{/each}
+											, or an ALIAS/ANAME to <code>{data.urls.cnameTarget}</code> if your DNS provider
+											supports it.
+										{:else}
+											pointing at the same addresses as
+											<code>{data.baseDomain}</code>, or an ALIAS/ANAME to
+											<code>{data.urls.cnameTarget}</code>.
+										{/if}
+									</li>
+								{:else}
+									<li>
+										CNAME <code>{data.profile.customDomain}</code> →
+										<code>{data.urls.cnameTarget}</code>
+										{#if platformAddresses.length > 0}
+											(or A/AAAA →
+											{#each platformAddresses as address, i (address)}
+												<code>{address}</code>{i < platformAddresses.length - 1 ? ', ' : ''}
+											{/each})
+										{/if}
+									</li>
+								{/if}
 							</ol>
 							<p class="hint">
-								DNS can take a few minutes. After both records propagate, verify below.
+								DNS can take a few minutes. After the records propagate, verify below. Route 53 and
+								most registrars block CNAME at the zone apex — use A/AAAA or ALIAS there instead.
+								{#if dnsIsApex}
+									Once active, <code>www.{data.profile.customDomain}</code> is accepted too if it
+									points at the same place (point www with a CNAME to
+									<code>{data.urls.cnameTarget}</code> or the same A/AAAA values).
+								{/if}
 							</p>
 							<div class="dns-actions">
 								<form
@@ -701,7 +750,7 @@
 					{/if}
 				{:else if canSubdomain}
 					<div class="locked">
-						<p>Studio unlocks a custom domain mapped to your profile via CNAME.</p>
+						<p>Studio unlocks a custom domain mapped to your profile.</p>
 						<a class="cta pressable" href="/plans">See plans</a>
 					</div>
 				{/if}

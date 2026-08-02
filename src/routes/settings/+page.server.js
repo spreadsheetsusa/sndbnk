@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 
 import { auth } from '#lib/server/auth';
 import { removeAvatar, saveAvatar } from '#lib/server/avatar';
@@ -8,6 +8,9 @@ import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
 import {
 	createDomainVerifyToken,
+	customDomainCandidates,
+	isLikelyApexDomain,
+	resolvePlatformAddresses,
 	validateDomain,
 	verifyCustomDomain
 } from '#lib/server/domain-verify';
@@ -51,6 +54,7 @@ export const load = async ({ locals }) => {
 	const links = await listLinksForUser(locals.user.id);
 	const usage = await getUsage(locals.user.id);
 	const tier = planOrDefault(row.plan);
+	const platformAddresses = await resolvePlatformAddresses(urls.cnameTarget, PUBLIC_BASE_DOMAIN);
 
 	return {
 		user: {
@@ -75,6 +79,11 @@ export const load = async ({ locals }) => {
 		},
 		urls,
 		baseDomain: PUBLIC_BASE_DOMAIN,
+		domainDns: {
+			cnameTarget: urls.cnameTarget,
+			platformAddresses,
+			apexDomain: row.customDomain ? isLikelyApexDomain(row.customDomain) : false
+		},
 		billing: {
 			enabled: billingEnabled,
 			planId: tier.id,
@@ -305,14 +314,19 @@ export const actions = {
 		}
 
 		const taken = await db
-			.select({ userId: profile.userId })
+			.select({ userId: profile.userId, customDomain: profile.customDomain })
 			.from(profile)
-			.where(and(eq(profile.customDomain, domain), ne(profile.userId, locals.user.id)))
+			.where(
+				and(
+					inArray(profile.customDomain, customDomainCandidates(domain)),
+					ne(profile.userId, locals.user.id)
+				)
+			)
 			.limit(1);
 
 		if (taken.length > 0) {
 			return fail(400, {
-				domainMessage: 'That domain is already connected to another account.',
+				domainMessage: 'That domain (or its www twin) is already connected to another account.',
 				customDomain: domain
 			});
 		}
@@ -360,7 +374,8 @@ export const actions = {
 			const result = await verifyCustomDomain({
 				domain: row.customDomain,
 				token: row.domainVerifyToken,
-				cnameTarget
+				cnameTarget,
+				baseDomain: PUBLIC_BASE_DOMAIN
 			});
 
 			if (!result.ok) {

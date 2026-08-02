@@ -70,7 +70,7 @@ These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies 
 | ------------------------------------------ | ---------------------------------------------------------- |
 | `username`                                 | unique; the subdomain label and path segment               |
 | `plan`                                     | `'free' \| 'vault' \| 'studio' \| 'label'`, default `free` |
-| `customDomain`                             | unique, nullable                                           |
+| `customDomain`                             | unique, nullable; apex↔`www` paired at lookup time         |
 | `customDomainStatus`                       | `'none' \| 'pending' \| 'active'`                          |
 | `domainVerifyToken`                        | the `sndbnk-verify=…` value the owner puts in DNS TXT      |
 | `customDomainVerifiedAt`                   | timestamp of the last successful verification              |

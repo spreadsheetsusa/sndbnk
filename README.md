@@ -27,7 +27,9 @@ subdomains, keep `PUBLIC_BASE_DOMAIN=localhost` and open profiles at
 Apex routes (`/settings`, `/signup`, `/signin`) stay on `http://localhost:5174`.
 Custom domains can be exercised in dev by pointing a hosts-file entry at
 `127.0.0.1` after verifying the domain in Settings (Vite allows arbitrary Host
-headers so tenant resolution can run).
+headers so tenant resolution can run). Production needs a `*.sndbnk.com` A
+record; custom domains verify via CNAME or A/AAAA/ALIAS to the platform edge
+(apex included). See `docs/operations.md`.
 
 ### Tenant subdomains in dev
 

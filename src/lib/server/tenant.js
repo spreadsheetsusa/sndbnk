@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 import { ORIGIN } from '$app/env/private';
@@ -6,6 +6,7 @@ import { ORIGIN } from '$app/env/private';
 import { db } from '#lib/server/db';
 import { profile, user } from '#lib/server/db/schema';
 import { canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
+import { customDomainCandidates, customDomainMatches } from '#lib/server/domain-verify';
 import { RESERVED_USERNAMES } from '#lib/server/username';
 
 /**
@@ -123,8 +124,25 @@ export function getProfileByUserId(userId) {
 /**
  * @param {string} hostname
  */
-export function getProfileByCustomDomain(hostname) {
-	return selectProfile(eq(profile.customDomain, hostname));
+export async function getProfileByCustomDomain(hostname) {
+	const candidates = customDomainCandidates(hostname);
+	if (candidates.length === 0) return null;
+
+	const rows = await db
+		.select(PROFILE_COLUMNS)
+		.from(profile)
+		.innerJoin(user, eq(profile.userId, user.id))
+		.where(inArray(profile.customDomain, candidates));
+
+	const exact = normalizeHostname(hostname);
+	return rows.find((row) => row.customDomain === exact) ?? rows[0] ?? null;
+}
+
+/**
+ * @param {string} hostname
+ */
+function normalizeHostname(hostname) {
+	return hostname.trim().toLowerCase().replace(/\.$/, '');
 }
 
 /**
@@ -212,7 +230,7 @@ export async function resolveTenantHost(hostname) {
 		!row ||
 		!canUseCustomDomain(row.plan) ||
 		row.customDomainStatus !== 'active' ||
-		row.customDomain !== classified.hostname
+		!customDomainMatches(row.customDomain, classified.hostname)
 	) {
 		return { type: 'not_found' };
 	}

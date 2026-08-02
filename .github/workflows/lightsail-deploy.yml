@@ -306,4 +306,27 @@ jobs:
               exit 1
             fi
 
+            echo "Smoke-testing tenant wildcard DNS..."
+            # Creators need *.sndbnk.com → Lightsail. Without it, subdomains and custom-domain
+            # CNAME targets never resolve even when the app and TLS ask endpoint are healthy.
+            python3 - <<'PY'
+            import socket
+            import sys
+
+            host = "wildcard-probe.sndbnk.com"
+            try:
+                infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+            except socket.gaierror as exc:
+                print(
+                    f"FAIL: {host} does not resolve ({exc}). "
+                    "Add an A record for *.sndbnk.com pointing at this server's public IP "
+                    "in the sndbnk.com Route 53 hosted zone.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+            addrs = sorted({item[4][0] for item in infos})
+            print(f"OK tenant DNS: {host} → {', '.join(addrs)}")
+            PY
+
             echo "Deployment completed successfully"

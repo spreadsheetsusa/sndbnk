@@ -159,8 +159,25 @@ Caddy will only mint a certificate for a hostname when
 Everything else — including the apex, which uses managed certs — gets `400`. Without this gate,
 pointing any domain at the server would let it obtain a certificate.
 
-DNS requirements: `sndbnk.com` and `*.sndbnk.com` A records at the server; a creator's custom domain
-CNAMEs to `{username}.sndbnk.com` after verification.
+DNS requirements (platform, Route 53 hosted zone for `sndbnk.com`):
+
+| Record           | Type              | Value               | Why                                                                                       |
+| ---------------- | ----------------- | ------------------- | ----------------------------------------------------------------------------------------- |
+| `sndbnk.com`     | A                 | Lightsail public IP | Apex app                                                                                  |
+| `www.sndbnk.com` | A (or CNAME→apex) | same IP             | Redirect target in Caddy                                                                  |
+| `*.sndbnk.com`   | A                 | same IP             | **Required** for every `{username}.sndbnk.com` and as the CNAME target for custom domains |
+
+Without the wildcard, subdomain hosts do not resolve at all — the app and `/api/domain-tls-check`
+can be healthy while browsers still fail with `NXDOMAIN`. Deploy smoke-tests a probe name under the
+wildcard after restart.
+
+Creator custom domains (after Studio+ verification):
+
+- **Ownership:** TXT at `_sndbnk-verify.{domain}` (or the root) with the token from Settings.
+- **Routing:** CNAME to `{username}.sndbnk.com`, **or** A/AAAA (or provider ALIAS/ANAME) to the same
+  addresses as the platform edge. Apex zones cannot use CNAME; A/AAAA/ALIAS is the supported path.
+- Verification is in [`domain-verify.js`](../src/lib/server/domain-verify.js); Caddy still gates TLS
+  via `/api/domain-tls-check` so only `active` custom domains mint certs.
 
 ## Troubleshooting
 
@@ -171,6 +188,8 @@ CNAMEs to `{username}.sndbnk.com` after verification.
 | `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                        |
 | Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value     |
 | Tenant host returns 404                                  | profile missing, plan lacks subdomain/custom-domain entitlement, or `customDomainStatus` is not `active`              |
+| `{user}.sndbnk.com` does not resolve                     | missing `*.sndbnk.com` A record in Route 53 — add it pointing at the Lightsail IP                                     |
+| Custom domain verify fails on apex                       | use A/AAAA (or ALIAS) to the platform IPs shown in Settings, not a CNAME                                              |
 | Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                         |
 | Waveforms are flat placeholder bars                      | `ffmpeg` missing or decode failed — check `journalctl -u sndbnk` for `[waveform]` errors                              |
 | Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                      |

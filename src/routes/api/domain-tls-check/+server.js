@@ -1,6 +1,7 @@
 import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 
 import { canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
+import { customDomainMatches } from '#lib/server/domain-verify';
 import { classifyHost, getProfileByCustomDomain, getProfileByUsername } from '#lib/server/tenant';
 
 /**
@@ -34,7 +35,7 @@ export async function GET({ url }) {
 		row &&
 		canUseCustomDomain(row.plan) &&
 		row.customDomainStatus === 'active' &&
-		row.customDomain === classified.hostname
+		customDomainMatches(row.customDomain, classified.hostname)
 	) {
 		return new Response('ok', { status: 200 });
 	}
