@@ -71,3 +71,22 @@ Resubscribe any time at ${origin}/plans.
 — SNDBNK`
 	});
 }
+
+/**
+ * @param {{ to: string, name: string, url: string }} input
+ */
+export function sendVerifyEmailChangeMail({ to, name, url }) {
+	return sendMail({
+		to,
+		subject: 'Confirm your new SNDBNK email',
+		text: `${name},
+
+Confirm this address to use it for SNDBNK sign-in:
+
+${url}
+
+If you did not request this, you can ignore this message — your sign-in email stays the same.
+
+— SNDBNK`
+	});
+}

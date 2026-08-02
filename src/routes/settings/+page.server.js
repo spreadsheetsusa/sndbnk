@@ -3,6 +3,7 @@ import { and, eq, ne } from 'drizzle-orm';
 
 import { auth } from '#lib/server/auth';
 import { removeAvatar, saveAvatar } from '#lib/server/avatar';
+import { requestEmailChange } from '#lib/server/change-email';
 import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
 import {
@@ -181,6 +182,33 @@ export const actions = {
 		await replaceLinksForUser(locals.user.id, linksResult.links);
 
 		return { profileSuccess: 'Profile updated.' };
+	},
+
+	changeEmail: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const newEmail = formData.get('newEmail')?.toString() ?? '';
+		const confirmEmail = formData.get('confirmEmail')?.toString() ?? '';
+		const password = formData.get('password')?.toString() ?? '';
+
+		const result = await requestEmailChange({
+			currentEmail: locals.user.email,
+			newEmailRaw: newEmail,
+			confirmEmailRaw: confirmEmail,
+			password,
+			headers: request.headers
+		});
+
+		if (!result.ok) {
+			return fail(400, { emailMessage: result.message, newEmail: result.newEmail });
+		}
+
+		return {
+			emailSuccess: `Check ${result.newEmail} for a confirmation link. Your sign-in email stays the same until you click it.`
+		};
 	},
 
 	uploadAvatar: async ({ locals, request }) => {

@@ -5,7 +5,9 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin } from 'better-auth/plugins';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
+import { syncStripeCustomerEmail } from '#lib/server/billing/customer';
 import { db } from '#lib/server/db';
+import { sendVerifyEmailChangeMail } from '#lib/server/mail/templates';
 
 const isLocalBase = PUBLIC_BASE_DOMAIN === 'localhost' || PUBLIC_BASE_DOMAIN === '127.0.0.1';
 
@@ -14,6 +16,18 @@ export const auth = betterAuth({
 	secret: BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 	emailAndPassword: { enabled: true },
+	user: {
+		changeEmail: { enabled: true }
+	},
+	emailVerification: {
+		// Fire-and-forget so timing does not leak whether the address is new.
+		sendVerificationEmail: async ({ user, url }) => {
+			void sendVerifyEmailChangeMail({ to: user.email, name: user.name, url });
+		},
+		afterEmailVerification: async (user) => {
+			await syncStripeCustomerEmail(user.id, user.email);
+		}
+	},
 	// Apex + www (Caddy redirects www, but preflight/origin checks can still see it).
 	trustedOrigins: [
 		'https://sndbnk.com',

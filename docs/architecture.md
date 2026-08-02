@@ -124,7 +124,7 @@ src/
     layout.css            design tokens + global utilities
     +page.svelte          marketing landing OR tenant profile
     signin/ signup/       auth forms
-    settings/             profile, plan, domain, storage (tabbed)
+    settings/             profile (incl. email change), plan, domain, storage (tabbed)
     library/              owner CRUD: list, new, [id] edit
     tracks/[id]/          public track detail
     users/[username]/     public profile by path

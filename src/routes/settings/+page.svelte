@@ -61,6 +61,7 @@
 	}
 
 	let profileBusy = $state(false);
+	let emailBusy = $state(false);
 	let billingBusy = $state(false);
 	let domainBusy = $state(false);
 	let storageBusy = $state(false);
@@ -77,6 +78,8 @@
 	let bioTyped = $state(/** @type {number | null} */ (null));
 	const bioLength = $derived(bioTyped ?? bioValue.length);
 	const locationValue = $derived(form?.location ?? data.profile.location);
+	const newEmailValue = $derived(form?.newEmail ?? '');
+	const emailJustUpdated = $derived(page.url.searchParams.get('emailUpdated') === '1');
 	const linkRows = $derived(form?.links ?? data.links);
 	// Remount the editor whenever the server-side set changes, so its row state reseeds.
 	const linksKey = $derived(JSON.stringify(linkRows));
@@ -89,11 +92,12 @@
 	const isSshAdapter = $derived(selectedAdapter === 'ssh');
 
 	/**
-	 * @param {'profile' | 'billing' | 'domain' | 'storage' | 'avatar'} which
+	 * @param {'profile' | 'email' | 'billing' | 'domain' | 'storage' | 'avatar'} which
 	 */
 	function busyHandler(which) {
 		return () => {
 			if (which === 'profile') profileBusy = true;
+			if (which === 'email') emailBusy = true;
 			if (which === 'billing') billingBusy = true;
 			if (which === 'domain') domainBusy = true;
 			if (which === 'storage') storageBusy = true;
@@ -104,6 +108,7 @@
 					await update();
 				} finally {
 					if (which === 'profile') profileBusy = false;
+					if (which === 'email') emailBusy = false;
 					if (which === 'billing') billingBusy = false;
 					if (which === 'domain') domainBusy = false;
 					if (which === 'storage') storageBusy = false;
@@ -337,14 +342,70 @@
 						<ProfileLinksEditor initialLinks={linkRows} />
 					{/key}
 
-					<label for="email">Email</label>
-					<input id="email" type="email" value={data.user.email} disabled />
-					<p class="hint">Used for sign-in. Changing email comes later.</p>
-
 					<button class="pressable" type="submit" disabled={profileBusy}>
 						{profileBusy ? 'Saving…' : 'Save profile'}
 					</button>
 				</form>
+
+				<div class="email-section" aria-labelledby="email-heading">
+					<h3 id="email-heading">Sign-in email</h3>
+					<p class="hint">
+						Current address: <strong>{data.user.email}</strong>. We send a link to the new address;
+						it becomes your sign-in email only after you confirm.
+					</p>
+
+					{#if emailJustUpdated && !form?.emailMessage && !form?.emailSuccess && !emailBusy}
+						<div class="banner ok" role="status">Your sign-in email is updated.</div>
+					{/if}
+					{#if form?.emailMessage && !emailBusy}
+						<div class="banner error" role="alert" id="email-error">{form.emailMessage}</div>
+					{/if}
+					{#if form?.emailSuccess && !emailBusy}
+						<div class="banner ok" role="status">{form.emailSuccess}</div>
+					{/if}
+
+					<form
+						method="POST"
+						action="?/changeEmail&tab=profile"
+						use:enhance={busyHandler('email')}
+						aria-busy={emailBusy}
+						aria-describedby={form?.emailMessage && !emailBusy ? 'email-error' : undefined}
+					>
+						<label for="newEmail">New email</label>
+						<input
+							id="newEmail"
+							name="newEmail"
+							type="email"
+							value={newEmailValue}
+							autocomplete="email"
+							required
+							aria-invalid={form?.emailMessage && !emailBusy ? 'true' : undefined}
+						/>
+
+						<label for="confirmEmail">Confirm new email</label>
+						<input
+							id="confirmEmail"
+							name="confirmEmail"
+							type="email"
+							value={newEmailValue}
+							autocomplete="email"
+							required
+						/>
+
+						<label for="emailPassword">Current password</label>
+						<input
+							id="emailPassword"
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							required
+						/>
+
+						<button class="pressable" type="submit" disabled={emailBusy}>
+							{emailBusy ? 'Sending…' : 'Send confirmation'}
+						</button>
+					</form>
+				</div>
 			</div>
 		{/if}
 
@@ -1113,6 +1174,24 @@
 	.test-storage-form {
 		margin: 0;
 		margin-top: 0.75rem;
+	}
+
+	.email-section {
+		margin-top: 2rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.email-section h3 {
+		margin: 0 0 0.5rem;
+		font-size: 0.95rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.email-section form {
+		margin-top: 1rem;
 	}
 
 	.hint {
