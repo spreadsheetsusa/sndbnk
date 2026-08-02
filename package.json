@@ -17,6 +17,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun ./scripts/migrate-sqlite.js",
 		"db:backup": "bun ./scripts/backup-sqlite.js",
+		"nuke": "bun ./scripts/nuke.js",
 		"db:push": "bun ./scripts/push-sqlite-schema.js",
 		"db:push:kit": "node ./node_modules/drizzle-kit/bin.cjs push",
 		"db:studio": "node ./node_modules/drizzle-kit/bin.cjs studio",

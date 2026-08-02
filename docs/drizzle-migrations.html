@@ -436,6 +436,11 @@
 							<td>Before production-affecting migrations</td>
 						</tr>
 						<tr>
+							<td><code>nuke</code></td>
+							<td>Wipe DB + media + backups, remigrate</td>
+							<td>Early-dev full reset (typed confirmation)</td>
+						</tr>
+						<tr>
 							<td><code>db:push:kit</code></td>
 							<td>Push schema with no migration files</td>
 							<td>Local throwaway prototyping only</td>
@@ -468,7 +473,10 @@ bun run db:backup          # especially before prod-shaped DBs
 bun run db:migrate
 
 # browse data locally (Node / better-sqlite3)
-bun run db:studio</code></pre>
+bun run db:studio
+
+# full wipe + fresh migrate (type "nuke" to confirm)
+bun run nuke</code></pre>
 				<p>
 					Deploy on Lightsail runs <code>db:backup</code> (when the DB file exists) then
 					<code>db:migrate</code> before <code>bun run build</code>.

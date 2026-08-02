@@ -44,6 +44,7 @@ Four constraints break the app if violated. Everything else is convention.
 bun install
 bun run db:generate  # schema.js → drizzle/*.sql
 bun run db:migrate   # apply pending SQL (see drizzle-migrations.html)
+bun run nuke         # wipe DB + media + backups, remigrate (confirms first)
 bun run dev          # Vite on http://localhost:5173
 bun run build        # svelte-adapter-bun → build/index.js
 bun run lint         # prettier --check .

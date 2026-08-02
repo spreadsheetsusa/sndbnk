@@ -26,6 +26,21 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 A basic-plan user on a subdomain is redirected to the apex path URL, which is the fastest way to
 confirm plan gating works.
 
+### Full local reset (`bun run nuke`)
+
+Wipes app data and re-initializes a fresh empty database (schema + plan seeds):
+
+- deletes `DATABASE_URL` and its `-wal` / `-shm` / `-journal` sidecars
+- deletes `MEDIA_ROOT` (recreates an empty directory)
+- deletes the DB backups directory (`BACKUP_DIR`, default `<db-dir>/backups`)
+- runs `bun run db:migrate`
+
+Interactive confirmation requires typing `nuke`. Non-interactive shells need
+`NUKE_CONFIRM=nuke`. If `ORIGIN` is not localhost (or the DB path is under `/var/www/`), a second
+phrase is required: type `reset production`, or set `NUKE_PRODUCTION=reset production`. Does not
+touch `.env`, source, or `drizzle/` migration files. Afterward you may want
+`bun run createsuperuser`.
+
 ## Environment variables
 
 Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` /

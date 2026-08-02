@@ -1,6 +1,6 @@
 ---
 description: Drizzle schema migrations, production SQLite safety, generate/migrate workflow
-globs: src/lib/server/db/**,drizzle/**,drizzle.config.js,scripts/migrate-sqlite.js,scripts/backup-sqlite.js,scripts/push-sqlite-schema.js
+globs: src/lib/server/db/**,drizzle/**,drizzle.config.js,scripts/migrate-sqlite.js,scripts/backup-sqlite.js,scripts/nuke.js,scripts/push-sqlite-schema.js
 alwaysApply: false
 ---
 
@@ -42,5 +42,7 @@ Standalone human guide: `docs/drizzle-migrations.html`.
 - If schema.js and `drizzle/` drift, fix by generating a new migration — do not hand-sync a second
   DDL source.
 - Point the human at `docs/drizzle-migrations.html` when explaining what they must do on their side.
+- `bun run nuke` wipes DB + `MEDIA_ROOT` + backups and remigrates. Never run it against production
+  data unless the human explicitly asked; it already requires typed confirmation.
 
 Details: `docs/data-model.md`, `docs/operations.md`, `docs/drizzle-migrations.html`.

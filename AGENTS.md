@@ -42,6 +42,7 @@ styling.
 ```sh
 bun install
 bun run db:migrate   # apply Drizzle SQL migrations (Bun migrator)
+bun run nuke         # wipe DB + media + backups, remigrate (type "nuke" to confirm)
 bun run dev          # Vite on http://localhost:5173
 bun run build        # svelte-adapter-bun → build/index.js
 bun run lint         # prettier --check .  (a few committed files fail; pre-existing)

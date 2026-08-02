@@ -49,6 +49,7 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 | `bun run db:generate`             | diff `schema.js` → SQL under `drizzle/`                      |
 | `bun run db:migrate`              | apply pending Drizzle migrations (Bun)                       |
 | `bun run db:backup`               | copy SQLite (+ WAL/SHM) to a timestamped backup              |
+| `bun run nuke`                    | wipe DB + media + backups, then remigrate (confirms first)   |
 | `bun run auth:schema`             | regenerate the better-auth Drizzle schema                    |
 | `bun run lint` / `bun run format` | Prettier check / write                                       |
 
