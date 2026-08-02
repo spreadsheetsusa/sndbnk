@@ -1,4 +1,5 @@
 <script>
+	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
@@ -172,42 +173,18 @@
 		{/if}
 	</button>
 
-	<div class="menu-wrap" {@attach menuClickOutside}>
-		<button
-			type="button"
-			class="more-btn"
-			aria-label="More actions for {track.title}"
-			aria-expanded={menuOpen}
-			aria-haspopup="menu"
-			onclick={toggleMenu}
-		>
-			{#if track.hasCover}
-				<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-			{:else}
-				<span class="cover-thumb-placeholder" aria-hidden="true"></span>
-			{/if}
-		</button>
-
-		{#if menuOpen}
-			<div class="menu" role="menu">
-				<a class="menu-item" role="menuitem" href="/tracks/{track.id}">Open page</a>
-				<a class="menu-item" role="menuitem" href="/library/{track.id}">Edit</a>
-				<button type="button" role="menuitem" onclick={copyLink}>
-					{copied ? 'Copied!' : 'Copy link'}
-				</button>
-				<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
-				<button
-					type="button"
-					role="menuitem"
-					class="danger"
-					disabled={deleteBusy}
-					onclick={deleteTrack}
-				>
-					Delete track
-				</button>
-			</div>
-		{/if}
-	</div>
+	{#if track.hasCover}
+		<img
+			class="cover"
+			src="/api/media/{track.id}/cover"
+			alt=""
+			loading="lazy"
+			width="28"
+			height="28"
+		/>
+	{:else}
+		<span class="cover placeholder" aria-hidden="true"></span>
+	{/if}
 
 	<button
 		type="button"
@@ -252,6 +229,48 @@
 	>
 		<span class="knob"></span>
 	</button>
+
+	<div class="menu-wrap" {@attach menuClickOutside}>
+		<button
+			type="button"
+			class="more-btn"
+			aria-label="More actions for {track.title}"
+			aria-expanded={menuOpen}
+			aria-haspopup="menu"
+			onclick={toggleMenu}
+		>
+			<span class="more-icon" aria-hidden="true">
+				<IconDots size={15} stroke={1.75} />
+			</span>
+			<span class="more-cover" aria-hidden="true">
+				{#if track.hasCover}
+					<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
+				{:else}
+					<span class="cover-thumb-placeholder"></span>
+				{/if}
+			</span>
+		</button>
+
+		{#if menuOpen}
+			<div class="menu" role="menu">
+				<a class="menu-item" role="menuitem" href="/tracks/{track.id}">Open page</a>
+				<a class="menu-item" role="menuitem" href="/library/{track.id}">Edit</a>
+				<button type="button" role="menuitem" onclick={copyLink}>
+					{copied ? 'Copied!' : 'Copy link'}
+				</button>
+				<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
+				<button
+					type="button"
+					role="menuitem"
+					class="danger"
+					disabled={deleteBusy}
+					onclick={deleteTrack}
+				>
+					Delete track
+				</button>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -295,6 +314,22 @@
 		border-color: var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
+	}
+
+	.cover {
+		display: block;
+		width: 1.75rem;
+		height: 1.75rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
+		object-fit: cover;
+	}
+
+	.cover.placeholder {
+		background:
+			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			var(--paper);
+		background-size: 8px 8px;
 	}
 
 	.name {
@@ -405,54 +440,48 @@
 	}
 
 	.more-btn {
-		position: relative;
-		display: block;
-		width: 1.75rem;
-		height: 1.75rem;
+		display: inline-flex;
+		width: 1.7rem;
+		height: 1.7rem;
+		align-items: center;
+		justify-content: center;
 		padding: 0;
-		overflow: hidden;
-		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-		border-radius: 0.125rem;
+		border: 1px solid transparent;
+		color: var(--muted);
 		background: transparent;
 		cursor: pointer;
 	}
 
-	.more-btn img,
+	.more-btn:hover,
+	.more-btn[aria-expanded='true'] {
+		border-color: var(--ink);
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.more-btn :global(svg) {
+		display: block;
+	}
+
+	.more-cover {
+		display: none;
+	}
+
 	.cover-thumb-placeholder {
 		display: block;
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
-	}
-
-	.cover-thumb-placeholder {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			var(--paper);
 		background-size: 8px 8px;
 	}
 
-	.more-btn:hover,
-	.more-btn[aria-expanded='true'] {
-		border-color: var(--ink);
-		outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-		outline-offset: 1px;
-	}
-
-	.more-btn:hover::after,
-	.more-btn[aria-expanded='true']::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		background: color-mix(in srgb, var(--accent) 18%, transparent);
-		pointer-events: none;
-	}
-
 	.menu {
 		position: absolute;
 		z-index: 30;
 		top: calc(100% + 0.3rem);
-		left: 0;
+		right: 0;
 		display: grid;
 		min-width: 11rem;
 		padding: 0.3rem;
@@ -554,9 +583,63 @@
 			margin-top: 0.2rem;
 		}
 
+		.cover,
 		.genre,
 		.added {
 			display: none;
+		}
+
+		.more-icon {
+			display: none;
+		}
+
+		.more-cover {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
+
+		.more-cover img {
+			display: block;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+
+		.more-btn {
+			position: relative;
+			display: block;
+			width: 1.75rem;
+			height: 1.75rem;
+			padding: 0;
+			overflow: hidden;
+			border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+			border-radius: 0.125rem;
+			color: inherit;
+			background: transparent;
+		}
+
+		.more-btn:hover,
+		.more-btn[aria-expanded='true'] {
+			border-color: var(--ink);
+			color: inherit;
+			background: transparent;
+			outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+			outline-offset: 1px;
+		}
+
+		.more-btn:hover::after,
+		.more-btn[aria-expanded='true']::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: color-mix(in srgb, var(--accent) 18%, transparent);
+			pointer-events: none;
+		}
+
+		.menu {
+			left: 0;
+			right: auto;
 		}
 	}
 

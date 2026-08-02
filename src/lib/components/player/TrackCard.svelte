@@ -1,4 +1,5 @@
 <script>
+	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
@@ -446,6 +447,36 @@
 				{/if}
 			</button>
 
+			<div class="titles">
+				{#if track.username}
+					<a class="artist" href="{linkBase}/users/{track.username}">
+						{track.artist || track.uploaderName}
+					</a>
+				{:else}
+					<span class="artist">{track.artist || track.uploaderName}</span>
+				{/if}
+				<a class="title" href="/tracks/{track.id}">{track.title}</a>
+			</div>
+
+			<div class="aside">
+				{#if track.repostedAt}
+					<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
+						<IconRepeat size={12} stroke={2} aria-hidden="true" />
+						{#if track.repostedByUsername}
+							Reposted by @{track.repostedByUsername}
+						{:else}
+							Reposted
+						{/if}
+					</span>
+				{/if}
+				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
+					{relativeTime(track.createdAt)}
+				</span>
+				{#if track.genre}
+					<span class="tag"># {track.genre}</span>
+				{/if}
+			</div>
+
 			<div class="menu-wrap" {@attach menuClickOutside}>
 				<button
 					type="button"
@@ -455,11 +486,16 @@
 					aria-haspopup="menu"
 					onclick={() => (menuOpen = !menuOpen)}
 				>
-					{#if track.hasCover}
-						<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-					{:else}
-						<span class="cover-thumb-placeholder" aria-hidden="true"></span>
-					{/if}
+					<span class="more-icon" aria-hidden="true">
+						<IconDots size={16} stroke={1.75} />
+					</span>
+					<span class="more-cover" aria-hidden="true">
+						{#if track.hasCover}
+							<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
+						{:else}
+							<span class="cover-thumb-placeholder"></span>
+						{/if}
+					</span>
 				</button>
 
 				{#if menuOpen}
@@ -507,36 +543,6 @@
 							</button>
 						{/if}
 					</div>
-				{/if}
-			</div>
-
-			<div class="titles">
-				{#if track.username}
-					<a class="artist" href="{linkBase}/users/{track.username}">
-						{track.artist || track.uploaderName}
-					</a>
-				{:else}
-					<span class="artist">{track.artist || track.uploaderName}</span>
-				{/if}
-				<a class="title" href="/tracks/{track.id}">{track.title}</a>
-			</div>
-
-			<div class="aside">
-				{#if track.repostedAt}
-					<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
-						<IconRepeat size={12} stroke={2} aria-hidden="true" />
-						{#if track.repostedByUsername}
-							Reposted by @{track.repostedByUsername}
-						{:else}
-							Reposted
-						{/if}
-					</span>
-				{/if}
-				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
-					{relativeTime(track.createdAt)}
-				</span>
-				{#if track.genre}
-					<span class="tag"># {track.genre}</span>
 				{/if}
 			</div>
 		</div>
@@ -697,6 +703,7 @@
 
 	.play-btn {
 		display: inline-flex;
+		order: 0;
 		width: 2.75rem;
 		height: 2.75rem;
 		align-items: center;
@@ -716,6 +723,7 @@
 
 	.titles {
 		display: flex;
+		order: 1;
 		flex-direction: column;
 		gap: 0.15rem;
 		min-width: 0;
@@ -755,6 +763,7 @@
 
 	.aside {
 		display: flex;
+		order: 2;
 		flex-direction: column;
 		gap: 0.35rem;
 		align-items: flex-end;
@@ -974,32 +983,42 @@
 
 	.menu-wrap {
 		position: relative;
+		order: 3;
 		flex-shrink: 0;
 	}
 
 	.more-btn {
-		position: relative;
-		display: block;
-		width: 2.75rem;
-		height: 2.75rem;
+		display: inline-flex;
+		width: 2rem;
+		height: 2rem;
+		align-items: center;
+		justify-content: center;
 		padding: 0;
-		overflow: hidden;
-		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-		border-radius: 0.125rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
 		background: transparent;
+		color: var(--ink);
 		cursor: pointer;
-		flex-shrink: 0;
 	}
 
-	.more-btn img,
+	.more-btn:hover,
+	.more-btn[aria-expanded='true'] {
+		border-color: var(--ink);
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.more-btn :global(svg) {
+		display: block;
+	}
+
+	.more-cover {
+		display: none;
+	}
+
 	.cover-thumb-placeholder {
 		display: block;
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
-	}
-
-	.cover-thumb-placeholder {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
@@ -1007,27 +1026,11 @@
 		background-size: 8px 8px;
 	}
 
-	.more-btn:hover,
-	.more-btn[aria-expanded='true'] {
-		border-color: var(--ink);
-		outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-		outline-offset: 1px;
-	}
-
-	.more-btn:hover::after,
-	.more-btn[aria-expanded='true']::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		background: color-mix(in srgb, var(--accent) 18%, transparent);
-		pointer-events: none;
-	}
-
 	.menu {
 		position: absolute;
 		z-index: 30;
 		top: calc(100% + 0.35rem);
-		left: 0;
+		right: 0;
 		display: grid;
 		min-width: 11rem;
 		padding: 0.3rem;
@@ -1120,6 +1123,71 @@
 			height: auto;
 			aspect-ratio: 1;
 			max-width: 100%;
+		}
+
+		.menu-wrap {
+			order: 1;
+		}
+
+		.titles {
+			order: 2;
+		}
+
+		.aside {
+			order: 3;
+		}
+
+		.more-icon {
+			display: none;
+		}
+
+		.more-cover {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
+
+		.more-cover img {
+			display: block;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+
+		.more-btn {
+			position: relative;
+			display: block;
+			width: 2.75rem;
+			height: 2.75rem;
+			padding: 0;
+			overflow: hidden;
+			border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+			border-radius: 0.125rem;
+			color: inherit;
+			background: transparent;
+		}
+
+		.more-btn:hover,
+		.more-btn[aria-expanded='true'] {
+			border-color: var(--ink);
+			color: inherit;
+			background: transparent;
+			outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+			outline-offset: 1px;
+		}
+
+		.more-btn:hover::after,
+		.more-btn[aria-expanded='true']::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: color-mix(in srgb, var(--accent) 18%, transparent);
+			pointer-events: none;
+		}
+
+		.menu {
+			left: 0;
+			right: auto;
 		}
 
 		.title,
