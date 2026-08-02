@@ -3,6 +3,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import { AUDIO_FILE_ACCEPT } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
 
 	let { data, form } = $props();
@@ -413,7 +414,13 @@
 				<textarea id="comment" name="comment" rows="3" bind:value={fields.comment}></textarea>
 
 				<label for="audio">Replace audio</label>
-				<input id="audio" name="audio" type="file" accept="audio/*" onchange={onAudioChange} />
+				<input
+					id="audio"
+					name="audio"
+					type="file"
+					accept={AUDIO_FILE_ACCEPT}
+					onchange={onAudioChange}
+				/>
 				<p class="hint">
 					Leave empty to keep the current file. Empty metadata fields can be filled from tags.
 				</p>

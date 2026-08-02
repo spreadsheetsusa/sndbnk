@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import { AUDIO_FILE_ACCEPT } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
 
 	let { data, form } = $props();
@@ -297,7 +298,7 @@
 					id="audio"
 					name="audio"
 					type="file"
-					accept="audio/*"
+					accept={AUDIO_FILE_ACCEPT}
 					required
 					onchange={onAudioChange}
 				/>
