@@ -46,7 +46,9 @@
 		<header class="page-head">
 			<div class="page-head-copy">
 				<p class="eyebrow eyebrow-chip accent-text">@{data.profile.username}</p>
-				<h1 id="tracks-heading" class="display-face">Music Library</h1>
+				<h1 id="tracks-heading" class="display-face">
+					<span class="title-prefix">Music </span>Library
+				</h1>
 				<p class="intro">Upload, organize, and manage the audio in your private library.</p>
 			</div>
 			<div class="page-head-actions">
@@ -336,6 +338,10 @@
 
 		h1 {
 			font-size: clamp(1.85rem, 6vw, 3.75rem);
+		}
+
+		.title-prefix {
+			display: none;
 		}
 
 		.intro {
