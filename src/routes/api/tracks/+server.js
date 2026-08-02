@@ -3,6 +3,7 @@ import { error, json } from '@sveltejs/kit';
 import { listFeedTracks } from '#lib/server/feed';
 import { listFollowingIds } from '#lib/server/social';
 import { getProfileByUsername } from '#lib/server/tenant';
+import { serializeTimelineRows } from '#lib/server/timeline';
 import {
 	listProfileItemsWithUploader,
 	listTracksWithUploader,
@@ -12,9 +13,10 @@ import {
 import { normalizeUsername } from '#lib/server/username';
 
 /**
- * Paged track listings for every infinite-scroll surface. The page shape here
+ * Paged listings for every infinite-scroll surface. The page shape here
  * must match what the matching `load` returns, since the client appends one to
- * the other.
+ * the other. Feed and profile return mixed `items` (tracks + playlists);
+ * library stays tracks-only.
  */
 export async function GET({ locals, url }) {
 	const scope = url.searchParams.get('scope') ?? 'feed';
@@ -33,14 +35,16 @@ export async function GET({ locals, url }) {
 			followingIds: following ? await listFollowingIds(locals.user.id) : null
 		});
 
-		return json({ tracks: await serializeTrackRows(rows, locals.user), nextCursor });
+		const items = await serializeTimelineRows(rows, locals.user);
+		return json({ items, nextCursor });
 	}
 
 	if (scope === 'library') {
 		if (!locals.user) error(401, 'Sign in to view your library.');
 
 		const { rows, nextCursor } = await listTracksWithUploader(locals.user.id, page);
-		return json({ tracks: await serializeTrackRows(rows, locals.user), nextCursor });
+		const items = await serializeTrackRows(rows, locals.user);
+		return json({ items, nextCursor });
 	}
 
 	if (scope === 'profile') {
@@ -53,7 +57,8 @@ export async function GET({ locals, url }) {
 			publishedOnly: true
 		});
 
-		return json({ tracks: await serializeTrackRows(rows, locals.user), nextCursor });
+		const items = await serializeTimelineRows(rows, locals.user);
+		return json({ items, nextCursor });
 	}
 
 	error(400, 'Unknown scope.');

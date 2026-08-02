@@ -1,0 +1,1124 @@
+<script>
+	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
+	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
+	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
+	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
+	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
+	import { onDestroy } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { fade, slide } from 'svelte/transition';
+
+	import Avatar from '#lib/components/Avatar.svelte';
+	import Waveform from '#lib/components/player/Waveform.svelte';
+	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
+	import { player } from '#lib/player/player.svelte.js';
+	import { formatDuration } from '#lib/media/audio-metadata.js';
+	import { relativeTime } from '#lib/relative-time.js';
+
+	/**
+	 * @typedef {Object} TimedComment
+	 * @property {string} id
+	 * @property {string} body
+	 * @property {number} atMs
+	 * @property {number} createdAt
+	 * @property {string} userId
+	 * @property {string} userName
+	 * @property {string | null} userImage
+	 */
+
+	/**
+	 * @typedef {Object} PlaylistMember
+	 * @property {string} id
+	 * @property {string} title
+	 * @property {string | null} artist
+	 * @property {string | null} username
+	 * @property {string} uploaderName
+	 * @property {number | null} durationMs
+	 * @property {boolean} hasCover
+	 * @property {number[] | null} waveform
+	 * @property {number} likeCount
+	 * @property {number} commentCount
+	 * @property {boolean} likedByViewer
+	 * @property {boolean} isOwner
+	 * @property {TimedComment[] | undefined} [timedComments]
+	 */
+
+	/**
+	 * @typedef {Object} CardPlaylist
+	 * @property {string} id
+	 * @property {string} title
+	 * @property {string | null} description
+	 * @property {boolean} published
+	 * @property {boolean} hasCover
+	 * @property {string | null} coverTrackId
+	 * @property {number} createdAt
+	 * @property {string} [cursor]
+	 * @property {string | null} username
+	 * @property {string} uploaderName
+	 * @property {boolean} isOwner
+	 * @property {number} likeCount
+	 * @property {boolean} likedByViewer
+	 * @property {number} trackCount
+	 * @property {number} durationMs
+	 * @property {PlaylistMember[]} tracks
+	 */
+
+	/**
+	 * @type {{
+	 *   playlist: CardPlaylist,
+	 *   signedIn?: boolean,
+	 *   viewerName?: string | null,
+	 *   viewerImage?: string | null,
+	 *   showCommentForm?: boolean,
+	 *   linkBase?: string,
+	 *   ondeleted?: () => void
+	 * }}
+	 */
+	let {
+		playlist,
+		signedIn = false,
+		viewerName = null,
+		viewerImage = null,
+		showCommentForm = true,
+		linkBase = '',
+		ondeleted
+	} = $props();
+
+	/** @type {{ liked: boolean, count: number } | null} */
+	let likeOverride = $state(null);
+	const liked = $derived(likeOverride?.liked ?? playlist.likedByViewer);
+	const likeCount = $derived(likeOverride?.count ?? playlist.likeCount);
+
+	let selectedIndex = $state(0);
+
+	const activeIndex = $derived.by(() => {
+		if (player.isPlaylistCurrent(playlist.id) && player.current) {
+			const idx = playlist.tracks.findIndex((t) => t.id === player.current?.id);
+			if (idx >= 0) return idx;
+		}
+		return Math.min(selectedIndex, Math.max(playlist.tracks.length - 1, 0));
+	});
+
+	const activeTrack = $derived(playlist.tracks[activeIndex] ?? null);
+
+	const coverSrc = $derived(
+		playlist.coverTrackId
+			? `/api/media/${playlist.coverTrackId}/cover`
+			: playlist.tracks.find((t) => t.hasCover)
+				? `/api/media/${playlist.tracks.find((t) => t.hasCover)?.id}/cover`
+				: null
+	);
+
+	let commentBody = $state('');
+	let commentBusy = $state(false);
+	/** @type {string | null} */
+	let commentNote = $state(null);
+	/** @type {HTMLTextAreaElement | null} */
+	let commentField = $state(null);
+
+	const COMMENT_LINE_PX = 22;
+	const COMMENT_FIELD_MAX_LINES = 4;
+
+	function resizeCommentField() {
+		const el = commentField;
+		if (!el) return;
+		el.style.height = 'auto';
+		const styles = getComputedStyle(el);
+		const padY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+		const min = padY + COMMENT_LINE_PX;
+		const max = padY + COMMENT_LINE_PX * COMMENT_FIELD_MAX_LINES;
+		const content = el.scrollHeight;
+		el.style.height = `${Math.min(Math.max(content, min), max)}px`;
+		el.style.overflowY = content > max ? 'auto' : 'hidden';
+	}
+
+	/** @param {KeyboardEvent} event */
+	function onCommentKeydown(event) {
+		if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+		event.preventDefault();
+		/** @type {HTMLTextAreaElement} */ (event.currentTarget).form?.requestSubmit();
+	}
+
+	let waveHovered = $state(false);
+	let commentHovered = $state(false);
+	let focusWithin = $state(false);
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	let waveLeaveTimer = null;
+	const canHover = new MediaQuery('hover: hover', true);
+
+	/** @param {boolean} hovering */
+	function handleWaveHover(hovering) {
+		if (waveLeaveTimer != null) {
+			clearTimeout(waveLeaveTimer);
+			waveLeaveTimer = null;
+		}
+		if (hovering) {
+			waveHovered = true;
+			return;
+		}
+		waveLeaveTimer = setTimeout(() => {
+			waveHovered = false;
+			waveLeaveTimer = null;
+		}, 120);
+	}
+
+	onDestroy(() => {
+		if (waveLeaveTimer != null) clearTimeout(waveLeaveTimer);
+	});
+
+	const commentBarOpen = $derived(
+		!canHover.current ||
+			waveHovered ||
+			commentHovered ||
+			focusWithin ||
+			Boolean(commentBody.trim()) ||
+			Boolean(commentNote)
+	);
+
+	let extraComments = $state(0);
+	/** Reset per active track id so counts stay honest when switching members. */
+	let commentTrackId = $state(/** @type {string | null} */ (null));
+	const commentCount = $derived.by(() => {
+		if (!activeTrack) return 0;
+		const base = activeTrack.commentCount;
+		return activeTrack.id === commentTrackId ? base + extraComments : base;
+	});
+
+	/** @type {TimedComment[]} */
+	let postedComments = $state([]);
+
+	let menuOpen = $state(false);
+	let copied = $state(false);
+	let likeBusy = $state(false);
+	let deleteBusy = $state(false);
+	/** @type {number | null} */
+	let scrubSeconds = $state(null);
+
+	const playlistActive = $derived(player.isPlaylistCurrent(playlist.id));
+	const isActive = $derived(playlistActive && activeTrack && player.isCurrent(activeTrack.id));
+	const isPlaying = $derived(Boolean(isActive && player.playing));
+	const cardTime = $derived(isActive ? player.currentTime : 0);
+
+	let nearViewport = $state(false);
+	const showWaveform = $derived(nearViewport || Boolean(isActive));
+	const displayTime = $derived(scrubSeconds ?? cardTime);
+	const durationSec = $derived((activeTrack?.durationMs ?? 0) / 1000);
+	const progressPct = $derived(
+		durationSec > 0 ? Math.min((displayTime / durationSec) * 100, 100) : 0
+	);
+	const durationMs = $derived(activeTrack?.durationMs ?? 0);
+
+	const markers = $derived.by(() => {
+		if (!activeTrack || durationMs <= 0) return [];
+		const seen = new Set(postedComments.map((c) => c.id));
+		const all = [
+			...(activeTrack.timedComments ?? []).filter((c) => !seen.has(c.id)),
+			...postedComments
+		];
+		return all
+			.slice()
+			.sort((a, b) => a.atMs - b.atMs)
+			.map((comment) => ({
+				...comment,
+				leftPct: Math.min(Math.max((comment.atMs / durationMs) * 100, 0), 100)
+			}));
+	});
+
+	const tooltipWindowMs = $derived(Math.min(Math.max(durationMs * 0.01, 1000), 4000));
+
+	const playheadMarker = $derived.by(() => {
+		if (markers.length === 0 || (!isActive && scrubSeconds == null)) return null;
+		const nowMs = displayTime * 1000;
+		let closest = null;
+		let closestDelta = Infinity;
+		for (const marker of markers) {
+			const delta = Math.abs(nowMs - marker.atMs);
+			if (delta <= tooltipWindowMs && delta < closestDelta) {
+				closest = marker;
+				closestDelta = delta;
+			}
+		}
+		return closest;
+	});
+
+	/** @type {string | null} */
+	let hoveredMarkerId = $state(null);
+	const activeMarker = $derived(
+		markers.find((marker) => marker.id === hoveredMarkerId) ?? playheadMarker
+	);
+
+	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack[]} */
+	function asPlayerTracks() {
+		return playlist.tracks.map((t) => ({
+			id: t.id,
+			title: t.title,
+			artist: t.artist,
+			username: t.username,
+			uploaderName: t.uploaderName,
+			durationMs: t.durationMs,
+			hasCover: t.hasCover,
+			waveform: t.waveform,
+			likedByViewer: t.likedByViewer
+		}));
+	}
+
+	function togglePlay() {
+		if (!activeTrack) return;
+		if (isActive) {
+			player.toggle();
+			return;
+		}
+		selectedIndex = activeIndex;
+		player.playFromPlaylist(playlist.id, asPlayerTracks(), activeIndex);
+	}
+
+	/** @param {number} index */
+	function playAt(index) {
+		if (!playlist.tracks[index]) return;
+		selectedIndex = index;
+		extraComments = 0;
+		postedComments = [];
+		commentTrackId = null;
+		player.playFromPlaylist(playlist.id, asPlayerTracks(), index);
+	}
+
+	/** @param {number} seconds */
+	function handleSeek(seconds) {
+		if (!activeTrack) return;
+		if (isActive) {
+			player.seek(seconds);
+			player.resume();
+		} else {
+			selectedIndex = activeIndex;
+			player.playFromPlaylist(playlist.id, asPlayerTracks(), activeIndex, seconds);
+		}
+	}
+
+	async function copyLink() {
+		const url = `${location.origin}/playlists/${playlist.id}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			copied = true;
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			// Clipboard unavailable.
+		}
+	}
+
+	async function toggleLike() {
+		if (!signedIn || likeBusy) return;
+		likeBusy = true;
+		try {
+			const res = await fetch(`/api/playlists/${playlist.id}/like`, { method: 'POST' });
+			if (res.ok) {
+				const data = await res.json();
+				likeOverride = { liked: data.liked, count: data.likeCount };
+			}
+		} finally {
+			likeBusy = false;
+			menuOpen = false;
+		}
+	}
+
+	async function deletePlaylist() {
+		if (deleteBusy) return;
+		if (!confirm(`Delete “${playlist.title}”? This cannot be undone.`)) {
+			menuOpen = false;
+			return;
+		}
+		deleteBusy = true;
+		try {
+			const res = await fetch(`/api/playlists/${playlist.id}`, { method: 'DELETE' });
+			if (res.ok) {
+				if (player.isPlaylistCurrent(playlist.id)) {
+					player.evict(player.current?.id ?? '');
+				}
+				ondeleted?.();
+			}
+		} finally {
+			deleteBusy = false;
+			menuOpen = false;
+		}
+	}
+
+	/** @param {SubmitEvent} event */
+	async function submitComment(event) {
+		event.preventDefault();
+		const body = commentBody.trim();
+		if (!body || commentBusy || !activeTrack) return;
+
+		const atMs = isActive && player.currentTime > 0 ? Math.round(player.currentTime * 1000) : null;
+		const trackId = activeTrack.id;
+
+		commentBusy = true;
+		try {
+			const res = await fetch(`/api/tracks/${trackId}/comments`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ body, atMs })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				commentBody = '';
+				if (commentTrackId !== trackId) {
+					commentTrackId = trackId;
+					extraComments = 0;
+					postedComments = [];
+				}
+				extraComments += 1;
+				if (data.comment.atMs != null) {
+					postedComments = [...postedComments, data.comment];
+				}
+				commentNote =
+					data.comment.atMs != null
+						? `Comment added at ${formatDuration(data.comment.atMs)}`
+						: 'Comment added';
+				setTimeout(() => (commentNote = null), 2500);
+				queueMicrotask(resizeCommentField);
+			}
+		} finally {
+			commentBusy = false;
+		}
+	}
+
+	/** @type {import('svelte/attachments').Attachment} */
+	function menuClickOutside(node) {
+		/** @param {PointerEvent} event */
+		function onPointerDown(event) {
+			if (!menuOpen) return;
+			const target = /** @type {Node | null} */ (event.target);
+			if (target && !node.contains(target)) menuOpen = false;
+		}
+		document.addEventListener('pointerdown', onPointerDown);
+		return () => document.removeEventListener('pointerdown', onPointerDown);
+	}
+
+	/** @param {KeyboardEvent} event */
+	function handleKeydown(event) {
+		if (event.key === 'Escape' && menuOpen) menuOpen = false;
+	}
+
+	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
+	function handleFocusOut(event) {
+		const next = /** @type {Node | null} */ (event.relatedTarget);
+		if (!next || !event.currentTarget.contains(next)) focusWithin = false;
+	}
+
+	/**
+	 * @param {Element} node
+	 * @param {import('svelte/transition').SlideParams} [params]
+	 * @returns {import('svelte/transition').TransitionConfig}
+	 */
+	function slideFade(node, params) {
+		const config = slide(node, params);
+		return { ...config, css: (t, u) => `${config.css?.(t, u) ?? ''};opacity:${t}` };
+	}
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<article
+	class="playlist-card"
+	style:--cover-url={coverSrc ? `url(${coverSrc})` : 'none'}
+	onfocusin={() => (focusWithin = true)}
+	onfocusout={handleFocusOut}
+	{@attach whileNearViewport((visible) => (nearViewport = visible))}
+>
+	<div class="cover">
+		{#if coverSrc}
+			<img src={coverSrc} alt="" loading="lazy" />
+		{:else}
+			<span class="cover-placeholder" aria-hidden="true">
+				<IconPlaylist size={36} stroke={1.5} />
+			</span>
+		{/if}
+	</div>
+
+	<div class="body">
+		<div class="head">
+			<button
+				type="button"
+				class="play-btn pressable"
+				aria-label={isPlaying ? `Pause ${playlist.title}` : `Play ${playlist.title}`}
+				disabled={playlist.tracks.length === 0}
+				onclick={togglePlay}
+			>
+				{#if isPlaying}
+					<IconPlayerPauseFilled size={18} aria-hidden="true" />
+				{:else}
+					<IconPlayerPlayFilled size={18} aria-hidden="true" />
+				{/if}
+			</button>
+
+			<div class="titles">
+				{#if playlist.username}
+					<a class="artist" href="{linkBase}/users/{playlist.username}">
+						{playlist.uploaderName}
+					</a>
+				{:else}
+					<span class="artist">{playlist.uploaderName}</span>
+				{/if}
+				<a class="title" href="/playlists/{playlist.id}">{playlist.title}</a>
+				<span class="playlist-meta">
+					Playlist · {playlist.trackCount}
+					{playlist.trackCount === 1 ? 'track' : 'tracks'}
+					{#if playlist.durationMs > 0}
+						· {formatDuration(playlist.durationMs)}
+					{/if}
+				</span>
+			</div>
+
+			<div class="aside">
+				<span class="uploaded" title={new Date(playlist.createdAt).toLocaleString()}>
+					{relativeTime(playlist.createdAt)}
+				</span>
+				{#if likeCount > 0}
+					<span class="tag">{likeCount} {likeCount === 1 ? 'like' : 'likes'}</span>
+				{/if}
+			</div>
+
+			<div class="menu-wrap" {@attach menuClickOutside}>
+				<button
+					type="button"
+					class="more-btn"
+					aria-label="More actions for {playlist.title}"
+					aria-expanded={menuOpen}
+					aria-haspopup="menu"
+					onclick={() => (menuOpen = !menuOpen)}
+				>
+					<span class="more-icon" aria-hidden="true">
+						<IconDots size={16} stroke={1.75} />
+					</span>
+				</button>
+
+				{#if menuOpen}
+					<div class="menu" role="menu">
+						<button type="button" role="menuitem" onclick={copyLink}>
+							{copied ? 'Copied!' : 'Copy link'}
+						</button>
+						{#if playlist.isOwner}
+							<a class="menu-item" role="menuitem" href="/playlists/{playlist.id}/edit">Edit</a>
+						{/if}
+						<button
+							type="button"
+							role="menuitem"
+							disabled={!signedIn || likeBusy}
+							onclick={toggleLike}
+						>
+							{liked ? 'Unlike playlist' : 'Like playlist'}
+							{#if likeCount > 0}
+								<span class="menu-count">{likeCount}</span>
+							{/if}
+						</button>
+						{#if playlist.isOwner}
+							<button
+								type="button"
+								role="menuitem"
+								class="danger"
+								disabled={deleteBusy}
+								onclick={deletePlaylist}
+							>
+								Delete playlist
+							</button>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		{#if activeTrack}
+			<div class="wave-row">
+				{#if showWaveform}
+					<Waveform
+						peaks={activeTrack.waveform}
+						durationMs={activeTrack.durationMs}
+						currentTime={cardTime}
+						label="Seek within {activeTrack.title}"
+						onseek={handleSeek}
+						onscrub={(seconds) => (scrubSeconds = seconds)}
+						onhover={handleWaveHover}
+					/>
+				{:else}
+					<div class="wave-placeholder" aria-hidden="true"></div>
+				{/if}
+				{#if isActive || scrubSeconds != null}
+					<span
+						class="time-chip current"
+						style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
+					>
+						{formatDuration(displayTime * 1000)}
+					</span>
+				{/if}
+				<span class="time-chip total">{formatDuration(activeTrack.durationMs)}</span>
+
+				{#each markers as marker (marker.id)}
+					<button
+						type="button"
+						class="marker"
+						class:active={activeMarker?.id === marker.id}
+						style:left="{marker.leftPct}%"
+						aria-label="{marker.userName} commented at {formatDuration(marker.atMs)}: {marker.body}"
+						onclick={() => handleSeek(marker.atMs / 1000)}
+						onmouseenter={() => (hoveredMarkerId = marker.id)}
+						onmouseleave={() => (hoveredMarkerId = null)}
+						onfocus={() => (hoveredMarkerId = marker.id)}
+						onblur={() => (hoveredMarkerId = null)}
+					>
+						<Avatar src={marker.userImage} name={marker.userName} size="1.15rem" />
+					</button>
+				{/each}
+
+				{#if activeMarker}
+					<div
+						class="marker-tip"
+						style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
+						transition:fade={{ duration: 120 }}
+					>
+						<span class="tip-name">{activeMarker.userName}</span>
+						<span class="tip-body">{activeMarker.body}</span>
+					</div>
+				{/if}
+			</div>
+
+			{#if signedIn && showCommentForm && commentBarOpen}
+				<form
+					class="comment-row"
+					transition:slideFade={{
+						duration: prefersReducedMotion.current || !canHover.current ? 0 : 200
+					}}
+					onsubmit={submitComment}
+					onmouseenter={() => (commentHovered = true)}
+					onmouseleave={() => (commentHovered = false)}
+				>
+					<Avatar src={viewerImage} name={viewerName} />
+					<div class="comment-field">
+						<textarea
+							bind:this={commentField}
+							name="comment"
+							rows="1"
+							placeholder={isActive
+								? `Comment on ${activeTrack.title} at the current time`
+								: `Comment on ${activeTrack.title}`}
+							maxlength="1000"
+							autocomplete="off"
+							bind:value={commentBody}
+							disabled={commentBusy}
+							oninput={resizeCommentField}
+							onkeydown={onCommentKeydown}></textarea>
+						<button
+							type="submit"
+							class="send-btn"
+							aria-label="Post comment"
+							disabled={commentBusy || !commentBody.trim()}
+						>
+							<IconArrowUp size={16} stroke={1.75} aria-hidden="true" />
+						</button>
+					</div>
+					{#if commentNote}
+						<span class="comment-note" role="status">{commentNote}</span>
+					{/if}
+				</form>
+			{/if}
+
+			{#if commentCount > 0}
+				<div class="meta">
+					<span class="counts">
+						{commentCount}
+						{commentCount === 1 ? 'comment' : 'comments'} on this track
+					</span>
+				</div>
+			{/if}
+		{/if}
+
+		{#if playlist.tracks.length > 0}
+			<ol class="member-list" aria-label="Tracks in {playlist.title}">
+				{#each playlist.tracks as track, index (track.id)}
+					<li>
+						<button
+							type="button"
+							class="member-row"
+							class:active={index === activeIndex && playlistActive}
+							onclick={() => playAt(index)}
+						>
+							<span class="member-index" aria-hidden="true">{index + 1}</span>
+							<span class="member-titles">
+								<span class="member-title">{track.title}</span>
+								<span class="member-artist">{track.artist || track.uploaderName}</span>
+							</span>
+							<span class="member-duration">{formatDuration(track.durationMs)}</span>
+						</button>
+					</li>
+				{/each}
+			</ol>
+		{:else}
+			<p class="empty-members">No tracks in this playlist yet.</p>
+		{/if}
+	</div>
+</article>
+
+<style>
+	.playlist-card {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 1rem;
+		padding: 1rem;
+	}
+
+	.cover {
+		width: var(--track-card-cover-size, 10rem);
+		height: var(--track-card-cover-size, 10rem);
+		flex-shrink: 0;
+	}
+
+	.cover img,
+	.cover-placeholder {
+		display: flex;
+		width: 100%;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
+		box-shadow: 3px 3px 0 var(--cover-shadow);
+		object-fit: cover;
+		color: var(--muted);
+	}
+
+	.cover img {
+		display: block;
+	}
+
+	.cover-placeholder {
+		background:
+			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			var(--paper);
+		background-size: 12px 12px;
+	}
+
+	.body {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.body > * + * {
+		margin-top: 0.75rem;
+	}
+
+	.head {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+	}
+
+	.play-btn {
+		display: inline-flex;
+		width: 2.75rem;
+		height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 1px solid var(--ink);
+		border-radius: 50%;
+		color: var(--on-accent);
+		background: var(--accent);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.play-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.play-btn :global(svg) {
+		display: block;
+	}
+
+	.titles {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
+	}
+
+	.artist {
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 0.8rem;
+		font-weight: 700;
+		text-decoration: none;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	a.artist:hover {
+		color: var(--ink);
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+	}
+
+	.title {
+		overflow: hidden;
+		color: var(--ink);
+		font-size: 1.02rem;
+		font-weight: 800;
+		line-height: 1.25;
+		text-decoration: none;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.title:hover {
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+	}
+
+	.playlist-meta {
+		color: var(--muted);
+		font-size: 0.7rem;
+		font-weight: 600;
+	}
+
+	.aside {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		align-items: flex-end;
+		margin-left: auto;
+		flex-shrink: 0;
+	}
+
+	.uploaded {
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.tag {
+		padding: 0.2rem 0.6rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--ink) 8%, transparent);
+		color: var(--ink);
+		font-size: 0.68rem;
+		font-weight: 800;
+		letter-spacing: 0.02em;
+		white-space: nowrap;
+	}
+
+	.menu-wrap {
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.more-btn {
+		display: inline-flex;
+		width: 2.25rem;
+		height: 2.25rem;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
+		background: var(--paper);
+		color: var(--ink);
+		cursor: pointer;
+	}
+
+	.menu {
+		position: absolute;
+		top: calc(100% + 0.25rem);
+		right: 0;
+		z-index: 40;
+		display: flex;
+		min-width: 11rem;
+		flex-direction: column;
+		padding: 0.25rem;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		box-shadow: 4px 4px 0 var(--hard-shadow);
+	}
+
+	.menu button,
+	.menu-item {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 0.45rem 0.6rem;
+		border: 0;
+		background: transparent;
+		color: var(--ink);
+		font: inherit;
+		font-size: 0.78rem;
+		font-weight: 700;
+		text-align: left;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.menu button:hover,
+	.menu-item:hover {
+		background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+	}
+
+	.menu button:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.menu .danger {
+		color: color-mix(in srgb, var(--ink) 70%, #b00020);
+	}
+
+	.menu-count {
+		color: var(--muted);
+		font-size: 0.7rem;
+	}
+
+	.wave-row {
+		position: relative;
+	}
+
+	.wave-placeholder {
+		height: var(--waveform-height);
+	}
+
+	.time-chip {
+		position: absolute;
+		top: 50%;
+		z-index: 2;
+		padding: 0.1rem 0.3rem;
+		background: var(--inverse);
+		color: var(--on-inverse);
+		font-size: 0.65rem;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		pointer-events: none;
+		transform: translate(-50%, -50%);
+	}
+
+	.time-chip.total {
+		right: 0;
+		left: auto;
+		background: var(--accent);
+		color: var(--on-accent);
+		transform: translateY(-50%);
+	}
+
+	.marker {
+		position: absolute;
+		top: 50%;
+		z-index: 3;
+		padding: 0;
+		border: 1px solid var(--ink);
+		border-radius: 50%;
+		background: var(--paper);
+		transform: translate(-50%, -50%);
+		cursor: pointer;
+	}
+
+	.marker.active {
+		outline: 2px solid var(--accent);
+		outline-offset: 1px;
+	}
+
+	.marker-tip {
+		position: absolute;
+		bottom: calc(100% + 0.35rem);
+		z-index: 4;
+		display: flex;
+		max-width: 14rem;
+		flex-direction: column;
+		gap: 0.15rem;
+		padding: 0.4rem 0.55rem;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+		transform: translateX(-50%);
+		pointer-events: none;
+	}
+
+	.tip-name {
+		font-size: 0.65rem;
+		font-weight: 800;
+	}
+
+	.tip-body {
+		color: var(--muted);
+		font-size: 0.72rem;
+		line-height: 1.3;
+	}
+
+	.comment-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		align-items: flex-start;
+	}
+
+	.comment-field {
+		display: flex;
+		flex: 1;
+		gap: 0.35rem;
+		align-items: flex-end;
+		min-width: 0;
+	}
+
+	.comment-field textarea {
+		flex: 1;
+		min-width: 0;
+		min-height: 2.4rem;
+		padding: 0.45rem 0.6rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		color: var(--ink);
+		font: inherit;
+		font-size: 0.85rem;
+		line-height: 1.375;
+		resize: none;
+	}
+
+	.send-btn {
+		display: inline-flex;
+		width: 2.4rem;
+		height: 2.4rem;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 1px solid var(--ink);
+		background: var(--accent);
+		color: var(--on-accent);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.send-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.comment-note {
+		width: 100%;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+	}
+
+	.meta {
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+	}
+
+	.member-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+	}
+
+	.member-row {
+		display: grid;
+		grid-template-columns: 1.5rem 1fr auto;
+		gap: 0.65rem;
+		align-items: center;
+		width: 100%;
+		padding: 0.45rem 0.15rem;
+		border: 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.member-row:hover,
+	.member-row.active {
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+	}
+
+	.member-index {
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		text-align: right;
+	}
+
+	.member-row.active .member-index {
+		color: var(--accent);
+	}
+
+	.member-titles {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+
+	.member-title {
+		overflow: hidden;
+		font-size: 0.85rem;
+		font-weight: 700;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.member-artist {
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.member-duration {
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.empty-members {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.85rem;
+	}
+
+	@media (max-width: 640px) {
+		.playlist-card {
+			grid-template-columns: 1fr;
+			position: relative;
+		}
+
+		.cover {
+			display: none;
+		}
+
+		.playlist-card::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			z-index: 0;
+			background-image: var(--cover-url);
+			background-position: center;
+			background-size: cover;
+			opacity: 0.12;
+			pointer-events: none;
+			filter: blur(8px);
+		}
+
+		.body {
+			position: relative;
+			z-index: 1;
+		}
+	}
+</style>

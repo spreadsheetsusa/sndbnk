@@ -15,12 +15,20 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/library/new`                     | required               | upload form                                                             |
 | `/library/[id]`                    | owner only             | edit metadata, embed tags, delete                                       |
 | `/tracks/[id]`                     | public                 | track detail with waveform and comments                                 |
+| `/playlists/new`                   | required               | create a playlist                                                       |
+| `/playlists/[id]`                  | public                 | playlist detail (waveform + member list)                                |
+| `/playlists/[id]/edit`             | owner only             | edit metadata, reorder/remove members                                   |
 | `/users/[username]`                | public                 | public profile by path                                                  |
 | `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                      |
 | `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                |
+| `/api/tracks`                      | mixed                  | paged feed/library/profile items (`{ items, nextCursor }`)              |
 | `/api/tracks/[id]`                 | required               | `DELETE` a track                                                        |
 | `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                   |
 | `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                   |
+| `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                     |
+| `/api/playlists/[id]`              | required               | `DELETE` a playlist                                                     |
+| `/api/playlists/[id]/like`         | required               | `POST` toggles a playlist like                                          |
+| `/api/playlists/[id]/tracks`       | required               | `POST`/`DELETE`/`PATCH` membership                                      |
 | `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                |
 
 `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, and

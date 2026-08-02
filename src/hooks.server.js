@@ -29,11 +29,13 @@ const APEX_ONLY_PREFIXES = [
  */
 const TENANT_ALLOWED_PREFIXES = [
 	'/tracks',
+	'/playlists',
 	'/api/media',
 	'/api/avatar',
 	'/api/site-logo',
 	'/api/site-og',
 	'/api/tracks',
+	'/api/playlists',
 	'/api/users'
 ];
 

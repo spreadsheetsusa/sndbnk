@@ -5,6 +5,7 @@
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 
+	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
@@ -39,6 +40,7 @@
 	let { track, selected = false, onselect, ondeleted } = $props();
 
 	let menuOpen = $state(false);
+	let playlistPickerOpen = $state(false);
 	let copied = $state(false);
 	let deleteBusy = $state(false);
 	let publishBusy = $state(false);
@@ -262,6 +264,24 @@
 				<button
 					type="button"
 					role="menuitem"
+					onclick={() => (playlistPickerOpen = !playlistPickerOpen)}
+				>
+					Add to playlist
+				</button>
+				{#if playlistPickerOpen}
+					<div class="playlist-picker">
+						<AddToPlaylistMenu
+							trackId={track.id}
+							onclose={() => {
+								playlistPickerOpen = false;
+								menuOpen = false;
+							}}
+						/>
+					</div>
+				{/if}
+				<button
+					type="button"
+					role="menuitem"
 					class="danger"
 					disabled={deleteBusy}
 					onclick={deleteTrack}
@@ -403,19 +423,34 @@
 	}
 
 	.publish-switch {
+		position: relative;
 		display: inline-flex;
+		flex-shrink: 0;
+		box-sizing: border-box;
 		width: 2.2rem;
 		height: 1.1rem;
 		align-items: center;
 		padding: 1px;
-		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
-		background: transparent;
+		appearance: none;
+		-webkit-appearance: none;
+		border: 1px solid
+			color-mix(in srgb, var(--accent) 18%, color-mix(in srgb, var(--ink) 28%, transparent));
+		border-radius: 0.125rem;
+		background: color-mix(
+			in srgb,
+			var(--accent) 6%,
+			color-mix(in srgb, var(--ink) 8%, var(--paper))
+		);
+		box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 20%, transparent);
 		cursor: pointer;
 	}
 
 	.publish-switch[aria-checked='true'] {
-		border-color: var(--ink);
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--ink));
 		background: var(--accent);
+		box-shadow:
+			inset 0 1px 2px color-mix(in srgb, var(--ink) 32%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--on-accent) 16%, transparent);
 	}
 
 	.publish-switch:disabled {
@@ -423,15 +458,24 @@
 		cursor: default;
 	}
 
+	.publish-switch:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 3px;
+	}
+
 	.knob {
+		flex-shrink: 0;
 		width: 0.85rem;
 		height: 0.85rem;
-		background: color-mix(in srgb, var(--ink) 45%, transparent);
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 42%, var(--paper));
+		box-shadow: 0 1px 1px color-mix(in srgb, var(--ink) 28%, transparent);
 		transition: transform 120ms ease;
 	}
 
 	.publish-switch[aria-checked='true'] .knob {
 		background: var(--on-accent);
+		box-shadow: 0 1px 1px color-mix(in srgb, var(--ink) 35%, transparent);
 		transform: translateX(1.05rem);
 	}
 
@@ -488,6 +532,16 @@
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.playlist-picker {
+		padding: 0.15rem 0 0.25rem;
+	}
+
+	.playlist-picker :global(.picker) {
+		position: static;
+		box-shadow: none;
+		border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
 	}
 
 	.menu button,
@@ -650,8 +704,15 @@
 			height: var(--tap-min);
 		}
 
-		.publish-switch {
-			min-height: var(--tap-min);
+		/* Expand tap target without stretching the switch track. */
+		.publish-switch::before {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: var(--tap-min);
+			height: var(--tap-min);
+			transform: translate(-50%, -50%);
 		}
 	}
 </style>

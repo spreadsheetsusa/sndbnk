@@ -7,7 +7,7 @@ import {
 } from '#lib/server/feed';
 import { listFollowingIds } from '#lib/server/social';
 import { getProfileByUserId } from '#lib/server/tenant';
-import { serializeTrackRows } from '#lib/server/tracks';
+import { serializeTimelineRows } from '#lib/server/timeline';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = async ({ locals, url }) => {
@@ -32,7 +32,7 @@ export const load = async ({ locals, url }) => {
 		listGenres()
 	]);
 
-	const tracks = await serializeTrackRows(rows, locals.user);
+	const items = await serializeTimelineRows(rows, locals.user);
 
 	return {
 		user: {
@@ -40,7 +40,7 @@ export const load = async ({ locals, url }) => {
 			name: locals.user.name,
 			image: locals.user.image ?? null
 		},
-		tracks,
+		items,
 		nextCursor,
 		genre: genreParam,
 		following,

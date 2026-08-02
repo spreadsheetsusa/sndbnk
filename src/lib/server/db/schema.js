@@ -392,4 +392,100 @@ export const followRelations = relations(follow, ({ one }) => ({
 	})
 }));
 
+export const playlist = sqliteTable(
+	'playlist',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		title: text('title').notNull(),
+		description: text('description'),
+		published: integer('published', { mode: 'boolean' }).notNull().default(true),
+		coverFilename: text('cover_filename'),
+		coverMime: text('cover_mime'),
+		coverBytes: integer('cover_bytes'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		index('playlist_createdAt_id_idx').on(table.createdAt, table.id),
+		index('playlist_userId_createdAt_idx').on(table.userId, table.createdAt, table.id)
+	]
+);
+
+export const playlistRelations = relations(playlist, ({ one, many }) => ({
+	user: one(user, {
+		fields: [playlist.userId],
+		references: [user.id]
+	}),
+	tracks: many(playlistTrack),
+	likes: many(playlistLike)
+}));
+
+export const playlistTrack = sqliteTable(
+	'playlist_track',
+	{
+		playlistId: text('playlist_id')
+			.notNull()
+			.references(() => playlist.id, { onDelete: 'cascade' }),
+		trackId: text('track_id')
+			.notNull()
+			.references(() => track.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.playlistId, table.trackId] }),
+		index('playlist_track_playlistId_position_idx').on(table.playlistId, table.position)
+	]
+);
+
+export const playlistTrackRelations = relations(playlistTrack, ({ one }) => ({
+	playlist: one(playlist, {
+		fields: [playlistTrack.playlistId],
+		references: [playlist.id]
+	}),
+	track: one(track, {
+		fields: [playlistTrack.trackId],
+		references: [track.id]
+	})
+}));
+
+export const playlistLike = sqliteTable(
+	'playlist_like',
+	{
+		playlistId: text('playlist_id')
+			.notNull()
+			.references(() => playlist.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [primaryKey({ columns: [table.playlistId, table.userId] })]
+);
+
+export const playlistLikeRelations = relations(playlistLike, ({ one }) => ({
+	playlist: one(playlist, {
+		fields: [playlistLike.playlistId],
+		references: [playlist.id]
+	}),
+	user: one(user, {
+		fields: [playlistLike.userId],
+		references: [user.id]
+	})
+}));
+
 export * from './auth.schema';

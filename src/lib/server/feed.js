@@ -19,6 +19,7 @@ import {
 	trackRepost,
 	user
 } from '#lib/server/db/schema';
+import { listPlaylistRows } from '#lib/server/playlists';
 
 export const FEED_PAGE_SIZE = 24;
 const COMMENT_BODY_MAX = 80;
@@ -33,20 +34,14 @@ function truncateBody(body, max = COMMENT_BODY_MAX) {
 }
 
 /**
- * @typedef {{
- *   track: typeof track.$inferSelect,
- *   username: string | null,
- *   uploaderName: string | null,
- *   repostedAt: number | null,
- *   repostedByName: string | null,
- *   repostedByUsername: string | null
- * }} FeedRow
+ * @typedef {import('#lib/server/tracks').ProfileItemRow} FeedRow
  */
 
 /**
- * Site-wide tracks newest first, with optional genre filter and keyset cursor.
- * With `followingIds`, the feed is restricted to those users and also includes
- * tracks they reposted, ordered by repost time rather than upload time.
+ * Site-wide tracks (and playlists) newest first, with optional genre filter and
+ * keyset cursor. Genre filters exclude playlists. With `followingIds`, the feed
+ * is restricted to those users and also includes tracks they reposted (ordered
+ * by repost time) plus their published playlists.
  *
  * @param {{
  *   limit?: number,
@@ -96,6 +91,7 @@ export async function listFeedTracks({
 	/** @type {FeedRow[]} */
 	let rows = posted.map((row) => ({
 		...row,
+		kind: /** @type {const} */ ('track'),
 		repostedAt: null,
 		repostedByName: null,
 		repostedByUsername: null
@@ -106,8 +102,32 @@ export async function listFeedTracks({
 			...rows,
 			...(await listRepostedFeedRows({ limit, genre, followingIds, decoded, direction, inclusive }))
 		];
-		rows.sort(keysetComparator(sortAt, (row) => row.track.id, direction));
-		rows = dedupeByTrack(rows);
+	}
+
+	// Genre-filtered feeds stay track-only; otherwise merge published playlists.
+	if (!genre) {
+		const playlists = await listPlaylistRows({
+			userIds: followingIds,
+			publishedOnly: true,
+			limit,
+			cursor,
+			direction,
+			inclusive
+		});
+		rows = [
+			...rows,
+			...playlists.rows.map((row) => ({
+				kind: /** @type {const} */ ('playlist'),
+				playlist: row.playlist,
+				username: row.username,
+				uploaderName: row.uploaderName
+			}))
+		];
+	}
+
+	if (followingIds || !genre) {
+		rows.sort(keysetComparator(sortAt, sortId, direction));
+		rows = dedupeById(rows);
 	}
 
 	return keysetPage(rows, limit, feedRowCursor, direction);
@@ -118,25 +138,34 @@ export async function listFeedTracks({
  * @param {FeedRow} row
  */
 function sortAt(row) {
+	if (row.kind === 'playlist') return row.playlist.createdAt?.getTime() ?? 0;
 	return row.repostedAt ?? row.track.createdAt?.getTime() ?? 0;
 }
 
 /**
  * @param {FeedRow} row
  */
+function sortId(row) {
+	return row.kind === 'playlist' ? row.playlist.id : row.track.id;
+}
+
+/**
+ * @param {FeedRow} row
+ */
 function feedRowCursor(row) {
-	return encodeCursor(sortAt(row), row.track.id);
+	return encodeCursor(sortAt(row), sortId(row));
 }
 
 /**
  * @param {FeedRow[]} rows sorted newest-event first
  */
-function dedupeByTrack(rows) {
+function dedupeById(rows) {
 	/** @type {Set<string>} */
 	const seen = new Set();
 	return rows.filter((row) => {
-		if (seen.has(row.track.id)) return false;
-		seen.add(row.track.id);
+		const id = sortId(row);
+		if (seen.has(id)) return false;
+		seen.add(id);
 		return true;
 	});
 }
@@ -151,7 +180,7 @@ function dedupeByTrack(rows) {
  *   direction: import('#lib/server/cursor').Direction,
  *   inclusive: boolean
  * }} input
- * @returns {Promise<FeedRow[]>}
+ * @returns {Promise<import('#lib/server/tracks').ProfileTrackRow[]>}
  */
 async function listRepostedFeedRows({ limit, genre, followingIds, decoded, direction, inclusive }) {
 	const reposter = alias(user, 'reposter');
@@ -187,6 +216,7 @@ async function listRepostedFeedRows({ limit, genre, followingIds, decoded, direc
 
 	return rows.map((row) => ({
 		...row,
+		kind: /** @type {const} */ ('track'),
 		repostedAt: row.repostedAt?.getTime() ?? null
 	}));
 }

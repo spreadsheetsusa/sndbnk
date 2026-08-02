@@ -27,7 +27,7 @@ export const load = async ({ locals }) => {
 		profile: {
 			username: profile.username
 		},
-		tracks: await serializeTrackRows(rows, locals.user),
+		items: await serializeTrackRows(rows, locals.user),
 		nextCursor,
 		usage
 	};

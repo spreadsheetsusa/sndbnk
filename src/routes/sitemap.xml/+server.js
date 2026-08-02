@@ -2,7 +2,7 @@ import { ORIGIN } from '$app/env/private';
 import { eq } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
-import { profile, track } from '#lib/server/db/schema';
+import { playlist, profile, track } from '#lib/server/db/schema';
 
 /**
  * @param {string} value
@@ -13,9 +13,10 @@ const escapeXml = (value) =>
 export const GET = async () => {
 	const origin = ORIGIN.replace(/\/$/, '');
 
-	const [profiles, tracks] = await Promise.all([
+	const [profiles, tracks, playlists] = await Promise.all([
 		db.select({ username: profile.username }).from(profile),
-		db.select({ id: track.id }).from(track).where(eq(track.published, true))
+		db.select({ id: track.id }).from(track).where(eq(track.published, true)),
+		db.select({ id: playlist.id }).from(playlist).where(eq(playlist.published, true))
 	]);
 
 	/** @type {string[]} */
@@ -26,7 +27,8 @@ export const GET = async () => {
 		`${origin}/terms`,
 		`${origin}/copyright`,
 		...profiles.map((row) => `${origin}/users/${row.username}`),
-		...tracks.map((row) => `${origin}/tracks/${row.id}`)
+		...tracks.map((row) => `${origin}/tracks/${row.id}`),
+		...playlists.map((row) => `${origin}/playlists/${row.id}`)
 	];
 
 	const body = [

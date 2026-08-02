@@ -47,6 +47,7 @@
 				<p class="intro">Upload, organize, and manage the audio in your private library.</p>
 			</div>
 			<div class="page-head-actions">
+				<a class="pressable secondary" href="/playlists/new">New playlist</a>
 				<a class="pressable" href="/library/new">Upload track</a>
 				<div class="page-head-quota">
 					<HostedQuotaMeter
@@ -188,6 +189,11 @@
 		text-transform: uppercase;
 		text-decoration: none;
 		cursor: pointer;
+	}
+
+	.pressable.secondary {
+		color: var(--ink);
+		background: var(--paper);
 	}
 
 	.empty {

@@ -44,9 +44,13 @@ class Player {
 	playing = $state(false);
 	currentTime = $state(0);
 	duration = $state(0);
+	/** Active saved playlist, if playback was started from one. @type {string | null} */
+	playlistId = $state(null);
 
 	/** Previously played tracks, most recent last. @type {PlayerTrack[]} */
 	#history = [];
+	/** Ordered members of the active playlist. @type {PlayerTrack[]} */
+	#playlistTracks = [];
 	/** @type {HTMLAudioElement | null} */
 	#audio = null;
 	#raf = 0;
@@ -65,11 +69,42 @@ class Player {
 	/**
 	 * Play a track, optionally from a specific position (seconds).
 	 * If the track is already current, this resumes/seeks instead.
+	 * Clears any saved-playlist context (use `playFromPlaylist` to keep it).
 	 *
 	 * @param {PlayerTrack} track
 	 * @param {number} [atSeconds]
 	 */
 	play(track, atSeconds) {
+		this.#clearPlaylistContext();
+		this.#playTrack(track, atSeconds);
+	}
+
+	/**
+	 * Play a member of a saved playlist and advance through its tracks on end.
+	 *
+	 * @param {string} playlistId
+	 * @param {PlayerTrack[]} tracks
+	 * @param {number} [index]
+	 * @param {number} [atSeconds]
+	 */
+	playFromPlaylist(playlistId, tracks, index = 0, atSeconds) {
+		if (!tracks.length) return;
+		const i = Math.max(0, Math.min(index, tracks.length - 1));
+		this.playlistId = playlistId;
+		this.#playlistTracks = tracks;
+		this.#playTrack(tracks[i], atSeconds);
+	}
+
+	/** @param {string} playlistId */
+	isPlaylistCurrent(playlistId) {
+		return this.playlistId === playlistId;
+	}
+
+	/**
+	 * @param {PlayerTrack} track
+	 * @param {number} [atSeconds]
+	 */
+	#playTrack(track, atSeconds) {
 		const el = this.#ensureAudio();
 		if (!el) return;
 
@@ -99,6 +134,29 @@ class Player {
 			);
 		}
 		void el.play();
+	}
+
+	#clearPlaylistContext() {
+		this.playlistId = null;
+		this.#playlistTracks = [];
+	}
+
+	/** Advance within the active playlist, then fall through to Next Up. */
+	#advanceAfterEnd() {
+		if (this.playlistId && this.#playlistTracks.length > 0 && this.current) {
+			const idx = this.#playlistTracks.findIndex((t) => t.id === this.current?.id);
+			const next = idx >= 0 ? this.#playlistTracks[idx + 1] : null;
+			if (next) {
+				this.#playTrack(next);
+				return;
+			}
+			this.#clearPlaylistContext();
+		}
+		if (this.queue.length > 0) {
+			this.next();
+			return;
+		}
+		this.currentTime = this.duration;
 	}
 
 	/**
@@ -141,7 +199,8 @@ class Player {
 		if (!head) return;
 		this.queue = rest;
 		this.#persistQueue();
-		this.play(head);
+		this.#clearPlaylistContext();
+		this.#playTrack(head);
 	}
 
 	/** Restart the track, or go back to the previously played one. */
@@ -179,7 +238,8 @@ class Player {
 		const track = this.queue[index];
 		if (!track) return;
 		this.removeFromQueue(index);
-		this.play(track);
+		this.#clearPlaylistContext();
+		this.#playTrack(track);
 	}
 
 	clearQueue() {
@@ -194,6 +254,7 @@ class Player {
 	evict(trackId) {
 		this.queue = this.queue.filter((t) => t.id !== trackId);
 		this.#history = this.#history.filter((t) => t.id !== trackId);
+		this.#playlistTracks = this.#playlistTracks.filter((t) => t.id !== trackId);
 		this.#persistQueue();
 		if (this.current?.id === trackId) {
 			const el = this.#audio;
@@ -205,6 +266,7 @@ class Player {
 			this.playing = false;
 			this.currentTime = 0;
 			this.duration = 0;
+			this.#clearPlaylistContext();
 		}
 	}
 
@@ -245,11 +307,7 @@ class Player {
 		el.addEventListener('ended', () => {
 			this.playing = false;
 			this.#stopTicking();
-			if (this.queue.length > 0) {
-				this.next();
-			} else {
-				this.currentTime = this.duration;
-			}
+			this.#advanceAfterEnd();
 		});
 		el.addEventListener('durationchange', () => {
 			if (Number.isFinite(el.duration) && el.duration > 0) {

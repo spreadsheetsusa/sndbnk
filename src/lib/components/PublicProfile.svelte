@@ -6,6 +6,7 @@
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
+	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import ProfileSidebar from '#lib/components/profile/ProfileSidebar.svelte';
 	import { displayUrl } from '#lib/profile-links.js';
@@ -31,7 +32,7 @@
 	 *     hideBranding: boolean
 	 *   } | null,
 	 *   links: Array<{ id: string, label: string, url: string }>,
-	 *   tracks: import('#lib/components/player/TrackCard.svelte').CardTrack[],
+	 *   items: Array<Record<string, any>>,
 	 *   stats: import('#lib/components/profile/ProfileSidebar.svelte').ProfileStats,
 	 *   sidebar: {
 	 *     fansAlsoLike: import('#lib/components/profile/ArtistRow.svelte').Artist[],
@@ -187,22 +188,33 @@
 
 				{#if list.items.length > 0}
 					<section class="tracks" aria-labelledby="tracks-heading">
-						<h2 id="tracks-heading" class="sr-only">Tracks by {data.profile.name}</h2>
+						<h2 id="tracks-heading" class="sr-only">Tracks and playlists by {data.profile.name}</h2>
 						{#if items.length === 0}
 							<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
 						{:else}
-							<InfiniteList {list} moreLabel="Load more tracks">
+							<InfiniteList {list} moreLabel="Load more">
 								<ul class="profile-track-list">
-									{#each items as track (track.id)}
-										<li data-cursor={track.cursor}>
-											<TrackCard
-												{track}
-												{linkBase}
-												signedIn={Boolean(data.viewer)}
-												viewerName={data.viewer?.name ?? null}
-												viewerImage={data.viewer?.image ?? null}
-												ondeleted={() => list.remove(track.id)}
-											/>
+									{#each items as item (item.id)}
+										<li data-cursor={item.cursor}>
+											{#if item.kind === 'playlist'}
+												<PlaylistCard
+													playlist={item}
+													{linkBase}
+													signedIn={Boolean(data.viewer)}
+													viewerName={data.viewer?.name ?? null}
+													viewerImage={data.viewer?.image ?? null}
+													ondeleted={() => list.remove(item.id)}
+												/>
+											{:else}
+												<TrackCard
+													track={item}
+													{linkBase}
+													signedIn={Boolean(data.viewer)}
+													viewerName={data.viewer?.name ?? null}
+													viewerImage={data.viewer?.image ?? null}
+													ondeleted={() => list.remove(item.id)}
+												/>
+											{/if}
 										</li>
 									{/each}
 								</ul>

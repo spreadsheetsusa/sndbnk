@@ -23,7 +23,7 @@
 			scope: 'profile',
 			username: data.mode === 'tenant-profile' ? data.profile.username : null
 		}),
-		() => (data.mode === 'tenant-profile' ? data : { tracks: [], nextCursor: null }),
+		() => (data.mode === 'tenant-profile' ? data : { items: [], nextCursor: null }),
 		() => container
 	);
 

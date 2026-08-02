@@ -733,6 +733,7 @@ export async function serializeTrackForPlayer(row, uploader, social, viewer, tim
 	const waveform = await ensureTrackWaveform(row);
 
 	return {
+		kind: /** @type {const} */ ('track'),
 		id: row.id,
 		title: row.title,
 		artist: row.artist,
@@ -795,11 +796,23 @@ export async function serializeTrackRows(rows, viewer) {
 
 /**
  * @typedef {{
+ *   kind: 'track',
  *   track: typeof track.$inferSelect,
  *   username: string | null,
  *   uploaderName: string | null,
- *   repostedAt: number | null
- * }} ProfileItemRow
+ *   repostedAt: number | null,
+ *   repostedByName?: string | null,
+ *   repostedByUsername?: string | null
+ * }} ProfileTrackRow
+ *
+ * @typedef {{
+ *   kind: 'playlist',
+ *   playlist: typeof import('#lib/server/db/schema').playlist.$inferSelect,
+ *   username: string | null,
+ *   uploaderName: string | null
+ * }} ProfilePlaylistRow
+ *
+ * @typedef {ProfileTrackRow | ProfilePlaylistRow} ProfileItemRow
  */
 
 /**
@@ -816,14 +829,22 @@ export async function serializeTrackRows(rows, viewer) {
  * @param {ProfileItemRow} row
  */
 function itemSortAt(row) {
+	if (row.kind === 'playlist') return row.playlist.createdAt?.getTime() ?? 0;
 	return row.repostedAt ?? row.track.createdAt?.getTime() ?? 0;
 }
 
 /**
  * @param {ProfileItemRow} row
  */
+function itemSortId(row) {
+	return row.kind === 'playlist' ? row.playlist.id : row.track.id;
+}
+
+/**
+ * @param {ProfileItemRow} row
+ */
 function itemCursor(row) {
-	return encodeCursor(itemSortAt(row), row.track.id);
+	return encodeCursor(itemSortAt(row), itemSortId(row));
 }
 
 /**
@@ -878,16 +899,20 @@ export async function listTracksWithUploader(
 		inclusive
 	});
 
-	/** @type {ProfileItemRow[]} */
-	const rows = own.map((row) => ({ ...row, repostedAt: null }));
+	/** @type {ProfileTrackRow[]} */
+	const rows = own.map((row) => ({
+		...row,
+		kind: /** @type {const} */ ('track'),
+		repostedAt: null
+	}));
 	return keysetPage(rows, limit, itemCursor, direction);
 }
 
 /**
- * A creator's own tracks plus the tracks they reposted, newest event first.
+ * A creator's own tracks, published playlists, and reposted tracks — newest event first.
  * Reposts of unpublished tracks are never returned.
  *
- * Both sources are walked as independent keysets over the same `(at, id)` space
+ * Sources are walked as independent keysets over the same `(at, id)` space
  * and merged in memory, so the page boundary lands in the same place regardless
  * of which source a given item came from.
  *
@@ -905,6 +930,7 @@ export async function listProfileItemsWithUploader(
 		inclusive = false
 	} = {}
 ) {
+	const { listPlaylistRows } = await import('#lib/server/playlists');
 	const decoded = cursor ? decodeCursor(cursor) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
@@ -915,7 +941,7 @@ export async function listProfileItemsWithUploader(
 		);
 	}
 
-	const [own, reposted] = await Promise.all([
+	const [own, reposted, playlists] = await Promise.all([
 		selectOwnTracks(userId, { publishedOnly, decoded, limit, direction, inclusive }),
 		db
 			.select({
@@ -930,16 +956,38 @@ export async function listProfileItemsWithUploader(
 			.leftJoin(user, eq(user.id, track.userId))
 			.where(and(...repostConditions))
 			.orderBy(...keysetOrder(trackRepost.createdAt, trackRepost.trackId, direction))
-			.limit(limit + 1)
+			.limit(limit + 1),
+		listPlaylistRows({
+			userIds: [userId],
+			publishedOnly,
+			limit,
+			cursor,
+			direction,
+			inclusive
+		})
 	]);
 
 	/** @type {ProfileItemRow[]} */
 	const rows = [
-		...own.map((row) => ({ ...row, repostedAt: /** @type {number | null} */ (null) })),
-		...reposted.map((row) => ({ ...row, repostedAt: row.repostedAt?.getTime() ?? null }))
+		...own.map((row) => ({
+			...row,
+			kind: /** @type {const} */ ('track'),
+			repostedAt: /** @type {number | null} */ (null)
+		})),
+		...reposted.map((row) => ({
+			...row,
+			kind: /** @type {const} */ ('track'),
+			repostedAt: row.repostedAt?.getTime() ?? null
+		})),
+		...playlists.rows.map((row) => ({
+			kind: /** @type {const} */ ('playlist'),
+			playlist: row.playlist,
+			username: row.username,
+			uploaderName: row.uploaderName
+		}))
 	];
 
-	rows.sort(keysetComparator(itemSortAt, (row) => row.track.id, direction));
+	rows.sort(keysetComparator(itemSortAt, itemSortId, direction));
 	return keysetPage(rows, limit, itemCursor, direction);
 }
 

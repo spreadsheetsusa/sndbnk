@@ -13,7 +13,7 @@ import { TrackList } from '#lib/lists/track-list.svelte.js';
  * rerun for the *same* query cannot discard pages already scrolled through.
  *
  * @param {() => import('#lib/lists/track-list.svelte.js').ListQuery} getQuery
- * @param {() => { tracks: import('#lib/lists/track-list.svelte.js').ListTrack[], nextCursor: string | null }} getSeed
+ * @param {() => { items?: import('#lib/lists/track-list.svelte.js').ListItem[], tracks?: import('#lib/lists/track-list.svelte.js').ListItem[], nextCursor: string | null }} getSeed
  * @param {() => HTMLElement | null | undefined} getContainer
  */
 export function restorableList(getQuery, getSeed, getContainer) {

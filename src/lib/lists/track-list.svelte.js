@@ -7,7 +7,7 @@ import { tick } from 'svelte';
  * `load` data and owns it for the life of that list. Server pages are appended
  * or prepended; nothing is refetched that is already held.
  *
- * @typedef {{ id: string, cursor: string } & Record<string, any>} ListTrack
+ * @typedef {{ id: string, cursor: string, kind?: 'track' | 'playlist' } & Record<string, any>} ListItem
  *
  * `owner` is not sent anywhere — it exists so a list can be keyed on whose it is
  * when the scope alone does not say.
@@ -23,7 +23,7 @@ import { tick } from 'svelte';
  * @typedef {{ cursor: string, offset: number }} ListAnchor
  */
 
-const LOAD_FAILED = 'Could not load more tracks.';
+const LOAD_FAILED = 'Could not load more items.';
 
 /**
  * How far the node sits below the top of the document, walked through the
@@ -41,7 +41,7 @@ const documentTop = (node) => {
 };
 
 export class TrackList {
-	/** @type {ListTrack[]} */
+	/** @type {ListItem[]} */
 	items = $state([]);
 	/** Cursor for the next page of older items; null once the end is reached. */
 	olderCursor = $state(/** @type {string | null} */ (null));
@@ -63,12 +63,12 @@ export class TrackList {
 	/** Held while a restore is still positioning the page, so a sentinel that is
 	 * already in range cannot page underneath it and undo the alignment. */
 	#restoring = false;
-	/** Ids already held, so a track added mid-scroll cannot appear twice. */
+	/** Ids already held, so an item added mid-scroll cannot appear twice. */
 	#seen = new Set();
 
 	/**
 	 * @param {ListQuery} query
-	 * @param {{ tracks: ListTrack[], nextCursor: string | null }} seed first page, rendered on the server
+	 * @param {{ items?: ListItem[], tracks?: ListItem[], nextCursor: string | null }} seed first page, rendered on the server
 	 * @param {() => HTMLElement | null | undefined} getContainer element wrapping the rendered rows
 	 */
 	constructor(query, seed, getContainer) {
@@ -78,9 +78,10 @@ export class TrackList {
 		if (query.following) this.#params.following = '1';
 		this.#getContainer = getContainer;
 
-		this.items = seed.tracks;
+		const seedItems = seed.items ?? seed.tracks ?? [];
+		this.items = seedItems;
 		this.olderCursor = seed.nextCursor;
-		for (const item of seed.tracks) this.#seen.add(item.id);
+		for (const item of seedItems) this.#seen.add(item.id);
 	}
 
 	get atEnd() {
@@ -106,7 +107,7 @@ export class TrackList {
 		return this.error || this.#restoring ? false : this.loadNewer();
 	}
 
-	/** @returns {Promise<boolean>} whether any new tracks were appended */
+	/** @returns {Promise<boolean>} whether any new items were appended */
 	async loadOlder() {
 		if (this.loadingOlder || !this.olderCursor) return false;
 		this.loadingOlder = true;
@@ -114,10 +115,10 @@ export class TrackList {
 
 		try {
 			const page = await this.#fetchPage({ cursor: this.olderCursor, direction: 'older' });
-			const fresh = this.#take(page.tracks);
+			const fresh = this.#take(pageItems(page));
 			this.items = [...this.items, ...fresh];
 			this.olderCursor = page.nextCursor ?? null;
-			this.status = this.olderCursor ? `Loaded ${fresh.length} more tracks.` : 'End of list.';
+			this.status = this.olderCursor ? `Loaded ${fresh.length} more.` : 'End of list.';
 			return fresh.length > 0;
 		} catch (err) {
 			this.#fail(err);
@@ -127,7 +128,7 @@ export class TrackList {
 		}
 	}
 
-	/** @returns {Promise<boolean>} whether any new tracks were prepended */
+	/** @returns {Promise<boolean>} whether any new items were prepended */
 	async loadNewer() {
 		if (this.loadingNewer || !this.newerCursor) return false;
 		this.loadingNewer = true;
@@ -135,7 +136,7 @@ export class TrackList {
 
 		try {
 			const page = await this.#fetchPage({ cursor: this.newerCursor, direction: 'newer' });
-			const fresh = this.#take(page.tracks);
+			const fresh = this.#take(pageItems(page));
 			// Prepending grows the document above the viewport, which would shove the
 			// reader down the page. Pinning the row they are looking at corrects that
 			// to an absolute position, so it stays right whether or not the browser's
@@ -146,7 +147,7 @@ export class TrackList {
 			this.newerCursor = page.nextCursor ?? null;
 			await tick();
 			if (anchor) this.#alignTo(anchor);
-			this.status = `Loaded ${fresh.length} earlier tracks.`;
+			this.status = `Loaded ${fresh.length} earlier.`;
 			return fresh.length > 0;
 		} catch (err) {
 			this.#fail(err);
@@ -173,10 +174,12 @@ export class TrackList {
 				this.#fetchPage({ cursor, direction: 'older', inclusive: true })
 			]);
 
-			if (older.tracks.length === 0 && newer.tracks.length === 0) return false;
+			const newerItems = pageItems(newer);
+			const olderItems = pageItems(older);
+			if (olderItems.length === 0 && newerItems.length === 0) return false;
 
 			this.#seen.clear();
-			this.items = this.#take([...newer.tracks, ...older.tracks]);
+			this.items = this.#take([...newerItems, ...olderItems]);
 			this.newerCursor = newer.nextCursor ?? null;
 			this.olderCursor = older.nextCursor ?? null;
 			return true;
@@ -275,7 +278,7 @@ export class TrackList {
 
 	/**
 	 * @param {{ cursor: string, direction: 'older' | 'newer', inclusive?: boolean }} input
-	 * @returns {Promise<{ tracks: ListTrack[], nextCursor: string | null }>}
+	 * @returns {Promise<{ items?: ListItem[], tracks?: ListItem[], nextCursor: string | null }>}
 	 */
 	async #fetchPage({ cursor, direction, inclusive = false }) {
 		const params = new URLSearchParams({ ...this.#params, cursor, direction });
@@ -294,10 +297,10 @@ export class TrackList {
 	}
 
 	/**
-	 * @param {ListTrack[]} tracks
+	 * @param {ListItem[]} items
 	 */
-	#take(tracks) {
-		const fresh = tracks.filter((item) => !this.#seen.has(item.id));
+	#take(items) {
+		const fresh = items.filter((item) => !this.#seen.has(item.id));
 		for (const item of fresh) this.#seen.add(item.id);
 		return fresh;
 	}
@@ -310,4 +313,11 @@ export class TrackList {
 		if (err instanceof DOMException && err.name === 'AbortError') return;
 		this.error = err instanceof Error ? err.message : LOAD_FAILED;
 	}
+}
+
+/**
+ * @param {{ items?: ListItem[], tracks?: ListItem[] }} page
+ */
+function pageItems(page) {
+	return page.items ?? page.tracks ?? [];
 }

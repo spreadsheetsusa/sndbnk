@@ -1,5 +1,6 @@
 <script>
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
+	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 
 	/**
@@ -30,15 +31,25 @@
 {:else}
 	<InfiniteList {list} endLabel="You're all caught up">
 		<ul class="track-list">
-			{#each list.items as track (track.id)}
-				<li data-cursor={track.cursor}>
-					<TrackCard
-						{track}
-						signedIn={true}
-						{viewerName}
-						{viewerImage}
-						ondeleted={() => list.remove(track.id)}
-					/>
+			{#each list.items as item (item.id)}
+				<li data-cursor={item.cursor}>
+					{#if item.kind === 'playlist'}
+						<PlaylistCard
+							playlist={item}
+							signedIn={true}
+							{viewerName}
+							{viewerImage}
+							ondeleted={() => list.remove(item.id)}
+						/>
+					{:else}
+						<TrackCard
+							track={item}
+							signedIn={true}
+							{viewerName}
+							{viewerImage}
+							ondeleted={() => list.remove(item.id)}
+						/>
+					{/if}
 				</li>
 			{/each}
 		</ul>

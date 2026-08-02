@@ -10,6 +10,7 @@
 	import { fade, slide } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
+	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
@@ -171,6 +172,7 @@
 	let postedComments = $state([]);
 
 	let menuOpen = $state(false);
+	let playlistPickerOpen = $state(false);
 	let copied = $state(false);
 	let likeBusy = $state(false);
 	let repostBusy = $state(false);
@@ -484,7 +486,10 @@
 					aria-label="More actions for {track.title}"
 					aria-expanded={menuOpen}
 					aria-haspopup="menu"
-					onclick={() => (menuOpen = !menuOpen)}
+					onclick={() => {
+						menuOpen = !menuOpen;
+						if (!menuOpen) playlistPickerOpen = false;
+					}}
 				>
 					<span class="more-icon" aria-hidden="true">
 						<IconDots size={16} stroke={1.75} />
@@ -531,6 +536,26 @@
 							</button>
 						{/if}
 						<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
+						{#if signedIn}
+							<button
+								type="button"
+								role="menuitem"
+								onclick={() => (playlistPickerOpen = !playlistPickerOpen)}
+							>
+								Add to playlist
+							</button>
+							{#if playlistPickerOpen}
+								<div class="playlist-picker">
+									<AddToPlaylistMenu
+										trackId={track.id}
+										onclose={() => {
+											playlistPickerOpen = false;
+											menuOpen = false;
+										}}
+									/>
+								</div>
+							{/if}
+						{/if}
 						{#if track.isOwner}
 							<button
 								type="button"
@@ -1037,6 +1062,16 @@
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.playlist-picker {
+		padding: 0.15rem 0 0.25rem;
+	}
+
+	.playlist-picker :global(.picker) {
+		position: static;
+		box-shadow: none;
+		border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
 	}
 
 	.menu button,

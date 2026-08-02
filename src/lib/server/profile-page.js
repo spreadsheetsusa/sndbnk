@@ -6,7 +6,8 @@ import { listLinksForUser } from '#lib/server/profile-links';
 import { getSitePublic, resolveSidebarVisibility } from '#lib/server/site';
 import { getProfileStats, isFollowing, listFansAlsoLike, listFollowers } from '#lib/server/social';
 import { buildPublicUrls, getProfileByUsername } from '#lib/server/tenant';
-import { listProfileItemsWithUploader, serializeTrackRows } from '#lib/server/tracks';
+import { serializeTimelineRows } from '#lib/server/timeline';
+import { listProfileItemsWithUploader } from '#lib/server/tracks';
 import { normalizeUsername } from '#lib/server/username';
 
 /**
@@ -38,7 +39,7 @@ export async function loadPublicProfilePage({ username, locals }) {
 			getSitePublic(row.userId)
 		]);
 
-	const tracks = await serializeTrackRows(page.rows, locals.user);
+	const items = await serializeTimelineRows(page.rows, locals.user);
 	const publicSite = site
 		? {
 				...site,
@@ -47,7 +48,7 @@ export async function loadPublicProfilePage({ username, locals }) {
 		: null;
 
 	return {
-		tracks,
+		items,
 		nextCursor: page.nextCursor,
 		profile: {
 			username: row.username,

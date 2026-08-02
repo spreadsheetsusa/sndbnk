@@ -63,7 +63,8 @@ On a tenant host the path allowlist is deliberately narrow:
 - **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`,
   `/api/domain-tls-check` — account surfaces only exist on the apex
 - **Allowed:** `/`, `/tracks/*`, `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`,
-  `/api/site-og/*`, `/api/tracks/*`, `/api/users/*`
+  `/api/site-og/*`, `/api/tracks/*`, `/api/playlists/*`, `/api/users/*`,
+  `/playlists/*`
 - `/users/{own username}` redirects to `/` so a tenant host has one canonical profile URL
 
 ### `handleBetterAuth`

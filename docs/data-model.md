@@ -175,6 +175,24 @@ rejected in `toggleRepost()`, not by a constraint.
 Composite primary key `(followerId, followingId)` and an index on `followingId` for follower counts.
 Self-follow is rejected in `toggleFollow()` with a result object, per the no-exceptions rule.
 
+### `playlist`
+
+A named collection of published tracks owned by one user. `published` gates Feed, Profile, and
+`/playlists/[id]` the same way track publishing does. Optional cover fields mirror `track`; when
+absent the UI falls back to the first member’s cover. Comments are never stored on playlists —
+comment chrome on a playlist card posts to the active member track.
+
+### `playlist_track`
+
+Composite primary key `(playlistId, trackId)` with a dense `position` (0..n-1) for order. Both FKs
+cascade, so deleting a track or playlist drops membership. Only published tracks may be added
+(enforced in the service).
+
+### `playlist_like`
+
+Same shape as `track_like` — composite primary key `(playlistId, userId)`. Playlist likes are
+independent of likes on member tracks.
+
 ## Relations
 
 ```mermaid
@@ -183,12 +201,17 @@ erDiagram
   user ||--o| site : "1:1"
   user ||--o| storage_setting : "1:1"
   user ||--o{ track : owns
+  user ||--o{ playlist : owns
   user ||--o{ session : has
   user ||--o{ account : has
   track ||--o{ track_comment : has
   track ||--o{ track_like : has
   track ||--o{ track_repost : has
+  track ||--o{ playlist_track : in
+  playlist ||--o{ playlist_track : contains
+  playlist ||--o{ playlist_like : has
   user ||--o{ track_repost : makes
+  user ||--o{ playlist_like : gives
   user ||--o{ follow : follows
 ```
 
