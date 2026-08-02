@@ -59,21 +59,33 @@
 		return Array.from({ length: 200 }, (_, i) => 0.12 + 0.06 * Math.abs(Math.sin(i / 3)));
 	}
 
+	/**
+	 * Explicit prop wins; otherwise read the laid-out CSS height so TrackCard can
+	 * omit `height` and pick up `--waveform-height` (taller under pointer: coarse).
+	 */
+	function resolveHeight() {
+		if (height != null) return height;
+		if (!container) return 66;
+		return Math.round(parseFloat(getComputedStyle(container).height)) || 66;
+	}
+
 	/** @param {string} accent */
 	function resolveColors(accent) {
+		const cssHeight = resolveHeight();
 		const styles = getComputedStyle(container);
 		const ink = styles.getPropertyValue('--ink').trim() || '#11110f';
 		const paper = styles.getPropertyValue('--paper').trim() || '#f2f0e8';
 		const progressTop = accent;
 		const progressBottom = mixHex(accent, ink, 0.3);
 		return {
-			waveColor: verticalSplit(hexWithAlpha(ink, 0.28), hexWithAlpha(ink, 0.55), paper),
-			progressColor: verticalSplit(progressTop, progressBottom, paper),
+			waveColor: verticalSplit(hexWithAlpha(ink, 0.28), hexWithAlpha(ink, 0.55), paper, cssHeight),
+			progressColor: verticalSplit(progressTop, progressBottom, paper, cssHeight),
 			// 40% lighter than the progress fill — mixes each stop toward white.
 			hoverColor: verticalSplit(
 				mixHex(progressTop, '#ffffff', 0.4),
 				mixHex(progressBottom, '#ffffff', 0.4),
-				paper
+				paper,
+				cssHeight
 			)
 		};
 	}
@@ -88,10 +100,11 @@
 	 * @param {string} top
 	 * @param {string} bottom
 	 * @param {string} split
+	 * @param {number} cssHeight resolved CSS-pixel height (prop or --waveform-height)
 	 */
-	function verticalSplit(top, bottom, split) {
+	function verticalSplit(top, bottom, split, cssHeight) {
 		const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
-		const canvasHeight = height * pixelRatio;
+		const canvasHeight = cssHeight * pixelRatio;
 		const ctx = document.createElement('canvas').getContext('2d');
 		if (!ctx) return top;
 
@@ -325,10 +338,7 @@
 			const { default: WaveSurfer } = await import('wavesurfer.js');
 			if (destroyed) return;
 
-			// Prefer an explicit prop; otherwise read --waveform-height (taller on touch).
-			const fromCss = Math.round(parseFloat(getComputedStyle(container).height)) || 66;
-			const resolvedHeight = height ?? fromCss;
-
+			const resolvedHeight = resolveHeight();
 			const colors = resolveColors($accentColor);
 			wavesurfer = WaveSurfer.create({
 				container,
