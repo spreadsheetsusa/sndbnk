@@ -29,6 +29,10 @@
 	 *   hasReposts?: boolean,
 	 *   showReposts?: boolean,
 	 *   linkBase?: string,
+	 *   showStats?: boolean,
+	 *   showFansAlsoLike?: boolean,
+	 *   showFollowers?: boolean,
+	 *   showActivity?: boolean,
 	 *   onrepoststoggle?: (next: boolean) => void
 	 * }}
 	 */
@@ -45,6 +49,10 @@
 		hasReposts = false,
 		showReposts = true,
 		linkBase = '',
+		showStats = true,
+		showFansAlsoLike = true,
+		showFollowers = true,
+		showActivity = true,
 		onrepoststoggle
 	} = $props();
 
@@ -59,127 +67,135 @@
 </script>
 
 <aside class="profile-sidebar" aria-label="About {name}">
-	<section class="panel" aria-label="Stats">
-		<ul class="stat-grid">
-			<li class="stat accent">
-				<IconUsers size={14} stroke={1.75} aria-hidden="true" />
-				<span class="stat-value">{followerCount}</span>
-				<span class="stat-label">Followers</span>
-			</li>
-			<li class="stat">
-				<IconUserPlus size={14} stroke={1.75} aria-hidden="true" />
-				<span class="stat-value">{stats.followingCount}</span>
-				<span class="stat-label">Following</span>
-			</li>
-			<li class="stat">
-				<IconMusic size={14} stroke={1.75} aria-hidden="true" />
-				<span class="stat-value">{stats.trackCount}</span>
-				<span class="stat-label">Tracks</span>
-			</li>
-			<li class="stat">
-				<IconHeart size={14} stroke={1.75} aria-hidden="true" />
-				<span class="stat-value">{stats.likeCount}</span>
-				<span class="stat-label">Likes</span>
-			</li>
-		</ul>
-
-		{#if !isOwner}
-			<div class="panel-action">
-				<FollowButton
-					{username}
-					{name}
-					following={isFollowing}
-					{signedIn}
-					onchange={(state) => (followerOverride = state.followerCount)}
-				/>
-			</div>
-		{/if}
-
-		{#if hasReposts}
-			<button
-				type="button"
-				class="repost-toggle"
-				aria-pressed={showReposts}
-				onclick={() => onrepoststoggle?.(!showReposts)}
-			>
-				<IconRepeat size={14} stroke={1.75} aria-hidden="true" />
-				<span>{showReposts ? 'Reposts on' : 'Reposts off'}</span>
-				<span class="repost-count">{stats.repostCount}</span>
-			</button>
-		{/if}
-	</section>
-
-	<section class="panel" aria-labelledby="fans-also-like-heading">
-		<header class="panel-head">
-			<div class="panel-titles">
-				<p class="eyebrow">Discover</p>
-				<h2 id="fans-also-like-heading">Fans Also Like</h2>
-			</div>
-		</header>
-		{#if fansAlsoLike.length === 0}
-			<p class="empty-line">Nothing to compare yet.</p>
-		{:else}
-			<ul class="row-list">
-				{#each fansAlsoLike as artist (artist.username)}
-					<li><ArtistRow {artist} {signedIn} {linkBase} /></li>
-				{/each}
+	{#if showStats}
+		<section class="panel" aria-label="Stats">
+			<ul class="stat-grid">
+				<li class="stat accent">
+					<IconUsers size={14} stroke={1.75} aria-hidden="true" />
+					<span class="stat-value">{followerCount}</span>
+					<span class="stat-label">Followers</span>
+				</li>
+				<li class="stat">
+					<IconUserPlus size={14} stroke={1.75} aria-hidden="true" />
+					<span class="stat-value">{stats.followingCount}</span>
+					<span class="stat-label">Following</span>
+				</li>
+				<li class="stat">
+					<IconMusic size={14} stroke={1.75} aria-hidden="true" />
+					<span class="stat-value">{stats.trackCount}</span>
+					<span class="stat-label">Tracks</span>
+				</li>
+				<li class="stat">
+					<IconHeart size={14} stroke={1.75} aria-hidden="true" />
+					<span class="stat-value">{stats.likeCount}</span>
+					<span class="stat-label">Likes</span>
+				</li>
 			</ul>
-		{/if}
-	</section>
 
-	<section class="panel" aria-labelledby="followers-heading">
-		<header class="panel-head">
-			<div class="panel-titles">
-				<p class="eyebrow">Audience</p>
-				<h2 id="followers-heading">
-					{followerCount}
-					{followerCount === 1 ? 'Follower' : 'Followers'}
-				</h2>
-			</div>
-			<span class="panel-meta" aria-hidden="true">
-				<IconUsers size={14} stroke={1.75} />
-				{padCount(followers.length)}
-			</span>
-		</header>
-		{#if followers.length === 0}
-			<p class="empty-line">No followers yet.</p>
-		{:else}
-			<ul class="row-list">
-				{#each followers as artist (artist.username)}
-					<li><ArtistRow {artist} {signedIn} {linkBase} /></li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+			{#if !isOwner}
+				<div class="panel-action">
+					<FollowButton
+						{username}
+						{name}
+						following={isFollowing}
+						{signedIn}
+						onchange={(state) => (followerOverride = state.followerCount)}
+					/>
+				</div>
+			{/if}
 
-	<section class="panel" aria-labelledby="profile-comments-heading">
-		<header class="panel-head">
-			<div class="panel-titles">
-				<p class="eyebrow">Activity</p>
-				<h2 id="profile-comments-heading">Last Comments</h2>
-			</div>
-		</header>
-		{#if recentComments.length === 0}
-			<p class="empty-line">No comments yet.</p>
-		{:else}
-			<ul class="item-list">
-				{#each recentComments as comment (comment.id)}
-					<li>
-						<a class="item" href="/tracks/{comment.trackId}">
-							<span class="activity-head">
-								<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
-								<span class="item-topline">
-									<span class="item-title">{comment.userName}</span>
-									<span class="item-meta">on {comment.trackTitle}</span>
+			{#if hasReposts}
+				<button
+					type="button"
+					class="repost-toggle"
+					aria-pressed={showReposts}
+					onclick={() => onrepoststoggle?.(!showReposts)}
+				>
+					<IconRepeat size={14} stroke={1.75} aria-hidden="true" />
+					<span>{showReposts ? 'Reposts on' : 'Reposts off'}</span>
+					<span class="repost-count">{stats.repostCount}</span>
+				</button>
+			{/if}
+		</section>
+	{/if}
+
+	{#if showFansAlsoLike}
+		<section class="panel" aria-labelledby="fans-also-like-heading">
+			<header class="panel-head">
+				<div class="panel-titles">
+					<p class="eyebrow">Discover</p>
+					<h2 id="fans-also-like-heading">Fans Also Like</h2>
+				</div>
+			</header>
+			{#if fansAlsoLike.length === 0}
+				<p class="empty-line">Nothing to compare yet.</p>
+			{:else}
+				<ul class="row-list">
+					{#each fansAlsoLike as artist (artist.username)}
+						<li><ArtistRow {artist} {signedIn} {linkBase} /></li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
+
+	{#if showFollowers}
+		<section class="panel" aria-labelledby="followers-heading">
+			<header class="panel-head">
+				<div class="panel-titles">
+					<p class="eyebrow">Audience</p>
+					<h2 id="followers-heading">
+						{followerCount}
+						{followerCount === 1 ? 'Follower' : 'Followers'}
+					</h2>
+				</div>
+				<span class="panel-meta" aria-hidden="true">
+					<IconUsers size={14} stroke={1.75} />
+					{padCount(followers.length)}
+				</span>
+			</header>
+			{#if followers.length === 0}
+				<p class="empty-line">No followers yet.</p>
+			{:else}
+				<ul class="row-list">
+					{#each followers as artist (artist.username)}
+						<li><ArtistRow {artist} {signedIn} {linkBase} /></li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
+
+	{#if showActivity}
+		<section class="panel" aria-labelledby="profile-comments-heading">
+			<header class="panel-head">
+				<div class="panel-titles">
+					<p class="eyebrow">Activity</p>
+					<h2 id="profile-comments-heading">Last Comments</h2>
+				</div>
+			</header>
+			{#if recentComments.length === 0}
+				<p class="empty-line">No comments yet.</p>
+			{:else}
+				<ul class="item-list">
+					{#each recentComments as comment (comment.id)}
+						<li>
+							<a class="item" href="/tracks/{comment.trackId}">
+								<span class="activity-head">
+									<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+									<span class="item-topline">
+										<span class="item-title">{comment.userName}</span>
+										<span class="item-meta">on {comment.trackTitle}</span>
+									</span>
 								</span>
-							</span>
-							<span class="item-body">“{comment.body}”</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+								<span class="item-body">“{comment.body}”</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
 </aside>
 
 <style>

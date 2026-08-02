@@ -3,7 +3,7 @@ import { ORIGIN } from '$app/env/private';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { listRecentComments } from '#lib/server/feed';
 import { listLinksForUser } from '#lib/server/profile-links';
-import { getSitePublic } from '#lib/server/site';
+import { getSitePublic, resolveSidebarVisibility } from '#lib/server/site';
 import { getProfileStats, isFollowing, listFansAlsoLike, listFollowers } from '#lib/server/social';
 import { buildPublicUrls, getProfileByUsername } from '#lib/server/tenant';
 import { listProfileItemsWithUploader, serializeTrackRows } from '#lib/server/tracks';
@@ -23,6 +23,7 @@ export async function loadPublicProfilePage({ username, locals }) {
 
 	const urls = buildPublicUrls(row);
 	const viaTenantHost = Boolean(locals.tenant);
+	const hostKind = locals.tenant?.hostKind ?? null;
 	const viewerId = locals.user?.id ?? null;
 
 	const [links, page, stats, fansAlsoLike, followers, recentComments, viewerFollows, site] =
@@ -38,6 +39,12 @@ export async function loadPublicProfilePage({ username, locals }) {
 		]);
 
 	const tracks = await serializeTrackRows(page.rows, locals.user);
+	const publicSite = site
+		? {
+				...site,
+				hideBranding: site.hideBranding && canRemoveBranding(row.plan)
+			}
+		: null;
 
 	return {
 		tracks,
@@ -52,17 +59,14 @@ export async function loadPublicProfilePage({ username, locals }) {
 			customDomain: row.customDomain,
 			customDomainStatus: row.customDomainStatus
 		},
-		site: site
-			? {
-					...site,
-					hideBranding: site.hideBranding && canRemoveBranding(row.plan)
-				}
-			: null,
+		site: publicSite,
 		links,
 		urls,
 		stats,
 		sidebar: { fansAlsoLike, followers, recentComments },
+		sidebarVisibility: resolveSidebarVisibility(hostKind, site),
 		viaTenantHost,
+		hostKind,
 		// Tenant hosts only serve this profile, so cross-profile links need the apex.
 		siteOrigin: ORIGIN.replace(/\/$/, ''),
 		viewer: locals.user

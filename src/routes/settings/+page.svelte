@@ -151,6 +151,27 @@
 	const siteDescriptionLength = $derived(siteDescriptionTyped ?? siteDescriptionValue.length);
 	const accentColorValue = $derived(form?.accentColor ?? data.site.accentColor);
 	const hideBrandingValue = $derived(form?.hideBranding ?? data.site.hideBranding);
+	/** Live drafts so toggles stick before save (and children can dim with the parent). */
+	let sidebarEnabledDraft = $state(/** @type {boolean | null} */ (null));
+	let sidebarStatsDraft = $state(/** @type {boolean | null} */ (null));
+	let sidebarFansAlsoLikeDraft = $state(/** @type {boolean | null} */ (null));
+	let sidebarFollowersDraft = $state(/** @type {boolean | null} */ (null));
+	let sidebarActivityDraft = $state(/** @type {boolean | null} */ (null));
+	const sidebarEnabledValue = $derived(
+		sidebarEnabledDraft ?? form?.sidebarEnabled ?? data.site.sidebarEnabled
+	);
+	const sidebarStatsValue = $derived(
+		sidebarStatsDraft ?? form?.sidebarStats ?? data.site.sidebarStats
+	);
+	const sidebarFansAlsoLikeValue = $derived(
+		sidebarFansAlsoLikeDraft ?? form?.sidebarFansAlsoLike ?? data.site.sidebarFansAlsoLike
+	);
+	const sidebarFollowersValue = $derived(
+		sidebarFollowersDraft ?? form?.sidebarFollowers ?? data.site.sidebarFollowers
+	);
+	const sidebarActivityValue = $derived(
+		sidebarActivityDraft ?? form?.sidebarActivity ?? data.site.sidebarActivity
+	);
 
 	/**
 	 * @param {'profile' | 'email' | 'billing' | 'domain' | 'site' | 'logo' | 'og' | 'storage' | 'avatar'} which
@@ -1021,6 +1042,95 @@
 							</div>
 						{/if}
 
+						{#if canCustomDomain}
+							<fieldset class="sidebar-fieldset">
+								<legend>Profile sidebar on your custom domain</legend>
+								<p class="hint">
+									Subdomain and sndbnk.com profiles always show the full sidebar. These toggles only
+									apply on your custom domain.
+								</p>
+								<label class="check-row">
+									<input
+										name="sidebarEnabled"
+										type="checkbox"
+										checked={sidebarEnabledValue}
+										onchange={(event) => (sidebarEnabledDraft = event.currentTarget.checked)}
+									/>
+									<span>Show profile sidebar</span>
+								</label>
+								<div class="sidebar-cards" class:dimmed={!sidebarEnabledValue}>
+									<label class="check-row nested">
+										<input
+											name="sidebarStats"
+											type="checkbox"
+											checked={sidebarStatsValue}
+											disabled={!sidebarEnabledValue}
+											onchange={(event) => (sidebarStatsDraft = event.currentTarget.checked)}
+										/>
+										{#if !sidebarEnabledValue}
+											<input
+												type="hidden"
+												name="sidebarStats"
+												value={sidebarStatsValue ? 'on' : ''}
+											/>
+										{/if}
+										<span>Stats</span>
+									</label>
+									<label class="check-row nested">
+										<input
+											name="sidebarFansAlsoLike"
+											type="checkbox"
+											checked={sidebarFansAlsoLikeValue}
+											disabled={!sidebarEnabledValue}
+											onchange={(event) => (sidebarFansAlsoLikeDraft = event.currentTarget.checked)}
+										/>
+										{#if !sidebarEnabledValue}
+											<input
+												type="hidden"
+												name="sidebarFansAlsoLike"
+												value={sidebarFansAlsoLikeValue ? 'on' : ''}
+											/>
+										{/if}
+										<span>Fans Also Like</span>
+									</label>
+									<label class="check-row nested">
+										<input
+											name="sidebarFollowers"
+											type="checkbox"
+											checked={sidebarFollowersValue}
+											disabled={!sidebarEnabledValue}
+											onchange={(event) => (sidebarFollowersDraft = event.currentTarget.checked)}
+										/>
+										{#if !sidebarEnabledValue}
+											<input
+												type="hidden"
+												name="sidebarFollowers"
+												value={sidebarFollowersValue ? 'on' : ''}
+											/>
+										{/if}
+										<span>Followers</span>
+									</label>
+									<label class="check-row nested">
+										<input
+											name="sidebarActivity"
+											type="checkbox"
+											checked={sidebarActivityValue}
+											disabled={!sidebarEnabledValue}
+											onchange={(event) => (sidebarActivityDraft = event.currentTarget.checked)}
+										/>
+										{#if !sidebarEnabledValue}
+											<input
+												type="hidden"
+												name="sidebarActivity"
+												value={sidebarActivityValue ? 'on' : ''}
+											/>
+										{/if}
+										<span>Last Comments</span>
+									</label>
+								</div>
+							</fieldset>
+						{/if}
+
 						<button class="pressable" type="submit" disabled={siteBusy}>
 							{siteBusy ? 'Saving…' : 'Save site settings'}
 						</button>
@@ -1475,6 +1585,44 @@
 		width: 1.1rem;
 		height: 1.1rem;
 		accent-color: var(--accent);
+	}
+
+	.check-row.nested {
+		margin: 0.35rem 0;
+	}
+
+	.sidebar-fieldset {
+		margin: 1.5rem 0 0.75rem;
+		padding: 0;
+		border: none;
+	}
+
+	.sidebar-fieldset legend {
+		padding: 0;
+		font-size: 0.7rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.sidebar-fieldset > .hint {
+		margin: 0.45rem 0 0.25rem;
+	}
+
+	.sidebar-cards {
+		display: grid;
+		gap: 0;
+		margin: 0.25rem 0 0 1.5rem;
+		padding-left: 0.75rem;
+		border-left: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.sidebar-cards.dimmed {
+		opacity: 0.55;
+	}
+
+	.sidebar-cards.dimmed .check-row {
+		cursor: default;
 	}
 
 	.branding-upsell {

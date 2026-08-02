@@ -79,7 +79,35 @@ export async function getSitePublic(userId) {
 		ogImageUrl: row.ogImageFilename ? siteOgImageUrl(userId, row.updatedAt) : null,
 		accentColor: row.accentColor ?? null,
 		hideBranding: row.hideBranding,
+		sidebarEnabled: row.sidebarEnabled,
+		sidebarStats: row.sidebarStats,
+		sidebarFansAlsoLike: row.sidebarFansAlsoLike,
+		sidebarFollowers: row.sidebarFollowers,
+		sidebarActivity: row.sidebarActivity,
 		updatedAt: row.updatedAt.getTime()
+	};
+}
+
+/**
+ * Custom-domain sidebar flags. Null means “show everything” (apex / subdomain).
+ * @param {'subdomain' | 'custom' | null | undefined} hostKind
+ * @param {{
+ *   sidebarEnabled: boolean,
+ *   sidebarStats: boolean,
+ *   sidebarFansAlsoLike: boolean,
+ *   sidebarFollowers: boolean,
+ *   sidebarActivity: boolean
+ * } | null} site
+ */
+export function resolveSidebarVisibility(hostKind, site) {
+	if (hostKind !== 'custom') return null;
+
+	return {
+		enabled: site?.sidebarEnabled ?? false,
+		stats: site?.sidebarStats ?? true,
+		fansAlsoLike: site?.sidebarFansAlsoLike ?? true,
+		followers: site?.sidebarFollowers ?? true,
+		activity: site?.sidebarActivity ?? true
 	};
 }
 
@@ -119,7 +147,12 @@ export function normalizeAccentColor(raw) {
  *   name: string,
  *   description: string,
  *   accentColor: string,
- *   hideBranding: boolean
+ *   hideBranding: boolean,
+ *   sidebarEnabled?: boolean,
+ *   sidebarStats?: boolean,
+ *   sidebarFansAlsoLike?: boolean,
+ *   sidebarFollowers?: boolean,
+ *   sidebarActivity?: boolean
  * }} input
  */
 export async function updateSiteSettings(input) {
@@ -163,16 +196,25 @@ export async function updateSiteSettings(input) {
 	const existing = await getSiteByUserId(input.userId);
 	const hideBranding = canRemoveBranding(input.plan) ? wantHide : (existing?.hideBranding ?? false);
 
-	await db
-		.update(site)
-		.set({
-			name: name || null,
-			description: description || null,
-			accentColor: accentResult.accentColor,
-			hideBranding,
-			updatedAt: new Date()
-		})
-		.where(eq(site.userId, input.userId));
+	/** @type {Record<string, unknown>} */
+	const patch = {
+		name: name || null,
+		description: description || null,
+		accentColor: accentResult.accentColor,
+		hideBranding,
+		updatedAt: new Date()
+	};
+
+	// Sidebar flags only apply on custom domains (Studio+); ignore for lower tiers.
+	if (canUseCustomDomain(input.plan)) {
+		patch.sidebarEnabled = Boolean(input.sidebarEnabled);
+		patch.sidebarStats = Boolean(input.sidebarStats);
+		patch.sidebarFansAlsoLike = Boolean(input.sidebarFansAlsoLike);
+		patch.sidebarFollowers = Boolean(input.sidebarFollowers);
+		patch.sidebarActivity = Boolean(input.sidebarActivity);
+	}
+
+	await db.update(site).set(patch).where(eq(site.userId, input.userId));
 
 	return { ok: /** @type {const} */ (true) };
 }

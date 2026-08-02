@@ -90,7 +90,12 @@ export const load = async ({ locals }) => {
 			logoUrl: siteSettings?.logoUrl ?? null,
 			ogImageUrl: siteSettings?.ogImageUrl ?? null,
 			accentColor: siteSettings?.accentColor ?? '',
-			hideBranding: siteSettings?.hideBranding ?? false
+			hideBranding: siteSettings?.hideBranding ?? false,
+			sidebarEnabled: siteSettings?.sidebarEnabled ?? false,
+			sidebarStats: siteSettings?.sidebarStats ?? true,
+			sidebarFansAlsoLike: siteSettings?.sidebarFansAlsoLike ?? true,
+			sidebarFollowers: siteSettings?.sidebarFollowers ?? true,
+			sidebarActivity: siteSettings?.sidebarActivity ?? true
 		},
 		links,
 		limits: {
@@ -514,6 +519,11 @@ export const actions = {
 		const description = formData.get('siteDescription')?.toString() ?? '';
 		const accentColor = formData.get('accentColor')?.toString() ?? '';
 		const hideBranding = formData.get('hideBranding')?.toString() === 'on';
+		const sidebarEnabled = formData.get('sidebarEnabled')?.toString() === 'on';
+		const sidebarStats = formData.get('sidebarStats')?.toString() === 'on';
+		const sidebarFansAlsoLike = formData.get('sidebarFansAlsoLike')?.toString() === 'on';
+		const sidebarFollowers = formData.get('sidebarFollowers')?.toString() === 'on';
+		const sidebarActivity = formData.get('sidebarActivity')?.toString() === 'on';
 
 		const result = await updateSiteSettings({
 			userId: locals.user.id,
@@ -521,7 +531,12 @@ export const actions = {
 			name,
 			description,
 			accentColor,
-			hideBranding
+			hideBranding,
+			sidebarEnabled,
+			sidebarStats,
+			sidebarFansAlsoLike,
+			sidebarFollowers,
+			sidebarActivity
 		});
 
 		if (!result.ok) {
@@ -532,7 +547,12 @@ export const actions = {
 					siteName: name,
 					siteDescription: description,
 					accentColor,
-					hideBranding
+					hideBranding,
+					sidebarEnabled,
+					sidebarStats,
+					sidebarFansAlsoLike,
+					sidebarFollowers,
+					sidebarActivity
 				}
 			);
 		}

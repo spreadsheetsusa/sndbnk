@@ -38,7 +38,15 @@
 	 *     followers: import('#lib/components/profile/ArtistRow.svelte').Artist[],
 	 *     recentComments: import('#lib/components/profile/ProfileSidebar.svelte').RecentComment[]
 	 *   },
+	 *   sidebarVisibility: {
+	 *     enabled: boolean,
+	 *     stats: boolean,
+	 *     fansAlsoLike: boolean,
+	 *     followers: boolean,
+	 *     activity: boolean
+	 *   } | null,
 	 *   viaTenantHost: boolean,
+	 *   hostKind?: 'subdomain' | 'custom' | null,
 	 *   siteOrigin: string,
 	 *   viewer: {
 	 *     id: string,
@@ -67,6 +75,39 @@
 	const linkBase = $derived(data.viaTenantHost ? data.siteOrigin : '');
 	const siteName = $derived(data.site?.name?.trim() || data.profile.name);
 	const showPoweredBy = $derived(data.viaTenantHost && !data.site?.hideBranding);
+
+	/** null = apex/subdomain → full sidebar; custom domain uses site flags. */
+	const sidebarCards = $derived.by(() => {
+		const visibility = data.sidebarVisibility;
+		if (!visibility) {
+			return {
+				stats: true,
+				fansAlsoLike: true,
+				followers: true,
+				activity: true
+			};
+		}
+		if (!visibility.enabled) {
+			return {
+				stats: false,
+				fansAlsoLike: false,
+				followers: false,
+				activity: false
+			};
+		}
+		return {
+			stats: visibility.stats,
+			fansAlsoLike: visibility.fansAlsoLike,
+			followers: visibility.followers,
+			activity: visibility.activity
+		};
+	});
+	const showSidebar = $derived(
+		sidebarCards.stats ||
+			sidebarCards.fansAlsoLike ||
+			sidebarCards.followers ||
+			sidebarCards.activity
+	);
 </script>
 
 <div class="profile-page" class:tenant-host={data.viaTenantHost}>
@@ -84,7 +125,7 @@
 	{/if}
 
 	<main>
-		<div class="profile-grid">
+		<div class="profile-grid" class:no-sidebar={!showSidebar}>
 			<div class="block">
 				<section class="hero" aria-labelledby="profile-name">
 					<p class="eyebrow eyebrow-chip accent-text">
@@ -146,7 +187,6 @@
 
 				{#if list.items.length > 0}
 					<section class="tracks" aria-labelledby="tracks-heading">
-						<p class="eyebrow">{hasReposts ? 'Tracks & Reposts' : 'Tracks'}</p>
 						<h2 id="tracks-heading" class="sr-only">Tracks by {data.profile.name}</h2>
 						{#if items.length === 0}
 							<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
@@ -172,21 +212,27 @@
 				{/if}
 			</div>
 
-			<ProfileSidebar
-				username={data.profile.username}
-				name={data.profile.name}
-				stats={data.stats}
-				fansAlsoLike={data.sidebar.fansAlsoLike}
-				followers={data.sidebar.followers}
-				recentComments={data.sidebar.recentComments}
-				signedIn={Boolean(data.viewer)}
-				isOwner={Boolean(data.viewer?.isOwner)}
-				isFollowing={Boolean(data.viewer?.isFollowing)}
-				{hasReposts}
-				{showReposts}
-				{linkBase}
-				onrepoststoggle={(next) => (showReposts = next)}
-			/>
+			{#if showSidebar}
+				<ProfileSidebar
+					username={data.profile.username}
+					name={data.profile.name}
+					stats={data.stats}
+					fansAlsoLike={data.sidebar.fansAlsoLike}
+					followers={data.sidebar.followers}
+					recentComments={data.sidebar.recentComments}
+					signedIn={Boolean(data.viewer)}
+					isOwner={Boolean(data.viewer?.isOwner)}
+					isFollowing={Boolean(data.viewer?.isFollowing)}
+					{hasReposts}
+					{showReposts}
+					{linkBase}
+					showStats={sidebarCards.stats}
+					showFansAlsoLike={sidebarCards.fansAlsoLike}
+					showFollowers={sidebarCards.followers}
+					showActivity={sidebarCards.activity}
+					onrepoststoggle={(next) => (showReposts = next)}
+				/>
+			{/if}
 		</div>
 	</main>
 
@@ -277,6 +323,14 @@
 		grid-template-columns: minmax(0, 1fr) var(--site-sidebar-width);
 		gap: clamp(2rem, 5vw, 3rem);
 		align-items: start;
+	}
+
+	.profile-grid.no-sidebar {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.profile-page.tenant-host .profile-grid {
+		margin-top: 1.5rem;
 	}
 
 	.block {
@@ -442,10 +496,6 @@
 		padding-top: clamp(1.5rem, 4vw, 2rem);
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.85s ease 0.2s both;
-	}
-
-	.tracks > .eyebrow {
-		margin: 0 0 0.75rem;
 	}
 
 	.sr-only {

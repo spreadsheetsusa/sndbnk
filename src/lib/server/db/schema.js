@@ -111,6 +111,14 @@ export const site = sqliteTable('site', {
 	/** `#RRGGBB`; null keeps the listener/default accent. */
 	accentColor: text('accent_color'),
 	hideBranding: integer('hide_branding', { mode: 'boolean' }).notNull().default(false),
+	/** Custom-domain profile sidebar; ignored on subdomain/apex. Master off = hide all. */
+	sidebarEnabled: integer('sidebar_enabled', { mode: 'boolean' }).notNull().default(false),
+	sidebarStats: integer('sidebar_stats', { mode: 'boolean' }).notNull().default(true),
+	sidebarFansAlsoLike: integer('sidebar_fans_also_like', { mode: 'boolean' })
+		.notNull()
+		.default(true),
+	sidebarFollowers: integer('sidebar_followers', { mode: 'boolean' }).notNull().default(true),
+	sidebarActivity: integer('sidebar_activity', { mode: 'boolean' }).notNull().default(true),
 	ogImageFilename: text('og_image_filename'),
 	ogImageMime: text('og_image_mime'),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })

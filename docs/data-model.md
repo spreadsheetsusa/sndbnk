@@ -93,10 +93,20 @@ apex `/users/{username}` ignores it.
 | `ogImageFilename` / `ogImageMime` | Social share image (`site-og/`); falls back to logo then avatar   |
 | `accentColor`                     | `#RRGGBB` tenant accent; null keeps listener/default accent       |
 | `hideBranding`                    | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding` |
+| `sidebarEnabled`                  | Master toggle for profile sidebar on **custom domains** only      |
+| `sidebarStats`                    | Stats card (counts, Follow, reposts); default on                  |
+| `sidebarFansAlsoLike`             | Fans Also Like card; default on                                   |
+| `sidebarFollowers`                | Followers card; default on                                        |
+| `sidebarActivity`                 | Last Comments card; default on                                    |
+
+Sidebar defaults: master off, cards on (so enabling the master restores a full sidebar). Apex and
+subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
+[`site.js`](../src/lib/server/site.js) resolves them for the profile loader.
 
 Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,
 `/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
-`hideBranding` also needs Studio+ (`canRemoveBranding`).
+`hideBranding` needs Studio+ (`canRemoveBranding`); sidebar toggles need Studio+
+(`canUseCustomDomain`).
 
 ### `plan` — entitlement catalog
 
