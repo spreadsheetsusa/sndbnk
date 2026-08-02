@@ -100,7 +100,7 @@ Four groups of columns:
 track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —
 so switching your storage setting never orphans existing tracks.
 
-`published` defaults to `1`. Public surfaces — profile pages, the feed, the landing showcase, and
+`published` defaults to `1`. Public surfaces — profile pages, the feed, the landing hero, and
 `/tracks/[id]` for anyone but the owner — filter on it; the owner's library lists every track and
 carries the toggle.
 

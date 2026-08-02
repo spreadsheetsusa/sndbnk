@@ -2,7 +2,6 @@
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
-	import CoverFlow from '#lib/components/home/CoverFlow.svelte';
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
@@ -84,17 +83,8 @@
 				<HeroSoundCard track={data.heroTrack} />
 			</section>
 
-			{#if data.showcase.length > 0}
-				<section class="showcase" aria-labelledby="showcase-heading">
-					<div class="showcase-head">
-						<p class="eyebrow eyebrow-chip accent-text">In the bank</p>
-						<h2 id="showcase-heading">Sound that already lives here</h2>
-						<p class="showcase-lede">
-							Drag it, nudge it, or leave it alone and let it play itself.
-						</p>
-					</div>
-
-					<CoverFlow tracks={data.showcase} />
+			{#if data.stats.trackCount > 0}
+				<section class="stats">
 					<StatBadges stats={data.stats} />
 				</section>
 			{/if}
@@ -245,43 +235,11 @@
 		margin-top: 1.25rem;
 	}
 
-	/* Full-bleed band: the covers should run off both edges of the viewport,
-	   not stop at the page rail. `.landing` clips the overflow. */
-	.showcase {
-		display: grid;
-		gap: clamp(1.5rem, 3.5vw, 2.5rem);
-		justify-items: center;
-		margin-inline: calc(50% - 50vw);
-		padding: clamp(2.5rem, 6vw, 4.5rem) var(--site-shell-pad-x);
+	.stats {
+		width: 100%;
+		padding: clamp(2rem, 4vw, 3rem) 0;
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.85s ease both;
-	}
-
-	.showcase-head {
-		display: grid;
-		justify-items: center;
-		max-width: 34rem;
-		text-align: center;
-	}
-
-	.showcase-head .eyebrow {
-		margin: 0 0 0.9rem;
-	}
-
-	.showcase-head h2 {
-		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-		font-size: clamp(2rem, 5vw, 3.25rem);
-		font-weight: 400;
-		letter-spacing: -0.03em;
-		line-height: 1.05;
-	}
-
-	.showcase-lede {
-		margin: 0.85rem 0 0;
-		color: var(--muted);
-		font-size: 0.9rem;
-		line-height: 1.5;
 	}
 
 	.manifesto {

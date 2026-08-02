@@ -127,7 +127,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
-		justify-content: center;
+		width: 100%;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -136,6 +136,7 @@
 	.stat {
 		position: relative;
 		display: grid;
+		flex: 1 1 0;
 		grid-template-columns: auto 1fr;
 		gap: 0 0.5rem;
 		align-items: center;
@@ -147,6 +148,7 @@
 	}
 
 	.stat.wide {
+		flex: 1.35 1 0;
 		min-width: 11rem;
 	}
 
@@ -175,7 +177,7 @@
 
 	.stat-value.name {
 		overflow: hidden;
-		max-width: 11rem;
+		min-width: 0;
 		color: inherit;
 		font-size: 1rem;
 		font-weight: 800;

@@ -1,4 +1,4 @@
-import { and, count, countDistinct, desc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { and, count, countDistinct, desc, eq, isNotNull, ne, sql } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
@@ -8,72 +8,7 @@ import {
 	serializeTrackForPlayer
 } from '#lib/server/tracks';
 
-const SHOWCASE_LIMIT = 16;
-const SHOWCASE_MIN_WITH_COVERS = 8;
 const HERO_POOL_SIZE = 12;
-
-/**
- * @param {number} limit
- * @param {boolean} withCover
- */
-function selectShowcaseRows(limit, withCover) {
-	return db
-		.select({
-			id: track.id,
-			title: track.title,
-			artist: track.artist,
-			genre: track.genre,
-			durationMs: track.durationMs,
-			coverFilename: track.coverFilename,
-			username: profile.username,
-			uploaderName: user.name
-		})
-		.from(track)
-		.leftJoin(profile, eq(profile.userId, track.userId))
-		.leftJoin(user, eq(user.id, track.userId))
-		.where(
-			and(
-				eq(track.published, true),
-				withCover ? isNotNull(track.coverFilename) : isNull(track.coverFilename)
-			)
-		)
-		.orderBy(desc(track.createdAt), desc(track.id))
-		.limit(limit);
-}
-
-/**
- * Newest tracks for the landing page cover flow, cover art first so the band
- * reads as artwork. Intentionally skips `serializeTrackForPlayer()` — that
- * backfills waveform peaks by reading audio out of storage, and the carousel
- * only needs artwork and titles.
- *
- * @param {number} [limit]
- */
-export async function listShowcaseTracks(limit = SHOWCASE_LIMIT) {
-	const withCovers = await selectShowcaseRows(limit, true);
-
-	const rows =
-		withCovers.length >= SHOWCASE_MIN_WITH_COVERS
-			? withCovers
-			: [...withCovers, ...(await selectShowcaseRows(limit - withCovers.length, false))];
-
-	const social = await getSocialForTracks(
-		rows.map((row) => row.id),
-		null
-	);
-
-	return rows.map((row) => ({
-		id: row.id,
-		title: row.title,
-		artist: row.artist,
-		genre: row.genre,
-		durationMs: row.durationMs,
-		hasCover: Boolean(row.coverFilename),
-		username: row.username,
-		uploaderName: row.uploaderName ?? row.username ?? 'Unknown',
-		likeCount: social.get(row.id)?.likeCount ?? 0
-	}));
-}
 
 /**
  * Top liked published track ids for the hero player, cover art preferred.

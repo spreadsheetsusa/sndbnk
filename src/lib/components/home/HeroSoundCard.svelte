@@ -156,7 +156,8 @@
 		overflow: hidden;
 		color: var(--on-inverse);
 		background: var(--inverse);
-		box-shadow: clamp(0.75rem, 2vw, 1.5rem) clamp(0.75rem, 2vw, 1.5rem) 0 var(--accent);
+		box-shadow: clamp(0.75rem, 2vw, 1.5rem) clamp(0.75rem, 2vw, 1.5rem) 0
+			color-mix(in srgb, var(--accent) 60%, black);
 	}
 
 	.sound-card.live {
@@ -362,7 +363,7 @@
 	@media (max-width: 640px) {
 		.sound-card {
 			min-height: clamp(16rem, 110vw, 42rem);
-			box-shadow: 0.65rem 0.65rem 0 var(--accent);
+			box-shadow: 0.65rem 0.65rem 0 color-mix(in srgb, var(--accent) 60%, black);
 		}
 
 		.cover {
