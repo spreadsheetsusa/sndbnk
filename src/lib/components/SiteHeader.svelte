@@ -297,6 +297,8 @@
 
 <style>
 	.site-header {
+		/* Extra breathing room above logo/nav; narrow layout raises this. */
+		--site-header-pad-top: 0px;
 		position: sticky;
 		z-index: 40;
 		top: 0;
@@ -305,15 +307,18 @@
 		align-items: center;
 		justify-content: space-between;
 		min-height: var(--site-header-height);
+		/* black-translucent PWA: paper extends under the notch; pad content below it.
+		   Must stay a calc so narrow-layout pad-top cannot wipe the safe-area inset. */
+		padding-top: calc(var(--safe-top) + var(--site-header-pad-top));
 		margin-bottom: var(--site-header-gap);
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 		background: var(--paper);
 	}
 
-	/* black-translucent status bar: extend paper under the notch, pad content below it */
+	/* Installed PWA: grow min-height so border-box keeps the inner content box. */
 	@media (display-mode: standalone), (display-mode: fullscreen) {
 		.site-header {
-			padding-top: env(safe-area-inset-top, 0px);
+			--site-header-height: calc(5rem + var(--safe-top) + var(--site-header-pad-top));
 		}
 	}
 
@@ -657,13 +662,13 @@
 	@media (max-width: 960px) {
 		.site-header {
 			/* Breathing room above logo/mode strip when the stacked player grows the header
-			   past min-height (align-content no longer centers, so content would pack flush). */
+			   past min-height (align-content no longer centers, so content would pack flush).
+			   Stacked on --safe-top via padding-top calc — do not set padding-top here. */
 			--site-header-pad-top: 0.45rem;
 			flex-wrap: wrap;
 			align-content: center;
-			padding-top: var(--site-header-pad-top);
 			/* border-box: keep the inner content box at the previous min-height. */
-			--site-header-height: calc(5rem + var(--site-header-pad-top));
+			--site-header-height: calc(5rem + var(--safe-top) + var(--site-header-pad-top));
 		}
 
 		.header-end {
@@ -673,7 +678,7 @@
 
 	@media (max-width: 640px) {
 		.site-header {
-			--site-header-height: calc(4.5rem + var(--site-header-pad-top));
+			--site-header-height: calc(4.5rem + var(--safe-top) + var(--site-header-pad-top));
 		}
 
 		.mode-btn {
