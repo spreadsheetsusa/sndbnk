@@ -26,12 +26,27 @@
 	);
 	const selected = $derived(list.items.find((track) => track.id === resolvedId) ?? null);
 
-	const maxTracks = $derived(data.usage.maxTracks);
-	const trackCount = $derived(data.usage.trackCount);
-	const atTrackCap = $derived(maxTracks !== null && trackCount >= maxTracks);
-	const trackFill = $derived(
-		maxTracks ? Math.min(100, Math.round((trackCount / maxTracks) * 100)) : 0
+	const maxLocalBytes = $derived(data.usage.maxLocalBytes);
+	const localBytes = $derived(data.usage.localBytes);
+	const atStorageCap = $derived(maxLocalBytes !== null && localBytes >= maxLocalBytes);
+	const storageFill = $derived(
+		maxLocalBytes ? Math.min(100, Math.round((localBytes / maxLocalBytes) * 100)) : 0
 	);
+
+	/**
+	 * @param {number} value
+	 */
+	function bytes(value) {
+		if (value < 1024) return `${value} B`;
+		const units = ['KB', 'MB', 'GB', 'TB'];
+		let n = value / 1024;
+		let i = 0;
+		while (n >= 1024 && i < units.length - 1) {
+			n /= 1024;
+			i += 1;
+		}
+		return `${n >= 10 ? Math.round(n) : n.toFixed(1)} ${units[i]}`;
+	}
 </script>
 
 <svelte:head>
@@ -54,27 +69,27 @@
 			</div>
 			<div class="page-head-actions">
 				<a class="pressable" href="/library/new">Upload track</a>
-				{#if maxTracks !== null}
-					{#if atTrackCap}
+				{#if maxLocalBytes !== null}
+					{#if atStorageCap}
 						<p class="quota-upsell">
-							You've used all {maxTracks} tracks on {data.usage.planLabel}.
-							<a href="/plans">Upgrade to Premium</a>
+							You've used the {bytes(maxLocalBytes)} of hosted storage on {data.usage.planLabel}.
+							<a href="/plans">Upgrade plan</a>
 						</p>
 					{:else}
-						<div class="quota-meter" aria-label="Track quota">
+						<div class="quota-meter" aria-label="Hosted storage quota">
 							<div class="meter-head">
-								<span class="meter-label">Tracks</span>
-								<span class="meter-value">{trackCount} / {maxTracks}</span>
+								<span class="meter-label">Hosted</span>
+								<span class="meter-value">{bytes(localBytes)} / {bytes(maxLocalBytes)}</span>
 							</div>
 							<div
 								class="meter-track"
 								role="progressbar"
-								aria-valuenow={trackCount}
+								aria-valuenow={localBytes}
 								aria-valuemin="0"
-								aria-valuemax={maxTracks}
-								aria-label="Tracks used"
+								aria-valuemax={maxLocalBytes}
+								aria-label="Hosted storage used"
 							>
-								<span class="meter-fill" style="width: {trackFill}%"></span>
+								<span class="meter-fill" style="width: {storageFill}%"></span>
 							</div>
 						</div>
 					{/if}

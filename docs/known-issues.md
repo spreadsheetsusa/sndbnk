@@ -68,15 +68,15 @@ Do not add new secrets to `.env` while it is tracked.
 
 ## Dead and unfinished code
 
-| Item                                                | Status                                                                                                                        |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `task` table                                        | Scaffolding from `sv create`. Defined in `schema.js` and the push script, queried by nothing. Safe to remove from both.       |
-| `resolveTenantHost().pathname`                      | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                  |
-| `s3` and `r2` in `STORAGE_ADAPTERS`                 | `enabled: false`, no implementation. The settings UI renders them as unavailable.                                             |
-| `profile.stripeCustomerId` / `stripeSubscriptionId` | Columns exist; no billing code. `setPlan` changes the plan with no payment.                                                   |
-| `src/lib/index.js`                                  | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                         |
-| `scratch-seed.js`, `scratch-verify.js`              | Committed one-off probes from the tag-embedding work, with hardcoded `/tmp/sndbnk-tag/` paths and no `package.json` wiring.   |
-| `db:push` (retired stub)                            | Exits with instructions. Real path is `db:generate` + `db:migrate`. See [`drizzle-migrations.html`](drizzle-migrations.html). |
+| Item                                       | Status                                                                                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `task` table                               | Scaffolding from `sv create`. Defined in `schema.js` and the push script, queried by nothing. Safe to remove from both.       |
+| `resolveTenantHost().pathname`             | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                  |
+| `s3` and `r2` in `STORAGE_ADAPTERS`        | `enabled: false`, no implementation. The settings UI renders them as unavailable.                                             |
+| Old Basic/Premium/Business Stripe products | Retired in app catalog (Free/Vault/Studio/Label). Archive leftover products in the Stripe Dashboard after `stripe:bootstrap`. |
+| `src/lib/index.js`                         | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                         |
+| `scratch-seed.js`, `scratch-verify.js`     | Committed one-off probes from the tag-embedding work, with hardcoded `/tmp/sndbnk-tag/` paths and no `package.json` wiring.   |
+| `db:push` (retired stub)                   | Exits with instructions. Real path is `db:generate` + `db:migrate`. See [`drizzle-migrations.html`](drizzle-migrations.html). |
 
 ## Inconsistencies worth knowing
 

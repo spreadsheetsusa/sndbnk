@@ -10,7 +10,7 @@ export const task = sqliteTable('task', {
 	priority: integer('priority').notNull().default(1)
 });
 
-/** @typedef {'basic' | 'premium' | 'business'} Plan */
+/** @typedef {'free' | 'vault' | 'studio' | 'label'} Plan */
 /** @typedef {'none' | 'pending' | 'active'} CustomDomainStatus */
 /** @typedef {'month' | 'year'} BillingInterval */
 
@@ -33,6 +33,12 @@ export const plan = sqliteTable('plan', {
 		.default(false),
 	allowSubdomain: integer('allow_subdomain', { mode: 'boolean' }).notNull().default(false),
 	allowCustomDomain: integer('allow_custom_domain', { mode: 'boolean' }).notNull().default(false),
+	/** Studio+: hide SNDBNK chrome on tenant hosts when that UI ships. */
+	allowRemoveBranding: integer('allow_remove_branding', { mode: 'boolean' })
+		.notNull()
+		.default(false),
+	/** Label team seats; 0 means single-creator. Enforcement waits on teams UI. */
+	maxTeamSeats: integer('max_team_seats').notNull().default(0),
 	/** Display amounts in cents. Stripe remains the charging authority. */
 	monthlyAmount: integer('monthly_amount').notNull().default(0),
 	yearlyAmount: integer('yearly_amount').notNull().default(0),
@@ -65,7 +71,7 @@ export const profile = sqliteTable('profile', {
 		.primaryKey()
 		.references(() => user.id, { onDelete: 'cascade' }),
 	username: text('username').notNull().unique(),
-	plan: text('plan').notNull().default('basic'),
+	plan: text('plan').notNull().default('free'),
 	bio: text('bio'),
 	location: text('location'),
 	avatarFilename: text('avatar_filename'),
@@ -77,7 +83,7 @@ export const profile = sqliteTable('profile', {
 	stripeCustomerId: text('stripe_customer_id'),
 	stripeSubscriptionId: text('stripe_subscription_id'),
 	planInterval: text('plan_interval'),
-	/** Stripe subscription status, or `grandfathered` for pre-billing premium accounts. */
+	/** Stripe subscription status, or `grandfathered` for admin-comped paid accounts. */
 	subscriptionStatus: text('subscription_status'),
 	currentPeriodEnd: integer('current_period_end', { mode: 'timestamp_ms' }),
 	cancelAtPeriodEnd: integer('cancel_at_period_end', { mode: 'boolean' }).notNull().default(false),

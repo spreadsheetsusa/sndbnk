@@ -12,20 +12,22 @@ const CACHE_MS = 5000;
 let cache = null;
 
 /**
- * Entitlements for a plan id that is missing from the table — deny everything
+ * Entitlements for a plan id that is missing from the table — deny hosting
  * rather than hand out features when the seed has not run.
  * @type {PlanDetail}
  */
 const UNKNOWN_PLAN = {
-	id: 'basic',
-	label: 'Basic',
+	id: 'free',
+	label: 'Free',
 	blurb: '',
 	features: [],
-	maxTracks: 10,
-	maxLocalBytes: null,
-	allowStorageAdapters: false,
+	maxTracks: null,
+	maxLocalBytes: 5 * 1024 * 1024 * 1024,
+	allowStorageAdapters: true,
 	allowSubdomain: false,
 	allowCustomDomain: false,
+	allowRemoveBranding: false,
+	maxTeamSeats: 0,
 	monthlyAmount: 0,
 	yearlyAmount: 0,
 	currency: 'usd',
@@ -95,7 +97,7 @@ export function getPlan(planId) {
  * @returns {PlanDetail}
  */
 export function planOrDefault(planId) {
-	return getPlan(planId) ?? getPlan('basic') ?? UNKNOWN_PLAN;
+	return getPlan(planId) ?? getPlan('free') ?? UNKNOWN_PLAN;
 }
 
 /**
@@ -124,6 +126,28 @@ export function canUseCustomDomain(planId) {
  */
 export function canUseStorageAdapters(planId) {
 	return planOrDefault(planId).allowStorageAdapters;
+}
+
+/**
+ * @param {string | null | undefined} planId
+ */
+export function canRemoveBranding(planId) {
+	return planOrDefault(planId).allowRemoveBranding;
+}
+
+/**
+ * @param {string | null | undefined} planId
+ * @returns {number}
+ */
+export function getMaxTeamSeats(planId) {
+	return planOrDefault(planId).maxTeamSeats;
+}
+
+/**
+ * @param {string | null | undefined} planId
+ */
+export function hasTeamSeats(planId) {
+	return getMaxTeamSeats(planId) > 0;
 }
 
 /**

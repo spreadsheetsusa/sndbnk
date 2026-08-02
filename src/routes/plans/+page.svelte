@@ -220,8 +220,8 @@
 			<p class="eyebrow accent-text eyebrow-chip">Pricing</p>
 			<h1 class="display-face">Pick your signal strength.</h1>
 			<p class="lede">
-				Every plan gets a public profile and a real player. Pay to move onto your own domain and
-				bring your own storage.
+				Fully usable on Free — especially with your own storage. Vault adds a subdomain. Studio is
+				the full-power tier: custom domain and unbranded hosting.
 			</p>
 
 			<div class="interval-toggle" role="group" aria-label="Billing interval">
@@ -242,7 +242,7 @@
 					onclick={() => (interval = 'year')}
 				>
 					Yearly
-					<span class="save">save 18%</span>
+					<span class="save">save ~20%</span>
 				</button>
 			</div>
 		</header>
@@ -257,7 +257,16 @@
 			{#each data.plans as tier (tier.id)}
 				{@const amount = priceFor(tier)}
 				{@const isCurrent = currentPlan === tier.id}
-				<article class="tier" class:current={isCurrent} class:picked={selectedPlan === tier.id}>
+				{@const isFeatured = tier.id === 'studio'}
+				<article
+					class="tier"
+					class:current={isCurrent}
+					class:picked={selectedPlan === tier.id}
+					class:featured={isFeatured}
+				>
+					{#if isFeatured}
+						<p class="tier-badge">Full power</p>
+					{/if}
 					<h2 class="display-face">{tier.label}</h2>
 					<p class="blurb">{tier.blurb}</p>
 
@@ -342,7 +351,7 @@
 						{#if needsAccount}
 							<p class="form-intro">
 								Your account is created before payment, so a declined card still leaves you a
-								working Basic profile.
+								working Free profile.
 							</p>
 
 							<label for="plan-name">Name</label>
@@ -512,17 +521,37 @@
 
 	.tiers {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 1.5rem;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 1.25rem;
 	}
 
 	.tier {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: 0.7rem;
 		padding: 1.5rem;
 		border: 1px solid var(--hard-border);
 		background: transparent;
+	}
+
+	.tier.featured {
+		border-color: var(--accent);
+		box-shadow: 6px 6px 0 var(--hard-shadow);
+	}
+
+	.tier-badge {
+		position: absolute;
+		top: 0;
+		right: 0;
+		margin: 0;
+		padding: 0.25rem 0.5rem;
+		color: var(--on-accent);
+		background: var(--accent);
+		font-size: 0.65rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.tier.current,
@@ -791,13 +820,17 @@
 		margin: 0.6rem 0 0;
 	}
 
-	@media (max-width: 960px) {
+	@media (max-width: 1100px) {
 		.tiers {
-			grid-template-columns: 1fr;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 
 	@media (max-width: 640px) {
+		.tiers {
+			grid-template-columns: 1fr;
+		}
+
 		.intro {
 			margin-bottom: 2rem;
 		}

@@ -21,7 +21,7 @@ export const load = async ({ locals, url }) => {
 	}
 
 	return {
-		status: applied.plan === 'basic' ? 'pending' : 'active',
+		status: applied.plan === 'free' ? 'pending' : 'active',
 		planLabel: planOrDefault(applied.plan).label,
 		message: null
 	};

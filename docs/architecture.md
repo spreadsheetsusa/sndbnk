@@ -38,8 +38,8 @@ flowchart LR
   req[Request] --> tenant["handleTenant<br/>resolveTenantHost(hostname)"]
   tenant -->|apex| authHook
   tenant -->|not_found| nf["404 text/plain"]
-  tenant -->|"basic plan on subdomain"| redir["302 → apex /users/:username"]
-  tenant -->|"premium tenant host"| gate["path allowlist"]
+  tenant -->|"free plan on subdomain"| redir["302 → apex /users/:username"]
+  tenant -->|"entitled tenant host"| gate["path allowlist"]
   gate --> authHook["handleBetterAuth<br/>sets locals.user + locals.session"]
   authHook --> handler["load / actions / +server"]
   handler --> render["SSR → runes hydration"]
@@ -50,12 +50,12 @@ flowchart LR
 Skipped entirely when `building`. Otherwise it reads the hostname (preferring `x-forwarded-host`,
 which Caddy sets) and resolves it:
 
-| Outcome     | Effect                                                              |
-| ----------- | ------------------------------------------------------------------- |
-| `apex`      | pass through untouched                                              |
-| `not_found` | plain-text 404 response, no SvelteKit render                        |
-| `redirect`  | 302 to the apex path URL — a basic-plan user cannot use a subdomain |
-| `rewrite`   | sets `event.locals.tenant`, then gates the path                     |
+| Outcome     | Effect                                                          |
+| ----------- | --------------------------------------------------------------- |
+| `apex`      | pass through untouched                                          |
+| `not_found` | plain-text 404 response, no SvelteKit render                    |
+| `redirect`  | 302 to the apex path URL — Free cannot use a subdomain (Vault+) |
+| `rewrite`   | sets `event.locals.tenant`, then gates the path                 |
 
 On a tenant host the path allowlist is deliberately narrow:
 
@@ -88,13 +88,14 @@ Only `handleTenant` writes `locals.tenant`. Loaders read it, never set it.
 
 ## Tenancy model
 
-One creator, three public URLs, gated by plan ([`src/lib/server/plans.js`](../src/lib/server/plans.js)):
+One creator, three public URLs, gated by plan entitlements
+([`src/lib/server/billing/plans.js`](../src/lib/server/billing/plans.js)):
 
-| Surface       | URL                               | Requires                                      |
-| ------------- | --------------------------------- | --------------------------------------------- |
-| Path          | `{ORIGIN}/users/{username}`       | nothing — always available                    |
-| Subdomain     | `{username}.{PUBLIC_BASE_DOMAIN}` | `premium`                                     |
-| Custom domain | the creator's own hostname        | `premium` + `customDomainStatus === 'active'` |
+| Surface       | URL                               | Requires                                                          |
+| ------------- | --------------------------------- | ----------------------------------------------------------------- |
+| Path          | `{ORIGIN}/users/{username}`       | nothing — always available                                        |
+| Subdomain     | `{username}.{PUBLIC_BASE_DOMAIN}` | `allowSubdomain` (Vault+)                                         |
+| Custom domain | the creator's own hostname        | `allowCustomDomain` (Studio+) + `customDomainStatus === 'active'` |
 
 `classifyHost()` in [`src/lib/server/tenant.js`](../src/lib/server/tenant.js) decides which is which:
 
@@ -140,7 +141,7 @@ src/
     server/
       auth.js             better-auth instance
       db/                 schema.js, auth.schema.js (generated), index.js
-      tenant.js plans.js username.js domain-verify.js profile-page.js
+      tenant.js billing/plans.js username.js domain-verify.js profile-page.js
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg), embed-tags.js (taglib)

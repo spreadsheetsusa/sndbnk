@@ -70,7 +70,8 @@
 	/** @type {string | null} */
 	let userAdapter = $state(null);
 
-	const canHost = $derived(data.billing.allowSubdomain || data.billing.allowCustomDomain);
+	const canSubdomain = $derived(data.billing.allowSubdomain);
+	const canCustomDomain = $derived(data.billing.allowCustomDomain);
 	const nameValue = $derived(form?.name ?? data.user.name);
 	const usernameValue = $derived(form?.username ?? data.profile.username);
 	const bioValue = $derived(form?.bio ?? data.profile.bio);
@@ -574,7 +575,7 @@
 						<p class="hint">
 							{data.billing.status === 'grandfathered'
 								? 'Your plan is complimentary — no card on file and nothing to pay.'
-								: 'Paid plans unlock your own subdomain, custom domains, and bring-your-own storage.'}
+								: 'Vault adds a subdomain. Studio adds a custom domain and unbranded hosting. BYO storage is on every plan.'}
 						</p>
 					</div>
 				{/if}
@@ -586,11 +587,13 @@
 				<div class="block-head">
 					<h2>Domain</h2>
 					<p>
-						{#if canHost}
+						{#if canCustomDomain}
 							Your subdomain is live. Optionally connect a custom domain with a CNAME.
+						{:else if canSubdomain}
+							Your subdomain is live. Studio unlocks a custom domain via CNAME.
 						{:else}
-							Upgrade to unlock <strong>{data.profile.username}.{data.baseDomain}</strong>
-							and custom domains.
+							Vault unlocks <strong>{data.profile.username}.{data.baseDomain}</strong>. Studio adds
+							custom domains.
 						{/if}
 					</p>
 				</div>
@@ -602,7 +605,7 @@
 					<div class="banner ok" role="status">{form.domainSuccess}</div>
 				{/if}
 
-				{#if canHost}
+				{#if canSubdomain}
 					<div class="domain-panel">
 						<div class="url-row">
 							<span class="url-label">Subdomain</span>
@@ -617,7 +620,18 @@
 							<a href={data.urls.pathUrl}>{data.urls.pathUrl.replace(/^https?:\/\//, '')}</a>
 						</div>
 					</div>
+				{:else}
+					<div class="locked">
+						<p>
+							Vault unlocks
+							<span class="mono">{data.profile.username}.{data.baseDomain}</span>. Studio adds a
+							CNAME custom domain.
+						</p>
+						<a class="cta pressable" href="/plans">See plans</a>
+					</div>
+				{/if}
 
+				{#if canCustomDomain}
 					<form
 						class="domain-form"
 						method="POST"
@@ -685,12 +699,9 @@
 							</div>
 						</div>
 					{/if}
-				{:else}
+				{:else if canSubdomain}
 					<div class="locked">
-						<p>
-							Premium and Business unlock
-							<span class="mono">{data.profile.username}.{data.baseDomain}</span> plus CNAME custom domains.
-						</p>
+						<p>Studio unlocks a custom domain mapped to your profile via CNAME.</p>
 						<a class="cta pressable" href="/plans">See plans</a>
 					</div>
 				{/if}
@@ -710,8 +721,8 @@
 				{#if !data.billing.allowStorageAdapters}
 					<div class="locked">
 						<p>
-							Bringing your own storage needs Premium or Business. On {data.billing.planLabel} your uploads
-							stay on SNDBNK.
+							Bringing your own storage is not on {data.billing.planLabel}. Your uploads stay on
+							SNDBNK hosted storage.
 						</p>
 						<a class="cta pressable" href="/plans">See plans</a>
 					</div>
@@ -744,7 +755,7 @@
 										{#if !adapter.enabled}
 											<span class="coming-soon">Coming soon</span>
 										{:else if needsUpgrade}
-											<span class="coming-soon">Premium</span>
+											<span class="coming-soon">Upgrade</span>
 										{/if}
 									</span>
 									<span class="adapter-desc">{adapter.description}</span>

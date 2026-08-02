@@ -82,113 +82,185 @@ if (migrationRowCount() === 0 && hasAppTables()) {
 const db = drizzle(sqlite);
 migrate(db, { migrationsFolder, migrationsTable });
 
-// Idempotent seeds that are not schema DDL (safe on every deploy).
+// Catalog cutover + idempotent seeds (safe on every deploy).
 const GIB = 1024 * 1024 * 1024;
 const now = Date.now();
+
+// Retire Basic / Premium / Business; remap any leftover profile plan ids to Free.
+sqlite.exec(`DELETE FROM plan WHERE id IN ('basic', 'premium', 'business')`);
+sqlite.exec(`
+UPDATE profile SET plan = 'free'
+WHERE plan NOT IN ('free', 'vault', 'studio', 'label')
+`);
+
 const seedPlan = sqlite.prepare(`
 INSERT OR IGNORE INTO plan (
 	id, label, blurb, features, max_tracks, max_local_bytes,
 	allow_storage_adapters, allow_subdomain, allow_custom_domain,
+	allow_remove_branding, max_team_seats,
 	monthly_amount, yearly_amount, currency, sort_order, active,
 	created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, true, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, true, ?, ?)
 `);
 
-/** @type {Array<[string, string, string, string[], number | null, number | null, boolean, boolean, boolean, number, number, number]>} */
+/**
+ * @type {Array<[
+ *   string, string, string, string[],
+ *   number | null, number | null,
+ *   boolean, boolean, boolean, boolean, number,
+ *   number, number, number
+ * ]>}
+ */
 const seeds = [
 	[
-		'basic',
-		'Basic',
-		'A public profile on SNDBNK, free forever.',
-		['Public profile at sndbnk.com/users/you', 'Up to 10 tracks', 'Hosted storage'],
-		10,
+		'free',
+		'Free',
+		'Fully usable forever — especially with your own storage.',
+		[
+			'Public profile at sndbnk.com/users/you',
+			'5 GB hosted storage',
+			'Bring your own storage (SSH now; S3 / R2 soon)',
+			'Unlimited tracks'
+		],
 		null,
+		5 * GIB,
+		true,
 		false,
 		false,
 		false,
+		0,
 		0,
 		0,
 		0
 	],
 	[
-		'premium',
-		'Premium',
-		'Your own subdomain, your own storage.',
+		'vault',
+		'Vault',
+		'Your own subdomain on sndbnk.com.',
 		[
-			'Everything in Basic',
-			'Up to 100 tracks',
+			'Everything in Free',
+			'30 GB hosted storage',
 			'Subdomain at you.sndbnk.com',
-			'Custom domain via CNAME',
 			'Bring your own storage'
 		],
-		100,
 		null,
+		30 * GIB,
 		true,
 		true,
-		true,
+		false,
+		false,
+		0,
 		500,
-		4900,
+		4800,
 		1
 	],
 	[
-		'business',
-		'Business',
-		'Unlimited tracks on your own domain.',
+		'studio',
+		'Studio',
+		'Your own domain. Your own design. Full power.',
 		[
-			'Everything in Premium',
-			'Unlimited tracks',
-			'25 GB of hosted storage',
-			'Map your own TLD to your profile'
+			'Everything in Vault',
+			'150 GB hosted storage',
+			'Custom domain via CNAME',
+			'Remove SNDBNK branding',
+			'Bring your own storage'
 		],
 		null,
-		25 * GIB,
+		150 * GIB,
 		true,
 		true,
 		true,
-		1000,
-		9800,
+		true,
+		0,
+		1400,
+		13400,
 		2
+	],
+	[
+		'label',
+		'Label',
+		'Teams and scale for serious catalogs.',
+		[
+			'Everything in Studio',
+			'500 GB hosted storage',
+			'Teams (coming soon) — 5 seats',
+			'Bring your own storage'
+		],
+		null,
+		500 * GIB,
+		true,
+		true,
+		true,
+		true,
+		5,
+		3500,
+		33600,
+		3
 	]
 ];
 
-for (const [
-	id,
-	label,
-	blurb,
-	features,
-	maxTracks,
-	maxLocalBytes,
-	adapters,
-	subdomain,
-	customDomain,
-	monthly,
-	yearly,
-	sortOrder
-] of seeds) {
-	seedPlan.run(
-		id,
-		label,
-		blurb,
-		JSON.stringify(features),
-		maxTracks,
-		maxLocalBytes,
-		adapters,
-		subdomain,
-		customDomain,
-		monthly,
-		yearly,
-		sortOrder,
-		now,
-		now
-	);
+// One-shot entitlement matrix when cutting over a DB that still lacks `free`.
+// INSERT OR IGNORE alone would leave a half-migrated catalog untouched; REPLACE
+// only when the new free tier is missing so later admin edits survive redeploys.
+const hasFree = sqlite.query(`SELECT 1 AS ok FROM plan WHERE id = 'free' LIMIT 1`).get();
+if (!hasFree) {
+	const replacePlan = sqlite.prepare(`
+INSERT OR REPLACE INTO plan (
+	id, label, blurb, features, max_tracks, max_local_bytes,
+	allow_storage_adapters, allow_subdomain, allow_custom_domain,
+	allow_remove_branding, max_team_seats,
+	monthly_amount, yearly_amount, currency, sort_order, active,
+	created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, true, ?, ?)
+`);
+	for (const row of seeds) {
+		replacePlan.run(
+			row[0],
+			row[1],
+			row[2],
+			JSON.stringify(row[3]),
+			row[4],
+			row[5],
+			row[6],
+			row[7],
+			row[8],
+			row[9],
+			row[10],
+			row[11],
+			row[12],
+			row[13],
+			now,
+			now
+		);
+	}
+} else {
+	for (const row of seeds) {
+		seedPlan.run(
+			row[0],
+			row[1],
+			row[2],
+			JSON.stringify(row[3]),
+			row[4],
+			row[5],
+			row[6],
+			row[7],
+			row[8],
+			row[9],
+			row[10],
+			row[11],
+			row[12],
+			row[13],
+			now,
+			now
+		);
+	}
 }
 
-// Accounts that got premium from the pre-billing plan toggle keep it without a subscription.
+// Admin-comped paid accounts without a Stripe subscription stay entitled.
 sqlite.exec(`
 UPDATE profile SET subscription_status = 'grandfathered'
-WHERE plan <> 'basic' AND stripe_subscription_id IS NULL AND subscription_status IS NULL
+WHERE plan <> 'free' AND stripe_subscription_id IS NULL AND subscription_status IS NULL
 `);
-
 const tables = sqlite
 	.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
 	.all()

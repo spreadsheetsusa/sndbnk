@@ -3,7 +3,7 @@
 A SoundCloud-style audio host. Creators upload tracks with cover art and metadata; listeners play
 them from a global player bar that survives navigation, scrub a real waveform, like, and leave
 comments pinned to a playback position. Every creator gets a public profile — by path, and on
-Premium, at `{username}.sndbnk.com` or their own custom domain.
+Vault+ at `{username}.sndbnk.com`, or on Studio+ with their own custom domain.
 
 Built with SvelteKit and Svelte 5 runes on Bun, Drizzle ORM over SQLite, and better-auth. Audio can
 live on SNDBNK's disk or on a server you own, over SFTP.
@@ -34,7 +34,7 @@ headers so tenant resolution can run).
 With `PUBLIC_BASE_DOMAIN=localhost`:
 
 - apex surfaces (`/`, `/signin`, `/signup`, `/settings`, `/library`) → `http://localhost:5173`
-- a Premium profile → `http://{username}.localhost:5173` (browsers resolve `*.localhost` to loopback,
+- a Vault+ profile → `http://{username}.localhost:5173` (browsers resolve `*.localhost` to loopback,
   no hosts-file entry needed)
 - a custom domain → add a `127.0.0.1` hosts entry after verifying the domain in Settings; Vite is
   configured to accept arbitrary `Host` headers so tenant resolution runs

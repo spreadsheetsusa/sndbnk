@@ -6,7 +6,7 @@ import { createAccount } from '#lib/server/signup';
 
 /**
  * Start an inline subscription. Anonymous callers get an account first: it lands
- * on Basic, so a declined card leaves a usable account instead of a dead end.
+ * on Free, so a declined card leaves a usable account instead of a dead end.
  *
  * @type {import('./$types').RequestHandler}
  */

@@ -10,7 +10,7 @@ import { validateUsername } from '#lib/server/username';
 /**
  * Create a better-auth user plus its profile row, signed in on the returned
  * headers. Shared by `/signup` and the inline signup on `/plans`, which must not
- * drift — new accounts always start on Basic and upgrade through Stripe.
+ * drift — new accounts always start on Free and upgrade through Stripe.
  *
  * @param {{ name: string, username: string, email: string, password: string, headers: Headers }} input
  * @returns {Promise<{ ok: true, userId: string, username: string } | { ok: false, message: string }>}
@@ -67,7 +67,7 @@ export async function createAccount({
 		await db.insert(profile).values({
 			userId,
 			username,
-			plan: 'basic',
+			plan: 'free',
 			customDomainStatus: 'none',
 			createdAt: now,
 			updatedAt: now

@@ -7,7 +7,7 @@ const now = Date.now();
 
 db.query(
 	`insert or replace into profile (user_id, username, plan, custom_domain_status, created_at, updated_at)
-	 values (?, 'tagprobe', 'basic', 'none', ?, ?)`
+	 values (?, 'tagprobe', 'free', 'none', ?, ?)`
 ).run(USER_ID, now, now);
 
 db.query(

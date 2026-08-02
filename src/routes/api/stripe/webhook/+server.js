@@ -5,7 +5,7 @@ import { STRIPE_WEBHOOK_SECRET } from '$app/env/private';
 
 import { planOrDefault } from '#lib/server/billing/plans';
 import { billingEnabled, getStripe } from '#lib/server/billing/stripe';
-import { downgradeToBasic, syncSubscription } from '#lib/server/billing/sync';
+import { downgradeToFree, syncSubscription } from '#lib/server/billing/sync';
 import { db } from '#lib/server/db';
 import { profile, stripeEvent, user } from '#lib/server/db/schema';
 import {
@@ -137,7 +137,7 @@ async function handleEvent(event) {
 			const account = await accountForCustomer(customerIdOf(subscription.customer));
 			if (!account) break;
 
-			await downgradeToBasic(account.userId);
+			await downgradeToFree(account.userId);
 			await sendSubscriptionCanceledMail({ to: account.email, name: account.name });
 			break;
 		}

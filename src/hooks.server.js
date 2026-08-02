@@ -70,7 +70,7 @@ const handleTenant = async ({ event, resolve }) => {
 		return Response.redirect(outcome.location, 302);
 	}
 
-	// Premium tenant host: public profile is served from `/` (see root +page).
+	// Tenant host: public profile is served from `/` (see root +page).
 	event.locals.tenant = outcome.tenant;
 
 	const { pathname } = event.url;

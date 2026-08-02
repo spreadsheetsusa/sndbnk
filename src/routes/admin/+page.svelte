@@ -255,6 +255,17 @@
 												placeholder="blank = unlimited"
 											/>
 										</div>
+										<div class="field">
+											<label for="{tier.id}-seats">Team seats</label>
+											<input
+												id="{tier.id}-seats"
+												name="maxTeamSeats"
+												type="text"
+												inputmode="numeric"
+												value={tier.maxTeamSeats}
+												placeholder="0"
+											/>
+										</div>
 									</div>
 
 									<div class="field">
@@ -285,6 +296,14 @@
 												checked={tier.allowCustomDomain}
 											/>
 											Custom domain
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												name="allowRemoveBranding"
+												checked={tier.allowRemoveBranding}
+											/>
+											Remove SNDBNK branding
 										</label>
 										<label>
 											<input type="checkbox" name="active" checked={tier.active} />

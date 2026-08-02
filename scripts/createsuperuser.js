@@ -118,7 +118,7 @@ function insertProfile(userId, username, now) {
 	db.run(
 		`INSERT INTO profile (
 			user_id, username, plan, custom_domain_status, cancel_at_period_end, created_at, updated_at
-		) VALUES (?, ?, 'basic', 'none', 0, ?, ?)`,
+		) VALUES (?, ?, 'free', 'none', 0, ?, ?)`,
 		[userId, username, now, now]
 	);
 }

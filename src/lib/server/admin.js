@@ -82,6 +82,10 @@ export async function updatePlan(planId, input) {
 		.map((line) => line.trim())
 		.filter(Boolean);
 
+	const maxTeamSeats = optionalInt(input.maxTeamSeats);
+	if (maxTeamSeats === 'invalid')
+		return { ok: false, message: 'Team seats must be a whole number (0 for none).' };
+
 	await db
 		.update(plan)
 		.set({
@@ -93,6 +97,8 @@ export async function updatePlan(planId, input) {
 			allowStorageAdapters: input.allowStorageAdapters === 'on',
 			allowSubdomain: input.allowSubdomain === 'on',
 			allowCustomDomain: input.allowCustomDomain === 'on',
+			allowRemoveBranding: input.allowRemoveBranding === 'on',
+			maxTeamSeats: maxTeamSeats ?? 0,
 			monthlyAmount,
 			yearlyAmount,
 			active: input.active === 'on',

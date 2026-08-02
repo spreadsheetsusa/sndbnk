@@ -13,7 +13,7 @@ import {
 } from '#lib/server/admin';
 import { auth } from '#lib/server/auth';
 import { isPlan, planOrDefault } from '#lib/server/billing/plans';
-import { downgradeToBasic } from '#lib/server/billing/sync';
+import { downgradeToFree } from '#lib/server/billing/sync';
 import { billingEnabled } from '#lib/server/billing/stripe';
 import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
@@ -36,6 +36,8 @@ export const load = async ({ locals, url }) => {
 			allowStorageAdapters: row.allowStorageAdapters,
 			allowSubdomain: row.allowSubdomain,
 			allowCustomDomain: row.allowCustomDomain,
+			allowRemoveBranding: row.allowRemoveBranding,
+			maxTeamSeats: row.maxTeamSeats,
 			monthlyDollars: (row.monthlyAmount / 100).toFixed(2),
 			yearlyDollars: (row.yearlyAmount / 100).toFixed(2),
 			free: row.monthlyAmount === 0 && row.yearlyAmount === 0,
@@ -104,13 +106,13 @@ export const actions = {
 
 		if (!userId) return fail(400, { userMessage: 'Pick a user.' });
 		if (!isPlan(planId)) return fail(400, { userMessage: 'That is not a plan.' });
-		if (userId === admin.id && planId === 'basic') {
+		if (userId === admin.id && planId === 'free') {
 			return fail(400, { userMessage: 'Downgrade yourself from your own settings, not here.' });
 		}
 
-		if (planId === 'basic') {
-			await downgradeToBasic(userId, 'canceled');
-			return { userSuccess: 'Moved to Basic.' };
+		if (planId === 'free') {
+			await downgradeToFree(userId, 'canceled');
+			return { userSuccess: 'Moved to Free.' };
 		}
 
 		// A comp does not create a Stripe subscription, so it is marked distinctly and

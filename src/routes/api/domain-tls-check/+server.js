@@ -5,7 +5,7 @@ import { classifyHost, getProfileByCustomDomain, getProfileByUsername } from '#l
 
 /**
  * Caddy on_demand_tls ask endpoint.
- * Returns 200 only when the hostname is an allowed premium tenant host.
+ * Returns 200 only when the hostname is an allowed entitled tenant host.
  * @type {import('./$types').RequestHandler}
  */
 export async function GET({ url }) {

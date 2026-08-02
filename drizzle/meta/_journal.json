@@ -8,6 +8,13 @@
       "when": 1785685429220,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785686365793,
+      "tag": "0001_remarkable_mantis",
+      "breakpoints": true
     }
   ]
 }

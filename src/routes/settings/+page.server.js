@@ -281,7 +281,7 @@ export const actions = {
 		const row = await getProfileByUserId(locals.user.id);
 		if (!row || !canUseCustomDomain(row.plan)) {
 			return fail(403, {
-				domainMessage: 'Custom domains need Premium or Business. Upgrade from the Billing tab.'
+				domainMessage: 'Custom domains need Studio or Label. Upgrade from the Billing tab.'
 			});
 		}
 
@@ -346,7 +346,7 @@ export const actions = {
 		const row = await getProfileByUserId(locals.user.id);
 		if (!row || !canUseCustomDomain(row.plan)) {
 			return fail(403, {
-				domainMessage: 'Custom domains need Premium or Business. Upgrade from the Billing tab.'
+				domainMessage: 'Custom domains need Studio or Label. Upgrade from the Billing tab.'
 			});
 		}
 

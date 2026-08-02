@@ -117,7 +117,8 @@ export async function saveStorageSetting(userId, input) {
 		if (!canUseStorageAdapters(rows[0]?.plan)) {
 			return {
 				ok: false,
-				message: 'Bringing your own storage needs Premium or Business. See Settings → Billing.'
+				message:
+					'Bringing your own storage is not available on your current plan. See Settings → Billing.'
 			};
 		}
 	}

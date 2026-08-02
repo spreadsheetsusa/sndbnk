@@ -17,13 +17,13 @@ placeholder bars. Production deploy installs and verifies ffmpeg before restarti
 With `PUBLIC_BASE_DOMAIN=localhost`:
 
 - apex surfaces (`/`, `/signin`, `/signup`, `/settings`, `/library`) → `http://localhost:5173`
-- a premium profile → `http://{username}.localhost:5173` (browsers resolve `*.localhost` to
+- a Vault+ profile → `http://{username}.localhost:5173` (browsers resolve `*.localhost` to
   loopback with no hosts-file entry)
 - a custom domain → add a `127.0.0.1` hosts entry and verify the domain in Settings first;
   `vite.config.js` sets `server.allowedHosts: true` specifically so arbitrary `Host` headers reach
   the tenant hook
 
-A basic-plan user on a subdomain is redirected to the apex path URL, which is the fastest way to
+A Free-plan user on a subdomain is redirected to the apex path URL, which is the fastest way to
 confirm plan gating works.
 
 ### Full local reset (`bun run nuke`)
@@ -132,12 +132,12 @@ sudo systemctl restart sndbnk
 
 [`Caddyfile`](../Caddyfile) defines four blocks:
 
-| Block                | Behavior                                                                       |
-| -------------------- | ------------------------------------------------------------------------------ |
-| global               | `on_demand_tls { ask http://127.0.0.1:3000/api/domain-tls-check }`             |
-| `www.sndbnk.com`     | permanent redirect to the apex                                                 |
-| `sndbnk.com`         | managed certs, gzip/zstd, security headers, `reverse_proxy localhost:3000`     |
-| `https://` catch-all | `tls { on_demand }`, same proxy — serves premium subdomains and custom domains |
+| Block                | Behavior                                                                        |
+| -------------------- | ------------------------------------------------------------------------------- |
+| global               | `on_demand_tls { ask http://127.0.0.1:3000/api/domain-tls-check }`              |
+| `www.sndbnk.com`     | permanent redirect to the apex                                                  |
+| `sndbnk.com`         | managed certs, gzip/zstd, security headers, `reverse_proxy localhost:3000`      |
+| `https://` catch-all | `tls { on_demand }`, same proxy — serves entitled subdomains and custom domains |
 
 All proxied requests get `X-Real-IP`, `X-Forwarded-Proto`, and `X-Forwarded-Host`. The tenant hook
 reads `x-forwarded-host`, so this header is load-bearing, not cosmetic.
@@ -152,9 +152,9 @@ Caddy will only mint a certificate for a hostname when
 [`/api/domain-tls-check`](../src/routes/api/domain-tls-check/+server.js) returns `200`. It returns
 `200` only for:
 
-- `{username}.{PUBLIC_BASE_DOMAIN}` where that username exists and is on `premium`
-- a custom hostname that matches `profile.customDomain` exactly, is `premium`, and has
-  `customDomainStatus === 'active'`
+- `{username}.{PUBLIC_BASE_DOMAIN}` where that username exists and `canUseSubdomain(plan)` (Vault+)
+- a custom hostname that matches `profile.customDomain` exactly, `canUseCustomDomain(plan)` (Studio+),
+  and `customDomainStatus === 'active'`
 
 Everything else — including the apex, which uses managed certs — gets `400`. Without this gate,
 pointing any domain at the server would let it obtain a certificate.
@@ -170,7 +170,7 @@ CNAMEs to `{username}.sndbnk.com` after verification.
 | Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`                 |
 | `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                        |
 | Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value     |
-| Tenant host returns 404                                  | profile missing, plan is not `premium`, or `customDomainStatus` is not `active`                                       |
+| Tenant host returns 404                                  | profile missing, plan lacks subdomain/custom-domain entitlement, or `customDomainStatus` is not `active`              |
 | Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                         |
 | Waveforms are flat placeholder bars                      | `ffmpeg` missing or decode failed — check `journalctl -u sndbnk` for `[waveform]` errors                              |
 | Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                      |

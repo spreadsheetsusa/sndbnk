@@ -79,7 +79,7 @@ const signup = await call('/signup', {
 console.log('  status', signup.status, signup.headers.get('location') ?? '');
 
 const row = db.query('select user_id, plan from profile where username = ?').get(username);
-check('profile created on basic', row?.plan === 'basic', JSON.stringify(row));
+check('profile created on free', row?.plan === 'free', JSON.stringify(row));
 check('session cookie captured', cookie.length > 0);
 
 console.log('\n== signed-in surfaces ==');
@@ -102,22 +102,25 @@ check(
 	'plans section rendered',
 	adminBody.includes('Not in Stripe') || adminBody.includes('In Stripe')
 );
+for (const label of ['Free', 'Vault', 'Studio', 'Label']) {
+	check(`admin lists ${label}`, adminBody.includes(label));
+}
 for (const section of ['plans', 'discounts', 'users']) {
 	const res = await call(`/admin?section=${section}`);
 	check(`section ${section} loads`, res.status === 200, `got ${res.status}`);
 }
 db.run('update user set role = null where id = ?', [row.user_id]);
 
-console.log('\n== billing without Stripe keys ==');
+console.log('\n== billing checkout shape ==');
 const checkout = await call('/api/billing/checkout', {
 	method: 'POST',
 	headers: { 'content-type': 'application/json' },
-	body: JSON.stringify({ planId: 'premium', interval: 'month' })
+	body: JSON.stringify({ planId: 'vault', interval: 'month' })
 });
 const checkoutBody = await checkout.json().catch(() => null);
 check(
-	'checkout reports a clear error, not a crash',
-	checkout.status === 503 || checkout.status === 500,
+	'checkout returns a non-crash response for vault',
+	checkout.status === 200 || checkout.status === 503 || checkout.status === 400,
 	`${checkout.status} ${JSON.stringify(checkoutBody)}`
 );
 
@@ -128,37 +131,7 @@ check(
 	`got ${hook.status} (503 is correct while STRIPE_WEBHOOK_SECRET is unset)`
 );
 
-console.log('\n== quota gate ==');
-const now = Date.now();
-const limit = db.query('select max_tracks from plan where id = ?').get('basic').max_tracks;
-for (let index = 0; index < limit; index += 1) {
-	const id = crypto.randomUUID();
-	db.run(
-		`insert into track (id, user_id, title, audio_filename, audio_mime, audio_bytes,
-			storage_adapter, folder_key, published, created_at, updated_at)
-		 values (?, ?, ?, ?, ?, ?, 'local', ?, 1, ?, ?)`,
-		[id, row.user_id, `Filler ${index}`, 'audio.mp3', 'audio/mpeg', 1024, id, now, now]
-	);
-}
-const filled = db
-	.query('select count(*) as total from track where user_id = ?')
-	.get(row.user_id).total;
-check(`seeded ${limit} tracks`, filled === limit, `have ${filled}`);
-
-const audio = Bun.file(process.argv[2] ?? '');
-if (!(await audio.exists())) {
-	console.log('  SKIP upload refusal — pass a path to an audio file as the first argument');
-} else {
-	const form = new FormData();
-	form.set('title', 'Over the line');
-	form.set('audio', audio, 'over-the-line.mp3');
-	const upload = await call('/library/new', { method: 'POST', body: form });
-	const uploadBody = await upload.text();
-	const message = uploadBody.match(/Basic[^"<]*/)?.[0] ?? uploadBody.slice(0, 400);
-	check('upload past the cap is refused', upload.status === 400, `${upload.status} ${message}`);
-}
-
-console.log('\n== storage adapter gate ==');
+console.log('\n== storage adapter on Free ==');
 const sshForm = new URLSearchParams({
 	adapter: 'ssh',
 	sshHost: 'example.com',
@@ -167,28 +140,19 @@ const sshForm = new URLSearchParams({
 	sshRemotePath: '/srv/audio',
 	sshPrivateKey: 'not-a-real-key'
 });
-const onBasic = await call('/settings?/saveStorage', { method: 'POST', body: sshForm });
-const basicBody = await onBasic.text();
+const onFree = await call('/settings?/saveStorage', { method: 'POST', body: sshForm });
+const freeBody = await onFree.text();
 check(
-	'basic cannot select the SSH adapter',
-	basicBody.includes('needs Premium or Business'),
-	basicBody.slice(0, 200)
+	'free gets past the plan gate for SSH',
+	!freeBody.includes('not available on your current plan'),
+	freeBody.slice(0, 200)
 );
-
-db.run('update profile set plan = ? where user_id = ?', ['premium', row.user_id]);
-const onPremium = await call('/settings?/saveStorage', { method: 'POST', body: sshForm });
-const premiumBody = await onPremium.text();
-check(
-	'premium gets past the plan gate',
-	!premiumBody.includes('needs Premium or Business'),
-	premiumBody.slice(0, 160)
-);
-db.run('update profile set plan = ? where user_id = ?', ['basic', row.user_id]);
 
 console.log('\n== subdomain gate ==');
 for (const [tier, expected] of [
-	['basic', 302],
-	['premium', 200]
+	['free', 302],
+	['vault', 200],
+	['studio', 200]
 ]) {
 	db.run('update profile set plan = ? where user_id = ?', [tier, row.user_id]);
 	const res = await fetch(`${BASE}/`, {
@@ -201,22 +165,30 @@ for (const [tier, expected] of [
 		`${res.status} ${res.headers.get('location') ?? ''}`
 	);
 }
-db.run('update profile set plan = ? where user_id = ?', ['basic', row.user_id]);
+db.run('update profile set plan = ? where user_id = ?', ['free', row.user_id]);
 
-console.log('\n== byte cap ==');
-// The storage-adapter step above left this account on SSH; the cap only meters local bytes.
+console.log('\n== hosted byte cap ==');
 db.run("update storage_setting set adapter = 'local' where user_id = ?", [row.user_id]);
-db.run('update plan set max_local_bytes = ? where id = ?', [4096, 'basic']);
+const freeCap = db
+	.query('select max_local_bytes from plan where id = ?')
+	.get('free').max_local_bytes;
+check('free has a hosted byte cap', typeof freeCap === 'number' && freeCap > 0, String(freeCap));
+db.run('update plan set max_local_bytes = ? where id = ?', [4096, 'free']);
 // plans.js caches rows for 5s and this write bypasses invalidatePlanCache().
 await Bun.sleep(5500);
 db.run('delete from track where user_id = ?', [row.user_id]);
+const now = Date.now();
 db.run(
 	`insert into track (id, user_id, title, audio_filename, audio_mime, audio_bytes,
 		storage_adapter, folder_key, published, created_at, updated_at)
 	 values (?, ?, 'Bulky', 'audio.mp3', 'audio/mpeg', 4000, 'local', ?, 1, ?, ?)`,
 	['cap-probe', row.user_id, 'cap-probe', now, now]
 );
-if (await audio.exists()) {
+
+const audio = Bun.file(process.argv[2] ?? '');
+if (!(await audio.exists())) {
+	console.log('  SKIP upload refusal — pass a path to an audio file as the first argument');
+} else {
 	const form = new FormData();
 	form.set('title', 'Over the byte cap');
 	form.set('audio', audio, 'over-the-cap.mp3');
@@ -228,7 +200,7 @@ if (await audio.exists()) {
 		`${capped.status} ${cappedBody}`
 	);
 }
-db.run('update plan set max_local_bytes = null where id = ?', ['basic']);
+db.run('update plan set max_local_bytes = ? where id = ?', [5 * 1024 * 1024 * 1024, 'free']);
 
 console.log('\n== cleanup ==');
 db.run('delete from track where user_id = ?', [row.user_id]);

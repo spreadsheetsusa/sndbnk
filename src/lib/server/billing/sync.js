@@ -62,7 +62,7 @@ export async function syncSubscription(subscription) {
 
 	const tier = resolveTier(subscription);
 	const entitled = ENTITLED_STATUSES.has(subscription.status) && Boolean(tier);
-	const nextPlan = entitled && tier ? tier.planId : 'basic';
+	const nextPlan = entitled && tier ? tier.planId : 'free';
 
 	/** @type {Record<string, unknown>} */
 	const patch = {
@@ -88,16 +88,16 @@ export async function syncSubscription(subscription) {
 }
 
 /**
- * Drop a profile to Basic without a subscription object — used by
+ * Drop a profile to Free without a subscription object — used by
  * `customer.subscription.deleted` and by the admin panel.
  * @param {string} userId
  * @param {string} [status]
  */
-export async function downgradeToBasic(userId, status = 'canceled') {
+export async function downgradeToFree(userId, status = 'canceled') {
 	await db
 		.update(profile)
 		.set({
-			plan: 'basic',
+			plan: 'free',
 			planInterval: null,
 			subscriptionStatus: status,
 			stripeSubscriptionId: null,

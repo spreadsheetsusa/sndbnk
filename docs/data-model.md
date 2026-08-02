@@ -42,8 +42,8 @@ updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 - **Every user-owned row cascades**: `.references(() => user.id, { onDelete: 'cascade' })`. Deleting
   a user removes their profile, storage setting, tracks, comments, and likes with no cleanup code.
 - **Enums are `text` plus a JSDoc typedef**, not a SQL constraint:
-  `/** @typedef {'basic' | 'premium'} Plan */`. Validation lives in code
-  ([`plans.js`](../src/lib/server/plans.js)), which keeps SQLite migrations trivial.
+  `/** @typedef {'free' | 'vault' | 'studio' | 'label'} Plan */`. Entitlement helpers live in
+  ([`billing/plans.js`](../src/lib/server/billing/plans.js)).
 
 ## Tables
 
@@ -66,18 +66,37 @@ These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies 
 
 `userId` is both primary key and foreign key, so the 1:1 relationship is enforced by the schema.
 
-| Column                                     | Purpose                                               |
-| ------------------------------------------ | ----------------------------------------------------- |
-| `username`                                 | unique; the subdomain label and path segment          |
-| `plan`                                     | `'basic' \| 'premium'`, default `basic`               |
-| `customDomain`                             | unique, nullable                                      |
-| `customDomainStatus`                       | `'none' \| 'pending' \| 'active'`                     |
-| `domainVerifyToken`                        | the `sndbnk-verify=…` value the owner puts in DNS TXT |
-| `customDomainVerifiedAt`                   | timestamp of the last successful verification         |
-| `stripeCustomerId`, `stripeSubscriptionId` | reserved; billing is not wired up yet                 |
+| Column                                     | Purpose                                                    |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| `username`                                 | unique; the subdomain label and path segment               |
+| `plan`                                     | `'free' \| 'vault' \| 'studio' \| 'label'`, default `free` |
+| `customDomain`                             | unique, nullable                                           |
+| `customDomainStatus`                       | `'none' \| 'pending' \| 'active'`                          |
+| `domainVerifyToken`                        | the `sndbnk-verify=…` value the owner puts in DNS TXT      |
+| `customDomainVerifiedAt`                   | timestamp of the last successful verification              |
+| `stripeCustomerId`, `stripeSubscriptionId` | Stripe customer / active subscription ids                  |
+| `planInterval`, `subscriptionStatus`, …    | billing interval, Stripe status, or `grandfathered`        |
 
 A user without a `profile` row is in a broken half-registered state. Loaders that need one
 redirect to `/signup` rather than rendering.
+
+### `plan` — entitlement catalog
+
+Seeded by [`scripts/migrate-sqlite.js`](../scripts/migrate-sqlite.js) as Free / Vault / Studio /
+Label. Admin edits copy, prices, and flags; Stripe price ids are filled by
+`bun run stripe:bootstrap`.
+
+| Column                                      | Purpose                                                        |
+| ------------------------------------------- | -------------------------------------------------------------- |
+| `maxTracks` / `maxLocalBytes`               | Caps (`null` = unlimited). Bytes meter **local** adapter only. |
+| `allowStorageAdapters`                      | BYO (SSH today; S3/R2 later) — true on every seeded tier       |
+| `allowSubdomain`                            | Vault+                                                         |
+| `allowCustomDomain` / `allowRemoveBranding` | Studio+                                                        |
+| `maxTeamSeats`                              | Label team seats (UI not built yet)                            |
+| `monthlyAmount` / `yearlyAmount`            | Display cents; Stripe remains charging authority               |
+
+Helpers: `canUseSubdomain`, `canUseCustomDomain`, `canUseStorageAdapters`, `canRemoveBranding`,
+`hasTeamSeats` in [`billing/plans.js`](../src/lib/server/billing/plans.js).
 
 ### `storage_setting` — one per user, lazily created
 

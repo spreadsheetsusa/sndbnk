@@ -64,7 +64,7 @@ export function sendSubscriptionCanceledMail({ to, name }) {
 		subject: 'Your SNDBNK subscription has ended',
 		text: `${name},
 
-Your subscription has ended and your account is back on Basic. Your tracks are safe — subdomain and custom domain hosting are paused.
+Your subscription has ended and your account is back on Free. Your tracks are safe — subdomain and custom domain hosting are paused.
 
 Resubscribe any time at ${origin}/plans.
 
