@@ -17,7 +17,7 @@ to placeholder bars.
 ```sh
 cp .env.example .env    # then fill BETTER_AUTH_SECRET and STORAGE_SECRET
 bun install
-bun run db:push
+bun run db:migrate
 bun run dev             # http://localhost:5173
 ```
 
@@ -46,7 +46,9 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 | `bun run dev`                     | Vite dev server on `:5173`                                   |
 | `bun run build`                   | production build via `svelte-adapter-bun` → `build/index.js` |
 | `bun run preview`                 | serve the production build                                   |
-| `bun run db:push`                 | apply the SQLite schema                                      |
+| `bun run db:generate`             | diff `schema.js` → SQL under `drizzle/`                      |
+| `bun run db:migrate`              | apply pending Drizzle migrations (Bun)                       |
+| `bun run db:backup`               | copy SQLite (+ WAL/SHM) to a timestamped backup              |
 | `bun run auth:schema`             | regenerate the better-auth Drizzle schema                    |
 | `bun run lint` / `bun run format` | Prettier check / write                                       |
 
@@ -56,6 +58,7 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 [docs/architecture.md](docs/architecture.md), then:
 
 - [docs/data-model.md](docs/data-model.md) — tables, naming, schema-change workflow
+- [docs/drizzle-migrations.html](docs/drizzle-migrations.html) — standalone Drizzle migrations guide
 - [docs/routing-and-forms.md](docs/routing-and-forms.md) — routes, loads, actions, endpoints
 - [docs/reactivity.md](docs/reactivity.md) — the Svelte 5 runes patterns this codebase uses
 - [docs/design-system.md](docs/design-system.md) — tokens, dark mode, typography

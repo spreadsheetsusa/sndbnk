@@ -5,7 +5,7 @@
 ```sh
 cp .env.example .env    # then fill BETTER_AUTH_SECRET and STORAGE_SECRET
 bun install
-bun run db:push
+bun run db:migrate
 bun run dev             # http://localhost:5173
 ```
 
@@ -89,8 +89,8 @@ Steps, in order:
    read-only-database errors at runtime.
 4. Copy `systemd.service` from the repo to `/etc/systemd/system/sndbnk.service`, `daemon-reload`.
 5. Ensure `ffmpeg` is on PATH (install via apt if missing); fail the deploy if it is still absent.
-6. `bun install`, source `.env`, `bun run db:push` (which also applies any missing columns via
-   `ensureColumns()`), `bun run build`.
+6. `bun install`, source `.env`, `bun run db:backup` (when the SQLite file exists),
+   `bun run db:migrate` (Drizzle SQL under `drizzle/` via the Bun migrator), `bun run build`.
 7. `systemctl restart sndbnk`, confirm `is-active`.
 8. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with
    `origin: https://sndbnk.com`. A `400`/`401` means the origin was accepted and the deploy passes.
@@ -149,18 +149,18 @@ CNAMEs to `{username}.sndbnk.com` after verification.
 
 ## Troubleshooting
 
-| Symptom                                                  | Likely cause                                                                                                      |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Every route 500s with `Invalid environment variables`    | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                |
-| Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`             |
-| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                    |
-| Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value |
-| Tenant host returns 404                                  | profile missing, plan is not `premium`, or `customDomainStatus` is not `active`                                   |
-| Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                     |
-| Waveforms are flat placeholder bars                      | `ffmpeg` missing or decode failed — check `journalctl -u sndbnk` for `[waveform]` errors                          |
-| Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                  |
-| A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but not to `ensureColumns()` in the push script                               |
-| `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                |
+| Symptom                                                  | Likely cause                                                                                                          |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Every route 500s with `Invalid environment variables`    | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                    |
+| Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`                 |
+| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                        |
+| Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value     |
+| Tenant host returns 404                                  | profile missing, plan is not `premium`, or `customDomainStatus` is not `active`                                       |
+| Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                         |
+| Waveforms are flat placeholder bars                      | `ffmpeg` missing or decode failed — check `journalctl -u sndbnk` for `[waveform]` errors                              |
+| Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                      |
+| A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate` |
+| `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                    |
 
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
 permissions, systemd, the build, and both the API and public HTTPS surfaces. It is marked temporary

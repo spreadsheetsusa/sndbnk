@@ -1,0 +1,46 @@
+---
+description: Drizzle schema migrations, production SQLite safety, generate/migrate workflow
+globs: src/lib/server/db/**,drizzle/**,drizzle.config.js,scripts/migrate-sqlite.js,scripts/backup-sqlite.js,scripts/push-sqlite-schema.js
+alwaysApply: false
+---
+
+# Schema migrations (Drizzle)
+
+sndbnk is **codebase-first Drizzle**. `src/lib/server/db/schema.js` is the source of truth.
+Versioned SQL lives in `drizzle/` and is applied with `bun run db:migrate` (Bun migrator — not the
+drizzle-kit CLI migrate path).
+
+Standalone human guide: `docs/drizzle-migrations.html`.
+
+## Required workflow for every schema change
+
+1. Edit `schema.js` (auth tables: `bun run auth:schema && bun run format` first; never hand-edit
+   `auth.schema.js`).
+2. `bun run db:generate` — commit the new `drizzle/000N_*.sql` and `drizzle/meta/*` with the schema
+   change.
+3. **Read the generated SQL.** Treat rename-as-drop+add, `NOT NULL` without a default, and drops as
+   blockers until explicitly approved.
+4. `bun run db:migrate` locally, then exercise the affected surface.
+5. Do **not** edit `scripts/push-sqlite-schema.js` for DDL — it is retired and exits with an error.
+6. Do **not** use `db:push:kit` against any database that matters; it is local prototyping only.
+
+## Production data discipline
+
+- Additive changes (nullable column, new table, new index): normal generate → migrate → deploy.
+- `NOT NULL`, renames, type changes, drops, or row rewrites: stop and tell the human what SQL will
+  run, what data is at risk, and that they should run `bun run db:backup` (deploy also backs up) and
+  confirm before merge to `main`.
+- Prefer expand/contract (add nullable → backfill → tighten) over destructive one-shots.
+- One-off data migrations: `drizzle-kit generate --custom --name …` and put SQL in that file so it
+  runs once via `__drizzle_migrations`. Idempotent every-deploy seeds stay in
+  `scripts/migrate-sqlite.js`.
+
+## Agent behavior
+
+- Never invent destructive SQL “to clean up” unused columns without being asked.
+- Never delete or rewrite old migration files that may already be applied.
+- If schema.js and `drizzle/` drift, fix by generating a new migration — do not hand-sync a second
+  DDL source.
+- Point the human at `docs/drizzle-migrations.html` when explaining what they must do on their side.
+
+Details: `docs/data-model.md`, `docs/operations.md`, `docs/drizzle-migrations.html`.

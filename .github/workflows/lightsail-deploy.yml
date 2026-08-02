@@ -247,7 +247,7 @@ jobs:
             echo "Installing dependencies..."
             bun install
 
-            echo "Applying database schema..."
+            echo "Backing up SQLite before migrations..."
             # Export via Python/shlex so SMTP passwords with $, &, |, etc. stay intact.
             eval "$(
               python3 - <<'PY'
@@ -266,7 +266,14 @@ jobs:
                 print(f"export {key}={shlex.quote(value)}")
             PY
             )"
-            bun run db:push
+            if [ -f "${DATABASE_URL}" ]; then
+              bun run db:backup
+            else
+              echo "No database file yet at ${DATABASE_URL}; skipping backup"
+            fi
+
+            echo "Applying Drizzle migrations..."
+            bun run db:migrate
 
             echo "Building the project..."
             bun run build

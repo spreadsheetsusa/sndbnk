@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>sndbnk · Drizzle schema migrations</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Audiowide&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				--accent: #c8ff3d;
+				--on-accent: #11110f;
+				--ink: #11110f;
+				--paper: #f2f0e8;
+				--muted: #696861;
+				--inverse: #11110f;
+				--on-inverse: #f2f0e8;
+				--hard-border: var(--ink);
+				--hard-shadow: var(--ink);
+				--chroma-red: #ff2f4f;
+				--chroma-cyan: #21e0ff;
+				--chroma-offset: 0.022em;
+				--shell: 920px;
+				--pad: clamp(1rem, 3.5vw, 3rem);
+				color-scheme: light;
+				font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+				color: var(--ink);
+				background: var(--paper);
+			}
+
+			.dark {
+				--ink: #f2f0e8;
+				--paper: #141410;
+				--muted: #a8a69c;
+				--inverse: #050504;
+				--on-inverse: #f2f0e8;
+				--hard-border: var(--accent);
+				--hard-shadow: color-mix(in srgb, color-mix(in srgb, var(--accent) 55%, black) 70%, black);
+				--chroma-red: #ff5a72;
+				--chroma-cyan: #57e9ff;
+				color-scheme: dark;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html {
+				scroll-behavior: smooth;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				html {
+					scroll-behavior: auto;
+				}
+				*,
+				*::before,
+				*::after {
+					animation: none !important;
+					transition: none !important;
+				}
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				background-color: var(--paper);
+				background-image:
+					linear-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px),
+					linear-gradient(
+						90deg,
+						color-mix(in srgb, var(--ink) 6%, transparent) 1px,
+						transparent 1px
+					),
+					radial-gradient(
+						ellipse 80% 50% at 10% -10%,
+						color-mix(in srgb, var(--accent) 18%, transparent),
+						transparent 55%
+					);
+				background-size:
+					28px 28px,
+					28px 28px,
+					auto;
+			}
+
+			.shell {
+				width: min(100%, var(--shell));
+				margin: 0 auto;
+				padding: 2rem var(--pad) 4rem;
+			}
+
+			.topbar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+				margin-bottom: 2.5rem;
+			}
+
+			.brand {
+				font-family: Audiowide, cursive;
+				font-size: clamp(1.75rem, 4vw, 2.4rem);
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				position: relative;
+				color: var(--ink);
+				text-decoration: none;
+			}
+
+			.brand::before,
+			.brand::after {
+				content: attr(data-text);
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+			}
+
+			.brand::before {
+				color: var(--chroma-red);
+				transform: translate(calc(var(--chroma-offset) * -1), 0);
+				mix-blend-mode: multiply;
+				opacity: 0.7;
+			}
+
+			.brand::after {
+				color: var(--chroma-cyan);
+				transform: translate(var(--chroma-offset), 0);
+				mix-blend-mode: multiply;
+				opacity: 0.7;
+			}
+
+			.dark .brand::before,
+			.dark .brand::after {
+				mix-blend-mode: screen;
+			}
+
+			.theme-btn {
+				border: 1px solid var(--hard-border);
+				background: var(--paper);
+				color: var(--ink);
+				padding: 0.55rem 0.85rem;
+				font: inherit;
+				font-weight: 600;
+				cursor: pointer;
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+			}
+
+			.theme-btn:hover {
+				background: var(--accent);
+				color: var(--on-accent);
+			}
+
+			.theme-btn:focus-visible {
+				outline: 2px solid var(--ink);
+				outline-offset: 3px;
+			}
+
+			.hero {
+				border: 1px solid var(--hard-border);
+				background: var(--inverse);
+				color: var(--on-inverse);
+				padding: clamp(1.5rem, 4vw, 2.5rem);
+				box-shadow: 8px 8px 0 var(--hard-shadow);
+				margin-bottom: 2.5rem;
+				animation: rise 520ms ease-out both;
+			}
+
+			.eyebrow {
+				display: inline-block;
+				font-size: 0.75rem;
+				font-weight: 800;
+				letter-spacing: 0.15em;
+				text-transform: uppercase;
+				background: var(--accent);
+				color: var(--on-accent);
+				padding: 0.25rem 0.5rem;
+				margin-bottom: 1rem;
+			}
+
+			.hero h1 {
+				font-family: Audiowide, cursive;
+				font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+				line-height: 1.15;
+				margin: 0 0 0.85rem;
+				text-transform: uppercase;
+			}
+
+			.hero p {
+				margin: 0;
+				max-width: 38rem;
+				color: color-mix(in srgb, var(--on-inverse) 82%, var(--muted));
+				font-size: 1.05rem;
+				line-height: 1.55;
+			}
+
+			nav.toc {
+				display: grid;
+				gap: 0.5rem;
+				margin-bottom: 2.5rem;
+				animation: rise 620ms ease-out both;
+			}
+
+			nav.toc a {
+				display: block;
+				border: 1px solid var(--hard-border);
+				padding: 0.7rem 0.9rem;
+				color: var(--ink);
+				text-decoration: none;
+				background: var(--paper);
+				box-shadow: 3px 3px 0 var(--hard-shadow);
+				font-weight: 600;
+			}
+
+			nav.toc a:hover {
+				background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+			}
+
+			section {
+				margin-bottom: 2.75rem;
+				animation: rise 700ms ease-out both;
+			}
+
+			h2 {
+				font-family: 'Space Grotesk', sans-serif;
+				font-size: 1.45rem;
+				margin: 0 0 0.85rem;
+				padding-bottom: 0.4rem;
+				border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+			}
+
+			h3 {
+				font-size: 1.05rem;
+				margin: 1.4rem 0 0.55rem;
+			}
+
+			p,
+			li {
+				line-height: 1.55;
+				color: color-mix(in srgb, var(--ink) 92%, var(--muted));
+			}
+
+			ul,
+			ol {
+				padding-left: 1.2rem;
+			}
+
+			li + li {
+				margin-top: 0.35rem;
+			}
+
+			code,
+			kbd {
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+				font-size: 0.9em;
+				background: color-mix(in srgb, var(--accent) 14%, transparent);
+				border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+				padding: 0.05em 0.3em;
+			}
+
+			pre {
+				overflow-x: auto;
+				border: 1px solid var(--hard-border);
+				background: var(--inverse);
+				color: var(--on-inverse);
+				padding: 1rem;
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+				font-size: 0.85rem;
+				line-height: 1.5;
+			}
+
+			pre code {
+				background: none;
+				border: 0;
+				padding: 0;
+				color: inherit;
+			}
+
+			.panel {
+				border: 1px solid var(--hard-border);
+				padding: 1rem 1.1rem;
+				background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+				margin: 1rem 0;
+			}
+
+			.panel.warn {
+				background: color-mix(in srgb, var(--chroma-red) 10%, var(--paper));
+			}
+
+			.panel strong {
+				display: block;
+				margin-bottom: 0.35rem;
+			}
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.95rem;
+				margin: 1rem 0;
+			}
+
+			th,
+			td {
+				border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+				padding: 0.55rem 0.65rem;
+				text-align: left;
+				vertical-align: top;
+			}
+
+			th {
+				background: color-mix(in srgb, var(--ink) 8%, var(--paper));
+				font-weight: 700;
+			}
+
+			.flow {
+				display: grid;
+				gap: 0.65rem;
+				margin: 1rem 0;
+			}
+
+			.flow-step {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 0.75rem;
+				align-items: start;
+				border: 1px solid var(--hard-border);
+				padding: 0.8rem 0.9rem;
+				background: var(--paper);
+			}
+
+			.flow-n {
+				width: 1.75rem;
+				height: 1.75rem;
+				display: grid;
+				place-items: center;
+				background: var(--accent);
+				color: var(--on-accent);
+				font-weight: 800;
+			}
+
+			.risk-safe {
+				color: color-mix(in srgb, #1a7a3a 80%, var(--ink));
+			}
+
+			.risk-careful {
+				color: color-mix(in srgb, #9a6b00 85%, var(--ink));
+			}
+
+			.risk-danger {
+				color: color-mix(in srgb, var(--chroma-red) 85%, var(--ink));
+			}
+
+			footer {
+				margin-top: 3rem;
+				padding-top: 1rem;
+				border-top: 1px solid color-mix(in srgb, var(--ink) 24%, transparent);
+				color: var(--muted);
+				font-size: 0.9rem;
+			}
+
+			@keyframes rise {
+				from {
+					opacity: 0;
+					transform: translateY(10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="shell">
+			<header class="topbar">
+				<a class="brand" href="#top" data-text="sndbnk">sndbnk</a>
+				<button type="button" class="theme-btn" id="themeToggle" aria-pressed="false">
+					Dark mode
+				</button>
+			</header>
+
+			<section class="hero" id="top">
+				<span class="eyebrow">Ops guide</span>
+				<h1>Drizzle schema migrations</h1>
+				<p>
+					How sndbnk owns its SQLite schema with Drizzle Kit: generate SQL, review it, apply it with
+					Bun, and keep production data safe.
+				</p>
+			</section>
+
+			<nav class="toc" aria-label="Sections">
+				<a href="#model">1. Mental model</a>
+				<a href="#commands">2. Commands</a>
+				<a href="#workflow">3. Everyday workflow</a>
+				<a href="#risk">4. Risk levels &amp; production checklist</a>
+				<a href="#bun">5. Why Bun has its own migrate script</a>
+				<a href="#django">6. If you know Django</a>
+				<a href="#files">7. Files that matter</a>
+			</nav>
+
+			<section id="model">
+				<h2>1. Mental model</h2>
+				<p>
+					sndbnk is <strong>codebase-first</strong>. The Drizzle schema in
+					<code>src/lib/server/db/schema.js</code> is the source of truth. Drizzle Kit diffs that
+					schema against the last snapshot and writes SQL migration files under
+					<code>drizzle/</code>. Those files are committed and applied in order.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Tool</th>
+							<th>Role</th>
+							<th>Use when</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><code>db:generate</code></td>
+							<td>Diff schema → SQL file + snapshot</td>
+							<td>Every schema change you intend to ship</td>
+						</tr>
+						<tr>
+							<td><code>db:migrate</code></td>
+							<td>Apply pending SQL via Bun</td>
+							<td>Local verify + every production deploy</td>
+						</tr>
+						<tr>
+							<td><code>db:backup</code></td>
+							<td>Copy SQLite + WAL/SHM sidecars</td>
+							<td>Before production-affecting migrations</td>
+						</tr>
+						<tr>
+							<td><code>db:push:kit</code></td>
+							<td>Push schema with no migration files</td>
+							<td>Local throwaway prototyping only</td>
+						</tr>
+						<tr>
+							<td><code>db:push</code></td>
+							<td>Retired</td>
+							<td>Do not use — exits with instructions</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>One source of truth</strong>
+					Do not hand-maintain a parallel DDL script. Edit <code>schema.js</code>, generate, review
+					the SQL, migrate. Auth tables still come from <code>bun run auth:schema</code>, then
+					generate if the Drizzle shape changed.
+				</div>
+			</section>
+
+			<section id="commands">
+				<h2>2. Commands</h2>
+				<pre><code># after editing schema.js (and auth.schema if needed)
+bun run db:generate
+
+# optional name
+bun x drizzle-kit generate --name add-track-mood
+
+# review the new drizzle/000N_*.sql file, then apply
+bun run db:backup          # especially before prod-shaped DBs
+bun run db:migrate
+
+# browse data locally (Node / better-sqlite3)
+bun run db:studio</code></pre>
+				<p>
+					Deploy on Lightsail runs <code>db:backup</code> (when the DB file exists) then
+					<code>db:migrate</code> before <code>bun run build</code>.
+				</p>
+			</section>
+
+			<section id="workflow">
+				<h2>3. Everyday workflow</h2>
+				<div class="flow">
+					<div class="flow-step">
+						<span class="flow-n">1</span>
+						<div>
+							<strong>Edit the schema</strong>
+							<p style="margin: 0.25rem 0 0">
+								Change tables in <code>src/lib/server/db/schema.js</code>. For better-auth columns,
+								regenerate with <code>bun run auth:schema && bun run format</code> first.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">2</span>
+						<div>
+							<strong>Generate SQL</strong>
+							<p style="margin: 0.25rem 0 0">
+								<code>bun run db:generate</code> writes <code>drizzle/000N_name.sql</code> plus a
+								snapshot under <code>drizzle/meta/</code>. Commit both with the schema change.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">3</span>
+						<div>
+							<strong>Read the SQL like a PR</strong>
+							<p style="margin: 0.25rem 0 0">
+								Watch for drop/recreate disguised as a rename, <code>NOT NULL</code> without a
+								default, or data-destroying type changes. Edit the SQL by hand when the generator
+								guesses wrong — then keep the snapshot consistent by not regenerating over a
+								hand-tuned file without care.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">4</span>
+						<div>
+							<strong>Apply locally</strong>
+							<p style="margin: 0.25rem 0 0">
+								<code>bun run db:migrate</code>, then exercise the surface with
+								<code>bun run dev</code>.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">5</span>
+						<div>
+							<strong>Ship</strong>
+							<p style="margin: 0.25rem 0 0">
+								Merge to <code>main</code>. Deploy backs up SQLite, migrates, builds, restarts. For
+								destructive or data-rewriting changes, do the human checklist below first.
+							</p>
+						</div>
+					</div>
+				</div>
+				<h3>Data backfills</h3>
+				<p>
+					Schema DDL belongs in generated (or carefully edited) migration SQL. Idempotent seeds that
+					must run every deploy (plan tiers, grandfathered subscription status) live at the end of
+					<code>scripts/migrate-sqlite.js</code>. One-off data rewrites should be a dedicated SQL
+					migration (<code>drizzle-kit generate --custom --name …</code>) so they run once and are
+					recorded in <code>__drizzle_migrations</code>.
+				</p>
+			</section>
+
+			<section id="risk">
+				<h2>4. Risk levels &amp; production checklist</h2>
+				<table>
+					<thead>
+						<tr>
+							<th>Change</th>
+							<th>Risk</th>
+							<th>Notes</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Add nullable column / new table / new index</td>
+							<td class="risk-safe">Low</td>
+							<td>Usual path: generate → review → migrate → deploy</td>
+						</tr>
+						<tr>
+							<td>Add <code>NOT NULL</code> column</td>
+							<td class="risk-careful">Medium</td>
+							<td>SQLite needs a default (or backfill strategy). Prefer nullable first.</td>
+						</tr>
+						<tr>
+							<td>Rename column/table</td>
+							<td class="risk-careful">Medium</td>
+							<td>
+								Generator may emit drop+add. Confirm rename SQL or do a multi-step expand/contract.
+							</td>
+						</tr>
+						<tr>
+							<td>Drop column/table, change type, destroy rows</td>
+							<td class="risk-danger">High</td>
+							<td>Explicit backup + human review before merge to <code>main</code>.</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<div class="panel warn">
+					<strong>Your side before a high-risk production change</strong>
+					<ol style="margin: 0.4rem 0 0; padding-left: 1.2rem">
+						<li>Confirm the generated SQL is exactly what you intend.</li>
+						<li>
+							Take an extra backup (deploy already runs <code>db:backup</code>, but keep a
+							known-good copy you can restore by hand):
+							<pre style="margin: 0.6rem 0 0"><code>ssh ubuntu@sndbnk.com
+cd /var/www/sndbnk
+set -a && source .env && set +a
+bun run db:backup
+ls -lt backups | head</code></pre>
+						</li>
+						<li>Merge and watch the deploy job apply migrations before the service restart.</li>
+						<li>
+							Smoke-test the affected queries. If something is wrong, stop deploys and restore the
+							<code>backups/</code> copy over <code>DATABASE_URL</code> (and sidecars) before
+							retrying.
+						</li>
+					</ol>
+				</div>
+			</section>
+
+			<section id="bun">
+				<h2>5. Why Bun has its own migrate script</h2>
+				<p>
+					Runtime uses <code>bun:sqlite</code>. Drizzle Kit’s CLI migrate/push/studio path loads
+					<code>better-sqlite3</code>, which Bun cannot open. So:
+				</p>
+				<ul>
+					<li>
+						<strong>Generate</strong> with Drizzle Kit (<code>bun run db:generate</code>) — reads
+						schema files, no native driver needed.
+					</li>
+					<li>
+						<strong>Migrate</strong> with <code>scripts/migrate-sqlite.js</code> using
+						<code>drizzle-orm/bun-sqlite/migrator</code>.
+					</li>
+					<li>
+						<strong>Studio / kit push</strong> run under Node via
+						<code>node ./node_modules/drizzle-kit/bin.cjs …</code>.
+					</li>
+				</ul>
+				<p>
+					Existing production databases created before this folder existed are cut over safely: if
+					app tables already exist and <code>__drizzle_migrations</code> is empty, the migrate
+					script records <code>0000_baseline</code> as applied without re-running its
+					<code>CREATE TABLE</code> statements, then applies any newer migrations.
+				</p>
+			</section>
+
+			<section id="django">
+				<h2>6. If you know Django</h2>
+				<p>Same job, different nouns — not a Django port:</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Django</th>
+							<th>sndbnk / Drizzle</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><code>models.py</code></td>
+							<td><code>src/lib/server/db/schema.js</code></td>
+						</tr>
+						<tr>
+							<td><code>makemigrations</code></td>
+							<td><code>bun run db:generate</code></td>
+						</tr>
+						<tr>
+							<td>Review migration file</td>
+							<td>Review <code>drizzle/000N_*.sql</code></td>
+						</tr>
+						<tr>
+							<td><code>migrate</code></td>
+							<td><code>bun run db:migrate</code></td>
+						</tr>
+						<tr>
+							<td><code>django_migrations</code> table</td>
+							<td><code>__drizzle_migrations</code></td>
+						</tr>
+						<tr>
+							<td><code>RunPython</code> / data migration</td>
+							<td>Custom SQL migration, or idempotent seed in migrate script</td>
+						</tr>
+						<tr>
+							<td>Autodetector rename prompts</td>
+							<td>Drizzle Kit rename prompts / hand-edit SQL when wrong</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+
+			<section id="files">
+				<h2>7. Files that matter</h2>
+				<table>
+					<thead>
+						<tr>
+							<th>Path</th>
+							<th>Purpose</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><code>src/lib/server/db/schema.js</code></td>
+							<td>App tables + relations; re-exports auth schema</td>
+						</tr>
+						<tr>
+							<td><code>src/lib/server/db/auth.schema.js</code></td>
+							<td>Generated by better-auth — do not hand-edit</td>
+						</tr>
+						<tr>
+							<td><code>drizzle.config.js</code></td>
+							<td>Kit config (<code>out: './drizzle'</code>)</td>
+						</tr>
+						<tr>
+							<td><code>drizzle/*.sql</code> + <code>drizzle/meta/</code></td>
+							<td>Versioned migrations + snapshots (commit these)</td>
+						</tr>
+						<tr>
+							<td><code>scripts/migrate-sqlite.js</code></td>
+							<td>Bun apply + baseline cutover + idempotent seeds</td>
+						</tr>
+						<tr>
+							<td><code>scripts/backup-sqlite.js</code></td>
+							<td>Timestamped file copy before risky applies</td>
+						</tr>
+						<tr>
+							<td><code>.cursor/rules/35-schema-migrations.mdc</code></td>
+							<td>Agent rule that attaches when editing schema/migrations</td>
+						</tr>
+					</tbody>
+				</table>
+				<p>
+					Longer project docs: <code>docs/data-model.md</code>, <code>docs/operations.md</code>.
+					This page is intentionally standalone — open the file in a browser; no app build required.
+				</p>
+			</section>
+
+			<footer>
+				sndbnk schema ops · standalone artifact · open locally from
+				<code>docs/drizzle-migrations.html</code>
+			</footer>
+		</div>
+
+		<script>
+			(() => {
+				const root = document.documentElement;
+				const btn = document.getElementById('themeToggle');
+				const key = 'sndbnk-docs-theme';
+				const preferDark = () =>
+					localStorage.getItem(key) === 'dark' ||
+					(!localStorage.getItem(key) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+				const apply = (dark) => {
+					root.classList.toggle('dark', dark);
+					btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+					btn.textContent = dark ? 'Light mode' : 'Dark mode';
+				};
+
+				apply(preferDark());
+				btn.addEventListener('click', () => {
+					const next = !root.classList.contains('dark');
+					localStorage.setItem(key, next ? 'dark' : 'light');
+					apply(next);
+				});
+			})();
+		</script>
+	</body>
+</html>

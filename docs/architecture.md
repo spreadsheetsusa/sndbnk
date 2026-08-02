@@ -146,7 +146,9 @@ src/
       media/              waveform.js (ffmpeg), embed-tags.js (taglib)
       storage/            adapter interface, local, ssh, crypto
       safe-redirect.js    adapter-safe redirect
-scripts/push-sqlite-schema.js   Bun-native DDL apply
+drizzle/                        Drizzle SQL migrations + meta snapshots
+scripts/migrate-sqlite.js       Bun-native migrate + seeds
+scripts/backup-sqlite.js        SQLite file backup before prod applies
 ```
 
 ## Conventions that hold across layers

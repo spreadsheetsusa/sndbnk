@@ -35,7 +35,7 @@ Violating any of these breaks the app.
 | Components | `src/lib/components/**` |
 | Global player state | `src/lib/player/player.svelte.js` |
 | Design tokens and global CSS | `src/routes/layout.css` |
-| Schema apply script | `scripts/push-sqlite-schema.js` |
+| Schema migrations | `drizzle/` + `scripts/migrate-sqlite.js` |
 
 Routes call `src/lib/server/*` services; services own `db`. Routes never query `db` directly, and
 components never import from `src/lib/server/`.
@@ -58,7 +58,8 @@ components never import from `src/lib/server/`.
 ```sh
 bun run dev          # Vite on http://localhost:5173
 bun run build        # svelte-adapter-bun → build/index.js
-bun run db:push      # apply schema (edit scripts/push-sqlite-schema.js to match first)
+bun run db:generate  # schema.js → drizzle/*.sql
+bun run db:migrate   # apply pending SQL (Bun)
 bun run lint         # prettier --check .
 bun run format       # prettier --write .
 bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js

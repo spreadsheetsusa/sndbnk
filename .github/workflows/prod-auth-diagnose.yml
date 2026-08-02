@@ -256,7 +256,10 @@ jobs:
             # shellcheck disable=SC1091
             . "$APP_DIR/.env"
             set +a
-            bun run db:push
+            if [ -f "${DATABASE_URL}" ]; then
+              bun run db:backup
+            fi
+            bun run db:migrate
             bun run build
 
             section "Restart and verify service"
