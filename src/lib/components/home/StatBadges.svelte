@@ -27,6 +27,7 @@
 
 	const COUNT_UP_MS = 750;
 	const HOUR_MS = 3_600_000;
+	const ICON_SIZE = 22;
 	const numberFormat = new Intl.NumberFormat();
 
 	/**
@@ -68,55 +69,74 @@
 
 <ul class="stat-strip" aria-label="SNDBNK by the numbers">
 	<li class="stat accent">
-		<span class="stat-icon" aria-hidden="true"><IconDisc size={16} stroke={1.75} /></span>
-		<span class="stat-value display-face">{tally(stats.trackCount)}</span>
+		<span class="stat-row">
+			<span class="stat-icon" aria-hidden="true"><IconDisc size={ICON_SIZE} stroke={1.5} /></span>
+			<span class="stat-value display-face">{tally(stats.trackCount)}</span>
+		</span>
 		<span class="stat-label">Tracks banked</span>
 	</li>
 
 	<li class="stat">
-		<span class="stat-icon" aria-hidden="true"><IconUsers size={16} stroke={1.75} /></span>
-		<span class="stat-value display-face">{tally(stats.artistCount)}</span>
+		<span class="stat-row">
+			<span class="stat-icon" aria-hidden="true"><IconUsers size={ICON_SIZE} stroke={1.5} /></span>
+			<span class="stat-value display-face">{tally(stats.artistCount)}</span>
+		</span>
 		<span class="stat-label">Artists in the bank</span>
 	</li>
 
 	<li class="stat">
-		<span class="stat-icon" aria-hidden="true"><IconWaveSine size={16} stroke={1.75} /></span>
-		<span class="stat-value display-face">{runtime.value}</span>
+		<span class="stat-row">
+			<span class="stat-icon" aria-hidden="true"
+				><IconWaveSine size={ICON_SIZE} stroke={1.5} /></span
+			>
+			<span class="stat-value display-face">{runtime.value}</span>
+		</span>
 		<span class="stat-label">{runtime.unit}</span>
 	</li>
 
 	<li class="stat">
-		<span class="stat-icon" aria-hidden="true"><IconHeart size={16} stroke={1.75} /></span>
-		<span class="stat-value display-face">{tally(stats.likeCount)}</span>
+		<span class="stat-row">
+			<span class="stat-icon" aria-hidden="true"><IconHeart size={ICON_SIZE} stroke={1.5} /></span>
+			<span class="stat-value display-face">{tally(stats.likeCount)}</span>
+		</span>
 		<span class="stat-label">Hearts thrown</span>
 	</li>
 
 	<li class="stat">
-		<span class="stat-icon" aria-hidden="true"><IconMessage size={16} stroke={1.75} /></span>
-		<span class="stat-value display-face">{tally(stats.commentCount)}</span>
+		<span class="stat-row">
+			<span class="stat-icon" aria-hidden="true"><IconMessage size={ICON_SIZE} stroke={1.5} /></span
+			>
+			<span class="stat-value display-face">{tally(stats.commentCount)}</span>
+		</span>
 		<span class="stat-label">Notes left</span>
 	</li>
 
 	{#if stats.topArtist}
 		<li class="stat wide">
-			<span class="stat-icon" aria-hidden="true"><IconMicrophone2 size={16} stroke={1.75} /></span>
-			{#if stats.topArtist.username}
-				<a class="stat-value name" href="/users/{stats.topArtist.username}">
-					{stats.topArtist.name}
-				</a>
-			{:else}
-				<span class="stat-value name">{stats.topArtist.name}</span>
-			{/if}
+			<span class="stat-row">
+				<span class="stat-icon" aria-hidden="true">
+					<IconMicrophone2 size={ICON_SIZE} stroke={1.5} />
+				</span>
+				{#if stats.topArtist.username}
+					<a class="stat-value name" href="/users/{stats.topArtist.username}">
+						{stats.topArtist.name}
+					</a>
+				{:else}
+					<span class="stat-value name">{stats.topArtist.name}</span>
+				{/if}
+			</span>
 			<span class="stat-label">Most loved artist</span>
 		</li>
 	{/if}
 
 	{#if stats.topGenre}
 		<li class="stat wide">
-			<span class="stat-icon" aria-hidden="true"><IconTag size={16} stroke={1.75} /></span>
-			<a class="stat-value name" href="/feed?genre={encodeURIComponent(stats.topGenre.genre)}">
-				{stats.topGenre.genre}
-			</a>
+			<span class="stat-row">
+				<span class="stat-icon" aria-hidden="true"><IconTag size={ICON_SIZE} stroke={1.5} /></span>
+				<a class="stat-value name" href="/feed?genre={encodeURIComponent(stats.topGenre.genre)}">
+					{stats.topGenre.genre}
+				</a>
+			</span>
 			<span class="stat-label">Loudest genre</span>
 		</li>
 	{/if}
@@ -134,12 +154,11 @@
 	}
 
 	.stat {
-		position: relative;
-		display: grid;
+		display: flex;
 		flex: 1 1 0;
-		grid-template-columns: auto 1fr;
-		gap: 0 0.5rem;
-		align-items: center;
+		flex-direction: column;
+		gap: 0.3rem;
+		justify-content: center;
 		min-width: 8.5rem;
 		padding: 0.7rem 0.9rem;
 		border: 1px solid var(--hard-border);
@@ -158,9 +177,16 @@
 		background: var(--accent);
 	}
 
+	.stat-row {
+		display: flex;
+		gap: 0.45rem;
+		align-items: center;
+		min-width: 0;
+	}
+
 	.stat-icon {
 		display: inline-flex;
-		grid-row: span 2;
+		flex: 0 0 auto;
 		color: currentcolor;
 		opacity: 0.7;
 	}
@@ -193,7 +219,6 @@
 	}
 
 	.stat-label {
-		margin-top: 0.3rem;
 		font-size: 0.6rem;
 		font-weight: 800;
 		letter-spacing: 0.12em;

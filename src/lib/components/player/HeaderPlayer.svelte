@@ -1,4 +1,5 @@
 <script>
+	import { onMount } from 'svelte';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
@@ -9,9 +10,11 @@
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { page } from '$app/state';
+	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
+	import Waveform from '#lib/components/player/Waveform.svelte';
+	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
-	import { formatDuration } from '#lib/media/audio-metadata.js';
 
 	const signedIn = $derived(Boolean(page.data.nav?.name));
 
@@ -19,11 +22,28 @@
 	let likeBusy = $state(false);
 	let scrubbing = $state(false);
 	let scrubValue = $state(0);
+	/** Mobile stacked layout (matches header wrap). */
+	let stacked = $state(false);
+	/** Waveform scrub preview in seconds. @type {number | null} */
+	let scrubSeconds = $state(null);
 
 	const progress = $derived(
 		player.duration > 0 ? Math.min(player.currentTime / player.duration, 1) : 0
 	);
 	const sliderValue = $derived(scrubbing ? scrubValue : Math.round(progress * 1000));
+	const displayTime = $derived(scrubSeconds ?? player.currentTime);
+	const durationMs = $derived(player.current?.durationMs ?? Math.round(player.duration * 1000));
+
+	onMount(() => {
+		const mq = window.matchMedia('(max-width: 960px)');
+		stacked = mq.matches;
+		const onChange = () => {
+			stacked = mq.matches;
+			if (!mq.matches) scrubSeconds = null;
+		};
+		mq.addEventListener('change', onChange);
+		return () => mq.removeEventListener('change', onChange);
+	});
 
 	/**
 	 * @param {Event & { currentTarget: HTMLInputElement }} event
@@ -39,6 +59,11 @@
 		const value = Number(event.currentTarget.value);
 		player.seek((value / 1000) * player.duration);
 		scrubbing = false;
+	}
+
+	/** @param {number} seconds */
+	function handleWaveSeek(seconds) {
+		player.seek(seconds);
 	}
 
 	async function toggleLike() {
@@ -59,6 +84,7 @@
 
 {#if player.current}
 	{@const track = player.current}
+	{@const artistLabel = track.artist || track.uploaderName}
 	<div class="header-player">
 		<div class="strip">
 			<div class="transport">
@@ -94,43 +120,72 @@
 			</div>
 
 			<div class="cell scrub">
-				<span class="time elapsed">{formatDuration(player.currentTime * 1000)}</span>
+				<span class="time elapsed">{formatDuration(displayTime * 1000)}</span>
 
-				<input
-					class="seek"
-					type="range"
-					min="0"
-					max="1000"
-					step="1"
-					value={sliderValue}
-					aria-label="Seek"
-					style:--fill="{(sliderValue / 1000) * 100}%"
-					onpointerdown={() => {
-						scrubbing = true;
-						scrubValue = Math.round(progress * 1000);
-					}}
-					oninput={handleSeekInput}
-					onchange={handleSeekCommit}
-				/>
+				{#if stacked}
+					<div class="wave-wrap">
+						<Waveform
+							peaks={track.waveform}
+							{durationMs}
+							currentTime={player.currentTime}
+							height={38}
+							label="Seek within {track.title}"
+							onseek={handleWaveSeek}
+							onscrub={(seconds) => (scrubSeconds = seconds)}
+						/>
+					</div>
+				{:else}
+					<input
+						class="seek"
+						type="range"
+						min="0"
+						max="1000"
+						step="1"
+						value={sliderValue}
+						aria-label="Seek"
+						style:--fill="{(sliderValue / 1000) * 100}%"
+						onpointerdown={() => {
+							scrubbing = true;
+							scrubValue = Math.round(progress * 1000);
+						}}
+						oninput={handleSeekInput}
+						onchange={handleSeekCommit}
+					/>
+				{/if}
 
 				<span class="time total">{formatDuration(player.duration * 1000)}</span>
 			</div>
 
 			<div class="cell now-playing">
 				{#if track.hasCover}
-					<img class="bar-cover" src="/api/media/{track.id}/cover" alt="" width="26" height="26" />
+					<img class="bar-cover" src="/api/media/{track.id}/cover" alt="" width="32" height="32" />
 				{:else}
 					<span class="bar-cover placeholder" aria-hidden="true"></span>
 				{/if}
-				<div class="now-meta">
-					{#if track.username}
-						<a class="now-artist" href="/users/{track.username}">
-							{track.artist || track.uploaderName}
-						</a>
-					{:else}
-						<span class="now-artist">{track.artist || track.uploaderName}</span>
-					{/if}
-					<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+
+				<div class="now-meta desktop-meta">
+					<MarqueeLine resetKey="{track.id}-artist">
+						{#if track.username}
+							<a class="now-artist" href="/users/{track.username}">{artistLabel}</a>
+						{:else}
+							<span class="now-artist">{artistLabel}</span>
+						{/if}
+					</MarqueeLine>
+					<MarqueeLine resetKey="{track.id}-title">
+						<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+					</MarqueeLine>
+				</div>
+
+				<div class="now-meta mobile-meta">
+					<MarqueeLine resetKey="{track.id}-combined">
+						{#if track.username}
+							<a class="now-artist" href="/users/{track.username}">{artistLabel}</a>
+						{:else}
+							<span class="now-artist">{artistLabel}</span>
+						{/if}
+						<span class="now-sep" aria-hidden="true"> — </span>
+						<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+					</MarqueeLine>
 				</div>
 			</div>
 
@@ -305,6 +360,12 @@
 		padding: 0 0.6rem;
 	}
 
+	.wave-wrap {
+		flex: 1;
+		min-width: 0;
+		min-height: 38px;
+	}
+
 	.time {
 		flex-shrink: 0;
 		font-size: 0.66rem;
@@ -373,7 +434,7 @@
 		gap: 0.45rem;
 		min-width: 0;
 		max-width: 12rem;
-		padding: 0 0.6rem;
+		padding: 0 0.55rem;
 		flex-shrink: 1;
 	}
 
@@ -398,28 +459,36 @@
 	.now-meta {
 		display: flex;
 		flex-direction: column;
+		gap: 0.05rem;
 		min-width: 0;
+		flex: 1;
 		line-height: 1.2;
 	}
 
+	.mobile-meta {
+		display: none;
+	}
+
 	.now-artist {
-		overflow: hidden;
 		color: var(--muted);
 		font-size: 0.6rem;
 		font-weight: 700;
 		text-decoration: none;
-		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
 	.now-title {
-		overflow: hidden;
 		color: var(--ink);
 		font-size: 0.7rem;
 		font-weight: 800;
 		text-decoration: none;
-		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.now-sep {
+		color: var(--muted);
+		font-size: 0.65rem;
+		font-weight: 700;
 	}
 
 	.now-artist:hover,
@@ -566,13 +635,7 @@
 		color: var(--ink);
 	}
 
-	@media (max-width: 1200px) {
-		.now-playing {
-			display: none;
-		}
-	}
-
-	/* Matches the header's wrap breakpoint: full-width row under the logo and nav. */
+	/* Matches the header's wrap breakpoint: full-width stacked player. */
 	@media (max-width: 960px) {
 		.header-player {
 			order: 2;
@@ -581,17 +644,76 @@
 		}
 
 		.strip {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			grid-template-areas:
+				'meta meta actions'
+				'transport scrub scrub';
 			width: 100%;
+			align-items: stretch;
 		}
 
 		.now-playing {
-			display: flex;
+			grid-area: meta;
 			max-width: none;
-			flex: 1 1 auto;
+			min-height: 2.1rem;
+			padding: 0.2rem 0.55rem;
+			border-right: 0;
+			border-bottom: 1px solid var(--hard-border);
 		}
 
-		.time.total {
-			display: block;
+		.bar-actions {
+			grid-area: actions;
+			border-bottom: 1px solid var(--hard-border);
+		}
+
+		.bar-actions .cell:first-child {
+			border-left: 1px solid var(--hard-border);
+		}
+
+		.transport {
+			grid-area: transport;
+		}
+
+		.transport .cell:last-child {
+			border-right: 1px solid var(--hard-border);
+		}
+
+		.scrub {
+			grid-area: scrub;
+			flex: 1 1 auto;
+			min-width: 0;
+			min-height: 2.4rem;
+			padding: 0.15rem 0.5rem;
+			border-right: 0;
+		}
+
+		.desktop-meta {
+			display: none;
+		}
+
+		.mobile-meta {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+		}
+
+		.bar-cover {
+			width: 1.85rem;
+			height: 1.85rem;
+		}
+
+		.now-artist,
+		.now-title {
+			font-size: 0.72rem;
+		}
+
+		.now-artist {
+			font-weight: 700;
+		}
+
+		.now-title {
+			font-weight: 800;
 		}
 	}
 
@@ -635,6 +757,17 @@
 		.queue-remove {
 			width: var(--tap-min);
 			height: var(--tap-min);
+		}
+
+		@media (max-width: 960px) {
+			.now-playing,
+			.scrub {
+				min-height: var(--tap-min);
+			}
+
+			.wave-wrap {
+				min-height: 44px;
+			}
 		}
 	}
 </style>

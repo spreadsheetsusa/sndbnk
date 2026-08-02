@@ -56,8 +56,8 @@ desktop window never inflates controls. Four width rungs:
 | ---------- | ------------------------------------------------------------ |
 | `560px`    | phone-narrow: icon-only nav, most aggressive trimming        |
 | `640px`    | phone: card/row reflow, banner trimming, single-column forms |
-| `960px`    | narrow: sidebars and multi-column grids stack                |
-| `1200px`   | compact desktop: header player now-playing hide              |
+| `960px`    | narrow: sidebars stack; header player becomes two-row strip  |
+| `1200px`   | wide-compact layouts (header player keeps now-playing)       |
 
 **Never hardcode a color outside `layout.css`.** Use `var(--ink)` and friends, and reach for
 `color-mix(in srgb, var(--ink) 32%, transparent)` for tints rather than inventing a new hex. The one

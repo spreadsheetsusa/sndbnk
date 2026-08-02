@@ -28,7 +28,7 @@
 	footer {
 		display: grid;
 		grid-template-columns: 1fr auto;
-		gap: 1rem 2rem;
+		gap: 0.25rem 2rem;
 		align-items: end;
 		padding: 2rem 0;
 	}

@@ -97,8 +97,8 @@
 				<HeroVisualizer />
 				<div class="hero-copy">
 					<p class="eyebrow">A place for sound</p>
-					<h1 id="hero-title" class="display-face">Make some noise. <span>Keep it yours.</span></h1>
-					<p class="intro">An audio multi-tool for both artists and listeners.</p>
+					<h1 id="hero-title" class="display-face">Punch it in. <span>Turn it up.</span></h1>
+					<p class="intro">An audio multi-tool for both artists and creative listeners.</p>
 					{#if data.authNotice}
 						<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
 					{/if}
