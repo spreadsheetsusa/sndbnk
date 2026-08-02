@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import HostedQuotaMeter from '#lib/components/library/HostedQuotaMeter.svelte';
 	import { AUDIO_FILE_ACCEPT } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
 
@@ -277,9 +278,18 @@
 
 	<main>
 		<header class="page-head">
-			<p class="eyebrow eyebrow-chip accent-text">Library</p>
-			<h1 class="display-face">Upload track</h1>
-			<p class="intro">Attach audio first — we fill metadata from the file when available.</p>
+			<div class="page-head-copy">
+				<p class="eyebrow eyebrow-chip accent-text">Library</p>
+				<h1 class="display-face">Upload track</h1>
+				<p class="intro">Attach audio first — we fill metadata from the file when available.</p>
+			</div>
+			<div class="page-head-actions">
+				<HostedQuotaMeter
+					localBytes={data.usage.localBytes}
+					maxLocalBytes={data.usage.maxLocalBytes}
+					planLabel={data.usage.planLabel}
+				/>
+			</div>
 		</header>
 
 		<section class="block" aria-labelledby="upload-heading">
@@ -487,10 +497,29 @@
 	}
 
 	.page-head {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem 1.5rem;
+		align-items: flex-start;
+		justify-content: space-between;
 		margin-bottom: 2.5rem;
 	}
 
-	.page-head > .eyebrow {
+	.page-head-copy {
+		min-width: 0;
+		flex: 1 1 16rem;
+	}
+
+	.page-head-actions {
+		display: flex;
+		flex-direction: column;
+		flex-shrink: 0;
+		gap: 0.65rem;
+		align-items: flex-end;
+		margin-left: auto;
+	}
+
+	.page-head-copy > .eyebrow {
 		margin: 0 0 0.35rem;
 	}
 

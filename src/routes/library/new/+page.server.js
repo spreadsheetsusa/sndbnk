@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 
+import { getUsage } from '#lib/server/quota';
 import { getProfileByUserId } from '#lib/server/tenant';
 import { createTrackFromForm } from '#lib/server/tracks';
 import { safeRedirect } from '#lib/server/safe-redirect';
@@ -14,6 +15,8 @@ export const load = async ({ locals }) => {
 		safeRedirect(302, '/signup');
 	}
 
+	const usage = await getUsage(locals.user.id);
+
 	return {
 		user: {
 			id: locals.user.id,
@@ -21,7 +24,8 @@ export const load = async ({ locals }) => {
 		},
 		profile: {
 			username: profile.username
-		}
+		},
+		usage
 	};
 };
 
