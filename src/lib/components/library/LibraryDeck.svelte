@@ -23,8 +23,13 @@
 	/** @type {{ track: DeckTrack | null }} */
 	let { track } = $props();
 
+	/** Track the scrub belongs to; ignored once the deck selection moves on. */
+	let scrubTrackId = $state(/** @type {string | null} */ (null));
 	/** Position previewed by an in-flight waveform scrub. @type {number | null} */
-	let scrubSeconds = $state(null);
+	let scrubSecondsRaw = $state(null);
+	const scrubSeconds = $derived(
+		track != null && scrubTrackId === track.id ? scrubSecondsRaw : null
+	);
 
 	const isActive = $derived(track != null && player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
@@ -102,15 +107,20 @@
 			</div>
 		</div>
 
-		<Waveform
-			peaks={track.waveform}
-			durationMs={track.durationMs}
-			currentTime={isActive ? player.currentTime : 0}
-			height={72}
-			label="Seek within {track.title}"
-			onseek={handleSeek}
-			onscrub={(seconds) => (scrubSeconds = seconds)}
-		/>
+		{#key track.id}
+			<Waveform
+				peaks={track.waveform}
+				durationMs={track.durationMs}
+				currentTime={isActive ? player.currentTime : 0}
+				height={72}
+				label="Seek within {track.title}"
+				onseek={handleSeek}
+				onscrub={(seconds) => {
+					scrubTrackId = track.id;
+					scrubSecondsRaw = seconds;
+				}}
+			/>
+		{/key}
 	</section>
 {:else}
 	<section class="deck empty" aria-label="Track deck">
