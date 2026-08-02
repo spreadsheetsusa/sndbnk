@@ -60,8 +60,8 @@ which Caddy sets) and resolves it:
 On a tenant host the path allowlist is deliberately narrow:
 
 - **Passthrough:** `/_app`, `/api/auth`, `/favicon.*`, `/robots.txt`
-- **404:** `/settings`, `/signin`, `/signup`, `/library`, `/api/domain-tls-check` — account
-  surfaces only exist on the apex
+- **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`,
+  `/api/domain-tls-check` — account surfaces only exist on the apex
 - **Allowed:** `/`, `/tracks/*`, `/api/media/*`, `/api/tracks/*`
 - `/users/{own username}` redirects to `/` so a tenant host has one canonical profile URL
 
@@ -120,10 +120,12 @@ src/
   env.js                 defineEnvVars — the env var registry
   hooks.server.js         tenant + auth handles
   routes/
-    +layout.svelte        app shell, theme + accent init
+    +layout.svelte        app shell, theme + accent init, Milkdrop window mount
     layout.css            design tokens + global utilities
     +page.svelte          marketing landing OR tenant profile
     signin/ signup/       auth forms
+    forgot-password/      request password reset email
+    reset-password/       set new password from emailed token
     settings/             profile (incl. email change), plan, domain, storage (tabbed)
     library/              owner CRUD: list, new, [id] edit
     tracks/[id]/          public track detail
@@ -131,7 +133,8 @@ src/
     api/                  media streaming, social mutations, TLS check
   lib/
     components/           SiteHeader (hosts the player), ThemeToggle, PublicProfile, player/*
-    player/player.svelte.js   rune-class audio singleton
+    player/player.svelte.js       rune-class audio singleton
+    player/visualizer.svelte.js   Milkdrop (butterchurn) toggle + one-shot Web Audio graph
     stores/               theme, brand (legacy writable stores)
     media/                client-side metadata probe
     server/

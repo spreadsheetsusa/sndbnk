@@ -219,12 +219,19 @@ class Player {
 		}
 	}
 
+	/** The singleton element for Web Audio taps (Milkdrop). Created lazily. */
+	getAudioElement() {
+		return this.#ensureAudio();
+	}
+
 	#ensureAudio() {
 		if (!browser) return null;
 		if (this.#audio) return this.#audio;
 
 		const el = new Audio();
 		el.preload = 'metadata';
+		// Must be set before any src so Web Audio analysers can read samples.
+		el.crossOrigin = 'anonymous';
 
 		el.addEventListener('play', () => {
 			this.playing = true;

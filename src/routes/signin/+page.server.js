@@ -4,10 +4,12 @@ import { APIError } from 'better-auth/api';
 import { auth } from '#lib/server/auth';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
-export const load = ({ locals }) => {
+export const load = ({ locals, url }) => {
 	if (locals.user) {
 		safeRedirect(302, '/');
 	}
+
+	return { passwordReset: url.searchParams.get('reset') === '1' };
 };
 
 export const actions = {

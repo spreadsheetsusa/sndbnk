@@ -1,3 +1,4 @@
+import { getUsage } from '#lib/server/quota';
 import { getProfileByUserId } from '#lib/server/tenant';
 import { listTracksWithUploader, serializeTrackRows } from '#lib/server/tracks';
 import { safeRedirect } from '#lib/server/safe-redirect';
@@ -12,7 +13,10 @@ export const load = async ({ locals }) => {
 		safeRedirect(302, '/signup');
 	}
 
-	const { rows, nextCursor } = await listTracksWithUploader(locals.user.id);
+	const [{ rows, nextCursor }, usage] = await Promise.all([
+		listTracksWithUploader(locals.user.id),
+		getUsage(locals.user.id)
+	]);
 
 	return {
 		user: {
@@ -24,6 +28,7 @@ export const load = async ({ locals }) => {
 			username: profile.username
 		},
 		tracks: await serializeTrackRows(rows, locals.user),
-		nextCursor
+		nextCursor,
+		usage
 	};
 };

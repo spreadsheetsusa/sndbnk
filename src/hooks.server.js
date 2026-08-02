@@ -8,6 +8,8 @@ const APEX_ONLY_PREFIXES = [
 	'/settings',
 	'/signin',
 	'/signup',
+	'/forgot-password',
+	'/reset-password',
 	'/library',
 	'/plans',
 	'/billing',

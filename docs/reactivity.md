@@ -203,9 +203,15 @@ flowchart TD
   card -->|"method calls"| player["player singleton"]
   player -->|"reactive fields"| bar["HeaderPlayer"]
   player -->|"currentTime prop"| wave["Waveform"]
+  bar -->|"toggle"| viz["visualizer singleton"]
+  viz -->|"enabled"| milk["MilkdropWindow in root layout"]
+  player -->|"getAudioElement"| viz
   card -->|"fetch /api/*"| api["API route"]
   api -->|"authoritative JSON"| card
 ```
 
-Server data flows down as props. Playback state flows out of the singleton. Mutations go to an API
-route and come back as an override. Nothing reaches sideways into another component's state.
+Server data flows down as props. Playback state flows out of the singleton. The Milkdrop window is
+toggled from the header player but mounted in the root layout so it survives per-page `SiteHeader`
+remounts; it taps the player's singleton `HTMLAudioElement` through a one-shot Web Audio graph.
+Mutations go to an API route and come back as an override. Nothing reaches sideways into another
+component's state.

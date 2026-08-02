@@ -8,6 +8,7 @@
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { claimRowMenu } from './library-row-menu.js';
 
 	/**
 	 * @typedef {Object} RowTrack
@@ -43,6 +44,8 @@
 	let publishBusy = $state(false);
 	/** @type {boolean | null} */
 	let publishOverride = $state(null);
+	/** @type {(() => void) | null} */
+	let releaseMenu = null;
 
 	const isPlaying = $derived(player.isCurrent(track.id) && player.playing);
 	const published = $derived(publishOverride ?? track.published);
@@ -67,8 +70,24 @@
 		player.toggle(asPlayerTrack());
 	}
 
-	async function copyLink() {
+	function closeMenu() {
+		if (!menuOpen) return;
 		menuOpen = false;
+		releaseMenu?.();
+		releaseMenu = null;
+	}
+
+	function toggleMenu() {
+		if (menuOpen) {
+			closeMenu();
+			return;
+		}
+		releaseMenu = claimRowMenu(closeMenu);
+		menuOpen = true;
+	}
+
+	async function copyLink() {
+		closeMenu();
 		try {
 			await navigator.clipboard.writeText(`${location.origin}/tracks/${track.id}`);
 			copied = true;
@@ -80,7 +99,7 @@
 
 	function addToNextUp() {
 		player.addToQueue(asPlayerTrack());
-		menuOpen = false;
+		closeMenu();
 	}
 
 	async function togglePublished() {
@@ -104,7 +123,7 @@
 	async function deleteTrack() {
 		if (deleteBusy) return;
 		if (!confirm(`Delete “${track.title}”? This cannot be undone.`)) {
-			menuOpen = false;
+			closeMenu();
 			return;
 		}
 		deleteBusy = true;
@@ -116,7 +135,7 @@
 			}
 		} finally {
 			deleteBusy = false;
-			menuOpen = false;
+			closeMenu();
 		}
 	}
 
@@ -126,7 +145,7 @@
 		function onPointerDown(event) {
 			if (!menuOpen) return;
 			const target = /** @type {Node | null} */ (event.target);
-			if (target && !node.contains(target)) menuOpen = false;
+			if (target && !node.contains(target)) closeMenu();
 		}
 		document.addEventListener('pointerdown', onPointerDown);
 		return () => document.removeEventListener('pointerdown', onPointerDown);
@@ -134,7 +153,7 @@
 
 	/** @param {KeyboardEvent} event */
 	function handleKeydown(event) {
-		if (event.key === 'Escape' && menuOpen) menuOpen = false;
+		if (event.key === 'Escape' && menuOpen) closeMenu();
 	}
 </script>
 
@@ -216,7 +235,7 @@
 			aria-label="More actions for {track.title}"
 			aria-expanded={menuOpen}
 			aria-haspopup="menu"
-			onclick={() => (menuOpen = !menuOpen)}
+			onclick={toggleMenu}
 		>
 			<IconDots size={15} stroke={1.75} aria-hidden="true" />
 		</button>

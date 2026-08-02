@@ -8,6 +8,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | --------------------------- | ---------------------- | ----------------------------------------------------------------------------- |
 | `/`                         | optional               | Marketing landing on apex; the owner's public profile on a tenant host        |
 | `/signin`, `/signup`        | redirects if signed in | email/password auth, then `303 → /`                                           |
+| `/forgot-password`          | redirects if signed in | request a reset email (generic success; no enumeration)                       |
+| `/reset-password`           | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`       |
 | `/settings`                 | required               | tabbed profile (incl. email change via verify link) / plan / domain / storage |
 | `/library`                  | required               | the owner's track list                                                        |
 | `/library/new`              | required               | upload form                                                                   |
@@ -20,8 +22,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/tracks/[id]/comments` | required               | `POST` adds a comment                                                         |
 | `/api/domain-tls-check`     | internal               | Caddy on-demand TLS gate                                                      |
 
-`/settings`, `/signin`, `/signup`, `/library`, and `/api/domain-tls-check` 404 on tenant hosts. See
-[architecture.md](architecture.md).
+`/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, and
+`/api/domain-tls-check` 404 on tenant hosts. See [architecture.md](architecture.md).
 
 ## `load` conventions
 

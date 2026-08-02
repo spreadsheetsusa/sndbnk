@@ -111,8 +111,7 @@
 
 		<footer>
 			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-			<p>Sound belongs with the people who make it matter.</p>
-			<p>© {new Date().getFullYear()} SNDBNK</p>
+			<p>© {new Date().getFullYear()} SNDBNK®. All rights reserved.</p>
 		</footer>
 	</div>
 {/if}
@@ -144,7 +143,7 @@
 		grid-template-columns: minmax(0, 0.9fr) minmax(24rem, 1.1fr);
 		gap: clamp(2rem, 5vw, 6rem);
 		align-items: center;
-		min-height: calc(100vh - 5rem);
+		margin: 1.5rem 0;
 		padding: clamp(3rem, 7vw, 7rem) 0;
 	}
 
@@ -316,10 +315,11 @@
 	}
 
 	footer {
-		display: grid;
-		grid-template-columns: 0.5fr 1fr auto;
-		gap: 2rem;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem 2rem;
 		align-items: end;
+		justify-content: space-between;
 		padding: 2rem 0;
 	}
 
@@ -328,10 +328,6 @@
 		color: var(--muted);
 		font-size: 0.7rem;
 		line-height: 1.4;
-	}
-
-	footer p:last-child {
-		text-align: right;
 	}
 
 	@keyframes rise {
@@ -348,7 +344,6 @@
 	@media (max-width: 960px) {
 		.hero {
 			grid-template-columns: 1fr;
-			min-height: auto;
 		}
 
 		h1 {
@@ -398,15 +393,8 @@
 		}
 
 		footer {
-			grid-template-columns: 1fr;
-		}
-
-		footer p:last-child {
-			text-align: left;
-		}
-
-		footer p:nth-child(2) {
-			display: none;
+			flex-direction: column;
+			align-items: start;
 		}
 	}
 </style>

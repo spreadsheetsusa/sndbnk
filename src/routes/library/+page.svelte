@@ -25,10 +25,17 @@
 		list.items.some((track) => track.id === selectedId) ? selectedId : (list.items[0]?.id ?? null)
 	);
 	const selected = $derived(list.items.find((track) => track.id === resolvedId) ?? null);
+
+	const maxTracks = $derived(data.usage.maxTracks);
+	const trackCount = $derived(data.usage.trackCount);
+	const atTrackCap = $derived(maxTracks !== null && trackCount >= maxTracks);
+	const trackFill = $derived(
+		maxTracks ? Math.min(100, Math.round((trackCount / maxTracks) * 100)) : 0
+	);
 </script>
 
 <svelte:head>
-	<title>My Library | SNDBNK</title>
+	<title>Music Library | SNDBNK</title>
 	<meta name="description" content="Your private SNDBNK track library." />
 </svelte:head>
 
@@ -38,11 +45,38 @@
 	<main>
 		<header class="page-head">
 			<div class="page-head-copy">
-				<p class="eyebrow eyebrow-chip accent-text">Library</p>
-				<h1 id="tracks-heading" class="display-face">My Library</h1>
+				<p class="eyebrow eyebrow-chip accent-text">@{data.profile.username}</p>
+				<h1 id="tracks-heading" class="display-face">Music Library</h1>
 				<p class="intro">Upload, organize, and manage the audio in your private library.</p>
 			</div>
-			<a class="pressable" href="/library/new">Upload track</a>
+			<div class="page-head-actions">
+				<a class="pressable" href="/library/new">Upload track</a>
+				{#if maxTracks !== null}
+					{#if atTrackCap}
+						<p class="quota-upsell">
+							You've used all {maxTracks} tracks on {data.usage.planLabel}.
+							<a href="/plans">Upgrade to Premium</a>
+						</p>
+					{:else}
+						<div class="quota-meter" aria-label="Track quota">
+							<div class="meter-head">
+								<span class="meter-label">Tracks</span>
+								<span class="meter-value">{trackCount} / {maxTracks}</span>
+							</div>
+							<div
+								class="meter-track"
+								role="progressbar"
+								aria-valuenow={trackCount}
+								aria-valuemin="0"
+								aria-valuemax={maxTracks}
+								aria-label="Tracks used"
+							>
+								<span class="meter-fill" style="width: {trackFill}%"></span>
+							</div>
+						</div>
+					{/if}
+				{/if}
+			</div>
 		</header>
 
 		<LibraryDeck track={selected} />
@@ -114,8 +148,12 @@
 		flex: 1 1 16rem;
 	}
 
-	.page-head > .pressable {
+	.page-head-actions {
+		display: flex;
+		flex-direction: column;
 		flex-shrink: 0;
+		gap: 0.65rem;
+		align-items: flex-end;
 		margin-left: auto;
 	}
 
@@ -136,6 +174,65 @@
 		color: var(--muted);
 		line-height: 1.4;
 		animation: rise 0.75s ease 0.05s both;
+	}
+
+	.quota-meter {
+		width: 100%;
+		min-width: 9rem;
+		max-width: 14rem;
+		animation: rise 0.8s ease 0.08s both;
+	}
+
+	.meter-head {
+		display: flex;
+		gap: 1rem;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: 0.35rem;
+	}
+
+	.meter-label {
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.meter-value {
+		color: var(--muted);
+		font-size: 0.78rem;
+	}
+
+	.meter-track {
+		height: 0.55rem;
+		border: 1px solid var(--ink);
+		background: transparent;
+	}
+
+	.meter-fill {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+	}
+
+	.quota-upsell {
+		max-width: 14rem;
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.78rem;
+		line-height: 1.4;
+		text-align: right;
+		animation: rise 0.8s ease 0.08s both;
+	}
+
+	.quota-upsell a {
+		color: var(--ink);
+		font-weight: 700;
+		text-underline-offset: 0.15em;
+	}
+
+	.quota-upsell a:hover {
+		color: var(--accent);
 	}
 
 	.block {
@@ -210,6 +307,15 @@
 	.track-table li {
 		content-visibility: auto;
 		contain-intrinsic-size: auto 2.6rem;
+	}
+
+	/* `content-visibility: auto` paint-contains the row and clips the absolute
+	   menu; drop containment for the open row and stack it above neighbors.
+	   `.more-btn` is in LibraryTrackRow, so it must be `:global` here. */
+	.track-table li:has(:global(.more-btn[aria-expanded='true'])) {
+		position: relative;
+		z-index: 2;
+		content-visibility: visible;
 	}
 
 	@media (max-width: 960px) {

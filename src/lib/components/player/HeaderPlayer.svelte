@@ -1,6 +1,7 @@
 <script>
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
+	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconPlayerSkipBackFilled from '@tabler/icons-svelte-runes/icons/player-skip-back-filled';
@@ -9,6 +10,7 @@
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { page } from '$app/state';
 	import { player } from '#lib/player/player.svelte.js';
+	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 
 	const signedIn = $derived(Boolean(page.data.nav?.name));
@@ -162,6 +164,18 @@
 						<span class="queue-count">{player.queue.length}</span>
 					{/if}
 				</button>
+				{#if visualizer.supported}
+					<button
+						type="button"
+						class="cell icon-btn"
+						class:active={visualizer.enabled}
+						aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
+						aria-pressed={visualizer.enabled}
+						onclick={() => visualizer.toggle()}
+					>
+						<IconPlanet size={15} stroke={1.75} aria-hidden="true" />
+					</button>
+				{/if}
 			</div>
 		</div>
 

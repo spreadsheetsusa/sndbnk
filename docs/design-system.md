@@ -22,7 +22,7 @@ Defined on `:root`, overridden on `.dark`.
 | `--inverse`       | `#11110f`    | `#050504`               | inverted panels (auth intro, eyebrow chips) |
 | `--on-inverse`    | `#f2f0e8`    | `#f2f0e8`               | text on an inverted panel                   |
 | `--hard-border`   | `var(--ink)` | `var(--accent)`         | raised panel/menu edges                     |
-| `--hard-shadow`   | `var(--ink)` | accent @ 62% into black | offset block shadows on raised surfaces     |
+| `--hard-shadow`   | `var(--ink)` | accent @ 48% into black | offset block shadows on raised surfaces     |
 | `--cover-shadow`  | `var(--ink)` | ink @ 28% transparent   | offset shadows on cover art only            |
 | `--chroma-red`    | `#ff2f4f`    | `#ff5a72`               | left aberration fringe                      |
 | `--chroma-cyan`   | `#21e0ff`    | `#57e9ff`               | right aberration fringe                     |

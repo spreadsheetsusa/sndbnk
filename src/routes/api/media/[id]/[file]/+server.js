@@ -72,7 +72,7 @@ async function sliceBody(body, start, end) {
 	return bytes.subarray(start, end + 1);
 }
 
-export async function GET({ locals, params, request, setHeaders }) {
+export async function GET({ locals, params, request, setHeaders, url }) {
 	const kind = params.file;
 	if (kind !== 'audio' && kind !== 'cover') {
 		error(404, 'Not found');
@@ -97,9 +97,15 @@ export async function GET({ locals, params, request, setHeaders }) {
 		const object = await adapter.get(row.folderKey, filename);
 		const mime = resolveMime(kind, row) || object.contentType;
 
+		// ACAO so <audio crossOrigin="anonymous"> can feed MediaElementSource analysers
+		// (Milkdrop). Reflect the request origin when present; same-origin always matches.
+		const allowOrigin = request.headers.get('origin') || url.origin;
+
 		setHeaders({
 			'accept-ranges': 'bytes',
-			'cache-control': 'private, max-age=3600'
+			'cache-control': 'private, max-age=3600',
+			'access-control-allow-origin': allowOrigin,
+			vary: 'Origin'
 		});
 
 		const range = parseRange(request.headers.get('range'), object.size);

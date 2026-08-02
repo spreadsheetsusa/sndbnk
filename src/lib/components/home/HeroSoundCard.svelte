@@ -71,6 +71,10 @@
 		class:playing={isPlaying}
 		aria-label="Now featuring {track.title} by {artistLabel}"
 	>
+		{#if track.hasCover}
+			<img class="cover-bleed" src="/api/media/{track.id}/cover" alt="" aria-hidden="true" />
+		{/if}
+
 		<div class="card-topline">
 			<span>{artistLabel}</span>
 			<span>{genreLabel}</span>
@@ -146,6 +150,7 @@
 		--paper: var(--inverse);
 
 		position: relative;
+		isolation: isolate;
 		min-height: clamp(28rem, 55vw, 44rem);
 		padding: clamp(1.25rem, 3vw, 2.5rem);
 		overflow: hidden;
@@ -158,6 +163,19 @@
 		display: grid;
 		grid-template-rows: auto 1fr auto auto;
 		gap: clamp(1rem, 2.5vw, 1.5rem);
+	}
+
+	.cover-bleed {
+		position: absolute;
+		z-index: -1;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		opacity: 0.5;
+		filter: blur(14px) saturate(1.15);
+		transform: scale(1.08);
+		pointer-events: none;
 	}
 
 	.sound-card::before,

@@ -118,10 +118,7 @@
 					{/if}
 
 					{#if list.items.length === 0}
-						<p class="lede">
-							This space is ready for sound. Tracks, releases, and the rest of SNDBNK will land
-							here.
-						</p>
+						<p class="lede">No tracks have been uploaded yet.</p>
 					{/if}
 				</section>
 
@@ -173,8 +170,8 @@
 
 	{#if !data.viaTenantHost}
 		<footer>
-			<a class="logo display-face" href="/">SNDBNK</a>
-			<p>Sound belongs with the people who make it matter.</p>
+			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+			<p>© {new Date().getFullYear()} SNDBNK®. All rights reserved.</p>
 		</footer>
 	{/if}
 </div>

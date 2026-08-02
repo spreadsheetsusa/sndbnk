@@ -7,7 +7,7 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { syncStripeCustomerEmail } from '#lib/server/billing/customer';
 import { db } from '#lib/server/db';
-import { sendVerifyEmailChangeMail } from '#lib/server/mail/templates';
+import { sendResetPasswordMail, sendVerifyEmailChangeMail } from '#lib/server/mail/templates';
 
 const isLocalBase = PUBLIC_BASE_DOMAIN === 'localhost' || PUBLIC_BASE_DOMAIN === '127.0.0.1';
 
@@ -15,7 +15,14 @@ export const auth = betterAuth({
 	baseURL: ORIGIN,
 	secret: BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
-	emailAndPassword: { enabled: true },
+	emailAndPassword: {
+		enabled: true,
+		revokeSessionsOnPasswordReset: true,
+		// Fire-and-forget so timing does not leak whether the address exists.
+		sendResetPassword: async ({ user, url }) => {
+			void sendResetPasswordMail({ to: user.email, name: user.name, url });
+		}
+	},
 	user: {
 		changeEmail: { enabled: true }
 	},

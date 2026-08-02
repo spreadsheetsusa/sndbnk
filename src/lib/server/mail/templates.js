@@ -90,3 +90,22 @@ If you did not request this, you can ignore this message — your sign-in email 
 — SNDBNK`
 	});
 }
+
+/**
+ * @param {{ to: string, name: string, url: string }} input
+ */
+export function sendResetPasswordMail({ to, name, url }) {
+	return sendMail({
+		to,
+		subject: 'Reset your SNDBNK password',
+		text: `${name},
+
+Reset your SNDBNK password with this link:
+
+${url}
+
+If you did not request this, you can ignore this message — your password stays the same.
+
+— SNDBNK`
+	});
+}

@@ -72,7 +72,7 @@
 	--on-inverse: #f2f0e8;
 	/* Accent edge + darkened accent so the offset shadow tracks the chosen accent */
 	--hard-border: var(--accent);
-	--hard-shadow: color-mix(in srgb, var(--accent) 62%, black);
+	--hard-shadow: color-mix(in srgb, var(--accent) 30%, black);
 	/* Cover art stays on translucent ink so it doesn't pick up the accent tint */
 	--cover-shadow: color-mix(in srgb, var(--ink) 28%, transparent);
 	/* Scrim reads hotter against dark paper — keep the wash subtler. */

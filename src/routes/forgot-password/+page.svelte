@@ -6,13 +6,7 @@
 	import { enhance } from '$app/forms';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
-	/**
-	 * @type {{
-	 *   data: { passwordReset: boolean },
-	 *   form: { message?: string, email?: string } | null | undefined
-	 * }}
-	 */
-	let { data, form } = $props();
+	let { form } = $props();
 	let submitting = $state(false);
 
 	function handleSubmit() {
@@ -29,21 +23,21 @@
 </script>
 
 <svelte:head>
-	<title>Sign in | SNDBNK</title>
-	<meta name="description" content="Sign in to your SNDBNK account." />
+	<title>Forgot password | SNDBNK</title>
+	<meta name="description" content="Reset your SNDBNK password." />
 </svelte:head>
 
 <main class="auth-page">
-	<section class="auth-intro" aria-labelledby="signin-title">
+	<section class="auth-intro" aria-labelledby="forgot-title">
 		<div class="auth-top">
 			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
 			<ThemeToggle />
 		</div>
 		<div class="intro-copy">
-			<p class="eyebrow accent-text">Return to the signal</p>
-			<h1 id="signin-title" class="display-face">Pick up where you left off.</h1>
+			<p class="eyebrow accent-text">Account recovery</p>
+			<h1 id="forgot-title" class="display-face">Get back in.</h1>
 		</div>
-		<p class="side-note">A place for sound, the people who make it, and the people who listen.</p>
+		<p class="side-note">We will email a one-time link if that address is on file.</p>
 		<svg viewBox="0 0 600 120" role="img" aria-label="Abstract sound wave">
 			<path
 				d="M0 60 H45 L57 45 L68 76 L80 20 L94 102 L109 48 L124 70 L139 8 L154 112 L169 40 L184 81 L199 26 L214 96 L229 52 L244 67 L259 16 L274 105 L289 43 L304 78 L319 30 L334 91 L349 54 L364 65 L379 22 L394 99 L409 47 L424 73 L439 34 L454 87 L469 56 L484 64 L499 42 L514 76 L529 57 L544 63 L555 51 L566 68 L578 59 H600"
@@ -51,22 +45,20 @@
 		</svg>
 	</section>
 
-	<section class="form-panel" aria-label="Sign in form">
+	<section class="form-panel" aria-label="Forgot password form">
 		<div class="form-wrap">
-			<p class="eyebrow">Member access</p>
-			<h2>Sign in</h2>
-			<p class="form-intro">Enter your details to continue.</p>
+			<p class="eyebrow">Password reset</p>
+			<h2>Forgot password</h2>
+			<p class="form-intro">Enter the email you use to sign in.</p>
 
-			{#if data.passwordReset && !form?.message && !submitting}
+			{#if form?.success && form?.message && !submitting}
 				<div class="form-success" id="form-success" role="status" aria-live="polite">
 					<span class="form-success-icon" aria-hidden="true">
 						<IconCircleCheck size={16} stroke={1.75} />
 					</span>
-					Password updated — sign in with your new password.
+					{form.message}
 				</div>
-			{/if}
-
-			{#if form?.message && !submitting}
+			{:else if form?.message && !submitting}
 				<div class="form-error" id="form-error" role="alert" aria-live="polite">
 					<span class="form-error-icon" aria-hidden="true">
 						<IconAlertCircle size={16} stroke={1.75} />
@@ -84,37 +76,27 @@
 					value={form?.email ?? ''}
 					autocomplete="email"
 					required
-					aria-invalid={form?.message && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
-				/>
-
-				<div class="password-row">
-					<label for="password">Password</label>
-					<a class="forgot-link" href="/forgot-password">Forgot password?</a>
-				</div>
-				<input
-					id="password"
-					name="password"
-					type="password"
-					autocomplete="current-password"
-					required
-					aria-invalid={form?.message && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
+					aria-invalid={form?.message && !form?.success && !submitting ? 'true' : undefined}
+					aria-describedby={form?.message && !submitting
+						? form?.success
+							? 'form-success'
+							: 'form-error'
+						: undefined}
 				/>
 
 				<button class="pressable" type="submit" disabled={submitting}>
-					{submitting ? 'Signing in…' : 'Sign in'}
+					{submitting ? 'Sending…' : 'Send reset link'}
 					{#if !submitting}
 						<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
 					{/if}
 				</button>
 			</form>
 
-			<p class="switch-auth">New to SNDBNK? <a href="/signup">Create an account</a></p>
+			<p class="switch-auth">Remembered it? <a href="/signin">Sign in</a></p>
 		</div>
-		<a class="back-link" href="/">
+		<a class="back-link" href="/signin">
 			<IconArrowLeft size={14} stroke={1.75} aria-hidden="true" />
-			Back home
+			Back to sign in
 		</a>
 	</section>
 </main>
@@ -273,26 +255,6 @@
 		display: grid;
 	}
 
-	.password-row {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 1rem;
-		margin: 0 0 0.55rem;
-	}
-
-	.password-row label {
-		margin: 0;
-	}
-
-	.forgot-link {
-		color: var(--muted);
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-underline-offset: 0.2rem;
-	}
-
 	label {
 		margin: 0 0 0.55rem;
 		font-size: 0.7rem;
@@ -348,7 +310,12 @@
 		font-size: 0.8rem;
 	}
 
-	.switch-auth a,
+	.switch-auth a {
+		color: var(--ink);
+		font-weight: 700;
+		text-underline-offset: 0.25rem;
+	}
+
 	.back-link {
 		display: inline-flex;
 		gap: 0.35rem;
