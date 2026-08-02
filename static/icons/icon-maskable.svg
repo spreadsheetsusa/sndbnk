@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<title>SNDBNK</title>
+	<!-- Full-bleed ground; mark kept inside the ~80% maskable safe zone -->
+	<rect width="512" height="512" fill="#11110f" />
+	<path
+		d="M96 256h48l24-60 36 128 36-184 42 240 36-160 30 92 24-56h12"
+		fill="none"
+		stroke="#c8ff3d"
+		stroke-linejoin="bevel"
+		stroke-linecap="butt"
+		stroke-width="28"
+	/>
+</svg>

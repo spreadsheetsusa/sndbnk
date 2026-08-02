@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<title>SNDBNK</title>
+	<rect width="512" height="512" rx="72" fill="#11110f" />
+	<!-- Waveform mark inset slightly so it reads at 192px -->
+	<path
+		d="M64 256h56l28-72 42 152 42-216 49 280 42-188 35 108 28-64h14"
+		fill="none"
+		stroke="#c8ff3d"
+		stroke-linejoin="bevel"
+		stroke-linecap="butt"
+		stroke-width="32"
+	/>
+</svg>

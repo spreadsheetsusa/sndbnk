@@ -17,7 +17,12 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#0a0a0a" />
+	<link rel="manifest" href="/manifest.webmanifest" />
+	<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-title" content="SNDBNK" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </svelte:head>
 <div class="app-shell">
 	{@render children()}
@@ -29,5 +34,6 @@
 <style>
 	.app-shell {
 		min-height: 100vh;
+		min-height: 100dvh;
 	}
 </style>

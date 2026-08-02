@@ -310,6 +310,13 @@
 		background: var(--paper);
 	}
 
+	/* black-translucent status bar: extend paper under the notch, pad content below it */
+	@media (display-mode: standalone), (display-mode: fullscreen) {
+		.site-header {
+			padding-top: env(safe-area-inset-top, 0px);
+		}
+	}
+
 	.logo {
 		color: var(--ink);
 		font-size: clamp(1.5rem, 2.5vw, 2.1rem);

@@ -2,8 +2,9 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<meta name="theme-color" content="#141410" />
 		<script>
 			(function () {
 				try {
@@ -14,6 +15,9 @@
 						(stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 					root.classList.toggle('dark', dark);
 					root.style.colorScheme = dark ? 'dark' : 'light';
+
+					var themeColor = document.querySelector('meta[name="theme-color"]');
+					if (themeColor) themeColor.setAttribute('content', dark ? '#141410' : '#f2f0e8');
 
 					var accents = {
 						lime: { value: '#c8ff3d', onAccent: '#11110f' },

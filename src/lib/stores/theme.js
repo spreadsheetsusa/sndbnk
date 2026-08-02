@@ -2,8 +2,30 @@ import { writable } from 'svelte/store';
 
 export const STORAGE_KEY = 'theme';
 
+/** Browser chrome / installed status bar — matches `--paper` light/dark tokens. */
+const THEME_COLORS = {
+	light: '#f2f0e8',
+	dark: '#141410'
+};
+
 /** @typedef {'light' | 'dark'} Theme */
 /** @typedef {Theme | 'system'} ThemePreference */
+
+/**
+ * @param {Theme} theme
+ */
+function syncThemeColor(theme) {
+	if (typeof document === 'undefined') return;
+
+	const content = THEME_COLORS[theme];
+	let meta = document.querySelector('meta[name="theme-color"]');
+	if (!meta) {
+		meta = document.createElement('meta');
+		meta.setAttribute('name', 'theme-color');
+		document.head.appendChild(meta);
+	}
+	meta.setAttribute('content', content);
+}
 
 /**
  * @returns {ThemePreference}
@@ -96,6 +118,7 @@ export function applyTheme(theme, options = {}) {
 	const root = document.documentElement;
 	root.classList.toggle('dark', theme === 'dark');
 	root.style.colorScheme = theme;
+	syncThemeColor(theme);
 	resolvedTheme.set(theme);
 }
 

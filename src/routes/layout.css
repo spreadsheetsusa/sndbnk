@@ -120,6 +120,22 @@ body {
 	background-size: 32px 32px;
 }
 
+/* Installed PWA (Home Screen / standalone window): clear notches and home indicators. */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+	:root {
+		--safe-top: env(safe-area-inset-top, 0px);
+		--safe-right: env(safe-area-inset-right, 0px);
+		--safe-bottom: env(safe-area-inset-bottom, 0px);
+		--safe-left: env(safe-area-inset-left, 0px);
+	}
+
+	body {
+		padding-right: var(--safe-right);
+		padding-bottom: var(--safe-bottom);
+		padding-left: var(--safe-left);
+	}
+}
+
 /* Theme flips swap custom properties, which cannot animate. This class is added to
    <html> for the length of a flip so everything referencing them eases instead. */
 .theme-transition,
