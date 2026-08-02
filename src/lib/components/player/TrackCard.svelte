@@ -3,7 +3,7 @@
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
-	import IconSend from '@tabler/icons-svelte-runes/icons/send';
+	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 	import { onDestroy } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -89,6 +89,31 @@
 	let commentBusy = $state(false);
 	/** @type {string | null} */
 	let commentNote = $state(null);
+	/** @type {HTMLTextAreaElement | null} */
+	let commentField = $state(null);
+
+	const COMMENT_LINE_PX = 22;
+	const COMMENT_FIELD_MAX_LINES = 4;
+
+	function resizeCommentField() {
+		const el = commentField;
+		if (!el) return;
+		el.style.height = 'auto';
+		const styles = getComputedStyle(el);
+		const padY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+		const min = padY + COMMENT_LINE_PX;
+		const max = padY + COMMENT_LINE_PX * COMMENT_FIELD_MAX_LINES;
+		const content = el.scrollHeight;
+		el.style.height = `${Math.min(Math.max(content, min), max)}px`;
+		el.style.overflowY = content > max ? 'auto' : 'hidden';
+	}
+
+	/** @param {KeyboardEvent} event */
+	function onCommentKeydown(event) {
+		if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+		event.preventDefault();
+		/** @type {HTMLTextAreaElement} */ (event.currentTarget).form?.requestSubmit();
+	}
 
 	/** True while the pointer is over the waveform (not the whole card). */
 	let waveHovered = $state(false);
@@ -342,6 +367,7 @@
 						: 'Comment added';
 				setTimeout(() => (commentNote = null), 2500);
 				oncommented?.(data.comment);
+				queueMicrotask(resizeCommentField);
 			}
 		} finally {
 			commentBusy = false;
@@ -577,23 +603,27 @@
 				onmouseleave={() => (commentHovered = false)}
 			>
 				<Avatar src={viewerImage} name={viewerName} />
-				<input
-					type="text"
-					name="comment"
-					placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-					maxlength="1000"
-					autocomplete="off"
-					bind:value={commentBody}
-					disabled={commentBusy}
-				/>
-				<button
-					type="submit"
-					class="send-btn"
-					aria-label="Post comment"
-					disabled={commentBusy || !commentBody.trim()}
-				>
-					<IconSend size={16} stroke={1.75} aria-hidden="true" />
-				</button>
+				<div class="comment-field">
+					<textarea
+						bind:this={commentField}
+						name="comment"
+						rows="1"
+						placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+						maxlength="1000"
+						autocomplete="off"
+						bind:value={commentBody}
+						disabled={commentBusy}
+						oninput={resizeCommentField}
+						onkeydown={onCommentKeydown}></textarea>
+					<button
+						type="submit"
+						class="send-btn"
+						aria-label="Post comment"
+						disabled={commentBusy || !commentBody.trim()}
+					>
+						<IconArrowUp size={16} stroke={1.75} aria-hidden="true" />
+					</button>
+				</div>
 				{#if commentNote}
 					<span class="comment-note" role="status">{commentNote}</span>
 				{/if}
@@ -860,36 +890,59 @@
 		position: relative;
 		display: flex;
 		gap: 0.5rem;
-		align-items: center;
+		align-items: flex-end;
 	}
 
-	.comment-row input {
+	.comment-field {
+		position: relative;
 		flex: 1;
 		min-width: 0;
-		padding: 0.55rem 0.75rem;
-		border: 1px solid var(--field-border);
-		background: var(--field-surface);
-		color: var(--ink);
-		font-size: 0.85rem;
 	}
 
-	.comment-row input:focus {
+	.comment-field textarea {
+		display: block;
+		width: 100%;
+		min-height: calc(0.55rem * 2 + 1.375rem);
+		max-height: calc(0.55rem * 2 + 1.375rem * 4);
+		padding: 0.55rem 2.5rem 0.55rem 0.75rem;
+		border: 1px solid var(--field-border);
+		border-radius: 0.125rem;
+		background: var(--field-surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 0.85rem;
+		line-height: 1.375rem;
+		resize: none;
+		overflow-y: hidden;
+		transition: height 160ms ease;
+	}
+
+	.comment-field textarea:focus {
 		border-color: var(--field-border);
 		outline: none;
 	}
 
+	@media (prefers-reduced-motion: reduce) {
+		.comment-field textarea {
+			transition: none;
+		}
+	}
+
 	.send-btn {
+		position: absolute;
+		right: 0.35rem;
+		bottom: 0.35rem;
 		display: inline-flex;
-		width: 2.25rem;
-		height: 2.25rem;
+		width: 1.75rem;
+		height: 1.75rem;
 		align-items: center;
 		justify-content: center;
 		padding: 0;
-		border: 1px solid var(--ink);
-		color: var(--ink);
-		background: transparent;
+		border: none;
+		border-radius: 50%;
+		color: var(--on-accent);
+		background: var(--accent);
 		cursor: pointer;
-		flex-shrink: 0;
 	}
 
 	.send-btn :global(svg) {
@@ -897,8 +950,7 @@
 	}
 
 	.send-btn:not(:disabled):hover {
-		color: var(--on-accent);
-		background: var(--accent);
+		filter: brightness(1.08);
 	}
 
 	.send-btn:disabled {
@@ -1057,9 +1109,13 @@
 			height: var(--tap-min);
 		}
 
+		.comment-field textarea {
+			padding-right: 2.85rem;
+		}
+
 		.send-btn {
-			width: var(--tap-min);
-			height: var(--tap-min);
+			width: 2rem;
+			height: 2rem;
 		}
 
 		.marker :global(.avatar) {
