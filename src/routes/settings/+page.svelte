@@ -1368,9 +1368,12 @@
 		cursor: not-allowed;
 	}
 
+	/* Transparent buttons sit on --paper, so they need --ink rather than the
+	   --on-accent colour that only reads against the accent fill. */
 	.pressable.ghost,
 	.pressable.danger {
 		border-color: var(--hard-border);
+		color: var(--ink);
 		background: transparent;
 	}
 
