@@ -205,11 +205,12 @@
 		list-style: none;
 	}
 
-	/* Rows off-screen skip layout and paint; `auto` remembers each measured
-	   height so scrolling back up lands where it should. */
+	/* No content-visibility here: its paint containment clips the absolute
+	   ellipsis menus that open past the short row bounds. */
+	.track-table,
+	.track-table ul,
 	.track-table li {
-		content-visibility: auto;
-		contain-intrinsic-size: auto 2.6rem;
+		overflow: visible;
 	}
 
 	@media (max-width: 960px) {

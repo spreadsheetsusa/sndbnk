@@ -8,6 +8,7 @@
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { openMenu } from '#lib/ui/open-menu.svelte.js';
 
 	/**
 	 * @typedef {Object} RowTrack
@@ -37,7 +38,8 @@
 	 */
 	let { track, selected = false, onselect, ondeleted } = $props();
 
-	let menuOpen = $state(false);
+	const menuId = Symbol();
+	const menuOpen = $derived(openMenu.current === menuId);
 	let copied = $state(false);
 	let deleteBusy = $state(false);
 	let publishBusy = $state(false);
@@ -46,6 +48,14 @@
 
 	const isPlaying = $derived(player.isCurrent(track.id) && player.playing);
 	const published = $derived(publishOverride ?? track.published);
+
+	function closeMenu() {
+		openMenu.close(menuId);
+	}
+
+	function toggleMenu() {
+		openMenu.toggle(menuId);
+	}
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
 	function asPlayerTrack() {
@@ -68,7 +78,7 @@
 	}
 
 	async function copyLink() {
-		menuOpen = false;
+		closeMenu();
 		try {
 			await navigator.clipboard.writeText(`${location.origin}/tracks/${track.id}`);
 			copied = true;
@@ -80,7 +90,7 @@
 
 	function addToNextUp() {
 		player.addToQueue(asPlayerTrack());
-		menuOpen = false;
+		closeMenu();
 	}
 
 	async function togglePublished() {
@@ -104,7 +114,7 @@
 	async function deleteTrack() {
 		if (deleteBusy) return;
 		if (!confirm(`Delete “${track.title}”? This cannot be undone.`)) {
-			menuOpen = false;
+			closeMenu();
 			return;
 		}
 		deleteBusy = true;
@@ -116,7 +126,7 @@
 			}
 		} finally {
 			deleteBusy = false;
-			menuOpen = false;
+			closeMenu();
 		}
 	}
 
@@ -124,9 +134,9 @@
 	function menuClickOutside(node) {
 		/** @param {PointerEvent} event */
 		function onPointerDown(event) {
-			if (!menuOpen) return;
+			if (openMenu.current !== menuId) return;
 			const target = /** @type {Node | null} */ (event.target);
-			if (target && !node.contains(target)) menuOpen = false;
+			if (target && !node.contains(target)) closeMenu();
 		}
 		document.addEventListener('pointerdown', onPointerDown);
 		return () => document.removeEventListener('pointerdown', onPointerDown);
@@ -134,7 +144,13 @@
 
 	/** @param {KeyboardEvent} event */
 	function handleKeydown(event) {
-		if (event.key === 'Escape' && menuOpen) menuOpen = false;
+		if (event.key === 'Escape' && openMenu.current === menuId) closeMenu();
+	}
+
+	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
+	function handleMenuFocusOut(event) {
+		const next = /** @type {Node | null} */ (event.relatedTarget);
+		if (!next || !event.currentTarget.contains(next)) closeMenu();
 	}
 </script>
 
@@ -209,14 +225,14 @@
 		<span class="knob"></span>
 	</button>
 
-	<div class="menu-wrap" {@attach menuClickOutside}>
+	<div class="menu-wrap" {@attach menuClickOutside} onfocusout={handleMenuFocusOut}>
 		<button
 			type="button"
 			class="more-btn"
 			aria-label="More actions for {track.title}"
 			aria-expanded={menuOpen}
 			aria-haspopup="menu"
-			onclick={() => (menuOpen = !menuOpen)}
+			onclick={toggleMenu}
 		>
 			<IconDots size={15} stroke={1.75} aria-hidden="true" />
 		</button>
@@ -251,6 +267,12 @@
 		align-items: center;
 		padding: 0.3rem 0.5rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+	}
+
+	/* Lift the open row above following siblings so the menu is not covered. */
+	.row:has(.menu) {
+		position: relative;
+		z-index: 40;
 	}
 
 	.row:hover {

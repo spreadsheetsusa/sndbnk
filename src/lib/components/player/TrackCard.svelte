@@ -15,6 +15,7 @@
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { openMenu } from '#lib/ui/open-menu.svelte.js';
 
 	/**
 	 * @typedef {Object} TimedComment
@@ -145,7 +146,8 @@
 	 */
 	let postedComments = $state([]);
 
-	let menuOpen = $state(false);
+	const menuId = Symbol();
+	const menuOpen = $derived(openMenu.current === menuId);
 	let copied = $state(false);
 	let likeBusy = $state(false);
 	let repostBusy = $state(false);
@@ -157,6 +159,14 @@
 	const isActive = $derived(player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
 	const cardTime = $derived(isActive ? player.currentTime : 0);
+
+	function closeMenu() {
+		openMenu.close(menuId);
+	}
+
+	function toggleMenu() {
+		openMenu.toggle(menuId);
+	}
 
 	/**
 	 * Each waveform owns a Wavesurfer instance and its canvases, which a long
@@ -249,6 +259,7 @@
 	}
 
 	async function copyLink() {
+		closeMenu();
 		const url = `${location.origin}/tracks/${track.id}`;
 		try {
 			await navigator.clipboard.writeText(url);
@@ -271,7 +282,7 @@
 			}
 		} finally {
 			likeBusy = false;
-			menuOpen = false;
+			closeMenu();
 		}
 	}
 
@@ -286,19 +297,19 @@
 			}
 		} finally {
 			repostBusy = false;
-			menuOpen = false;
+			closeMenu();
 		}
 	}
 
 	function addToNextUp() {
 		player.addToQueue(asPlayerTrack());
-		menuOpen = false;
+		closeMenu();
 	}
 
 	async function deleteTrack() {
 		if (deleteBusy) return;
 		if (!confirm(`Delete “${track.title}”? This cannot be undone.`)) {
-			menuOpen = false;
+			closeMenu();
 			return;
 		}
 		deleteBusy = true;
@@ -310,7 +321,7 @@
 			}
 		} finally {
 			deleteBusy = false;
-			menuOpen = false;
+			closeMenu();
 		}
 	}
 
@@ -352,11 +363,9 @@
 	function menuClickOutside(node) {
 		/** @param {PointerEvent} event */
 		function onPointerDown(event) {
-			if (!menuOpen) return;
+			if (openMenu.current !== menuId) return;
 			const target = /** @type {Node | null} */ (event.target);
-			if (target && !node.contains(target)) {
-				menuOpen = false;
-			}
+			if (target && !node.contains(target)) closeMenu();
 		}
 		document.addEventListener('pointerdown', onPointerDown);
 		return () => {
@@ -366,15 +375,19 @@
 
 	/** @param {KeyboardEvent} event */
 	function handleKeydown(event) {
-		if (event.key === 'Escape' && menuOpen) {
-			menuOpen = false;
-		}
+		if (event.key === 'Escape' && openMenu.current === menuId) closeMenu();
 	}
 
 	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
 	function handleFocusOut(event) {
 		const next = /** @type {Node | null} */ (event.relatedTarget);
 		if (!next || !event.currentTarget.contains(next)) focusWithin = false;
+	}
+
+	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
+	function handleMenuFocusOut(event) {
+		const next = /** @type {Node | null} */ (event.relatedTarget);
+		if (!next || !event.currentTarget.contains(next)) closeMenu();
 	}
 
 	/**
@@ -451,14 +464,14 @@
 				{/if}
 			</div>
 
-			<div class="menu-wrap" {@attach menuClickOutside}>
+			<div class="menu-wrap" {@attach menuClickOutside} onfocusout={handleMenuFocusOut}>
 				<button
 					type="button"
 					class="more-btn"
 					aria-label="More actions"
 					aria-expanded={menuOpen}
 					aria-haspopup="menu"
-					onclick={() => (menuOpen = !menuOpen)}
+					onclick={toggleMenu}
 				>
 					<IconDots size={16} stroke={1.75} aria-hidden="true" />
 				</button>
@@ -617,6 +630,12 @@
 		grid-template-columns: auto 1fr;
 		gap: 1rem;
 		padding: 1rem;
+	}
+
+	/* Lift the open card above following siblings so the menu is not covered. */
+	.track-card:has(.menu) {
+		position: relative;
+		z-index: 40;
 	}
 
 	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list. */
