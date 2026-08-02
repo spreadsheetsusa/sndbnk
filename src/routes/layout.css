@@ -24,6 +24,13 @@
 	--hard-shadow: var(--ink);
 	/* Cover art keeps a neutral offset shadow (not accent-tinted) */
 	--cover-shadow: var(--ink);
+	/* Form controls: accent edge darkened + slightly desaturated */
+	--field-border: color-mix(
+		in srgb,
+		color-mix(in srgb, var(--accent) 68%, black) 78%,
+		var(--muted)
+	);
+	--field-surface: color-mix(in srgb, var(--accent) 7%, transparent);
 	/* Chromatic aberration fringes for display type */
 	--chroma-red: #ff2f4f;
 	--chroma-cyan: #21e0ff;
@@ -75,6 +82,13 @@
 	--hard-shadow: color-mix(in srgb, var(--accent) 30%, black);
 	/* Cover art stays on translucent ink so it doesn't pick up the accent tint */
 	--cover-shadow: color-mix(in srgb, var(--ink) 28%, transparent);
+	/* Darken further so field edges stay quiet against dark paper */
+	--field-border: color-mix(
+		in srgb,
+		color-mix(in srgb, var(--accent) 38%, black) 62%,
+		var(--muted)
+	);
+	--field-surface: color-mix(in srgb, var(--accent) 10%, transparent);
 	/* Scrim reads hotter against dark paper — keep the wash subtler. */
 	--track-card-wash: 0.38;
 	--chroma-red: #ff5a72;

@@ -707,10 +707,10 @@
 		height: 3rem;
 		margin-bottom: 1rem;
 		padding: 0 0.8rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		outline: none;
 	}
 

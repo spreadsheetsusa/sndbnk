@@ -268,15 +268,15 @@
 		height: 3.25rem;
 		margin-bottom: 1.35rem;
 		padding: 0 0.85rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		outline: none;
 	}
 
 	input:focus {
-		border-color: var(--ink);
+		border-color: var(--field-border);
 		box-shadow: 4px 4px 0 var(--accent);
 	}
 

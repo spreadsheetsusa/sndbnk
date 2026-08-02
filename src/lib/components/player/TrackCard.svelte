@@ -867,14 +867,14 @@
 		flex: 1;
 		min-width: 0;
 		padding: 0.55rem 0.75rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
-		background: var(--paper);
+		border: 1px solid var(--field-border);
+		background: var(--field-surface);
 		color: var(--ink);
 		font-size: 0.85rem;
 	}
 
 	.comment-row input:focus {
-		border-color: var(--ink);
+		border-color: var(--field-border);
 		outline: none;
 	}
 

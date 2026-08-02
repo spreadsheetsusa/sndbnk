@@ -245,9 +245,9 @@
 	.hex-row input {
 		width: 6rem;
 		padding: 0.25rem 0.4rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		color: var(--ink);
-		background: var(--paper);
+		background: var(--field-surface);
 		font-family: inherit;
 		font-size: 0.7rem;
 		font-weight: 700;

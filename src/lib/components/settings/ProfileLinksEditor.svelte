@@ -221,17 +221,17 @@
 		min-width: 0;
 		margin: 0;
 		padding: 0 0.6rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 45%, transparent);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		font-size: 0.85rem;
 		outline: none;
 	}
 
 	.link-row input:focus,
 	.link-row select:focus {
-		border-color: var(--ink);
+		border-color: var(--field-border);
 		box-shadow: 3px 3px 0 var(--accent);
 	}
 
@@ -242,7 +242,7 @@
 		width: 2.4rem;
 		height: 2.75rem;
 		padding: 0;
-		border: 1px solid color-mix(in srgb, var(--ink) 45%, transparent);
+		border: 1px solid var(--field-border);
 		color: var(--ink);
 		background: transparent;
 		cursor: pointer;

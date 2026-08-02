@@ -12,23 +12,25 @@ blocks.
 
 Defined on `:root`, overridden on `.dark`.
 
-| Token             | Light        | Dark                    | Use                                         |
-| ----------------- | ------------ | ----------------------- | ------------------------------------------- |
-| `--accent`        | `#c8ff3d`    | inherited               | CTA fills, waveform progress, focus glow    |
-| `--on-accent`     | `#11110f`    | inherited               | text on an accent fill                      |
-| `--ink`           | `#11110f`    | `#f2f0e8`               | text, borders, shadows                      |
-| `--paper`         | `#f2f0e8`    | `#141410`               | page background                             |
-| `--muted`         | `#696861`    | `#a8a69c`               | secondary copy                              |
-| `--inverse`       | `#11110f`    | `#050504`               | inverted panels (auth intro, eyebrow chips) |
-| `--on-inverse`    | `#f2f0e8`    | `#f2f0e8`               | text on an inverted panel                   |
-| `--hard-border`   | `var(--ink)` | `var(--accent)`         | raised panel/menu edges                     |
-| `--hard-shadow`   | `var(--ink)` | accent @ 48% into black | offset block shadows on raised surfaces     |
-| `--cover-shadow`  | `var(--ink)` | ink @ 28% transparent   | offset shadows on cover art only            |
-| `--chroma-red`    | `#ff2f4f`    | `#ff5a72`               | left aberration fringe                      |
-| `--chroma-cyan`   | `#21e0ff`    | `#57e9ff`               | right aberration fringe                     |
-| `--chroma-offset` | `0.022em`    | —                       | heading fringe distance                     |
-| `--glitch-offset` | `0.075em`    | —                       | hover glitch fringe distance                |
-| `--glitch-blend`  | `multiply`   | `screen`                | blend mode for glitch copies                |
+| Token             | Light                   | Dark                     | Use                                         |
+| ----------------- | ----------------------- | ------------------------ | ------------------------------------------- |
+| `--accent`        | `#c8ff3d`               | inherited                | CTA fills, waveform progress, focus glow    |
+| `--on-accent`     | `#11110f`               | inherited                | text on an accent fill                      |
+| `--ink`           | `#11110f`               | `#f2f0e8`                | text, borders, shadows                      |
+| `--paper`         | `#f2f0e8`               | `#141410`                | page background                             |
+| `--muted`         | `#696861`               | `#a8a69c`                | secondary copy                              |
+| `--inverse`       | `#11110f`               | `#050504`                | inverted panels (auth intro, eyebrow chips) |
+| `--on-inverse`    | `#f2f0e8`               | `#f2f0e8`                | text on an inverted panel                   |
+| `--hard-border`   | `var(--ink)`            | `var(--accent)`          | raised panel/menu edges                     |
+| `--hard-shadow`   | `var(--ink)`            | accent @ 48% into black  | offset block shadows on raised surfaces     |
+| `--cover-shadow`  | `var(--ink)`            | ink @ 28% transparent    | offset shadows on cover art only            |
+| `--field-border`  | accent darkened + muted | same recipe, darker mix  | resting borders on inputs/textareas/selects |
+| `--field-surface` | accent @ 7% transparent | accent @ 10% transparent | light wash behind form controls             |
+| `--chroma-red`    | `#ff2f4f`               | `#ff5a72`                | left aberration fringe                      |
+| `--chroma-cyan`   | `#21e0ff`               | `#57e9ff`                | right aberration fringe                     |
+| `--chroma-offset` | `0.022em`               | —                        | heading fringe distance                     |
+| `--glitch-offset` | `0.075em`               | —                        | hover glitch fringe distance                |
+| `--glitch-blend`  | `multiply`              | `screen`                 | blend mode for glitch copies                |
 
 Layout rail:
 
@@ -177,8 +179,10 @@ inherits this automatically through the global rule — but if you add JS-driven
   `<SiteHeader --site-header-gap="0" />`.
 - **Focus is never removed.** `:focus-visible` gets a `2px solid var(--ink)` outline with `3px`
   offset globally; if you restyle focus, keep it at least that visible.
-- **Inputs and buttons are square** — `border-radius: 0`, `1px solid var(--ink)`. Inputs show focus
-  as `box-shadow: 4px 4px 0 var(--accent)`.
+- **Inputs and buttons are square** — `border-radius: 0`. Text controls rest on
+  `1px solid var(--field-border)` with `background: var(--field-surface)` so they pick up the
+  accent without competing with CTAs; buttons stay on ink / `--hard-border`. Inputs show focus as
+  `box-shadow: 4px 4px 0 var(--accent)`.
 
 ## Waveforms
 

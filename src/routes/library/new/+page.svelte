@@ -566,10 +566,10 @@
 		width: 100%;
 		margin-bottom: 0.35rem;
 		padding: 0 0.85rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		outline: none;
 	}
 

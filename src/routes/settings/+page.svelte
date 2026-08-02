@@ -295,11 +295,20 @@
 					use:enhance={busyHandler('profile')}
 				>
 					<label for="name">Display name</label>
-					<input id="name" name="name" type="text" value={nameValue} autocomplete="name" required />
+					<input
+						id="name"
+						class="field-md"
+						name="name"
+						type="text"
+						value={nameValue}
+						autocomplete="name"
+						required
+					/>
 
 					<label for="username">Username</label>
 					<input
 						id="username"
+						class="field-md"
 						name="username"
 						type="text"
 						value={usernameValue}
@@ -317,7 +326,7 @@
 					<label for="bio">Bio</label>
 					<textarea
 						id="bio"
-						class="bio"
+						class="bio field-full"
 						name="bio"
 						rows="4"
 						maxlength={data.limits.bio}
@@ -329,6 +338,7 @@
 					<label for="location">Location</label>
 					<input
 						id="location"
+						class="field-sm"
 						name="location"
 						type="text"
 						value={locationValue}
@@ -374,6 +384,7 @@
 						<label for="newEmail">New email</label>
 						<input
 							id="newEmail"
+							class="field-lg"
 							name="newEmail"
 							type="email"
 							value={newEmailValue}
@@ -385,6 +396,7 @@
 						<label for="confirmEmail">Confirm new email</label>
 						<input
 							id="confirmEmail"
+							class="field-lg"
 							name="confirmEmail"
 							type="email"
 							value={newEmailValue}
@@ -395,6 +407,7 @@
 						<label for="emailPassword">Current password</label>
 						<input
 							id="emailPassword"
+							class="field-md"
 							name="password"
 							type="password"
 							autocomplete="current-password"
@@ -613,6 +626,7 @@
 						<label for="customDomain">Custom domain</label>
 						<input
 							id="customDomain"
+							class="field-lg"
 							name="customDomain"
 							type="text"
 							value={domainValue}
@@ -739,32 +753,40 @@
 					</fieldset>
 
 					{#if isSshAdapter}
-						<label for="sshHost">SSH host</label>
-						<input
-							id="sshHost"
-							name="sshHost"
-							type="text"
-							value={sshHostValue}
-							placeholder="files.example.com"
-							autocapitalize="none"
-							spellcheck="false"
-							required
-						/>
-
-						<label for="sshPort">SSH port</label>
-						<input
-							id="sshPort"
-							name="sshPort"
-							type="number"
-							value={sshPortValue}
-							min="1"
-							max="65535"
-							required
-						/>
+						<div class="field-row">
+							<div class="field-cell">
+								<label for="sshHost">SSH host</label>
+								<input
+									id="sshHost"
+									class="field-md"
+									name="sshHost"
+									type="text"
+									value={sshHostValue}
+									placeholder="files.example.com"
+									autocapitalize="none"
+									spellcheck="false"
+									required
+								/>
+							</div>
+							<div class="field-cell field-cell-xs">
+								<label for="sshPort">SSH port</label>
+								<input
+									id="sshPort"
+									class="field-xs"
+									name="sshPort"
+									type="number"
+									value={sshPortValue}
+									min="1"
+									max="65535"
+									required
+								/>
+							</div>
+						</div>
 
 						<label for="sshUsername">SSH username</label>
 						<input
 							id="sshUsername"
+							class="field-md"
 							name="sshUsername"
 							type="text"
 							value={sshUsernameValue}
@@ -776,6 +798,7 @@
 						<label for="sshRemotePath">Remote path</label>
 						<input
 							id="sshRemotePath"
+							class="field-full"
 							name="sshRemotePath"
 							type="text"
 							value={sshRemotePathValue}
@@ -789,6 +812,7 @@
 						<label for="sshPrivateKey">SSH private key</label>
 						<textarea
 							id="sshPrivateKey"
+							class="field-full"
 							name="sshPrivateKey"
 							rows="6"
 							placeholder={data.storage.hasPrivateKey
@@ -798,7 +822,13 @@
 							autocapitalize="none"></textarea>
 
 						<label for="sshPassphrase">Key passphrase</label>
-						<input id="sshPassphrase" name="sshPassphrase" type="password" autocomplete="off" />
+						<input
+							id="sshPassphrase"
+							class="field-md"
+							name="sshPassphrase"
+							type="password"
+							autocomplete="off"
+						/>
 						<p class="hint">Optional. Only needed if your private key is encrypted.</p>
 
 						{#if data.storage.hasPassphrase}
@@ -949,19 +979,19 @@
 		text-transform: uppercase;
 	}
 
-	input {
-		width: 100%;
+	input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']) {
+		max-width: 100%;
 		height: 3.1rem;
 		margin-bottom: 0.35rem;
 		padding: 0 0.85rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		outline: none;
 	}
 
-	input:focus {
+	input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):focus {
 		box-shadow: 4px 4px 0 var(--accent);
 	}
 
@@ -971,14 +1001,14 @@
 	}
 
 	textarea {
-		width: 100%;
+		max-width: 100%;
 		min-height: 8rem;
 		margin-bottom: 0.35rem;
 		padding: 0.75rem 0.85rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 0.82rem;
 		line-height: 1.45;
@@ -994,6 +1024,56 @@
 		min-height: 6rem;
 		font-family: inherit;
 		font-size: 0.95rem;
+	}
+
+	.field-xs {
+		width: 5.5rem;
+		max-width: min(5.5rem, 100%);
+	}
+
+	.field-sm {
+		width: 15rem;
+		max-width: min(15rem, 100%);
+	}
+
+	.field-md {
+		width: 21rem;
+		max-width: min(21rem, 100%);
+	}
+
+	.field-lg {
+		width: 26rem;
+		max-width: min(26rem, 100%);
+	}
+
+	.field-full {
+		width: 100%;
+		max-width: 100%;
+	}
+
+	.field-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem 1rem;
+		align-items: end;
+		margin-bottom: 0;
+	}
+
+	.field-cell {
+		display: grid;
+		min-width: 0;
+	}
+
+	.field-cell label {
+		margin-bottom: 0.5rem;
+	}
+
+	.field-cell input {
+		margin-bottom: 0.35rem;
+	}
+
+	.field-cell-xs {
+		flex: 0 0 auto;
 	}
 
 	.avatar-block {
@@ -1523,6 +1603,19 @@
 		.url-row {
 			grid-template-columns: 1fr;
 			gap: 0.2rem;
+		}
+
+		.field-xs,
+		.field-sm,
+		.field-md,
+		.field-lg {
+			width: 100%;
+			max-width: 100%;
+		}
+
+		.field-row {
+			flex-direction: column;
+			align-items: stretch;
 		}
 	}
 

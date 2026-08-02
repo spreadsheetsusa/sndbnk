@@ -97,8 +97,8 @@
 			<section class="manifesto" aria-label="Our intention">
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">
-					A few twists on what we all know. SNDBNK is aiming to be a collection of audio tools with
-					a bunch of lines blurred.
+					Starting from what we know and are familiar with and taking it for a ride. Things will get
+					weird here. SNDBNK is an Audio Multi-Tool built for vibes.
 				</p>
 				<span class="manifesto-mark" aria-hidden="true">///</span>
 			</section>

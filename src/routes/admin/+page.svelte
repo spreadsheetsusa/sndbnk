@@ -787,10 +787,10 @@
 	textarea {
 		width: 100%;
 		padding: 0.6rem 0.7rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--field-border);
 		border-radius: 0;
 		color: var(--ink);
-		background: transparent;
+		background: var(--field-surface);
 		font-family: inherit;
 		font-size: 0.85rem;
 		outline: none;
