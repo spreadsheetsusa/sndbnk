@@ -1,5 +1,4 @@
 <script>
-	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
@@ -447,46 +446,20 @@
 				{/if}
 			</button>
 
-			<div class="titles">
-				{#if track.username}
-					<a class="artist" href="{linkBase}/users/{track.username}">
-						{track.artist || track.uploaderName}
-					</a>
-				{:else}
-					<span class="artist">{track.artist || track.uploaderName}</span>
-				{/if}
-				<a class="title" href="/tracks/{track.id}">{track.title}</a>
-			</div>
-
-			<div class="aside">
-				{#if track.repostedAt}
-					<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
-						<IconRepeat size={12} stroke={2} aria-hidden="true" />
-						{#if track.repostedByUsername}
-							Reposted by @{track.repostedByUsername}
-						{:else}
-							Reposted
-						{/if}
-					</span>
-				{/if}
-				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
-					{relativeTime(track.createdAt)}
-				</span>
-				{#if track.genre}
-					<span class="tag"># {track.genre}</span>
-				{/if}
-			</div>
-
 			<div class="menu-wrap" {@attach menuClickOutside}>
 				<button
 					type="button"
 					class="more-btn"
-					aria-label="More actions"
+					aria-label="More actions for {track.title}"
 					aria-expanded={menuOpen}
 					aria-haspopup="menu"
 					onclick={() => (menuOpen = !menuOpen)}
 				>
-					<IconDots size={16} stroke={1.75} aria-hidden="true" />
+					{#if track.hasCover}
+						<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
+					{:else}
+						<span class="cover-thumb-placeholder" aria-hidden="true"></span>
+					{/if}
 				</button>
 
 				{#if menuOpen}
@@ -534,6 +507,36 @@
 							</button>
 						{/if}
 					</div>
+				{/if}
+			</div>
+
+			<div class="titles">
+				{#if track.username}
+					<a class="artist" href="{linkBase}/users/{track.username}">
+						{track.artist || track.uploaderName}
+					</a>
+				{:else}
+					<span class="artist">{track.artist || track.uploaderName}</span>
+				{/if}
+				<a class="title" href="/tracks/{track.id}">{track.title}</a>
+			</div>
+
+			<div class="aside">
+				{#if track.repostedAt}
+					<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
+						<IconRepeat size={12} stroke={2} aria-hidden="true" />
+						{#if track.repostedByUsername}
+							Reposted by @{track.repostedByUsername}
+						{:else}
+							Reposted
+						{/if}
+					</span>
+				{/if}
+				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
+					{relativeTime(track.createdAt)}
+				</span>
+				{#if track.genre}
+					<span class="tag"># {track.genre}</span>
 				{/if}
 			</div>
 		</div>
@@ -975,34 +978,56 @@
 	}
 
 	.more-btn {
-		display: inline-flex;
-		width: 2rem;
-		height: 2rem;
-		align-items: center;
-		justify-content: center;
+		position: relative;
+		display: block;
+		width: 2.75rem;
+		height: 2.75rem;
 		padding: 0;
-		border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
+		overflow: hidden;
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
 		background: transparent;
-		color: var(--ink);
 		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.more-btn img,
+	.cover-thumb-placeholder {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.cover-thumb-placeholder {
+		background:
+			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			var(--paper);
+		background-size: 8px 8px;
 	}
 
 	.more-btn:hover,
 	.more-btn[aria-expanded='true'] {
 		border-color: var(--ink);
-		color: var(--on-accent);
-		background: var(--accent);
+		outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+		outline-offset: 1px;
 	}
 
-	.more-btn :global(svg) {
-		display: block;
+	.more-btn:hover::after,
+	.more-btn[aria-expanded='true']::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--accent) 18%, transparent);
+		pointer-events: none;
 	}
 
 	.menu {
 		position: absolute;
 		z-index: 30;
 		top: calc(100% + 0.35rem);
-		right: 0;
+		left: 0;
 		display: grid;
 		min-width: 11rem;
 		padding: 0.3rem;
