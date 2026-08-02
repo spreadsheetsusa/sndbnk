@@ -382,18 +382,21 @@
 		}
 	});
 
-	// Re-render peaks if the track data changes under us.
+	// Reload peaks if the track data changes under us. setOptions({ peaks })
+	// updates decodedData but leaves the renderer's audioData stale, so the
+	// canvas keeps drawing the first track — load() is the path that re-renders.
 	$effect(() => {
 		const nextPeaks = peaks;
 		const nextDuration = durationSec;
-		if (wavesurfer) {
-			wavesurfer.setOptions({
-				peaks: [
-					nextPeaks && nextPeaks.length > 0 ? nextPeaks.map((v) => v / 100) : normalizedPeaks()
-				],
-				duration: nextDuration
-			});
-		}
+		const ws = wavesurfer;
+		if (!ws) return;
+		scrubRatio = null;
+		hoverRatio = null;
+		void ws.load(
+			'',
+			[nextPeaks && nextPeaks.length > 0 ? nextPeaks.map((v) => v / 100) : normalizedPeaks()],
+			nextDuration
+		);
 	});
 
 	// Re-resolve canvas colors when the theme or accent changes.
