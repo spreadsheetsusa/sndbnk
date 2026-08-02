@@ -9,7 +9,7 @@
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
-	import { absoluteUrl, personJsonLd, webSiteJsonLd } from '#lib/seo.js';
+	import { webSiteJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
 
@@ -35,15 +35,19 @@
 			: 'Account'
 	);
 
+	const tenantSiteName = $derived(
+		data.mode === 'tenant-profile' ? data.site?.name?.trim() || data.profile.name : null
+	);
+
 	const pageTitle = $derived(
 		data.mode === 'tenant-profile'
-			? `${data.profile.name} (@${data.profile.username}) | SNDBNK`
+			? `${tenantSiteName} (@${data.profile.username})`
 			: 'SNDBNK | A place for sound'
 	);
 
 	const pageDescription = $derived(
 		data.mode === 'tenant-profile'
-			? `${data.profile.name} on SNDBNK — a public profile for sound.`
+			? data.site?.description?.trim() || `${data.profile.name} — a public profile for sound.`
 			: 'An audio multi-tool for both artists and listeners.'
 	);
 
@@ -54,21 +58,20 @@
 	);
 
 	const seoImage = $derived(
-		data.mode === 'tenant-profile' ? (data.profile.avatarUrl ?? null) : null
+		data.mode === 'tenant-profile'
+			? (data.site?.ogImageUrl ?? data.site?.logoUrl ?? data.profile.avatarUrl ?? null)
+			: null
 	);
 
 	const seoType = $derived(data.mode === 'tenant-profile' ? 'profile' : 'website');
 
 	const seoJsonLd = $derived(
 		data.mode === 'tenant-profile'
-			? personJsonLd({
-					name: data.profile.name,
-					username: data.profile.username,
-					url: seoCanonical,
-					image: data.profile.avatarUrl
-						? absoluteUrl(data.siteOrigin, data.profile.avatarUrl)
-						: null,
-					description: pageDescription
+			? webSiteJsonLd({
+					origin: data.siteOrigin,
+					description: pageDescription,
+					name: tenantSiteName ?? data.profile.name,
+					logo: data.site?.logoUrl ?? data.profile.avatarUrl ?? null
 				})
 			: webSiteJsonLd({ origin: data.siteOrigin, description: pageDescription })
 	);
@@ -80,6 +83,7 @@
 	canonical={seoCanonical}
 	origin={data.siteOrigin}
 	image={seoImage}
+	siteName={tenantSiteName}
 	type={seoType}
 	jsonLd={seoJsonLd}
 />

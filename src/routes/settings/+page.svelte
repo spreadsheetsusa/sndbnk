@@ -13,6 +13,7 @@
 		{ id: 'profile', label: 'Profile' },
 		{ id: 'billing', label: 'Billing' },
 		{ id: 'domain', label: 'Domain' },
+		{ id: 'site', label: 'Site' },
 		{ id: 'storage', label: 'Storage' }
 	];
 
@@ -64,6 +65,9 @@
 	let emailBusy = $state(false);
 	let billingBusy = $state(false);
 	let domainBusy = $state(false);
+	let siteBusy = $state(false);
+	let logoBusy = $state(false);
+	let ogBusy = $state(false);
 	let storageBusy = $state(false);
 	let avatarBusy = $state(false);
 
@@ -72,6 +76,8 @@
 
 	const canSubdomain = $derived(data.billing.allowSubdomain);
 	const canCustomDomain = $derived(data.billing.allowCustomDomain);
+	const canEditSite = $derived(data.billing.canEditSite);
+	const canRemoveBranding = $derived(data.billing.allowRemoveBranding);
 	const nameValue = $derived(form?.name ?? data.user.name);
 	const usernameValue = $derived(form?.username ?? data.profile.username);
 	const bioValue = $derived(form?.bio ?? data.profile.bio);
@@ -138,8 +144,16 @@
 	const sshRemotePathValue = $derived(form?.sshRemotePath ?? data.storage.sshRemotePath);
 	const isSshAdapter = $derived(selectedAdapter === 'ssh');
 
+	const siteNameValue = $derived(form?.siteName ?? data.site.name);
+	const siteDescriptionValue = $derived(form?.siteDescription ?? data.site.description);
+	/** Null until the field is touched, so the counter starts from the loaded value. */
+	let siteDescriptionTyped = $state(/** @type {number | null} */ (null));
+	const siteDescriptionLength = $derived(siteDescriptionTyped ?? siteDescriptionValue.length);
+	const accentColorValue = $derived(form?.accentColor ?? data.site.accentColor);
+	const hideBrandingValue = $derived(form?.hideBranding ?? data.site.hideBranding);
+
 	/**
-	 * @param {'profile' | 'email' | 'billing' | 'domain' | 'storage' | 'avatar'} which
+	 * @param {'profile' | 'email' | 'billing' | 'domain' | 'site' | 'logo' | 'og' | 'storage' | 'avatar'} which
 	 */
 	function busyHandler(which) {
 		return () => {
@@ -147,6 +161,9 @@
 			if (which === 'email') emailBusy = true;
 			if (which === 'billing') billingBusy = true;
 			if (which === 'domain') domainBusy = true;
+			if (which === 'site') siteBusy = true;
+			if (which === 'logo') logoBusy = true;
+			if (which === 'og') ogBusy = true;
 			if (which === 'storage') storageBusy = true;
 			if (which === 'avatar') avatarBusy = true;
 
@@ -158,6 +175,9 @@
 					if (which === 'email') emailBusy = false;
 					if (which === 'billing') billingBusy = false;
 					if (which === 'domain') domainBusy = false;
+					if (which === 'site') siteBusy = false;
+					if (which === 'logo') logoBusy = false;
+					if (which === 'og') ogBusy = false;
 					if (which === 'storage') storageBusy = false;
 					if (which === 'avatar') avatarBusy = false;
 				}
@@ -803,6 +823,212 @@
 			</div>
 		{/if}
 
+		{#if activeTab === 'site'}
+			<div class="block" role="tabpanel" id="panel-site" aria-labelledby="tab-site">
+				<div class="block-head">
+					<h2>Site</h2>
+					<p>
+						Branding for your subdomain and custom domain. Leaves your apex profile path unchanged.
+					</p>
+				</div>
+
+				{#if !canEditSite}
+					<div class="locked">
+						<p>
+							Vault unlocks site branding on
+							<span class="mono">{data.profile.username}.{data.baseDomain}</span>. Studio adds
+							custom domains and unbranded hosting.
+						</p>
+						<a class="cta pressable" href="/plans">See plans</a>
+					</div>
+				{:else}
+					{#if form?.logoMessage && !logoBusy}
+						<div class="banner error" role="alert">{form.logoMessage}</div>
+					{/if}
+					{#if form?.logoSuccess && !logoBusy}
+						<div class="banner ok" role="status">{form.logoSuccess}</div>
+					{/if}
+
+					<div class="avatar-block">
+						{#if data.site.logoUrl}
+							<img class="site-thumb" src={data.site.logoUrl} alt="" />
+						{:else}
+							<div class="site-thumb placeholder" aria-hidden="true">Logo</div>
+						{/if}
+						<div class="avatar-copy">
+							<p class="avatar-title">Site logo</p>
+							<p class="hint">
+								Used in your tenant header and as the favicon when set. JPG, PNG, or WebP up to 2MB.
+							</p>
+							<div class="avatar-actions">
+								<form
+									class="inline-form"
+									method="POST"
+									action="?/uploadSiteLogo&tab=site"
+									enctype="multipart/form-data"
+									use:enhance={busyHandler('logo')}
+								>
+									<label class="file-btn" for="siteLogo">
+										{logoBusy ? 'Uploading…' : data.site.logoUrl ? 'Replace' : 'Upload'}
+									</label>
+									<input
+										id="siteLogo"
+										class="visually-hidden"
+										name="siteLogo"
+										type="file"
+										accept="image/jpeg,image/png,image/webp"
+										disabled={logoBusy}
+										onchange={submitOnPick}
+									/>
+								</form>
+
+								{#if data.site.logoUrl}
+									<form
+										class="inline-form"
+										method="POST"
+										action="?/removeSiteLogo&tab=site"
+										use:enhance={busyHandler('logo')}
+									>
+										<button class="text-btn" type="submit" disabled={logoBusy}>Remove</button>
+									</form>
+								{/if}
+							</div>
+						</div>
+					</div>
+
+					{#if form?.ogMessage && !ogBusy}
+						<div class="banner error" role="alert">{form.ogMessage}</div>
+					{/if}
+					{#if form?.ogSuccess && !ogBusy}
+						<div class="banner ok" role="status">{form.ogSuccess}</div>
+					{/if}
+
+					<div class="avatar-block">
+						{#if data.site.ogImageUrl}
+							<img class="site-thumb wide" src={data.site.ogImageUrl} alt="" />
+						{:else}
+							<div class="site-thumb wide placeholder" aria-hidden="true">Share</div>
+						{/if}
+						<div class="avatar-copy">
+							<p class="avatar-title">Social share image</p>
+							<p class="hint">
+								Open Graph / Twitter card. Falls back to your logo, then your avatar. JPG, PNG, or
+								WebP up to 2MB.
+							</p>
+							<div class="avatar-actions">
+								<form
+									class="inline-form"
+									method="POST"
+									action="?/uploadSiteOg&tab=site"
+									enctype="multipart/form-data"
+									use:enhance={busyHandler('og')}
+								>
+									<label class="file-btn" for="siteOg">
+										{ogBusy ? 'Uploading…' : data.site.ogImageUrl ? 'Replace' : 'Upload'}
+									</label>
+									<input
+										id="siteOg"
+										class="visually-hidden"
+										name="siteOg"
+										type="file"
+										accept="image/jpeg,image/png,image/webp"
+										disabled={ogBusy}
+										onchange={submitOnPick}
+									/>
+								</form>
+
+								{#if data.site.ogImageUrl}
+									<form
+										class="inline-form"
+										method="POST"
+										action="?/removeSiteOg&tab=site"
+										use:enhance={busyHandler('og')}
+									>
+										<button class="text-btn" type="submit" disabled={ogBusy}>Remove</button>
+									</form>
+								{/if}
+							</div>
+						</div>
+					</div>
+
+					{#if form?.siteMessage && !siteBusy}
+						<div class="banner error" role="alert">{form.siteMessage}</div>
+					{/if}
+					{#if form?.siteSuccess && !siteBusy}
+						<div class="banner ok" role="status">{form.siteSuccess}</div>
+					{/if}
+
+					<form method="POST" action="?/updateSite&tab=site" use:enhance={busyHandler('site')}>
+						<label for="siteName">Site name</label>
+						<input
+							id="siteName"
+							class="field-md"
+							name="siteName"
+							type="text"
+							value={siteNameValue}
+							maxlength={data.limits.siteName}
+							placeholder={data.user.name}
+						/>
+						<p class="hint">Shown in the browser title and share cards on your tenant host.</p>
+
+						<label for="siteDescription">Site description</label>
+						<textarea
+							id="siteDescription"
+							class="field-lg"
+							name="siteDescription"
+							rows="3"
+							maxlength={data.limits.siteDescription}
+							oninput={(event) => {
+								siteDescriptionTyped = event.currentTarget.value.length;
+							}}>{siteDescriptionValue}</textarea
+						>
+						<p class="hint">
+							{siteDescriptionLength}/{data.limits.siteDescription} — used for meta description on your
+							landing page.
+						</p>
+
+						<label for="accentColor">Site accent</label>
+						<div class="accent-row">
+							<input
+								id="accentColor"
+								class="field-sm"
+								name="accentColor"
+								type="text"
+								value={accentColorValue}
+								placeholder="#C8FF00"
+								autocapitalize="none"
+								spellcheck="false"
+								pattern={'^#[0-9A-Fa-f]{6}$'}
+							/>
+							{#if accentColorValue}
+								<span class="accent-swatch" style:background={accentColorValue} aria-hidden="true"
+								></span>
+							{/if}
+						</div>
+						<p class="hint">
+							Optional hex color for your tenant host. Leave blank for the default.
+						</p>
+
+						{#if canRemoveBranding}
+							<label class="check-row">
+								<input name="hideBranding" type="checkbox" checked={hideBrandingValue} />
+								<span>Hide “Powered by SNDBNK” on my site</span>
+							</label>
+						{:else}
+							<div class="locked branding-upsell">
+								<p>Studio unlocks unbranded hosting (hide SNDBNK chrome on your site).</p>
+								<a class="cta pressable" href="/plans">See plans</a>
+							</div>
+						{/if}
+
+						<button class="pressable" type="submit" disabled={siteBusy}>
+							{siteBusy ? 'Saving…' : 'Save site settings'}
+						</button>
+					</form>
+				{/if}
+			</div>
+		{/if}
+
 		{#if activeTab === 'storage'}
 			<div class="block" role="tabpanel" id="panel-storage" aria-labelledby="tab-storage">
 				<div class="block-head">
@@ -1190,6 +1416,69 @@
 		margin-top: 1.5rem;
 		padding-bottom: 1.5rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.site-thumb {
+		flex: 0 0 auto;
+		width: 5rem;
+		height: 5rem;
+		object-fit: cover;
+		border: 1px solid var(--ink);
+		background: var(--field-surface);
+	}
+
+	.site-thumb.wide {
+		width: 8.5rem;
+		height: 5rem;
+	}
+
+	.site-thumb.placeholder {
+		display: grid;
+		place-items: center;
+		color: var(--muted);
+		font-size: 0.65rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.accent-row {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+		margin-bottom: 0.35rem;
+	}
+
+	.accent-row .field-sm {
+		margin-bottom: 0;
+	}
+
+	.accent-swatch {
+		width: 2rem;
+		height: 2rem;
+		border: 1px solid var(--ink);
+	}
+
+	.check-row {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		margin: 1.25rem 0 0.5rem;
+		font-size: 0.95rem;
+		font-weight: 500;
+		letter-spacing: 0;
+		text-transform: none;
+		cursor: pointer;
+	}
+
+	.check-row input {
+		width: 1.1rem;
+		height: 1.1rem;
+		accent-color: var(--accent);
+	}
+
+	.branding-upsell {
+		margin-bottom: 0.5rem;
 	}
 
 	.avatar-copy {

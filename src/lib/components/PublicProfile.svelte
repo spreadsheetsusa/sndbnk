@@ -22,6 +22,14 @@
 	 *     customDomain: string | null,
 	 *     customDomainStatus: string
 	 *   },
+	 *   site?: {
+	 *     name: string | null,
+	 *     description: string | null,
+	 *     logoUrl: string | null,
+	 *     ogImageUrl: string | null,
+	 *     accentColor: string | null,
+	 *     hideBranding: boolean
+	 *   } | null,
 	 *   links: Array<{ id: string, label: string, url: string }>,
 	 *   tracks: import('#lib/components/player/TrackCard.svelte').CardTrack[],
 	 *   stats: import('#lib/components/profile/ProfileSidebar.svelte').ProfileStats,
@@ -57,10 +65,21 @@
 		showReposts ? list.items : list.items.filter((track) => !track.repostedAt)
 	);
 	const linkBase = $derived(data.viaTenantHost ? data.siteOrigin : '');
+	const siteName = $derived(data.site?.name?.trim() || data.profile.name);
+	const showPoweredBy = $derived(data.viaTenantHost && !data.site?.hideBranding);
 </script>
 
 <div class="profile-page" class:tenant-host={data.viaTenantHost}>
-	{#if !data.viaTenantHost}
+	{#if data.viaTenantHost}
+		<header class="tenant-chrome">
+			<a class="tenant-brand" href="/">
+				{#if data.site?.logoUrl}
+					<img class="tenant-logo" src={data.site.logoUrl} alt="" />
+				{/if}
+				<span class="tenant-name display-face">{siteName}</span>
+			</a>
+		</header>
+	{:else}
 		<SiteHeader />
 	{/if}
 
@@ -68,7 +87,9 @@
 		<div class="profile-grid">
 			<div class="block">
 				<section class="hero" aria-labelledby="profile-name">
-					<p class="eyebrow eyebrow-chip accent-text">Public profile</p>
+					<p class="eyebrow eyebrow-chip accent-text">
+						{data.viaTenantHost ? 'Home' : 'Public profile'}
+					</p>
 					<div class="name-block">
 						<div class="signal" aria-hidden="true">
 							<svg viewBox="0 0 800 180" role="presentation" preserveAspectRatio="none">
@@ -171,6 +192,10 @@
 
 	{#if !data.viaTenantHost}
 		<SiteFooter bordered />
+	{:else if showPoweredBy}
+		<footer class="tenant-footer">
+			<a href={data.siteOrigin} rel="noopener">Powered by SNDBNK</a>
+		</footer>
 	{/if}
 </div>
 
@@ -184,7 +209,57 @@
 
 	.profile-page.tenant-host {
 		display: grid;
-		align-content: center;
+		align-content: start;
+	}
+
+	.tenant-chrome {
+		display: flex;
+		align-items: center;
+		padding: 0.85rem 0 0.5rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+	}
+
+	.tenant-brand {
+		display: inline-flex;
+		gap: 0.65rem;
+		align-items: center;
+		min-width: 0;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.tenant-logo {
+		width: 2rem;
+		height: 2rem;
+		object-fit: cover;
+		border: 1px solid var(--ink);
+	}
+
+	.tenant-name {
+		overflow: hidden;
+		font-size: 1.15rem;
+		letter-spacing: -0.02em;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.tenant-footer a {
+		color: var(--muted);
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-decoration: none;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.tenant-footer a:hover {
+		color: var(--ink);
+	}
+
+	.tenant-footer {
+		padding: 1.25rem 0 0.25rem;
+		text-align: center;
 	}
 
 	main {

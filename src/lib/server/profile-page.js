@@ -1,7 +1,9 @@
 import { ORIGIN } from '$app/env/private';
 
+import { canRemoveBranding } from '#lib/server/billing/plans';
 import { listRecentComments } from '#lib/server/feed';
 import { listLinksForUser } from '#lib/server/profile-links';
+import { getSitePublic } from '#lib/server/site';
 import { getProfileStats, isFollowing, listFansAlsoLike, listFollowers } from '#lib/server/social';
 import { buildPublicUrls, getProfileByUsername } from '#lib/server/tenant';
 import { listProfileItemsWithUploader, serializeTrackRows } from '#lib/server/tracks';
@@ -23,7 +25,7 @@ export async function loadPublicProfilePage({ username, locals }) {
 	const viaTenantHost = Boolean(locals.tenant);
 	const viewerId = locals.user?.id ?? null;
 
-	const [links, page, stats, fansAlsoLike, followers, recentComments, viewerFollows] =
+	const [links, page, stats, fansAlsoLike, followers, recentComments, viewerFollows, site] =
 		await Promise.all([
 			listLinksForUser(row.userId),
 			listProfileItemsWithUploader(row.userId, { publishedOnly: true }),
@@ -31,7 +33,8 @@ export async function loadPublicProfilePage({ username, locals }) {
 			listFansAlsoLike(row.userId, viewerId),
 			listFollowers(row.userId, viewerId),
 			listRecentComments({ creatorId: row.userId }),
-			isFollowing(viewerId, row.userId)
+			isFollowing(viewerId, row.userId),
+			getSitePublic(row.userId)
 		]);
 
 	const tracks = await serializeTrackRows(page.rows, locals.user);
@@ -49,6 +52,12 @@ export async function loadPublicProfilePage({ username, locals }) {
 			customDomain: row.customDomain,
 			customDomainStatus: row.customDomainStatus
 		},
+		site: site
+			? {
+					...site,
+					hideBranding: site.hideBranding && canRemoveBranding(row.plan)
+				}
+			: null,
 		links,
 		urls,
 		stats,

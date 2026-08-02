@@ -80,6 +80,24 @@ These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies 
 A user without a `profile` row is in a broken half-registered state. Loaders that need one
 redirect to `/signup` rather than rendering.
 
+### `site` — optional 1:1 tenant branding
+
+Keyed on `userId`, lazy-created on first Settings → Site save. Missing row means fall back to
+profile name / bio / avatar and SNDBNK defaults. Applied on subdomain and custom-domain hosts only;
+apex `/users/{username}` ignores it.
+
+| Column                            | Purpose                                                           |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `name` / `description`            | Tenant title and meta description                                 |
+| `logoFilename` / `logoMime`       | Local-disk logo (`site-logo/`); also used as favicon when set     |
+| `ogImageFilename` / `ogImageMime` | Social share image (`site-og/`); falls back to logo then avatar   |
+| `accentColor`                     | `#RRGGBB` tenant accent; null keeps listener/default accent       |
+| `hideBranding`                    | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding` |
+
+Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,
+`/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
+`hideBranding` also needs Studio+ (`canRemoveBranding`).
+
 ### `plan` — entitlement catalog
 
 Seeded by [`scripts/migrate-sqlite.js`](../scripts/migrate-sqlite.js) as Free / Vault / Studio /
@@ -96,7 +114,8 @@ Label. Admin edits copy, prices, and flags; Stripe price ids are filled by
 | `monthlyAmount` / `yearlyAmount`            | Display cents; Stripe remains charging authority               |
 
 Helpers: `canUseSubdomain`, `canUseCustomDomain`, `canUseStorageAdapters`, `canRemoveBranding`,
-`hasTeamSeats` in [`billing/plans.js`](../src/lib/server/billing/plans.js).
+`hasTeamSeats` in [`billing/plans.js`](../src/lib/server/billing/plans.js). Site edit gate lives in
+`canEditSite` ([`site.js`](../src/lib/server/site.js)).
 
 ### `storage_setting` — one per user, lazily created
 
@@ -151,6 +170,7 @@ Self-follow is rejected in `toggleFollow()` with a result object, per the no-exc
 ```mermaid
 erDiagram
   user ||--o| profile : "1:1"
+  user ||--o| site : "1:1"
   user ||--o| storage_setting : "1:1"
   user ||--o{ track : owns
   user ||--o{ session : has

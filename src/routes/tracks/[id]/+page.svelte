@@ -1,5 +1,6 @@
 <script>
 	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
@@ -12,8 +13,12 @@
 	let { data } = $props();
 
 	const artistName = $derived(data.track.artist || data.track.uploaderName);
-	const pageTitle = $derived(`${data.track.title} by ${artistName} | SNDBNK`);
-	const pageDescription = $derived(`Listen to ${data.track.title} by ${artistName} on SNDBNK.`);
+	const tenantSiteName = $derived(page.data.tenantSite?.name ?? null);
+	const siteLabel = $derived(tenantSiteName || 'SNDBNK');
+	const pageTitle = $derived(`${data.track.title} by ${artistName} | ${siteLabel}`);
+	const pageDescription = $derived(
+		`Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
+	);
 	const seoCanonical = $derived(`${data.siteOrigin}/tracks/${data.track.id}`);
 	const seoImage = $derived(data.track.hasCover ? `/api/media/${data.track.id}/cover` : null);
 	const seoJsonLd = $derived(
@@ -65,6 +70,7 @@
 	canonical={seoCanonical}
 	origin={data.siteOrigin}
 	image={seoImage}
+	siteName={tenantSiteName}
 	type="music.song"
 	jsonLd={seoJsonLd}
 />

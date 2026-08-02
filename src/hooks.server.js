@@ -31,6 +31,8 @@ const TENANT_ALLOWED_PREFIXES = [
 	'/tracks',
 	'/api/media',
 	'/api/avatar',
+	'/api/site-logo',
+	'/api/site-og',
 	'/api/tracks',
 	'/api/users'
 ];

@@ -33,7 +33,7 @@ export const plan = sqliteTable('plan', {
 		.default(false),
 	allowSubdomain: integer('allow_subdomain', { mode: 'boolean' }).notNull().default(false),
 	allowCustomDomain: integer('allow_custom_domain', { mode: 'boolean' }).notNull().default(false),
-	/** Studio+: hide SNDBNK chrome on tenant hosts when that UI ships. */
+	/** Studio+: allow hiding “Powered by SNDBNK” on tenant hosts. */
 	allowRemoveBranding: integer('allow_remove_branding', { mode: 'boolean' })
 		.notNull()
 		.default(false),
@@ -96,12 +96,53 @@ export const profile = sqliteTable('profile', {
 		.notNull()
 });
 
+/**
+ * Per-creator tenant branding for subdomain / custom-domain hosts.
+ * Lazy-created on first Settings → Site save; missing row means fall back to profile defaults.
+ */
+export const site = sqliteTable('site', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	name: text('name'),
+	description: text('description'),
+	logoFilename: text('logo_filename'),
+	logoMime: text('logo_mime'),
+	/** `#RRGGBB`; null keeps the listener/default accent. */
+	accentColor: text('accent_color'),
+	hideBranding: integer('hide_branding', { mode: 'boolean' }).notNull().default(false),
+	ogImageFilename: text('og_image_filename'),
+	ogImageMime: text('og_image_mime'),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.$defaultFn(() => new Date())
+		.notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.$defaultFn(() => new Date())
+		.$onUpdate(() => new Date())
+		.notNull()
+});
+
 export const profileRelations = relations(profile, ({ one, many }) => ({
 	user: one(user, {
 		fields: [profile.userId],
 		references: [user.id]
 	}),
-	links: many(profileLink)
+	links: many(profileLink),
+	site: one(site, {
+		fields: [profile.userId],
+		references: [site.userId]
+	})
+}));
+
+export const siteRelations = relations(site, ({ one }) => ({
+	user: one(user, {
+		fields: [site.userId],
+		references: [user.id]
+	}),
+	profile: one(profile, {
+		fields: [site.userId],
+		references: [profile.userId]
+	})
 }));
 
 export const profileLink = sqliteTable(

@@ -14,6 +14,7 @@
 	 *   canonical: string,
 	 *   origin: string,
 	 *   image?: string | null,
+	 *   siteName?: string | null,
 	 *   type?: 'website' | 'profile' | 'music.song',
 	 *   jsonLd?: Record<string, unknown> | null,
 	 *   noindex?: boolean
@@ -25,6 +26,7 @@
 		canonical,
 		origin,
 		image = null,
+		siteName = null,
 		type = 'website',
 		jsonLd = null,
 		noindex = false
@@ -33,6 +35,7 @@
 	const imagePath = $derived(image || DEFAULT_OG_IMAGE);
 	const absoluteImage = $derived(absoluteUrl(origin, imagePath));
 	const isDefaultImage = $derived(imagePath === DEFAULT_OG_IMAGE);
+	const ogSiteName = $derived(siteName?.trim() || 'SNDBNK');
 	const jsonLdText = $derived(jsonLd ? serializeJsonLd(jsonLd) : null);
 </script>
 
@@ -43,7 +46,7 @@
 		<meta name="robots" content="noindex" />
 	{/if}
 	<link rel="canonical" href={canonical} />
-	<meta property="og:site_name" content="SNDBNK" />
+	<meta property="og:site_name" content={ogSiteName} />
 	<meta property="og:type" content={type} />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />

@@ -62,7 +62,8 @@ On a tenant host the path allowlist is deliberately narrow:
 - **Passthrough:** `/_app`, `/api/auth`, `/favicon.*`, `/robots.txt`
 - **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`,
   `/api/domain-tls-check` — account surfaces only exist on the apex
-- **Allowed:** `/`, `/tracks/*`, `/api/media/*`, `/api/tracks/*`
+- **Allowed:** `/`, `/tracks/*`, `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`,
+  `/api/site-og/*`, `/api/tracks/*`, `/api/users/*`
 - `/users/{own username}` redirects to `/` so a tenant host has one canonical profile URL
 
 ### `handleBetterAuth`
@@ -82,7 +83,9 @@ Declared in [`src/app.d.ts`](../src/app.d.ts). All three fields are optional —
 
 `locals.tenant` carries `{ userId, username, plan, name, customDomain, customDomainStatus, hostKind }`
 where `hostKind` is `'subdomain' | 'custom'`. Its presence is the single signal for "render in
-tenant mode": hide the apex site header, drop the footer, serve the profile from `/`.
+tenant mode": hide the apex site header, serve the profile from `/`, and apply optional `site`
+branding (name, logo, accent, hide “Powered by SNDBNK”) from the root layout +
+[`loadPublicProfilePage()`](../src/lib/server/profile-page.js).
 
 Only `handleTenant` writes `locals.tenant`. Loaders read it, never set it.
 
@@ -131,7 +134,7 @@ src/
     signin/ signup/       auth forms
     forgot-password/      request password reset email
     reset-password/       set new password from emailed token
-    settings/             profile (incl. email change), plan, domain, storage (tabbed)
+    settings/             profile (incl. email change), plan, domain, site, storage (tabbed)
     library/              owner CRUD: list, new, [id] edit
     tracks/[id]/          public track detail
     users/[username]/     public profile by path
@@ -146,6 +149,7 @@ src/
       auth.js             better-auth instance
       db/                 schema.js, auth.schema.js (generated), index.js
       tenant.js billing/plans.js username.js domain-verify.js profile-page.js
+      site.js             tenant branding (name, logo, accent, hide branding)
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg), embed-tags.js (taglib)

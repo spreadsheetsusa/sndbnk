@@ -4,24 +4,24 @@
 
 No nested layouts, no route groups, no `+error.svelte`. One root layout and a flat set of routes.
 
-| Route                              | Auth                   | What it does                                                                  |
-| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------- |
-| `/`                                | optional               | Marketing landing on apex; the owner's public profile on a tenant host        |
-| `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                           |
-| `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                       |
-| `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`       |
-| `/settings`                        | required               | tabbed profile (incl. email change via verify link) / plan / domain / storage |
-| `/library`                         | required               | the owner's track list                                                        |
-| `/library/new`                     | required               | upload form                                                                   |
-| `/library/[id]`                    | owner only             | edit metadata, embed tags, delete                                             |
-| `/tracks/[id]`                     | public                 | track detail with waveform and comments                                       |
-| `/users/[username]`                | public                 | public profile by path                                                        |
-| `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                            |
-| `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                      |
-| `/api/tracks/[id]`                 | required               | `DELETE` a track                                                              |
-| `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                         |
-| `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                         |
-| `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                      |
+| Route                              | Auth                   | What it does                                                            |
+| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `/`                                | optional               | Marketing landing on apex; the owner's public profile on a tenant host  |
+| `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                     |
+| `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                 |
+| `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1` |
+| `/settings`                        | required               | tabbed profile (incl. email change) / plan / domain / site / storage    |
+| `/library`                         | required               | the owner's track list                                                  |
+| `/library/new`                     | required               | upload form                                                             |
+| `/library/[id]`                    | owner only             | edit metadata, embed tags, delete                                       |
+| `/tracks/[id]`                     | public                 | track detail with waveform and comments                                 |
+| `/users/[username]`                | public                 | public profile by path                                                  |
+| `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                      |
+| `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                |
+| `/api/tracks/[id]`                 | required               | `DELETE` a track                                                        |
+| `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                   |
+| `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                   |
+| `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                |
 
 `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, and
 `/api/domain-tls-check` 404 on tenant hosts. See [architecture.md](architecture.md).
@@ -45,7 +45,7 @@ holds afterwards.
 
 **Return a flat, serializable shape.** Convert `Date` to milliseconds, pick explicit fields, and
 never return a raw DB row where the page only needs three columns. `/settings` is the widest
-example: `{ user, profile, urls, baseDomain, planDetails, storageAdapters, storage }`.
+example: `{ user, profile, site, urls, baseDomain, billing, storageAdapters, storage }`.
 
 **Discriminate modes with a literal.** The root page serves two entirely different views, tagged so
 the component can branch on one field:

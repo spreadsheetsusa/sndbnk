@@ -15,10 +15,11 @@ export function absoluteUrl(origin, path) {
 }
 
 /**
- * @param {{ origin: string, description: string, name?: string }} input
+ * @param {{ origin: string, description: string, name?: string, logo?: string | null }} input
  */
-export function webSiteJsonLd({ origin, description, name = 'SNDBNK' }) {
+export function webSiteJsonLd({ origin, description, name = 'SNDBNK', logo = null }) {
 	const url = origin.replace(/\/$/, '');
+	const logoUrl = absoluteUrl(origin, logo || DEFAULT_OG_IMAGE);
 	return {
 		'@context': 'https://schema.org',
 		'@type': 'WebSite',
@@ -29,7 +30,7 @@ export function webSiteJsonLd({ origin, description, name = 'SNDBNK' }) {
 			'@type': 'Organization',
 			name,
 			url,
-			logo: absoluteUrl(origin, DEFAULT_OG_IMAGE)
+			logo: logoUrl
 		}
 	};
 }

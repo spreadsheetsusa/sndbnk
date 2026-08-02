@@ -29,6 +29,17 @@ import { billingEnabled } from '#lib/server/billing/stripe';
 import { getUsage } from '#lib/server/quota';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import {
+	MAX_SITE_DESCRIPTION_LENGTH,
+	MAX_SITE_NAME_LENGTH,
+	canEditSite,
+	getSitePublic,
+	removeSiteLogo,
+	removeSiteOgImage,
+	saveSiteLogo,
+	saveSiteOgImage,
+	updateSiteSettings
+} from '#lib/server/site';
+import {
 	STORAGE_ADAPTERS,
 	getStorageSettingPublic,
 	isEnabledAdapter,
@@ -52,6 +63,7 @@ export const load = async ({ locals }) => {
 	const urls = buildPublicUrls(row);
 	const storage = await getStorageSettingPublic(locals.user.id);
 	const links = await listLinksForUser(locals.user.id);
+	const siteSettings = await getSitePublic(locals.user.id);
 	const usage = await getUsage(locals.user.id);
 	const tier = planOrDefault(row.plan);
 	const platformAddresses = await resolvePlatformAddresses(urls.cnameTarget, PUBLIC_BASE_DOMAIN);
@@ -72,10 +84,20 @@ export const load = async ({ locals }) => {
 			customDomainStatus: row.customDomainStatus,
 			domainVerifyToken: row.domainVerifyToken
 		},
+		site: {
+			name: siteSettings?.name ?? '',
+			description: siteSettings?.description ?? '',
+			logoUrl: siteSettings?.logoUrl ?? null,
+			ogImageUrl: siteSettings?.ogImageUrl ?? null,
+			accentColor: siteSettings?.accentColor ?? '',
+			hideBranding: siteSettings?.hideBranding ?? false
+		},
 		links,
 		limits: {
 			bio: MAX_BIO_LENGTH,
-			location: MAX_LOCATION_LENGTH
+			location: MAX_LOCATION_LENGTH,
+			siteName: MAX_SITE_NAME_LENGTH,
+			siteDescription: MAX_SITE_DESCRIPTION_LENGTH
 		},
 		urls,
 		baseDomain: PUBLIC_BASE_DOMAIN,
@@ -98,7 +120,9 @@ export const load = async ({ locals }) => {
 			yearlyAmount: tier.yearlyAmount,
 			allowStorageAdapters: tier.allowStorageAdapters,
 			allowSubdomain: tier.allowSubdomain,
-			allowCustomDomain: tier.allowCustomDomain
+			allowCustomDomain: tier.allowCustomDomain,
+			allowRemoveBranding: tier.allowRemoveBranding,
+			canEditSite: canEditSite(row.plan)
 		},
 		usage,
 		plans: getPlans().map((option) => ({
@@ -473,5 +497,132 @@ export const actions = {
 		}
 
 		return { storageSuccess: 'Connection OK.' };
+	},
+
+	updateSite: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const row = await getProfileByUserId(locals.user.id);
+		if (!row) {
+			safeRedirect(302, '/signup');
+		}
+
+		const formData = await request.formData();
+		const name = formData.get('siteName')?.toString() ?? '';
+		const description = formData.get('siteDescription')?.toString() ?? '';
+		const accentColor = formData.get('accentColor')?.toString() ?? '';
+		const hideBranding = formData.get('hideBranding')?.toString() === 'on';
+
+		const result = await updateSiteSettings({
+			userId: locals.user.id,
+			plan: row.plan,
+			name,
+			description,
+			accentColor,
+			hideBranding
+		});
+
+		if (!result.ok) {
+			return fail(
+				result.message.includes('Vault') || result.message.includes('Studio') ? 403 : 400,
+				{
+					siteMessage: result.message,
+					siteName: name,
+					siteDescription: description,
+					accentColor,
+					hideBranding
+				}
+			);
+		}
+
+		return { siteSuccess: 'Site settings saved.' };
+	},
+
+	uploadSiteLogo: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const row = await getProfileByUserId(locals.user.id);
+		if (!row) {
+			safeRedirect(302, '/signup');
+		}
+
+		const formData = await request.formData();
+		const file = formData.get('siteLogo');
+
+		if (!(typeof File !== 'undefined' && file instanceof File && file.size > 0)) {
+			return fail(400, { logoMessage: 'Choose an image to upload.' });
+		}
+
+		const result = await saveSiteLogo(locals.user.id, row.plan, file);
+		if (!result.ok) {
+			return fail(400, { logoMessage: result.message });
+		}
+
+		return { logoSuccess: 'Logo updated.' };
+	},
+
+	removeSiteLogo: async ({ locals }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const row = await getProfileByUserId(locals.user.id);
+		if (!row) {
+			safeRedirect(302, '/signup');
+		}
+
+		const result = await removeSiteLogo(locals.user.id, row.plan);
+		if (!result.ok) {
+			return fail(403, { logoMessage: result.message });
+		}
+
+		return { logoSuccess: 'Logo removed.' };
+	},
+
+	uploadSiteOg: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const row = await getProfileByUserId(locals.user.id);
+		if (!row) {
+			safeRedirect(302, '/signup');
+		}
+
+		const formData = await request.formData();
+		const file = formData.get('siteOg');
+
+		if (!(typeof File !== 'undefined' && file instanceof File && file.size > 0)) {
+			return fail(400, { ogMessage: 'Choose an image to upload.' });
+		}
+
+		const result = await saveSiteOgImage(locals.user.id, row.plan, file);
+		if (!result.ok) {
+			return fail(400, { ogMessage: result.message });
+		}
+
+		return { ogSuccess: 'Social image updated.' };
+	},
+
+	removeSiteOg: async ({ locals }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const row = await getProfileByUserId(locals.user.id);
+		if (!row) {
+			safeRedirect(302, '/signup');
+		}
+
+		const result = await removeSiteOgImage(locals.user.id, row.plan);
+		if (!result.ok) {
+			return fail(403, { ogMessage: result.message });
+		}
+
+		return { ogSuccess: 'Social image removed.' };
 	}
 };
