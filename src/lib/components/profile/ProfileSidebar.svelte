@@ -1,6 +1,5 @@
 <script>
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
-	import IconMessage from '@tabler/icons-svelte-runes/icons/message';
 	import IconMusic from '@tabler/icons-svelte-runes/icons/music';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconUserPlus from '@tabler/icons-svelte-runes/icons/user-plus';
@@ -60,15 +59,7 @@
 </script>
 
 <aside class="profile-sidebar" aria-label="About {name}">
-	<section class="panel" aria-labelledby="profile-stats-heading">
-		<header class="panel-head">
-			<div class="panel-titles">
-				<p class="eyebrow">Signal</p>
-				<h2 id="profile-stats-heading">Stats</h2>
-			</div>
-			<span class="panel-meta" aria-hidden="true">@{username}</span>
-		</header>
-
+	<section class="panel" aria-label="Stats">
 		<ul class="stat-grid">
 			<li class="stat accent">
 				<IconUsers size={14} stroke={1.75} aria-hidden="true" />
@@ -124,10 +115,6 @@
 				<p class="eyebrow">Discover</p>
 				<h2 id="fans-also-like-heading">Fans Also Like</h2>
 			</div>
-			<span class="panel-meta" aria-hidden="true">
-				<IconUserPlus size={14} stroke={1.75} />
-				{padCount(fansAlsoLike.length)}
-			</span>
 		</header>
 		{#if fansAlsoLike.length === 0}
 			<p class="empty-line">Nothing to compare yet.</p>
@@ -171,10 +158,6 @@
 				<p class="eyebrow">Activity</p>
 				<h2 id="profile-comments-heading">Last Comments</h2>
 			</div>
-			<span class="panel-meta" aria-hidden="true">
-				<IconMessage size={14} stroke={1.75} />
-				{padCount(recentComments.length)}
-			</span>
 		</header>
 		{#if recentComments.length === 0}
 			<p class="empty-line">No comments yet.</p>

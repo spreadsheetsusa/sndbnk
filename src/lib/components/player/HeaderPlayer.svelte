@@ -153,7 +153,7 @@
 				{/if}
 				<button
 					type="button"
-					class="cell icon-btn"
+					class="cell icon-btn queue-btn"
 					class:active={queueOpen}
 					aria-label="Next Up queue"
 					aria-expanded={queueOpen}
@@ -432,8 +432,14 @@
 		position: relative;
 	}
 
+	/* Badge overhangs the next sibling; elevate this button so .queue-count wins. */
+	.queue-btn {
+		z-index: 1;
+	}
+
 	.queue-count {
 		position: absolute;
+		z-index: 20;
 		top: -0.4rem;
 		right: -0.4rem;
 		min-width: 1rem;

@@ -7,8 +7,6 @@ const DEFAULT_H = 360;
 const MIN_W = 280;
 const MIN_H = 200;
 const TITLE_H = 32;
-/** Milkdrop-style latency: analyse undelayed audio, delay speakers to match viz. */
-const AUDIBLE_DELAY_SEC = 0.26;
 
 /**
  * @typedef {{ x: number, y: number, w: number, h: number }} VizBounds
@@ -76,12 +74,9 @@ class Visualizer {
 	#ctx = null;
 	/** @type {MediaElementAudioSourceNode | null} */
 	#source = null;
-	/** Undelayed tap hub for butterchurn. */
+	/** Stable hub: source → output → destination (never rewired on toggle). */
 	/** @type {GainNode | null} */
 	#output = null;
-	/** Speakers hear this delayed copy so viz motion lands with the beat. */
-	/** @type {DelayNode | null} */
-	#audibleDelay = null;
 	/** @type {any} */
 	#butter = null;
 	/** @type {Record<string, unknown> | null} */
@@ -96,7 +91,7 @@ class Visualizer {
 	/** @type {(() => void) | null} */
 	#onVisibility = null;
 	/** @type {(() => void) | null} */
-	#onPlay = null;
+	#onAudioReady = null;
 
 	constructor() {
 		if (!browser) return;
@@ -110,6 +105,9 @@ class Visualizer {
 			}
 		};
 		document.addEventListener('visibilitychange', this.#onVisibility);
+		// Wire MediaElementSource as soon as the player creates <audio>, before play.
+		this.#onAudioReady = () => this.#primeAudio();
+		document.addEventListener('sndbnk:audio-ready', this.#onAudioReady);
 	}
 
 	toggle() {
@@ -123,15 +121,13 @@ class Visualizer {
 		if (!browser || !this.supported) return;
 		if (on === this.enabled) return;
 		if (on) {
-			// Create/resume AudioContext while still inside the click gesture.
+			// Resume only — never rewire the speaker path on toggle.
 			this.#primeAudio();
-			this.#setAudibleDelay(true);
 			this.enabled = true;
 			return;
 		}
 		this.enabled = false;
 		this.#teardownButter();
-		this.#setAudibleDelay(false);
 		this.ready = false;
 	}
 
@@ -144,57 +140,14 @@ class Visualizer {
 			const AC = window.AudioContext || window.webkitAudioContext;
 			this.#ctx = new AC();
 			this.#source = this.#ctx.createMediaElementSource(audioEl);
-
-			// source → output → (direct or delayed) → destination
-			//                ↘ butterchurn (always undelayed)
 			this.#output = this.#ctx.createGain();
 			this.#output.gain.value = 1;
-			this.#audibleDelay = this.#ctx.createDelay(1);
-			this.#audibleDelay.delayTime.value = AUDIBLE_DELAY_SEC;
 			this.#source.connect(this.#output);
-			// Default: no latency while the visualizer is off.
 			this.#output.connect(this.#ctx.destination);
-
-			// Chrome can auto-suspend the context mid-session with HTMLAudioElement.
-			this.#onPlay = () => {
-				if (this.#ctx?.state === 'suspended') void this.#ctx.resume();
-			};
-			audioEl.addEventListener('play', this.#onPlay);
 		}
 
 		if (this.#ctx.state === 'suspended') {
 			void this.#ctx.resume();
-		}
-	}
-
-	/**
-	 * While Milkdrop is open, delay speakers ~260ms so beat-reactive motion lands
-	 * with the audible transient (classic Winamp compensation). Off = zero latency.
-	 * @param {boolean} delayed
-	 */
-	#setAudibleDelay(delayed) {
-		if (!this.#ctx || !this.#output || !this.#audibleDelay) return;
-		try {
-			this.#output.disconnect(this.#ctx.destination);
-		} catch {
-			// Was routed through the delay node.
-		}
-		try {
-			this.#output.disconnect(this.#audibleDelay);
-		} catch {
-			// Was routed directly.
-		}
-		try {
-			this.#audibleDelay.disconnect(this.#ctx.destination);
-		} catch {
-			// Idle.
-		}
-
-		if (delayed) {
-			this.#output.connect(this.#audibleDelay);
-			this.#audibleDelay.connect(this.#ctx.destination);
-		} else {
-			this.#output.connect(this.#ctx.destination);
 		}
 	}
 
@@ -220,7 +173,6 @@ class Visualizer {
 			console.error('Milkdrop visualizer failed to start', err);
 			this.enabled = false;
 			this.#teardownButter();
-			this.#setAudibleDelay(false);
 			this.ready = false;
 		}
 	}
@@ -334,16 +286,12 @@ class Visualizer {
 		}
 	}
 
-	/** Dispose WebGL visualizer; keep AudioContext + MediaElementSource. */
+	/**
+	 * Stop rendering and drop the WebGL instance. Leave the speaker graph alone —
+	 * disconnecting fan-out taps can hitch playback.
+	 */
 	#teardownButter() {
 		this.#stopLoop();
-		if (this.#butter && this.#output) {
-			try {
-				this.#butter.disconnectAudio(this.#output);
-			} catch {
-				// Node may already be gone with the WebGL instance.
-			}
-		}
 		this.#butter = null;
 	}
 

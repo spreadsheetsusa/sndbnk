@@ -267,6 +267,8 @@ class Player {
 		});
 
 		this.#audio = el;
+		// Warm Web Audio taps before playback so the viz toggle never creates the source mid-stream.
+		document.dispatchEvent(new CustomEvent('sndbnk:audio-ready'));
 		return el;
 	}
 
