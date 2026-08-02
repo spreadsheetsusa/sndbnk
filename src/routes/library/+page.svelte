@@ -347,7 +347,7 @@
 		}
 
 		.track-table li {
-			contain-intrinsic-size: auto 3.6rem;
+			contain-intrinsic-size: auto 3.25rem;
 		}
 	}
 

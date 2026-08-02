@@ -198,16 +198,18 @@
 	</button>
 
 	<span class="cell genre">{track.genre ?? '—'}</span>
-	<span class="cell duration">{formatDuration(track.durationMs)}</span>
 
-	<span class="cell stats">
-		<span class="stat">
-			<IconHeart size={13} stroke={1.75} aria-hidden="true" />
-			{track.likeCount}
-		</span>
-		<span class="stat">
-			<IconMessageCircle size={13} stroke={1.75} aria-hidden="true" />
-			{track.commentCount}
+	<span class="meta">
+		<span class="cell duration">{formatDuration(track.durationMs)}</span>
+		<span class="cell stats">
+			<span class="stat">
+				<IconHeart size={13} stroke={1.75} aria-hidden="true" />
+				{track.likeCount}
+			</span>
+			<span class="stat">
+				<IconMessageCircle size={13} stroke={1.75} aria-hidden="true" />
+				{track.commentCount}
+			</span>
 		</span>
 	</span>
 
@@ -365,6 +367,11 @@
 		white-space: nowrap;
 	}
 
+	/* Children participate in the row grid so desktop columns stay aligned. */
+	.meta {
+		display: contents;
+	}
+
 	.duration {
 		font-variant-numeric: tabular-nums;
 		text-align: right;
@@ -503,38 +510,54 @@
 
 	@media (max-width: 640px) {
 		.row {
-			grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+			grid-template-columns: auto minmax(0, 1fr) auto auto;
 			grid-template-areas:
-				'play name name name name'
-				'. duration stats publish menu';
-			row-gap: 0.3rem;
-			padding: 0.45rem 0.5rem;
+				'play name publish menu'
+				'. meta . .';
+			column-gap: 0.45rem;
+			row-gap: 0.15rem;
+			padding: 0.4rem 0.5rem;
 		}
 
 		.play-btn {
 			grid-area: play;
+			align-self: start;
 		}
 
 		.name {
 			grid-area: name;
+			padding: 0;
+		}
+
+		.meta {
+			display: flex;
+			grid-area: meta;
+			gap: 0.55rem;
+			align-items: center;
+			min-width: 0;
+			color: var(--muted);
+			font-size: 0.7rem;
 		}
 
 		.duration {
-			grid-area: duration;
 			text-align: left;
 		}
 
 		.stats {
 			display: flex;
-			grid-area: stats;
+			gap: 0.45rem;
 		}
 
 		.publish-switch {
 			grid-area: publish;
+			align-self: start;
+			justify-self: end;
+			margin-top: 0.2rem;
 		}
 
 		.menu-wrap {
 			grid-area: menu;
+			align-self: start;
 			justify-self: end;
 		}
 
