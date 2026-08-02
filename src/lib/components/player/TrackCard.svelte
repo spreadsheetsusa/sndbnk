@@ -481,12 +481,21 @@
 				<button
 					type="button"
 					class="more-btn"
-					aria-label="More actions"
+					aria-label="More actions for {track.title}"
 					aria-expanded={menuOpen}
 					aria-haspopup="menu"
 					onclick={() => (menuOpen = !menuOpen)}
 				>
-					<IconDots size={16} stroke={1.75} aria-hidden="true" />
+					<span class="more-icon" aria-hidden="true">
+						<IconDots size={16} stroke={1.75} />
+					</span>
+					<span class="more-cover" aria-hidden="true">
+						{#if track.hasCover}
+							<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
+						{:else}
+							<span class="cover-thumb-placeholder"></span>
+						{/if}
+					</span>
 				</button>
 
 				{#if menuOpen}
@@ -694,6 +703,7 @@
 
 	.play-btn {
 		display: inline-flex;
+		order: 0;
 		width: 2.75rem;
 		height: 2.75rem;
 		align-items: center;
@@ -713,6 +723,7 @@
 
 	.titles {
 		display: flex;
+		order: 1;
 		flex-direction: column;
 		gap: 0.15rem;
 		min-width: 0;
@@ -752,6 +763,7 @@
 
 	.aside {
 		display: flex;
+		order: 2;
 		flex-direction: column;
 		gap: 0.35rem;
 		align-items: flex-end;
@@ -971,6 +983,7 @@
 
 	.menu-wrap {
 		position: relative;
+		order: 3;
 		flex-shrink: 0;
 	}
 
@@ -996,6 +1009,21 @@
 
 	.more-btn :global(svg) {
 		display: block;
+	}
+
+	.more-cover {
+		display: none;
+	}
+
+	.cover-thumb-placeholder {
+		display: block;
+		width: 100%;
+		height: 100%;
+		background:
+			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			var(--paper);
+		background-size: 8px 8px;
 	}
 
 	.menu {
@@ -1095,6 +1123,71 @@
 			height: auto;
 			aspect-ratio: 1;
 			max-width: 100%;
+		}
+
+		.menu-wrap {
+			order: 1;
+		}
+
+		.titles {
+			order: 2;
+		}
+
+		.aside {
+			order: 3;
+		}
+
+		.more-icon {
+			display: none;
+		}
+
+		.more-cover {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
+
+		.more-cover img {
+			display: block;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+
+		.more-btn {
+			position: relative;
+			display: block;
+			width: 2.75rem;
+			height: 2.75rem;
+			padding: 0;
+			overflow: hidden;
+			border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+			border-radius: 0.125rem;
+			color: inherit;
+			background: transparent;
+		}
+
+		.more-btn:hover,
+		.more-btn[aria-expanded='true'] {
+			border-color: var(--ink);
+			color: inherit;
+			background: transparent;
+			outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+			outline-offset: 1px;
+		}
+
+		.more-btn:hover::after,
+		.more-btn[aria-expanded='true']::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: color-mix(in srgb, var(--accent) 18%, transparent);
+			pointer-events: none;
+		}
+
+		.menu {
+			left: 0;
+			right: auto;
 		}
 
 		.title,
