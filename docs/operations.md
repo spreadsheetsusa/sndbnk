@@ -130,6 +130,12 @@ sudo systemctl restart sndbnk
 
 ### Caddy
 
+`/etc/caddy/Caddyfile` is a symlink to the repo `Caddyfile`. Deploy ensures
+`/var/log/caddy/sndbnk-tenant.access.log` exists and is owned by `caddy`, then
+`systemctl reload caddy` — without that log file, reload fails and the running
+process keeps a stale config (subdomains then fail TLS with
+`ERR_SSL_PROTOCOL_ERROR` even when DNS and `/api/domain-tls-check` are fine).
+
 [`Caddyfile`](../Caddyfile) defines four blocks:
 
 | Block                | Behavior                                                                        |

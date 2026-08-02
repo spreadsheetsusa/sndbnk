@@ -233,6 +233,20 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable sndbnk >/dev/null 2>&1 || true
 
+            # /etc/caddy/Caddyfile is a symlink into the repo. Tenant on-demand TLS
+            # needs the catch-all site loaded, and Caddy refuses to reload if the
+            # tenant access log path is missing or not writable by user `caddy`.
+            echo "Ensuring Caddy tenant logs + reloading config..."
+            sudo mkdir -p /var/log/caddy
+            sudo touch /var/log/caddy/sndbnk.access.log /var/log/caddy/sndbnk-tenant.access.log
+            sudo chown -R caddy:caddy /var/log/caddy
+            if systemctl is-active --quiet caddy; then
+              sudo systemctl reload caddy
+            else
+              sudo systemctl start caddy
+            fi
+            systemctl is-active caddy
+
             echo "Ensuring ffmpeg is available for waveform generation..."
             if ! command -v ffmpeg >/dev/null 2>&1; then
               sudo apt-get update

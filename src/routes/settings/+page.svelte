@@ -87,6 +87,50 @@
 	const domainValue = $derived(form?.customDomain ?? data.profile.customDomain ?? '');
 	const platformAddresses = $derived(data.domainDns?.platformAddresses ?? []);
 	const dnsIsApex = $derived(Boolean(data.domainDns?.apexDomain));
+
+	/** @type {Record<string, string>} */
+	const DOMAIN_STATUS_COPY = {
+		active: 'Live',
+		pending: 'Pending',
+		none: 'Not set'
+	};
+
+	const domainStatusLabel = $derived(
+		DOMAIN_STATUS_COPY[data.profile.customDomainStatus] ?? data.profile.customDomainStatus
+	);
+
+	const dnsRecords = $derived.by(() => {
+		const domain = data.profile.customDomain;
+		const token = data.profile.domainVerifyToken;
+		if (!domain || !token) return [];
+
+		/** @type {{ type: string, host: string, values: string[] }[]} */
+		const rows = [
+			{
+				type: 'TXT',
+				host: `_sndbnk-verify.${domain}`,
+				values: [token]
+			}
+		];
+
+		if (dnsIsApex) {
+			rows.push({
+				type: 'A',
+				host: '@',
+				values:
+					platformAddresses.length > 0 ? platformAddresses : [`Same IPs as ${data.baseDomain}`]
+			});
+		} else {
+			rows.push({
+				type: 'CNAME',
+				host: domain,
+				values: [data.urls.cnameTarget]
+			});
+		}
+
+		return rows;
+	});
+
 	const selectedAdapter = $derived(userAdapter ?? form?.adapter ?? data.storage.adapter);
 	const sshHostValue = $derived(form?.sshHost ?? data.storage.sshHost);
 	const sshPortValue = $derived(form?.sshPort ?? String(data.storage.sshPort ?? 22));
@@ -675,57 +719,55 @@
 
 					{#if data.profile.customDomain && data.profile.domainVerifyToken}
 						<div class="dns-box" aria-label="DNS instructions">
-							<p class="eyebrow">DNS setup</p>
-							<p>
-								Status:
-								<strong class="status-{data.profile.customDomainStatus}">
-									{data.profile.customDomainStatus}
-								</strong>
-							</p>
-							<ol>
-								<li>
-									TXT <code>_sndbnk-verify.{data.profile.customDomain}</code> →
-									<code>{data.profile.domainVerifyToken}</code>
-								</li>
-								{#if dnsIsApex}
-									<li>
-										Apex hosts usually cannot use a CNAME. Create an A record (and AAAA if you have
-										IPv6) for <code>{data.profile.customDomain}</code>
-										{#if platformAddresses.length > 0}
-											→
-											{#each platformAddresses as address, i (address)}
-												<code>{address}</code>{i < platformAddresses.length - 1 ? ', ' : ''}
-											{/each}
-											, or an ALIAS/ANAME to <code>{data.urls.cnameTarget}</code> if your DNS provider
-											supports it.
-										{:else}
-											pointing at the same addresses as
-											<code>{data.baseDomain}</code>, or an ALIAS/ANAME to
-											<code>{data.urls.cnameTarget}</code>.
-										{/if}
-									</li>
-								{:else}
-									<li>
-										CNAME <code>{data.profile.customDomain}</code> →
-										<code>{data.urls.cnameTarget}</code>
-										{#if platformAddresses.length > 0}
-											(or A/AAAA →
-											{#each platformAddresses as address, i (address)}
-												<code>{address}</code>{i < platformAddresses.length - 1 ? ', ' : ''}
-											{/each})
-										{/if}
-									</li>
-								{/if}
-							</ol>
-							<p class="hint">
-								DNS can take a few minutes. After the records propagate, verify below. Route 53 and
-								most registrars block CNAME at the zone apex — use A/AAAA or ALIAS there instead.
-								{#if dnsIsApex}
-									Once active, <code>www.{data.profile.customDomain}</code> is accepted too if it
-									points at the same place (point www with a CNAME to
-									<code>{data.urls.cnameTarget}</code> or the same A/AAAA values).
-								{/if}
-							</p>
+							<div class="dns-head">
+								<h3>Connect your domain</h3>
+								<p class="status status-{data.profile.customDomainStatus}">{domainStatusLabel}</p>
+							</div>
+
+							{#if data.profile.customDomainStatus === 'active'}
+								<p class="dns-lead">
+									<strong class="mono">{data.profile.customDomain}</strong> is live on SNDBNK.
+								</p>
+							{:else}
+								<p class="dns-lead">
+									Add both records at your DNS host, then hit verify.
+									<span class="dns-note">Usually live within a few minutes.</span>
+								</p>
+							{/if}
+
+							<table class="dns-table" aria-label="DNS records to add">
+								<thead>
+									<tr class="dns-row dns-row-head">
+										<th scope="col">Type</th>
+										<th scope="col">Host</th>
+										<th scope="col">Value</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each dnsRecords as row (row.type + row.host)}
+										<tr class="dns-row">
+											<td class="dns-type">{row.type}</td>
+											<td>
+												<code class="dns-cell">{row.host}</code>
+											</td>
+											<td class="dns-values">
+												{#each row.values as value (value)}
+													<code class="dns-cell">{value}</code>
+												{/each}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+
+							{#if dnsIsApex}
+								<p class="hint dns-optional">
+									<code>@</code> is the apex for <code>{data.profile.customDomain}</code>. Want www
+									too? Same A values, or CNAME <code>www</code> →
+									<code>{data.urls.cnameTarget}</code> — we accept it automatically once you’re live.
+								</p>
+							{/if}
+
 							<div class="dns-actions">
 								<form
 									method="POST"
@@ -733,7 +775,11 @@
 									use:enhance={busyHandler('domain')}
 								>
 									<button class="pressable" type="submit" disabled={domainBusy}>
-										{domainBusy ? 'Checking…' : 'Verify DNS'}
+										{domainBusy
+											? 'Checking…'
+											: data.profile.customDomainStatus === 'active'
+												? 'Re-check DNS'
+												: 'Verify DNS'}
 									</button>
 								</form>
 								<form
@@ -1574,48 +1620,133 @@
 
 	.dns-box {
 		margin-top: 1.75rem;
-		padding: 1.25rem;
-		border: 1px solid var(--ink);
-		background: color-mix(in srgb, var(--ink) 3%, transparent);
+		padding: 1.35rem;
+		border: 1px solid var(--hard-border);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
+		box-shadow: 6px 6px 0 var(--hard-shadow);
 	}
 
-	.dns-box ol {
-		margin: 0.75rem 0;
-		padding-left: 1.2rem;
+	.dns-head {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem 1rem;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 0.85rem;
+	}
+
+	.dns-head h3 {
+		margin: 0;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: 1.35rem;
+		font-weight: 400;
+		letter-spacing: -0.02em;
+		line-height: 1.1;
+	}
+
+	.dns-lead {
+		margin: 0 0 1.1rem;
 		font-size: 0.9rem;
-		line-height: 1.55;
+		font-weight: 700;
+		line-height: 1.45;
 	}
 
-	.dns-box code {
-		padding: 0.1rem 0.3rem;
+	.dns-note {
+		display: inline;
+		margin-left: 0.35rem;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+	}
+
+	.dns-table {
+		width: 100%;
+		border-collapse: collapse;
+		border: 1px solid var(--ink);
 		background: var(--paper);
+	}
+
+	.dns-row th,
+	.dns-row td {
+		padding: 0.7rem 0.85rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+		text-align: left;
+		vertical-align: top;
+	}
+
+	.dns-row:first-child th {
+		border-top: 0;
+	}
+
+	.dns-row-head th {
+		padding-top: 0.55rem;
+		padding-bottom: 0.55rem;
+		background: color-mix(in srgb, var(--ink) 5%, transparent);
+		color: var(--muted);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.dns-type {
+		width: 4.5rem;
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.dns-values {
+		display: grid;
+		gap: 0.35rem;
+		min-width: 0;
+	}
+
+	.dns-cell {
+		display: block;
+		min-width: 0;
+		padding: 0.2rem 0.35rem;
 		border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-		font-size: 0.8rem;
+		background: color-mix(in srgb, var(--ink) 3%, transparent);
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.78rem;
+		font-weight: 600;
+		line-height: 1.35;
 		word-break: break-all;
+		user-select: all;
 	}
 
-	.status-pending {
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+	.dns-optional {
+		margin: 0.85rem 0 0;
 	}
 
-	.status-active {
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--on-accent);
-		background: var(--accent);
-		padding: 0.05rem 0.35rem;
+	.dns-optional code {
+		padding: 0.05rem 0.25rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		background: var(--paper);
+		font-size: 0.72rem;
+		word-break: break-all;
+		user-select: all;
 	}
 
-	.status-none {
-		text-transform: uppercase;
+	.dns-box .status-pending {
+		border-color: var(--accent);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--accent) 18%, transparent);
+	}
+
+	.dns-box .status-none {
+		color: var(--muted);
+		background: transparent;
 	}
 
 	.dns-actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
-		margin-top: 0.5rem;
+		margin-top: 1.1rem;
 	}
 
 	.dns-actions form {
@@ -1667,6 +1798,39 @@
 		.url-row {
 			grid-template-columns: 1fr;
 			gap: 0.2rem;
+		}
+
+		.dns-row,
+		.dns-row th,
+		.dns-row td {
+			display: block;
+			width: 100%;
+		}
+
+		.dns-row-head {
+			display: none;
+		}
+
+		.dns-row td {
+			padding: 0.35rem 0.85rem;
+			border-top: 0;
+		}
+
+		.dns-row td:first-child {
+			padding-top: 0.7rem;
+			border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+		}
+
+		.dns-row td:last-child {
+			padding-bottom: 0.7rem;
+		}
+
+		.dns-row:first-child td:first-child {
+			border-top: 0;
+		}
+
+		.dns-type {
+			width: auto;
 		}
 
 		.field-xs,
