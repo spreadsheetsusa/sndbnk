@@ -2,10 +2,15 @@ import { and, count, countDistinct, desc, eq, isNotNull, isNull, ne, sql } from 
 
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
-import { getSocialForTracks } from '#lib/server/tracks';
+import {
+	getSocialForTracks,
+	getTrackWithUploader,
+	serializeTrackForPlayer
+} from '#lib/server/tracks';
 
 const SHOWCASE_LIMIT = 16;
 const SHOWCASE_MIN_WITH_COVERS = 8;
+const HERO_POOL_SIZE = 12;
 
 /**
  * @param {number} limit
@@ -68,6 +73,62 @@ export async function listShowcaseTracks(limit = SHOWCASE_LIMIT) {
 		uploaderName: row.uploaderName ?? row.username ?? 'Unknown',
 		likeCount: social.get(row.id)?.likeCount ?? 0
 	}));
+}
+
+/**
+ * Top liked published track ids for the hero player, cover art preferred.
+ * Falls back to newest published with a cover when nobody has likes yet.
+ *
+ * @param {number} [limit]
+ * @returns {Promise<string[]>}
+ */
+async function listHeroCandidateIds(limit = HERO_POOL_SIZE) {
+	const likeCount = count(trackLike.userId);
+
+	const liked = await db
+		.select({
+			id: track.id,
+			coverFilename: track.coverFilename
+		})
+		.from(trackLike)
+		.innerJoin(track, eq(trackLike.trackId, track.id))
+		.where(eq(track.published, true))
+		.groupBy(track.id, track.coverFilename, track.createdAt)
+		.orderBy(desc(likeCount), desc(track.createdAt))
+		.limit(limit);
+
+	if (liked.length > 0) {
+		const withCovers = liked.filter((row) => row.coverFilename);
+		const pool = withCovers.length > 0 ? withCovers : liked;
+		return pool.map((row) => row.id);
+	}
+
+	const newest = await db
+		.select({ id: track.id })
+		.from(track)
+		.where(and(eq(track.published, true), isNotNull(track.coverFilename)))
+		.orderBy(desc(track.createdAt), desc(track.id))
+		.limit(limit);
+
+	return newest.map((row) => row.id);
+}
+
+/**
+ * One random top track for the marketing hero, fully serialized for playback
+ * (includes waveform peaks). Returns null when the bank is empty.
+ *
+ * @param {{ id: string } | null | undefined} [viewer]
+ */
+export async function pickHeroTrack(viewer = null) {
+	const ids = await listHeroCandidateIds();
+	if (ids.length === 0) return null;
+
+	const trackId = ids[Math.floor(Math.random() * ids.length)];
+	const row = await getTrackWithUploader(trackId);
+	if (!row) return null;
+
+	const social = await getSocialForTracks([trackId], viewer?.id ?? null);
+	return serializeTrackForPlayer(row.track, row, social.get(trackId), viewer);
 }
 
 /**

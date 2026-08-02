@@ -3,6 +3,7 @@
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import CoverFlow from '#lib/components/home/CoverFlow.svelte';
+	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 
@@ -80,25 +81,7 @@
 					{/if}
 				</div>
 
-				<div class="sound-card" aria-label="Abstract audio waveform">
-					<div class="card-topline">
-						<span>SNDBNK / 001</span>
-						<span>Signal in motion</span>
-					</div>
-					<svg viewBox="0 0 800 320" role="img" aria-labelledby="wave-title wave-description">
-						<title id="wave-title">Audio waveform</title>
-						<desc id="wave-description">A bright waveform moving across a dark field.</desc>
-						<path
-							d="M0 160 L20 160 L32 138 L44 183 L58 100 L72 218 L87 150 L103 170 L118 45 L132 275 L148 124 L162 196 L177 82 L192 245 L208 135 L224 175 L240 17 L255 302 L270 111 L286 208 L300 68 L316 259 L332 143 L348 178 L364 93 L380 232 L396 151 L412 168 L428 55 L444 269 L460 119 L476 204 L492 78 L508 251 L524 141 L540 181 L556 103 L572 222 L588 146 L604 174 L620 39 L636 281 L652 128 L668 192 L684 91 L700 237 L716 148 L732 170 L746 118 L760 202 L774 153 L800 160"
-						/>
-					</svg>
-					<div class="card-footer">
-						<span>00:00</span>
-						<span class="card-note">Play it forward</span>
-						<span>03:42</span>
-					</div>
-					<div class="stamp" aria-hidden="true">Independent<br />frequency</div>
-				</div>
+				<HeroSoundCard track={data.heroTrack} />
 			</section>
 
 			{#if data.showcase.length > 0}
@@ -119,7 +102,8 @@
 			<section class="manifesto" aria-label="Our intention">
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">
-					Music moves through people. We are building a place that respects that.
+					A few twists on what we all know. SNDBNK is aiming to be a collection of audio tools with
+					a bunch of lines blurred.
 				</p>
 				<span class="manifesto-mark" aria-hidden="true">///</span>
 			</section>
@@ -262,99 +246,6 @@
 		margin-top: 1.25rem;
 	}
 
-	.sound-card {
-		position: relative;
-		min-height: clamp(28rem, 55vw, 44rem);
-		padding: clamp(1.25rem, 3vw, 2.5rem);
-		overflow: hidden;
-		color: var(--on-inverse);
-		background: var(--inverse);
-		box-shadow: clamp(0.75rem, 2vw, 1.5rem) clamp(0.75rem, 2vw, 1.5rem) 0 var(--accent);
-	}
-
-	.sound-card::before,
-	.sound-card::after {
-		position: absolute;
-		inset: 15% auto 15% 50%;
-		border-left: 1px solid color-mix(in srgb, var(--on-inverse) 18%, transparent);
-		content: '';
-	}
-
-	.sound-card::after {
-		inset: 50% 10% auto;
-		border-top: 1px solid color-mix(in srgb, var(--on-inverse) 18%, transparent);
-		border-left: 0;
-	}
-
-	.card-topline,
-	.card-footer {
-		position: relative;
-		z-index: 1;
-		display: flex;
-		justify-content: space-between;
-		font-size: 0.625rem;
-		font-weight: 800;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
-	.sound-card svg {
-		position: absolute;
-		z-index: 1;
-		top: 50%;
-		left: 50%;
-		width: 115%;
-		transform: translate(-50%, -50%);
-	}
-
-	.sound-card path {
-		fill: none;
-		stroke: var(--accent);
-		stroke-linecap: square;
-		stroke-linejoin: bevel;
-		stroke-width: 7;
-		vector-effect: non-scaling-stroke;
-	}
-
-	.card-footer {
-		position: absolute;
-		right: clamp(1.25rem, 3vw, 2.5rem);
-		bottom: clamp(1.25rem, 3vw, 2.5rem);
-		left: clamp(1.25rem, 3vw, 2.5rem);
-		align-items: end;
-	}
-
-	.card-note {
-		color: var(--accent);
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-		font-size: clamp(1.25rem, 2.3vw, 2.25rem);
-		font-style: italic;
-		font-weight: 400;
-		letter-spacing: -0.03em;
-		text-transform: none;
-	}
-
-	.stamp {
-		position: absolute;
-		z-index: 2;
-		top: 17%;
-		right: 9%;
-		display: grid;
-		width: 6.5rem;
-		aspect-ratio: 1;
-		place-items: center;
-		border: 1px solid var(--accent);
-		border-radius: 50%;
-		color: var(--accent);
-		font-size: 0.55rem;
-		font-weight: 800;
-		letter-spacing: 0.1em;
-		line-height: 1.5;
-		text-align: center;
-		text-transform: uppercase;
-		transform: rotate(8deg);
-	}
-
 	/* Full-bleed band: the covers should run off both edges of the viewport,
 	   not stop at the page rail. `.landing` clips the overflow. */
 	.showcase {
@@ -464,10 +355,6 @@
 			max-width: 8ch;
 			font-size: clamp(4.4rem, 18vw, 8rem);
 		}
-
-		.sound-card {
-			min-height: clamp(16rem, 115vw, 42rem);
-		}
 	}
 
 	@media (max-width: 640px) {
@@ -490,21 +377,6 @@
 
 		.primary-action {
 			min-width: 100%;
-		}
-
-		.sound-card {
-			min-height: clamp(16rem, 110vw, 42rem);
-			box-shadow: 0.65rem 0.65rem 0 var(--accent);
-		}
-
-		.card-note {
-			max-width: 8ch;
-			text-align: center;
-		}
-
-		.stamp {
-			top: 14%;
-			width: 5.5rem;
 		}
 	}
 
