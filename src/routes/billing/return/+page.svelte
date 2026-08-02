@@ -53,13 +53,15 @@
 
 <style>
 	.page {
+		width: min(100%, var(--site-shell-max));
 		min-height: 100vh;
+		margin: 0 auto;
+		padding: 0 var(--site-shell-pad-x) 5rem;
 	}
 
 	.shell {
 		width: min(100%, var(--site-content-max));
 		margin: 0 auto;
-		padding: 0 var(--site-shell-pad-x) 5rem;
 	}
 
 	.card {

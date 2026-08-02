@@ -604,11 +604,8 @@
 
 <style>
 	.admin-page {
-		min-height: 100vh;
-	}
-
-	main {
 		width: min(100%, var(--site-shell-max));
+		min-height: 100vh;
 		margin: 0 auto;
 		padding: 0 var(--site-shell-pad-x) 5rem;
 	}

@@ -212,7 +212,7 @@
 <div class="page">
 	<SiteHeader />
 
-	<main class="shell">
+	<main>
 		<header class="intro">
 			<p class="eyebrow accent-text eyebrow-chip">Pricing</p>
 			<h1 class="display-face">Pick your signal strength.</h1>
@@ -439,11 +439,8 @@
 
 <style>
 	.page {
-		min-height: 100vh;
-	}
-
-	.shell {
 		width: min(100%, var(--site-shell-max));
+		min-height: 100vh;
 		margin: 0 auto;
 		padding: 0 var(--site-shell-pad-x) 5rem;
 	}
