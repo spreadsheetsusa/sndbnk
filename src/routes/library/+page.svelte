@@ -1,6 +1,7 @@
 <script>
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
+	import HostedQuotaMeter from '#lib/components/library/HostedQuotaMeter.svelte';
 	import LibraryDeck from '#lib/components/library/LibraryDeck.svelte';
 	import LibraryTrackRow from '#lib/components/library/LibraryTrackRow.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
@@ -25,28 +26,6 @@
 		list.items.some((track) => track.id === selectedId) ? selectedId : (list.items[0]?.id ?? null)
 	);
 	const selected = $derived(list.items.find((track) => track.id === resolvedId) ?? null);
-
-	const maxLocalBytes = $derived(data.usage.maxLocalBytes);
-	const localBytes = $derived(data.usage.localBytes);
-	const atStorageCap = $derived(maxLocalBytes !== null && localBytes >= maxLocalBytes);
-	const storageFill = $derived(
-		maxLocalBytes ? Math.min(100, Math.round((localBytes / maxLocalBytes) * 100)) : 0
-	);
-
-	/**
-	 * @param {number} value
-	 */
-	function bytes(value) {
-		if (value < 1024) return `${value} B`;
-		const units = ['KB', 'MB', 'GB', 'TB'];
-		let n = value / 1024;
-		let i = 0;
-		while (n >= 1024 && i < units.length - 1) {
-			n /= 1024;
-			i += 1;
-		}
-		return `${n >= 10 ? Math.round(n) : n.toFixed(1)} ${units[i]}`;
-	}
 </script>
 
 <svelte:head>
@@ -69,31 +48,13 @@
 			</div>
 			<div class="page-head-actions">
 				<a class="pressable" href="/library/new">Upload track</a>
-				{#if maxLocalBytes !== null}
-					{#if atStorageCap}
-						<p class="quota-upsell">
-							You've used the {bytes(maxLocalBytes)} of hosted storage on {data.usage.planLabel}.
-							<a href="/plans">Upgrade plan</a>
-						</p>
-					{:else}
-						<div class="quota-meter" aria-label="Hosted storage quota">
-							<div class="meter-head">
-								<span class="meter-label">Hosted</span>
-								<span class="meter-value">{bytes(localBytes)} / {bytes(maxLocalBytes)}</span>
-							</div>
-							<div
-								class="meter-track"
-								role="progressbar"
-								aria-valuenow={localBytes}
-								aria-valuemin="0"
-								aria-valuemax={maxLocalBytes}
-								aria-label="Hosted storage used"
-							>
-								<span class="meter-fill" style="width: {storageFill}%"></span>
-							</div>
-						</div>
-					{/if}
-				{/if}
+				<div class="page-head-quota">
+					<HostedQuotaMeter
+						localBytes={data.usage.localBytes}
+						maxLocalBytes={data.usage.maxLocalBytes}
+						planLabel={data.usage.planLabel}
+					/>
+				</div>
 			</div>
 		</header>
 
@@ -202,65 +163,6 @@
 		color: var(--muted);
 		line-height: 1.4;
 		animation: rise 0.75s ease 0.05s both;
-	}
-
-	.quota-meter {
-		width: 100%;
-		min-width: 9rem;
-		max-width: 14rem;
-		animation: rise 0.8s ease 0.08s both;
-	}
-
-	.meter-head {
-		display: flex;
-		gap: 1rem;
-		align-items: baseline;
-		justify-content: space-between;
-		margin-bottom: 0.35rem;
-	}
-
-	.meter-label {
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-	}
-
-	.meter-value {
-		color: var(--muted);
-		font-size: 0.78rem;
-	}
-
-	.meter-track {
-		height: 0.55rem;
-		border: 1px solid var(--ink);
-		background: transparent;
-	}
-
-	.meter-fill {
-		display: block;
-		height: 100%;
-		background: var(--accent);
-	}
-
-	.quota-upsell {
-		max-width: 14rem;
-		margin: 0;
-		color: var(--muted);
-		font-size: 0.78rem;
-		line-height: 1.4;
-		text-align: right;
-		animation: rise 0.8s ease 0.08s both;
-	}
-
-	.quota-upsell a {
-		color: var(--ink);
-		font-weight: 700;
-		text-underline-offset: 0.15em;
-	}
-
-	.quota-upsell a:hover {
-		color: var(--accent);
 	}
 
 	.block {
@@ -382,6 +284,10 @@
 		}
 
 		.intro {
+			display: none;
+		}
+
+		.page-head-quota {
 			display: none;
 		}
 
