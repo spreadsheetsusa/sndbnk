@@ -148,3 +148,29 @@ export async function getSiteStats() {
 		topGenre: genre?.genre ? { genre: genre.genre, count: genre.n } : null
 	};
 }
+
+/**
+ * Most recently created profiles for the landing page member grid.
+ * @param {{ limit?: number }} [opts]
+ * @returns {Promise<{ username: string, name: string, image: string | null, location: string | null }[]>}
+ */
+export async function listLatestMembers({ limit = 12 } = {}) {
+	const rows = await db
+		.select({
+			username: profile.username,
+			name: user.name,
+			image: user.image,
+			location: profile.location
+		})
+		.from(profile)
+		.innerJoin(user, eq(profile.userId, user.id))
+		.orderBy(desc(profile.createdAt))
+		.limit(limit);
+
+	return rows.map((row) => ({
+		username: row.username,
+		name: row.name,
+		image: row.image ?? null,
+		location: row.location ?? null
+	}));
+}

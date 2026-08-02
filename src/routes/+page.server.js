@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { auth } from '#lib/server/auth';
 import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
-import { getSiteStats, pickHeroTrack } from '#lib/server/showcase';
+import { getSiteStats, listLatestMembers, pickHeroTrack } from '#lib/server/showcase';
 
 export const load = async ({ cookies, locals }) => {
 	if (locals.tenant) {
@@ -36,14 +36,19 @@ export const load = async ({ cookies, locals }) => {
 					: null;
 	}
 
-	const [stats, heroTrack] = await Promise.all([getSiteStats(), pickHeroTrack(locals.user)]);
+	const [stats, heroTrack, latestMembers] = await Promise.all([
+		getSiteStats(),
+		pickHeroTrack(locals.user),
+		listLatestMembers()
+	]);
 
 	return {
 		mode: /** @type {const} */ ('marketing'),
 		user: locals.user ?? null,
 		authNotice,
 		stats,
-		heroTrack
+		heroTrack,
+		latestMembers
 	};
 };
 

@@ -3,6 +3,7 @@
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
+	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 
@@ -84,6 +85,12 @@
 			{#if data.stats.trackCount > 0}
 				<section class="stats">
 					<StatBadges stats={data.stats} />
+				</section>
+			{/if}
+
+			{#if data.latestMembers?.length}
+				<section class="latest-members" aria-label="Latest members">
+					<LatestMembers members={data.latestMembers} />
 				</section>
 			{/if}
 
@@ -234,6 +241,13 @@
 	}
 
 	.stats {
+		width: 100%;
+		padding: clamp(2rem, 4vw, 3rem) 0;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		animation: rise 0.85s ease both;
+	}
+
+	.latest-members {
 		width: 100%;
 		padding: clamp(2rem, 4vw, 3rem) 0;
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);

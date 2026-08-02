@@ -46,7 +46,9 @@
 		<header class="page-head">
 			<div class="page-head-copy">
 				<p class="eyebrow eyebrow-chip accent-text">@{data.profile.username}</p>
-				<h1 id="tracks-heading" class="display-face">Music Library</h1>
+				<h1 id="tracks-heading" class="display-face">
+					<span class="title-music">Music&nbsp;</span>Library
+				</h1>
 				<p class="intro">Upload, organize, and manage the audio in your private library.</p>
 			</div>
 			<div class="page-head-actions">
@@ -166,6 +168,16 @@
 		font-size: clamp(2.4rem, 6vw, 3.75rem);
 		line-height: 0.95;
 		animation: rise 0.65s ease both;
+	}
+
+	.title-music {
+		display: none;
+	}
+
+	@media (min-width: 768px) {
+		.title-music {
+			display: inline;
+		}
 	}
 
 	.intro {
@@ -332,6 +344,21 @@
 	@media (max-width: 640px) {
 		main {
 			padding-top: 0.5rem;
+		}
+
+		.page-head {
+			flex-wrap: nowrap;
+			gap: 0.75rem 1rem;
+		}
+
+		.page-head-copy {
+			flex: 1 1 0;
+		}
+
+		.page-head-copy > .eyebrow {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 
 		h1 {
