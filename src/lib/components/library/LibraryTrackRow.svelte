@@ -61,6 +61,10 @@
 			username: track.username,
 			uploaderName: track.uploaderName,
 			durationMs: track.durationMs,
+			bitrate: track.bitrate ?? null,
+			sampleRate: track.sampleRate ?? null,
+			channels: track.channels ?? null,
+			codec: track.codec ?? null,
 			hasCover: track.hasCover,
 			waveform: track.waveform,
 			likedByViewer: track.likedByViewer

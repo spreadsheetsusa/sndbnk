@@ -43,6 +43,41 @@
 	const displayTime = $derived(scrubSeconds ?? player.currentTime);
 	const durationMs = $derived(player.current?.durationMs ?? Math.round(player.duration * 1000));
 
+	const bitrateLabel = $derived.by(() => {
+		const bitrate = player.current?.bitrate;
+		if (bitrate == null || bitrate <= 0) return null;
+		const kbps = Math.round(bitrate / 1000);
+		return Number.isFinite(kbps) && kbps > 0 ? `${kbps} KBPS` : null;
+	});
+
+	const sampleRateLabel = $derived.by(() => {
+		const sampleRate = player.current?.sampleRate;
+		if (sampleRate == null || sampleRate <= 0) return null;
+		const khz = sampleRate / 1000;
+		if (!Number.isFinite(khz) || khz <= 0) return null;
+		const rounded = Number.isInteger(khz) ? String(khz) : khz.toFixed(1);
+		return `${rounded} KHZ`;
+	});
+
+	const channelsLabel = $derived.by(() => {
+		const channels = player.current?.channels;
+		if (channels == null || channels <= 0) return null;
+		if (channels === 1) return 'MONO';
+		if (channels === 2) return 'STEREO';
+		return `${channels} CH`;
+	});
+
+	const techTop = $derived.by(() => {
+		if (bitrateLabel) return bitrateLabel;
+		const codec = player.current?.codec?.trim();
+		return codec ? codec.toUpperCase() : null;
+	});
+	const techBottom = $derived.by(() => {
+		const parts = [channelsLabel, sampleRateLabel].filter(Boolean);
+		return parts.length ? parts.join(' · ') : null;
+	});
+	const hasTechMeta = $derived(Boolean(techTop || techBottom));
+
 	const markers = $derived.by(() => {
 		if (durationMs <= 0) return [];
 		return timedComments
@@ -189,29 +224,38 @@
 					<span class="bar-cover placeholder" aria-hidden="true"></span>
 				{/if}
 
-				<div class="now-meta desktop-meta">
-					<MarqueeLine resetKey="{track.id}-artist">
-						{#if track.username}
-							<a class="now-artist" href="/users/{track.username}">{artistLabel}</a>
-						{:else}
-							<span class="now-artist">{artistLabel}</span>
-						{/if}
-					</MarqueeLine>
-					<MarqueeLine resetKey="{track.id}-title">
-						<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
-					</MarqueeLine>
-				</div>
+				<div class="now-body">
+					<div class="now-meta desktop-meta">
+						<MarqueeLine resetKey="{track.id}-artist">
+							{#if track.username}
+								<a class="now-artist" href="/users/{track.username}">{artistLabel}</a>
+							{:else}
+								<span class="now-artist">{artistLabel}</span>
+							{/if}
+						</MarqueeLine>
+						<MarqueeLine resetKey="{track.id}-title">
+							<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+						</MarqueeLine>
+					</div>
 
-				<div class="now-meta mobile-meta">
-					<MarqueeLine resetKey="{track.id}-combined">
-						{#if track.username}
-							<a class="now-artist" href="/users/{track.username}">{artistLabel}</a>
-						{:else}
-							<span class="now-artist">{artistLabel}</span>
-						{/if}
-						<span class="now-sep" aria-hidden="true"> — </span>
-						<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
-					</MarqueeLine>
+					<div class="now-meta mobile-meta">
+						<MarqueeLine resetKey="{track.id}-combined">
+							{#if track.username}
+								<a class="now-artist" href="/users/{track.username}">{artistLabel}</a>
+							{:else}
+								<span class="now-artist">{artistLabel}</span>
+							{/if}
+							<span class="now-sep" aria-hidden="true"> — </span>
+							<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+						</MarqueeLine>
+					</div>
+
+					{#if hasTechMeta}
+						<div class="now-tech">
+							{#if techTop}<span class="tech-row">{techTop}</span>{/if}
+							{#if techBottom}<span class="tech-row">{techBottom}</span>{/if}
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -318,8 +362,9 @@
 	.strip {
 		display: flex;
 		align-items: stretch;
+		/* Wider than content-sized, but leave breathing room beside logo/nav. */
+		width: min(100%, 44rem);
 		min-width: 0;
-		max-width: 100%;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
@@ -385,8 +430,8 @@
 
 	.scrub {
 		gap: 0.5rem;
-		flex: 1 1 14rem;
-		min-width: 10rem;
+		flex: 1 1 16rem;
+		min-width: 11rem;
 		padding: 0 0.6rem;
 	}
 
@@ -469,29 +514,75 @@
 	}
 
 	.now-playing {
-		gap: 0.45rem;
+		gap: 0;
 		min-width: 0;
-		max-width: 12rem;
-		padding: 0 0.55rem;
+		max-width: 20rem;
+		padding: 0;
 		flex-shrink: 1;
+		/* Dimmer LCD wash: accent muted into ink, then lightly into paper. */
+		--lcd-tint: color-mix(in srgb, var(--accent) 42%, var(--ink));
+		background:
+			repeating-linear-gradient(
+				0deg,
+				color-mix(in srgb, var(--lcd-tint) 4%, transparent) 0 1px,
+				transparent 1px 3px
+			),
+			linear-gradient(
+				180deg,
+				color-mix(in srgb, var(--lcd-tint) 7%, var(--paper)) 0%,
+				color-mix(in srgb, var(--lcd-tint) 4%, var(--paper)) 100%
+			);
+		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 10%, transparent);
+	}
+
+	:global(.dark) .now-playing {
+		--lcd-tint: color-mix(in srgb, var(--accent) 48%, var(--ink));
+		background:
+			repeating-linear-gradient(
+				0deg,
+				color-mix(in srgb, var(--lcd-tint) 5%, transparent) 0 1px,
+				transparent 1px 3px
+			),
+			linear-gradient(
+				180deg,
+				color-mix(in srgb, var(--lcd-tint) 12%, var(--paper)) 0%,
+				color-mix(in srgb, var(--lcd-tint) 7%, var(--paper)) 100%
+			);
+		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 14%, transparent);
 	}
 
 	.bar-cover {
 		display: block;
-		width: 1.6rem;
-		height: 1.6rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-		border-radius: 0.125rem;
-		box-shadow: 2px 2px 0 var(--hard-shadow);
+		width: var(--header-chrome-height);
+		height: var(--header-chrome-height);
+		border: 0;
+		border-right: 1px solid
+			color-mix(in srgb, var(--lcd-tint, var(--accent)) 18%, var(--hard-border));
+		border-radius: 0;
+		box-shadow: none;
 		object-fit: cover;
 		flex-shrink: 0;
 	}
 
 	.bar-cover.placeholder {
 		background:
-			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
-			var(--paper);
+			linear-gradient(
+				135deg,
+				color-mix(in srgb, var(--lcd-tint, var(--accent)) 8%, transparent) 25%,
+				transparent 25%
+			),
+			color-mix(in srgb, var(--lcd-tint, var(--accent)) 6%, var(--paper));
 		background-size: 8px 8px;
+	}
+
+	.now-body {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.55rem;
+		min-width: 0;
+		flex: 1;
+		padding: 0 0.1rem 0 0.45rem;
 	}
 
 	.now-meta {
@@ -501,6 +592,7 @@
 		gap: 0.05rem;
 		min-width: 0;
 		flex: 1;
+		text-align: left;
 		/* Match child type so MarqueeLine line-boxes fit the chrome height. */
 		font-size: 0.7rem;
 		line-height: 1.15;
@@ -510,24 +602,44 @@
 		display: none;
 	}
 
+	.now-tech {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: flex-end;
+		gap: 0.05rem;
+		flex-shrink: 0;
+		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 55%, var(--muted));
+		font-size: 0.55rem;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.06em;
+		line-height: 1.15;
+		text-align: right;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
 	.now-artist {
-		color: var(--muted);
+		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 35%, var(--muted));
 		font-size: 0.6rem;
 		font-weight: 700;
+		letter-spacing: 0.02em;
 		text-decoration: none;
 		white-space: nowrap;
 	}
 
 	.now-title {
-		color: var(--ink);
+		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 28%, var(--ink));
 		font-size: 0.7rem;
 		font-weight: 800;
+		letter-spacing: 0.01em;
 		text-decoration: none;
 		white-space: nowrap;
 	}
 
 	.now-sep {
-		color: var(--muted);
+		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 30%, var(--muted));
 		font-size: 0.65rem;
 		font-weight: 700;
 	}
@@ -698,9 +810,13 @@
 			grid-area: meta;
 			max-width: none;
 			min-height: 2.1rem;
-			padding: 0.2rem 0.55rem;
+			padding: 0;
 			border-right: 0;
 			border-bottom: 1px solid var(--hard-border);
+		}
+
+		.now-body {
+			padding: 0 0.45rem 0 0.5rem;
 		}
 
 		.bar-actions {
@@ -739,8 +855,8 @@
 		}
 
 		.bar-cover {
-			width: 1.85rem;
-			height: 1.85rem;
+			width: 2.1rem;
+			height: 2.1rem;
 		}
 
 		.now-artist,
@@ -754,6 +870,10 @@
 
 		.now-title {
 			font-weight: 800;
+		}
+
+		.now-tech {
+			font-size: 0.52rem;
 		}
 	}
 
@@ -777,6 +897,11 @@
 		}
 
 		.queue-remove {
+			width: var(--tap-min);
+			height: var(--tap-min);
+		}
+
+		.bar-cover {
 			width: var(--tap-min);
 			height: var(--tap-min);
 		}

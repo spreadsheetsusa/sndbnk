@@ -50,6 +50,10 @@
 					username: data.track.username,
 					uploaderName: data.track.uploaderName,
 					durationMs: data.track.durationMs,
+					bitrate: data.track.bitrate ?? null,
+					sampleRate: data.track.sampleRate ?? null,
+					channels: data.track.channels ?? null,
+					codec: data.track.codec ?? null,
 					hasCover: data.track.hasCover,
 					waveform: data.track.waveform,
 					likedByViewer: data.track.likedByViewer

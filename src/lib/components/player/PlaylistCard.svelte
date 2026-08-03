@@ -257,6 +257,10 @@
 			username: t.username,
 			uploaderName: t.uploaderName,
 			durationMs: t.durationMs,
+			bitrate: t.bitrate ?? null,
+			sampleRate: t.sampleRate ?? null,
+			channels: t.channels ?? null,
+			codec: t.codec ?? null,
 			hasCover: t.hasCover,
 			waveform: t.waveform,
 			likedByViewer: t.likedByViewer

@@ -36,6 +36,10 @@
 	 * @property {string | null} artist
 	 * @property {string | null} genre
 	 * @property {number | null} durationMs
+	 * @property {number | null} [bitrate]
+	 * @property {number | null} [sampleRate]
+	 * @property {number | null} [channels]
+	 * @property {string | null} [codec]
 	 * @property {boolean} hasCover
 	 * @property {number} createdAt
 	 * @property {string | null} username
@@ -255,6 +259,10 @@
 			username: track.username,
 			uploaderName: track.uploaderName,
 			durationMs: track.durationMs,
+			bitrate: track.bitrate ?? null,
+			sampleRate: track.sampleRate ?? null,
+			channels: track.channels ?? null,
+			codec: track.codec ?? null,
 			hasCover: track.hasCover,
 			waveform: track.waveform,
 			likedByViewer: liked

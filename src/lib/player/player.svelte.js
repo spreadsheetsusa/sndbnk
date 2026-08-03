@@ -11,6 +11,10 @@ import { browser } from '$app/env';
  * @property {string | null} username
  * @property {string} uploaderName
  * @property {number | null} durationMs
+ * @property {number | null} [bitrate]
+ * @property {number | null} [sampleRate]
+ * @property {number | null} [channels]
+ * @property {string | null} [codec]
  * @property {boolean} hasCover
  * @property {number[] | null} waveform
  * @property {boolean} likedByViewer
