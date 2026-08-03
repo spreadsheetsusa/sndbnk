@@ -1,4 +1,6 @@
 <script>
+	import IconPlaylistAdd from '@tabler/icons-svelte-runes/icons/playlist-add';
+	import IconUpload from '@tabler/icons-svelte-runes/icons/upload';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
 	import HostedQuotaMeter from '#lib/components/library/HostedQuotaMeter.svelte';
@@ -47,8 +49,20 @@
 				<p class="intro">Upload, organize, and manage the audio in your private library.</p>
 			</div>
 			<div class="page-head-actions">
-				<a class="pressable secondary" href="/playlists/new">New playlist</a>
-				<a class="pressable" href="/library/new">Upload track</a>
+				<div class="page-head-buttons">
+					<a
+						class="pressable secondary icon-only"
+						href="/playlists/new"
+						aria-label="New playlist"
+						title="New playlist"
+					>
+						<IconPlaylistAdd size={18} stroke={1.75} aria-hidden="true" />
+					</a>
+					<a class="pressable" href="/library/new">
+						<IconUpload size={16} stroke={1.75} aria-hidden="true" />
+						Upload
+					</a>
+				</div>
 				<div class="page-head-quota">
 					<HostedQuotaMeter
 						localBytes={data.usage.localBytes}
@@ -65,7 +79,10 @@
 			{#if list.items.length === 0}
 				<div class="empty" aria-live="polite">
 					<p>No tracks yet. Upload your first one to get started.</p>
-					<a class="pressable" href="/library/new">Upload track</a>
+					<a class="pressable" href="/library/new">
+						<IconUpload size={16} stroke={1.75} aria-hidden="true" />
+						Upload
+					</a>
 				</div>
 			{:else}
 				<InfiniteList {list}>
@@ -137,6 +154,14 @@
 		margin-left: auto;
 	}
 
+	.page-head-buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
 	.page-head-copy > .eyebrow {
 		margin: 0 0 0.35rem;
 	}
@@ -174,6 +199,7 @@
 
 	.pressable {
 		display: inline-flex;
+		gap: 0.4rem;
 		align-items: center;
 		justify-content: center;
 		width: fit-content;
@@ -194,6 +220,11 @@
 	.pressable.secondary {
 		color: var(--ink);
 		background: var(--paper);
+	}
+
+	.pressable.icon-only {
+		width: 3.1rem;
+		padding: 0;
 	}
 
 	.empty {
