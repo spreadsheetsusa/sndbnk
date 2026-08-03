@@ -29,12 +29,6 @@
 
 	export const snapshot = paged.snapshot;
 
-	const shortName = $derived(
-		data.mode === 'marketing'
-			? (data.user?.name?.trim().split(/\s+/)[0] ?? data.user?.email?.split('@')[0] ?? 'Account')
-			: 'Account'
-	);
-
 	const tenantSiteName = $derived(
 		data.mode === 'tenant-profile' ? data.site?.name?.trim() || data.profile.name : null
 	);
@@ -106,9 +100,7 @@
 					{#if data.authNotice}
 						<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
 					{/if}
-					{#if data.user}
-						<p class="welcome">Good to have you here, {shortName}.</p>
-					{:else}
+					{#if !data.user}
 						<div class="hero-actions">
 							<a class="primary-action pressable" href="/signup">
 								Create account
@@ -252,16 +244,6 @@
 		text-underline-offset: 0.35rem;
 	}
 
-	.welcome {
-		display: inline-block;
-		margin: 2rem 0 0;
-		padding: 0.8rem 1rem;
-		border: 1px solid var(--ink);
-		color: var(--on-accent);
-		background: var(--accent);
-		font-weight: 800;
-	}
-
 	.auth-notice {
 		width: fit-content;
 		max-width: 35rem;
@@ -273,10 +255,6 @@
 		box-shadow: 5px 5px 0 var(--hard-shadow);
 		font-weight: 800;
 		line-height: 1.4;
-	}
-
-	.auth-notice + .welcome {
-		margin-top: 1.25rem;
 	}
 
 	.stats {
