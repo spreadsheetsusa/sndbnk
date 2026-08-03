@@ -155,18 +155,39 @@
 		if (dragHandleEl?.hasPointerCapture(event.pointerId)) {
 			dragHandleEl.releasePointerCapture(event.pointerId);
 		}
+		const moved = dragMoved;
 		draggingId = null;
 		dragOrigin = null;
 		dragHandleEl = null;
+		dragMoved = false;
+		// Browsers synthesize a click on whatever is under the pointer after pointerup.
+		if (moved) {
+			const swallow = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				cleanup();
+			};
+			const cleanup = () => {
+				document.removeEventListener('click', swallow, true);
+				clearTimeout(timer);
+			};
+			document.addEventListener('click', swallow, true);
+			const timer = setTimeout(cleanup, 50);
+		}
 	}
 
-	/** @param {number} index */
-	function playQueuedTrack(index) {
-		if (dragMoved) {
-			dragMoved = false;
-			return;
-		}
+	/** @param {string} trackId */
+	function playQueuedById(trackId) {
+		const index = player.queue.findIndex((t) => t.id === trackId);
+		if (index < 0) return;
 		player.playFromQueue(index);
+	}
+
+	/** @param {string} trackId */
+	function removeQueuedById(trackId) {
+		const index = player.queue.findIndex((t) => t.id === trackId);
+		if (index < 0) return;
+		player.removeFromQueue(index);
 	}
 </script>
 
@@ -344,7 +365,7 @@
 					<p class="queue-empty">Nothing queued. Use “Add to Next Up” on any track.</p>
 				{:else}
 					<ol class:queue-dragging={draggingId != null}>
-						{#each player.queue as queued, index (queued.id)}
+						{#each player.queue as queued (queued.id)}
 							<li
 								data-queue-id={queued.id}
 								class:dragging={draggingId === queued.id}
@@ -361,7 +382,7 @@
 								>
 									<IconGripVertical size={15} stroke={1.75} aria-hidden="true" />
 								</button>
-								<button type="button" class="queue-track" onclick={() => playQueuedTrack(index)}>
+								<button type="button" class="queue-track" onclick={() => playQueuedById(queued.id)}>
 									<span class="queue-title">{queued.title}</span>
 									<span class="queue-artist">{queued.artist || queued.uploaderName}</span>
 								</button>
@@ -369,7 +390,7 @@
 									type="button"
 									class="queue-remove"
 									aria-label="Remove {queued.title} from queue"
-									onclick={() => player.removeFromQueue(index)}
+									onclick={() => removeQueuedById(queued.id)}
 								>
 									<IconX size={14} stroke={1.75} aria-hidden="true" />
 								</button>
