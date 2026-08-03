@@ -1,4 +1,8 @@
 <script>
+	import IconLayoutCards from '@tabler/icons-svelte-runes/icons/layout-cards';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { slide } from 'svelte/transition';
 	import FeedSidebar from '#lib/components/feed/FeedSidebar.svelte';
 	import FeedTrackList from '#lib/components/feed/FeedTrackList.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
@@ -17,6 +21,11 @@
 
 	export const snapshot = paged.snapshot;
 
+	/** Mobile-only: discover panels start tucked away. Desktop always open. */
+	let showPanels = $state(false);
+	const isMobile = new MediaQuery('(max-width: 960px)', false);
+	const panelsOpen = $derived(!isMobile.current || showPanels);
+
 	/**
 	 * @param {{ genre?: string | null, following?: boolean }} [opts]
 	 */
@@ -26,6 +35,17 @@
 		if (genre) params.set('genre', genre);
 		const qs = params.toString();
 		return qs ? `/feed?${qs}` : '/feed';
+	}
+
+	/**
+	 * An element takes only one transition directive, so the fade is folded into slide's own css.
+	 * @param {Element} node
+	 * @param {import('svelte/transition').SlideParams} [params]
+	 * @returns {import('svelte/transition').TransitionConfig}
+	 */
+	function slideFade(node, params) {
+		const config = slide(node, params);
+		return { ...config, css: (t, u) => `${config.css?.(t, u) ?? ''};opacity:${t}` };
 	}
 </script>
 
@@ -58,22 +78,35 @@
 					{/if}
 				</p>
 
-				<nav class="scope-strip" aria-label="Feed scope">
-					<a
-						class="scope-btn"
-						href={feedHref({ genre: data.genre })}
-						aria-current={data.following ? undefined : 'page'}
-					>
-						All
-					</a>
-					<a
-						class="scope-btn"
-						href={feedHref({ genre: data.genre, following: true })}
-						aria-current={data.following ? 'page' : undefined}
-					>
-						Following
-					</a>
-				</nav>
+				<div class="scope-row">
+					<nav class="scope-strip" aria-label="Feed scope">
+						<a
+							class="scope-btn"
+							href={feedHref({ genre: data.genre })}
+							aria-current={data.following ? undefined : 'page'}
+						>
+							All
+						</a>
+						<a
+							class="scope-btn"
+							href={feedHref({ genre: data.genre, following: true })}
+							aria-current={data.following ? 'page' : undefined}
+						>
+							Following
+						</a>
+					</nav>
+					{#if isMobile.current}
+						<button
+							type="button"
+							class="panels-btn"
+							aria-pressed={showPanels}
+							aria-label={showPanels ? 'Hide discover cards' : 'Show discover cards'}
+							onclick={() => (showPanels = !showPanels)}
+						>
+							<IconLayoutCards size={16} stroke={1.75} aria-hidden="true" />
+						</button>
+					{/if}
+				</div>
 
 				{#if data.genre}
 					<p class="filter-chip" aria-live="polite">
@@ -83,15 +116,24 @@
 				{/if}
 			</header>
 
-			<FeedSidebar
-				mostLiked={data.sidebar.mostLiked}
-				newArtists={data.sidebar.newArtists}
-				recentComments={data.sidebar.recentComments}
-				genres={data.sidebar.genres}
-				activeGenre={data.genre}
-				following={data.following}
-				signedIn={true}
-			/>
+			{#if panelsOpen}
+				<div
+					class="sidebar-slot"
+					transition:slideFade={{
+						duration: prefersReducedMotion.current ? 0 : 220
+					}}
+				>
+					<FeedSidebar
+						mostLiked={data.sidebar.mostLiked}
+						newArtists={data.sidebar.newArtists}
+						recentComments={data.sidebar.recentComments}
+						genres={data.sidebar.genres}
+						activeGenre={data.genre}
+						following={data.following}
+						signedIn={true}
+					/>
+				</div>
+			{/if}
 
 			<section class="feed-list" aria-labelledby="feed-heading" bind:this={container}>
 				<FeedTrackList
@@ -143,8 +185,9 @@
 		margin-bottom: 0;
 	}
 
-	.feed-grid :global(.feed-sidebar) {
+	.sidebar-slot {
 		grid-area: side;
+		min-width: 0;
 	}
 
 	.feed-list {
@@ -177,15 +220,57 @@
 		animation: rise 0.75s ease 0.05s both;
 	}
 
-	.scope-strip {
+	.scope-row {
 		grid-area: scope;
 		display: flex;
+		gap: 0.45rem;
+		align-items: stretch;
 		width: 100%;
 		max-width: 16rem;
 		margin: 0.85rem 0 0;
+		animation: rise 0.8s ease both;
+	}
+
+	.scope-strip {
+		display: flex;
+		min-width: 0;
+		flex: 1;
 		border: 1px solid var(--hard-border);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
-		animation: rise 0.8s ease both;
+	}
+
+	.panels-btn {
+		display: inline-flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		padding: 0;
+		border: 1px solid var(--hard-border);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+		cursor: pointer;
+		transition:
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+			background 120ms ease,
+			box-shadow 120ms ease,
+			color 120ms ease;
+	}
+
+	.panels-btn:hover {
+		background: color-mix(in srgb, var(--accent) 35%, var(--paper));
+	}
+
+	.panels-btn[aria-pressed='true'] {
+		color: var(--on-accent);
+		background: var(--accent);
+		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+		transform: translate(1px, 1px);
+	}
+
+	.panels-btn :global(svg) {
+		display: block;
 	}
 
 	.scope-btn {
@@ -281,7 +366,7 @@
 			align-items: start;
 		}
 
-		.scope-strip {
+		.scope-row {
 			width: auto;
 			max-width: none;
 			margin: 0;
@@ -292,6 +377,10 @@
 			min-height: 2rem;
 			padding: 0.35rem 0.7rem;
 			font-size: 0.65rem;
+		}
+
+		.panels-btn {
+			width: 2rem;
 		}
 	}
 
@@ -311,6 +400,11 @@
 
 	@media (pointer: coarse) {
 		.scope-btn {
+			min-height: var(--tap-min);
+		}
+
+		.panels-btn {
+			width: var(--tap-min);
 			min-height: var(--tap-min);
 		}
 	}
