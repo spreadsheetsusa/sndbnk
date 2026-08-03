@@ -2,6 +2,8 @@ import { error, json } from '@sveltejs/kit';
 
 import { db } from '#lib/server/db';
 import { trackComment } from '#lib/server/db/schema';
+import { isTrustedMutationRequest } from '#lib/server/request-origin';
+import { isTenantResourceAllowed } from '#lib/server/tenant';
 import { canViewTrack, getTrackById, listTimedCommentsForTracks } from '#lib/server/tracks';
 
 const BODY_MAX_LENGTH = 1000;
@@ -13,7 +15,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export async function GET({ locals, params }) {
 	const row = await getTrackById(params.id);
-	if (!row || !canViewTrack(row, locals.user?.id ?? null)) {
+	if (
+		!row ||
+		!isTenantResourceAllowed(locals, row.userId) ||
+		!canViewTrack(row, locals.user?.id ?? null)
+	) {
 		error(404, 'Track not found');
 	}
 
@@ -21,13 +27,16 @@ export async function GET({ locals, params }) {
 	return json({ comments: map.get(row.id) ?? [] });
 }
 
-export async function POST({ locals, params, request }) {
+export async function POST({ locals, params, request, url }) {
 	if (!locals.user) {
 		error(401, 'Sign in to comment.');
 	}
+	if (!isTrustedMutationRequest(request, url)) {
+		error(403, 'Invalid request origin.');
+	}
 
 	const row = await getTrackById(params.id);
-	if (!row || !canViewTrack(row, locals.user.id)) {
+	if (!row || !isTenantResourceAllowed(locals, row.userId) || !canViewTrack(row, locals.user.id)) {
 		error(404, 'Track not found');
 	}
 

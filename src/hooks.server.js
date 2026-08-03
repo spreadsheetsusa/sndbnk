@@ -2,6 +2,7 @@ import { building } from '$app/env';
 import { sequence } from '@sveltejs/kit/hooks';
 import { auth } from '#lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { handleSecurityHeaders } from '#lib/server/security-headers';
 import { getRequestHostname, resolveTenantHost } from '#lib/server/tenant';
 
 const APEX_ONLY_PREFIXES = [
@@ -130,4 +131,4 @@ const handleBetterAuth = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-export const handle = sequence(handleTenant, handleBetterAuth);
+export const handle = sequence(handleTenant, handleBetterAuth, handleSecurityHeaders);

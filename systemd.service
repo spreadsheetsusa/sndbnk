@@ -9,6 +9,9 @@ Group=ubuntu
 WorkingDirectory=/var/www/sndbnk
 EnvironmentFile=-/var/www/sndbnk/.env
 # Bun also auto-loads .env; EnvironmentFile makes vars visible to non-Bun helpers.
+# Loopback-only so clients cannot forge X-Forwarded-Host against the app port.
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
 ExecStart=/home/ubuntu/.bun/bin/bun run build/index.js
 Restart=always
 RestartSec=2

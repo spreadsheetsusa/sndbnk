@@ -10,6 +10,7 @@ import {
 } from '#lib/server/cursor';
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, trackRepost, user } from '#lib/server/db/schema';
+import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
 import { generateWaveformPeaks, parseWaveform } from '#lib/server/media/waveform';
 import { checkUploadAllowed } from '#lib/server/quota';
 import { getOrCreateStorageSetting, getStorageAdapter } from '#lib/server/storage';
@@ -129,6 +130,30 @@ export function parseTrackMetadata(formData) {
 		return { ok: false, message: 'Title must be 200 characters or fewer.' };
 	}
 
+	const capped = (value, max, label) => {
+		if (value == null) return { ok: true, value: null };
+		if (value.length > max) {
+			return { ok: false, message: `${label} must be ${max} characters or fewer.` };
+		}
+		return { ok: true, value };
+	};
+
+	const descriptionCap = capped(description, 5000, 'Description');
+	if (!descriptionCap.ok) return descriptionCap;
+	const artistCap = capped(artist, 200, 'Artist');
+	if (!artistCap.ok) return artistCap;
+	const albumCap = capped(album, 200, 'Album');
+	if (!albumCap.ok) return albumCap;
+	const genreCap = capped(genre, 100, 'Genre');
+	if (!genreCap.ok) return genreCap;
+	const commentCap = capped(comment, 2000, 'Comment');
+	if (!commentCap.ok) return commentCap;
+	const isrcCap = capped(isrc, 20, 'ISRC');
+	if (!isrcCap.ok) return isrcCap;
+	if (isrcCap.value && !/^[A-Z0-9-]+$/i.test(isrcCap.value)) {
+		return { ok: false, message: 'ISRC looks invalid.' };
+	}
+
 	const durationMs = optionalBoundedInt(formData.get('durationMs'), 0, DAY_MS);
 	const bitrate = optionalBoundedInt(formData.get('bitrate'), 0, 10_000_000);
 	const sampleRate = optionalBoundedInt(formData.get('sampleRate'), 0, 768_000);
@@ -141,15 +166,15 @@ export function parseTrackMetadata(formData) {
 		ok: true,
 		metadata: {
 			title,
-			description,
-			artist,
-			album,
-			genre,
+			description: descriptionCap.value,
+			artist: artistCap.value,
+			album: albumCap.value,
+			genre: genreCap.value,
 			year,
 			trackNumber,
 			bpm,
-			isrc,
-			comment,
+			isrc: isrcCap.value,
+			comment: commentCap.value,
 			durationMs,
 			bitrate,
 			sampleRate,
@@ -162,31 +187,32 @@ export function parseTrackMetadata(formData) {
 /**
  * @param {File} file
  */
-export function validateAudioFile(file) {
-	const mime = (file.type || '').toLowerCase();
-	const ext = extFromName(file.name);
-	const allowedExt = new Set(['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a']);
-
-	let resolvedExt = AUDIO_EXT_BY_MIME[mime];
-	if (!resolvedExt && allowedExt.has(ext)) {
-		resolvedExt = ext === 'jpeg' ? 'jpg' : ext;
+export async function validateAudioFile(file) {
+	if (file.size > AUDIO_MAX_BYTES) {
+		return { ok: false, message: 'Audio must be 100MB or smaller.' };
 	}
 
-	if (!resolvedExt) {
+	const head = await readFileHead(file);
+	const sniffed = sniffAudio(head);
+	if (!sniffed) {
 		return {
 			ok: false,
 			message: 'Audio must be mp3, wav, flac, aac, ogg, or m4a.'
 		};
 	}
 
-	if (file.size > AUDIO_MAX_BYTES) {
-		return { ok: false, message: 'Audio must be 100MB or smaller.' };
+	// Extension hint may refine AAC vs M4A when magic is ambiguous; never trust MIME alone.
+	const extHint = extFromName(file.name);
+	let resolvedExt = sniffed.ext;
+	if (sniffed.ext === 'm4a' && extHint === 'aac') resolvedExt = 'aac';
+	if (sniffed.ext === 'mp3' && AUDIO_EXT_BY_MIME[(file.type || '').toLowerCase()] === 'mp3') {
+		resolvedExt = 'mp3';
 	}
 
 	return {
 		ok: true,
 		filename: `audio.${resolvedExt}`,
-		mime: mime || `audio/${resolvedExt === 'mp3' ? 'mpeg' : resolvedExt}`,
+		mime: sniffed.mime,
 		bytes: file.size
 	};
 }
@@ -194,28 +220,21 @@ export function validateAudioFile(file) {
 /**
  * @param {File} file
  */
-export function validateCoverFile(file) {
-	const mime = (file.type || '').toLowerCase();
-	const ext = extFromName(file.name);
-	const allowedExt = new Set(['jpg', 'jpeg', 'png', 'webp']);
-
-	let resolvedExt = COVER_EXT_BY_MIME[mime];
-	if (!resolvedExt && allowedExt.has(ext)) {
-		resolvedExt = ext === 'jpeg' ? 'jpg' : ext;
-	}
-
-	if (!resolvedExt) {
-		return { ok: false, message: 'Cover art must be jpg, png, or webp.' };
-	}
-
+export async function validateCoverFile(file) {
 	if (file.size > COVER_MAX_BYTES) {
 		return { ok: false, message: 'Cover art must be 5MB or smaller.' };
 	}
 
+	const head = await readFileHead(file);
+	const sniffed = sniffImage(head);
+	if (!sniffed || !COVER_EXT_BY_MIME[sniffed.mime]) {
+		return { ok: false, message: 'Cover art must be jpg, png, or webp.' };
+	}
+
 	return {
 		ok: true,
-		filename: `cover.${resolvedExt}`,
-		mime: mime || `image/${resolvedExt === 'jpg' ? 'jpeg' : resolvedExt}`,
+		filename: `cover.${sniffed.ext}`,
+		mime: sniffed.mime,
 		bytes: file.size
 	};
 }
@@ -246,14 +265,14 @@ export async function createTrackFromForm(userId, formData) {
 		return { ok: false, message: 'Choose an audio file to upload.' };
 	}
 
-	const audioResult = validateAudioFile(audioEntry);
+	const audioResult = await validateAudioFile(audioEntry);
 	if (!audioResult.ok) return audioResult;
 
 	const coverEntry = formData.get('cover');
 	/** @type {{ filename: string, mime: string, bytes: number } | null} */
 	let coverResult = null;
 	if (isFile(coverEntry)) {
-		const validated = validateCoverFile(coverEntry);
+		const validated = await validateCoverFile(coverEntry);
 		if (!validated.ok) return validated;
 		coverResult = validated;
 	}
@@ -360,7 +379,7 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 	let coverResult = null;
 
 	if (replaceAudio) {
-		const validated = validateAudioFile(/** @type {File} */ (audioEntry));
+		const validated = await validateAudioFile(/** @type {File} */ (audioEntry));
 		if (!validated.ok) return validated;
 		audioResult = validated;
 		patch.audioFilename = validated.filename;
@@ -369,7 +388,7 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 	}
 
 	if (replaceCover) {
-		const validated = validateCoverFile(/** @type {File} */ (coverEntry));
+		const validated = await validateCoverFile(/** @type {File} */ (coverEntry));
 		if (!validated.ok) return validated;
 		coverResult = validated;
 		patch.coverFilename = validated.filename;

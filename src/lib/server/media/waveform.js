@@ -15,6 +15,12 @@ export const WAVEFORM_BUCKETS = 1000;
  */
 const PCM_SAMPLE_RATE = 4000;
 
+/** Kill ffmpeg if peak extraction hangs on a hostile/corrupt file. */
+const FFMPEG_TIMEOUT_MS = 30_000;
+
+/** Cap decoded PCM (~2 minutes at 4kHz mono s16le) to bound memory. */
+const MAX_PCM_BYTES = PCM_SAMPLE_RATE * 2 * 120;
+
 /**
  * @param {unknown} err
  * @returns {string}
@@ -86,11 +92,29 @@ export async function generateWaveformPeaks(bytes, options = {}) {
 			{ stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }
 		);
 
-		const [pcmBuffer, stderrBuffer, exitCode] = await Promise.all([
-			new Response(proc.stdout).arrayBuffer(),
-			new Response(proc.stderr).arrayBuffer(),
-			proc.exited
-		]);
+		const timer = setTimeout(() => {
+			try {
+				proc.kill();
+			} catch {
+				// already exited
+			}
+		}, FFMPEG_TIMEOUT_MS);
+
+		/** @type {ArrayBuffer} */
+		let pcmBuffer;
+		/** @type {ArrayBuffer} */
+		let stderrBuffer;
+		/** @type {number} */
+		let exitCode;
+		try {
+			[pcmBuffer, stderrBuffer, exitCode] = await Promise.all([
+				readStreamCapped(proc.stdout, MAX_PCM_BYTES),
+				new Response(proc.stderr).arrayBuffer(),
+				proc.exited
+			]);
+		} finally {
+			clearTimeout(timer);
+		}
 
 		const sampleCount = Math.floor(pcmBuffer.byteLength / 2);
 		if (exitCode !== 0 || sampleCount < 1) {
@@ -136,6 +160,37 @@ export async function generateWaveformPeaks(bytes, options = {}) {
 			await rm(dir, { recursive: true, force: true }).catch(() => {});
 		}
 	}
+}
+
+/**
+ * Read a stream into an ArrayBuffer, aborting if it exceeds maxBytes.
+ * @param {ReadableStream | null} stream
+ * @param {number} maxBytes
+ */
+async function readStreamCapped(stream, maxBytes) {
+	if (!stream) return new ArrayBuffer(0);
+	const reader = stream.getReader();
+	/** @type {Uint8Array[]} */
+	const chunks = [];
+	let total = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (!value) continue;
+		total += value.byteLength;
+		if (total > maxBytes) {
+			await reader.cancel().catch(() => {});
+			throw new Error('Decoded PCM exceeded size limit.');
+		}
+		chunks.push(value);
+	}
+	const out = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		out.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return out.buffer;
 }
 
 /**

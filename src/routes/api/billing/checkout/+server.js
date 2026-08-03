@@ -2,6 +2,8 @@ import { error, json } from '@sveltejs/kit';
 
 import { createSubscriptionCheckout } from '#lib/server/billing/checkout';
 import { billingEnabled } from '#lib/server/billing/stripe';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
+import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { createAccount } from '#lib/server/signup';
 
 /**
@@ -10,8 +12,12 @@ import { createAccount } from '#lib/server/signup';
  *
  * @type {import('./$types').RequestHandler}
  */
-export const POST = async ({ locals, request }) => {
+export const POST = async (event) => {
+	const { locals, request, url } = event;
 	if (!billingEnabled) error(503, 'Billing is not configured on this server.');
+	if (!isTrustedMutationRequest(request, url)) {
+		error(403, 'Invalid request origin.');
+	}
 
 	/** @type {Record<string, string>} */
 	let body;
@@ -27,6 +33,12 @@ export const POST = async ({ locals, request }) => {
 	let userId = locals.user?.id;
 
 	if (!userId) {
+		const limited = rateLimit(`checkout-signup:${clientIp(event)}`, {
+			windowMs: 60 * 60 * 1000,
+			max: 10
+		});
+		if (!limited.ok) error(429, 'Too many signup attempts. Try again later.');
+
 		const created = await createAccount({
 			name: body.name ?? '',
 			username: body.username ?? '',

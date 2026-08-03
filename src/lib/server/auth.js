@@ -42,6 +42,19 @@ export const auth = betterAuth({
 		'http://localhost:5174',
 		'http://127.0.0.1:5174'
 	],
+	// Close HTTP paths that bypass app signup (profile creation) or expose
+	// unused admin capabilities. Server-side auth.api.setRole / ban / unban remain.
+	disabledPaths: [
+		'/sign-up/email',
+		'/admin/impersonate-user',
+		'/admin/stop-impersonating',
+		'/admin/create-user',
+		'/admin/remove-user',
+		'/admin/set-user-password',
+		'/admin/update-user',
+		'/admin/revoke-user-session',
+		'/admin/revoke-user-sessions'
+	],
 	advanced: {
 		crossSubDomainCookies: isLocalBase
 			? { enabled: false }

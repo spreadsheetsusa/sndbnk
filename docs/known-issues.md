@@ -51,20 +51,24 @@ and its regex is used without the `v` flag so it is unaffected. The cost is a lo
 guardrail plus console noise. The fix is to escape the dash (`[a-zA-Z0-9\-]`) or move it to the front
 of the class.
 
-## `.env` is committed with live secrets
+## `.env` is still tracked with live secrets
 
-`.gitignore` carries an explicit `!.env` exception:
+`.gitignore` lists `.env` (and ignores `.env.*` except `.env.example` / `.env.test`), but the file
+remains in the git index from an earlier deploy expedient. `BETTER_AUTH_SECRET`, `STORAGE_SECRET`,
+and mail credentials are therefore in git history.
 
-```
-# NOTE: .env is temporarily tracked so production can pull required vars.
-```
+Unwinding requires `git rm --cached .env`, provisioning env outside the repo (the deploy script
+already merges and generates secrets server-side), and **rotating** both app secrets — which logs
+every user out and invalidates every stored SSH credential. Do this before a major advertising push.
 
-Introduced as a deploy expedient. It means `BETTER_AUTH_SECRET` and `STORAGE_SECRET` are in git
-history. Unwinding it requires re-ignoring the file, provisioning env another way (the deploy script
-already merges and generates secrets server-side, so this is close to unnecessary), and rotating both
-secrets — which logs every user out and invalidates every stored SSH credential.
+Do not add new secrets to `.env` while it is tracked. Prefer `.env.local` (gitignored) for machine-
+specific overrides.
 
-Do not add new secrets to `.env` while it is tracked.
+## Content-Security-Policy is Report-Only
+
+The app and Caddy emit `Content-Security-Policy-Report-Only` (not enforcing) so Butterchurn,
+Stripe.js, and Google Fonts can be inventory'd without breaking playback. Flip to enforcing CSP
+after confirming the report-only policy is clean in production.
 
 ## Dead and unfinished code
 

@@ -1,6 +1,8 @@
 import { Client } from 'ssh2';
 import path from 'node:path';
 
+import { assertSafeStorageSegment } from './path-safety.js';
+
 /**
  * @typedef {Object} SshConfig
  * @property {string} host
@@ -95,6 +97,8 @@ function close(client) {
  * @param {string} folderKey
  */
 function remoteFolder(userId, config, folderKey) {
+	assertSafeStorageSegment(userId, 'user id');
+	assertSafeStorageSegment(folderKey, 'folder key');
 	return path.posix.join(config.remotePath.replace(/\\/g, '/'), userId, folderKey);
 }
 
@@ -104,10 +108,13 @@ function remoteFolder(userId, config, folderKey) {
  * @returns {import('./types.js').StorageAdapter}
  */
 export function createSshAdapter(userId, config) {
+	assertSafeStorageSegment(userId, 'user id');
+
 	return {
 		id: 'ssh',
 
 		async put(folderKey, filename, data, _contentType) {
+			assertSafeStorageSegment(filename, 'filename');
 			const { client, sftp } = await connect(config);
 			try {
 				const dir = remoteFolder(userId, config, folderKey);
@@ -124,6 +131,7 @@ export function createSshAdapter(userId, config) {
 		},
 
 		async get(folderKey, filename) {
+			assertSafeStorageSegment(filename, 'filename');
 			const { client, sftp } = await connect(config);
 			try {
 				const remotePath = path.posix.join(remoteFolder(userId, config, folderKey), filename);

@@ -6,10 +6,15 @@ import {
 	getSocialForPlaylists,
 	serializePlaylistForCard
 } from '#lib/server/playlists';
+import { isTenantResourceAllowed } from '#lib/server/tenant';
 
 export const load = async ({ locals, params }) => {
 	const row = await getPlaylistWithOwner(params.id);
-	if (!row || !canViewPlaylist(row.playlist, locals.user?.id)) {
+	if (
+		!row ||
+		!isTenantResourceAllowed(locals, row.playlist.userId) ||
+		!canViewPlaylist(row.playlist, locals.user?.id)
+	) {
 		error(404, 'Playlist not found');
 	}
 

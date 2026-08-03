@@ -116,9 +116,10 @@ That last step is the reason production auth regressions get caught by CI rather
 ### The service
 
 [`systemd.service`](../systemd.service) runs as `ubuntu` from `/var/www/sndbnk`,
-`ExecStart=/home/ubuntu/.bun/bin/bun run build/index.js`, `Restart=always`, and
-`EnvironmentFile=-/var/www/sndbnk/.env` (Bun also auto-loads `.env`; the `EnvironmentFile` makes the
-values visible to non-Bun helpers).
+`ExecStart=/home/ubuntu/.bun/bin/bun run build/index.js`, `Restart=always`,
+`HOST=127.0.0.1` / `PORT=3000` (loopback-only so clients cannot forge `X-Forwarded-Host` against the
+app port), and `EnvironmentFile=-/var/www/sndbnk/.env` (Bun also auto-loads `.env`; the
+`EnvironmentFile` makes the values visible to non-Bun helpers).
 
 Useful commands on the box:
 
@@ -150,13 +151,16 @@ reads `x-forwarded-host`, so this header is load-bearing, not cosmetic.
 
 Security headers set on both site blocks: HSTS, `X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive
-`Permissions-Policy`, and `-Server`.
+`Permissions-Policy`, `Content-Security-Policy-Report-Only` (not enforcing — see
+[known-issues](known-issues.md)), and `-Server`. The SvelteKit `handle` sequence also sets the same
+baseline headers (minus HSTS) so dev / direct Bun is not naked.
 
 ### On-demand TLS gate
 
 Caddy will only mint a certificate for a hostname when
-[`/api/domain-tls-check`](../src/routes/api/domain-tls-check/+server.js) returns `200`. It returns
-`200` only for:
+[`/api/domain-tls-check`](../src/routes/api/domain-tls-check/+server.js) returns `200`. The handler
+accepts **loopback asks only** (Caddy’s `ask http://127.0.0.1:3000/...`); public probes get `404`.
+It returns `200` only for:
 
 - `{username}.{PUBLIC_BASE_DOMAIN}` where that username exists and `canUseSubdomain(plan)` (Vault+)
 - a custom hostname that matches `profile.customDomain` exactly, `canUseCustomDomain(plan)` (Studio+),
@@ -164,6 +168,18 @@ Caddy will only mint a certificate for a hostname when
 
 Everything else — including the apex, which uses managed certs — gets `400`. Without this gate,
 pointing any domain at the server would let it obtain a certificate.
+
+### Security hardening (app)
+
+- **Tenant isolation:** subdomain / custom-domain hosts only serve that creator’s tracks, playlists,
+  and profile APIs. Apex discovery stays global.
+- **Auth abuse:** in-memory rate limits on sign-in / signup / password reset / anonymous checkout
+  signup; better-auth `disabledPaths` closes public `/sign-up/email` and unused admin HTTP routes
+  (impersonation, create/remove user, set password).
+- **Uploads:** magic-byte sniffing for audio/images; SSH BYOS rejects private / link-local /
+  metadata targets; storage adapters refuse path-escaping segments; ffmpeg waveform extraction has
+  a timeout and PCM size cap.
+- **Mutating JSON APIs:** require a same-site / allowed `Origin` (or `Sec-Fetch-Site`).
 
 DNS requirements (platform, Route 53 hosted zone for `sndbnk.com`):
 

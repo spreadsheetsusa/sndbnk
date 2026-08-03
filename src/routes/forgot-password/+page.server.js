@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 
 import { requestPasswordResetEmail } from '#lib/server/forgot-password';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = ({ locals }) => {
@@ -10,9 +11,21 @@ export const load = ({ locals }) => {
 };
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async (event) => {
+		const { request } = event;
 		const formData = await request.formData();
 		const email = formData.get('email')?.toString() ?? '';
+
+		const limited = rateLimit(`forgot:${clientIp(event)}:${email.trim().toLowerCase()}`, {
+			windowMs: 60 * 60 * 1000,
+			max: 5
+		});
+		if (!limited.ok) {
+			return fail(429, {
+				message: 'Too many reset requests. Try again later.',
+				email: email.trim()
+			});
+		}
 
 		const result = await requestPasswordResetEmail({
 			emailRaw: email,
