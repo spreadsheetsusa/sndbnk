@@ -319,14 +319,22 @@
 		height: 100%;
 		object-fit: cover;
 		object-position: center 42%;
-		opacity: 0.22;
+		opacity: 0.4;
 	}
 
 	.manifesto-bg::after {
 		position: absolute;
 		inset: 0;
-		background: color-mix(in srgb, var(--paper) 70%, transparent);
+		background: color-mix(in srgb, var(--paper) 52%, transparent);
 		content: '';
+	}
+
+	:global(.dark) .manifesto-bg img {
+		opacity: 0.5;
+	}
+
+	:global(.dark) .manifesto-bg::after {
+		background: color-mix(in srgb, var(--paper) 42%, transparent);
 	}
 
 	.manifesto > :not(.manifesto-bg) {
