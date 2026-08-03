@@ -9,6 +9,10 @@
 	import HostedQuotaMeter from '#lib/components/library/HostedQuotaMeter.svelte';
 	import { AUDIO_FILE_ACCEPT } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
+	import {
+		DEFAULT_TRACK_MEDIA_TYPE,
+		TRACK_MEDIA_TYPE_OPTIONS
+	} from '#lib/media/track-media-type.js';
 
 	let { data, form } = $props();
 
@@ -35,6 +39,7 @@
 	 *   artist: string;
 	 *   album: string;
 	 *   genre: string;
+	 *   mediaType: string;
 	 *   year: string;
 	 *   trackNumber: string;
 	 *   bpm: string;
@@ -49,6 +54,7 @@
 			artist: '',
 			album: '',
 			genre: '',
+			mediaType: DEFAULT_TRACK_MEDIA_TYPE,
 			year: '',
 			trackNumber: '',
 			bpm: '',
@@ -86,6 +92,7 @@
 			artist: String(source.artist ?? ''),
 			album: String(source.album ?? ''),
 			genre: String(source.genre ?? ''),
+			mediaType: String(source.mediaType ?? DEFAULT_TRACK_MEDIA_TYPE),
 			year: String(source.year ?? ''),
 			trackNumber: String(source.trackNumber ?? ''),
 			bpm: String(source.bpm ?? ''),
@@ -539,6 +546,19 @@
 									bind:value={fields.genre}
 									oninput={() => markTouched('genre')}
 								/>
+							</div>
+							<div class="field">
+								<label for="mediaType">Type</label>
+								<select
+									id="mediaType"
+									name="mediaType"
+									bind:value={fields.mediaType}
+									onchange={() => markTouched('mediaType')}
+								>
+									{#each TRACK_MEDIA_TYPE_OPTIONS as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
 							</div>
 						</div>
 
@@ -1128,6 +1148,7 @@
 	}
 
 	input,
+	select,
 	textarea {
 		width: 100%;
 		margin: 0;
@@ -1140,7 +1161,8 @@
 		font: inherit;
 	}
 
-	input {
+	input,
+	select {
 		height: 2.35rem;
 	}
 
@@ -1152,6 +1174,7 @@
 	}
 
 	input:focus,
+	select:focus,
 	textarea:focus {
 		box-shadow: 3px 3px 0 var(--accent);
 	}
