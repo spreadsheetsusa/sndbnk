@@ -85,8 +85,6 @@
 	{/if}
 
 	<main>
-		<p class="eyebrow eyebrow-chip accent-text">Track</p>
-
 		<div class="player-wrap">
 			<TrackCard
 				track={data.track}
@@ -161,10 +159,6 @@
 		width: min(100%, var(--site-content-max));
 		margin: 0 auto;
 		padding-top: clamp(1.25rem, 4vw, 2.5rem);
-	}
-
-	main > .eyebrow {
-		margin: 0 0 1rem;
 	}
 
 	.player-wrap {
