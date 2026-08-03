@@ -237,6 +237,22 @@ class Player {
 		this.#persistQueue();
 	}
 
+	/**
+	 * Reorder a queued track (Next Up drag-and-drop).
+	 * @param {number} fromIndex
+	 * @param {number} toIndex
+	 */
+	moveInQueue(fromIndex, toIndex) {
+		if (fromIndex === toIndex) return;
+		if (fromIndex < 0 || toIndex < 0) return;
+		if (fromIndex >= this.queue.length || toIndex >= this.queue.length) return;
+		const next = [...this.queue];
+		const [item] = next.splice(fromIndex, 1);
+		next.splice(toIndex, 0, item);
+		this.queue = next;
+		this.#persistQueue();
+	}
+
 	/** @param {number} index */
 	playFromQueue(index) {
 		const track = this.queue[index];
