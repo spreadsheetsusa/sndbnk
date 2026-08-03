@@ -5,6 +5,10 @@
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import { AUDIO_FILE_ACCEPT } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
+	import {
+		DEFAULT_TRACK_MEDIA_TYPE,
+		TRACK_MEDIA_TYPE_OPTIONS
+	} from '#lib/media/track-media-type.js';
 
 	let { data, form } = $props();
 
@@ -32,6 +36,7 @@
 	 *   artist: string;
 	 *   album: string;
 	 *   genre: string;
+	 *   mediaType: string;
 	 *   year: string;
 	 *   trackNumber: string;
 	 *   bpm: string;
@@ -46,6 +51,7 @@
 			artist: String(data.track.artist ?? ''),
 			album: String(data.track.album ?? ''),
 			genre: String(data.track.genre ?? ''),
+			mediaType: String(data.track.mediaType ?? DEFAULT_TRACK_MEDIA_TYPE),
 			year: String(data.track.year ?? ''),
 			trackNumber: String(data.track.trackNumber ?? ''),
 			bpm: String(data.track.bpm ?? ''),
@@ -93,6 +99,7 @@
 			artist: String(source.artist ?? ''),
 			album: String(source.album ?? ''),
 			genre: String(source.genre ?? ''),
+			mediaType: String(source.mediaType ?? DEFAULT_TRACK_MEDIA_TYPE),
 			year: String(source.year ?? ''),
 			trackNumber: String(source.trackNumber ?? ''),
 			bpm: String(source.bpm ?? ''),
@@ -387,6 +394,13 @@
 				<label for="genre">Genre</label>
 				<input id="genre" name="genre" type="text" bind:value={fields.genre} />
 
+				<label for="mediaType">Type</label>
+				<select id="mediaType" name="mediaType" bind:value={fields.mediaType}>
+					{#each TRACK_MEDIA_TYPE_OPTIONS as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+
 				<div class="field-row">
 					<div>
 						<label for="year">Year</label>
@@ -672,6 +686,7 @@
 	}
 
 	input,
+	select,
 	textarea {
 		width: 100%;
 		margin-bottom: 0.35rem;
@@ -681,9 +696,11 @@
 		color: var(--ink);
 		background: var(--field-surface);
 		outline: none;
+		font: inherit;
 	}
 
-	input {
+	input,
+	select {
 		height: 3.1rem;
 	}
 
@@ -701,6 +718,7 @@
 	}
 
 	input:focus,
+	select:focus,
 	textarea:focus {
 		box-shadow: 4px 4px 0 var(--accent);
 	}

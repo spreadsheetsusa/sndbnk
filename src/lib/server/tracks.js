@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
+import { DEFAULT_TRACK_MEDIA_TYPE, isTrackMediaType } from '#lib/media/track-media-type.js';
 import {
 	decodeCursor,
 	encodeCursor,
@@ -88,8 +89,14 @@ export function parseTrackMetadata(formData) {
 	const artist = formData.get('artist')?.toString().trim() || null;
 	const album = formData.get('album')?.toString().trim() || null;
 	const genre = formData.get('genre')?.toString().trim() || null;
+	const mediaTypeRaw = formData.get('mediaType')?.toString().trim() || DEFAULT_TRACK_MEDIA_TYPE;
 	const isrc = formData.get('isrc')?.toString().trim() || null;
 	const comment = formData.get('comment')?.toString().trim() || null;
+
+	if (!isTrackMediaType(mediaTypeRaw)) {
+		return { ok: false, message: 'Media type must be track, mix, sample, loop, or podcast.' };
+	}
+	const mediaType = mediaTypeRaw;
 
 	const yearRaw = formData.get('year')?.toString().trim() ?? '';
 	const trackNumberRaw = formData.get('trackNumber')?.toString().trim() ?? '';
@@ -171,6 +178,7 @@ export function parseTrackMetadata(formData) {
 			artist: artistCap.value,
 			album: albumCap.value,
 			genre: genreCap.value,
+			mediaType,
 			year,
 			trackNumber,
 			bpm,
