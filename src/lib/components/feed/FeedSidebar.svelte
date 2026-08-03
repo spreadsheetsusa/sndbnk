@@ -32,6 +32,18 @@
 		signedIn = false
 	} = $props();
 
+	const PANELS = /** @type {const} */ ([
+		{ key: 'popular', label: 'Popular' },
+		{ key: 'artists', label: 'New Artists' },
+		{ key: 'activity', label: 'Activity' },
+		{ key: 'browse', label: 'Browse' }
+	]);
+
+	let activePanel = $state(0);
+
+	/** @type {HTMLElement | null} */
+	let panelRail = null;
+
 	/**
 	 * @param {number} n
 	 */
@@ -49,135 +61,174 @@
 		const qs = params.toString();
 		return qs ? `/feed?${qs}` : '/feed';
 	}
+
+	/**
+	 * @param {HTMLElement} node
+	 */
+	function watchSnap(node) {
+		const panels = [...node.querySelectorAll(':scope > .panel')];
+		const io = new IntersectionObserver(
+			(entries) => {
+				let best = -1;
+				let bestRatio = 0;
+				for (const entry of entries) {
+					if (!entry.isIntersecting) continue;
+					const i = panels.indexOf(/** @type {HTMLElement} */ (entry.target));
+					if (i >= 0 && entry.intersectionRatio >= bestRatio) {
+						best = i;
+						bestRatio = entry.intersectionRatio;
+					}
+				}
+				if (best >= 0) activePanel = best;
+			},
+			{ root: node, threshold: [0.5, 0.75, 1] }
+		);
+		for (const p of panels) io.observe(p);
+		return () => io.disconnect();
+	}
+
+	/**
+	 * @param {number} index
+	 */
+	function scrollToPanel(index) {
+		const rail = panelRail;
+		const panel = rail?.children[index];
+		if (!rail || !(panel instanceof HTMLElement)) return;
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const left =
+			panel.getBoundingClientRect().left - rail.getBoundingClientRect().left + rail.scrollLeft;
+		rail.scrollTo({
+			left,
+			behavior: reduceMotion ? 'auto' : 'smooth'
+		});
+		activePanel = index;
+	}
 </script>
 
 <aside class="feed-sidebar" aria-label="Discover">
-	<nav class="scope-strip" aria-label="Feed scope">
-		<a
-			class="scope-btn"
-			href={feedHref({ genre: activeGenre })}
-			aria-current={following ? undefined : 'page'}
-		>
-			All
-		</a>
-		<a
-			class="scope-btn"
-			href={feedHref({ genre: activeGenre, following: true })}
-			aria-current={following ? 'page' : undefined}
-		>
-			Following
-		</a>
-	</nav>
-
-	<section class="panel" aria-labelledby="most-liked-heading">
-		<header class="panel-head">
-			<p id="most-liked-heading" class="eyebrow">Popular</p>
-		</header>
-		{#if mostLiked.length === 0}
-			<p class="empty-line">No likes yet.</p>
-		{:else}
-			<ol class="item-list">
-				{#each mostLiked as item, index (item.id)}
-					<li>
-						<a class="item" href="/tracks/{item.id}">
-							<span class="rank">{padRank(index + 1)}</span>
-							<span class="item-copy">
-								<span class="item-title">{item.title}</span>
-								<span class="item-meta">{item.uploaderName}</span>
-							</span>
-							<span class="item-stat">
-								<IconHeart size={12} stroke={1.75} aria-hidden="true" />
-								{item.likeCount}
-							</span>
-						</a>
-					</li>
-				{/each}
-			</ol>
-		{/if}
-	</section>
-
-	<section class="panel" aria-labelledby="new-artists-heading">
-		<header class="panel-head">
-			<p id="new-artists-heading" class="eyebrow">New Artists</p>
-		</header>
-		{#if newArtists.length === 0}
-			<p class="empty-line">No artists yet.</p>
-		{:else}
-			<ul class="item-list">
-				{#each newArtists as artist (artist.username)}
-					<li class="artist-line">
-						<a class="item artist" href="/users/{artist.username}">
-							<Avatar src={artist.image} name={artist.name} size="1.85rem" />
-							<span class="item-copy">
-								<span class="item-title">{artist.name}</span>
-								<span class="item-meta">@{artist.username}</span>
-							</span>
-							<span class="item-stat tracks">{artist.trackCount}</span>
-						</a>
-						{#if !artist.isViewer}
-							<FollowButton
-								username={artist.username}
-								name={artist.name}
-								following={Boolean(artist.followedByViewer)}
-								{signedIn}
-								size="sm"
-							/>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
-
-	<section class="panel" aria-labelledby="recent-activity-heading">
-		<header class="panel-head">
-			<p id="recent-activity-heading" class="eyebrow">Activity</p>
-		</header>
-		{#if recentComments.length === 0}
-			<p class="empty-line">No comments yet.</p>
-		{:else}
-			<ul class="item-list">
-				{#each recentComments as comment (comment.id)}
-					<li>
-						<a class="item activity" href="/tracks/{comment.trackId}">
-							<span class="activity-head">
-								<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
-								<span class="item-topline">
-									<span class="item-title">{comment.userName}</span>
-									<span class="item-meta">on {comment.trackTitle}</span>
+	<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
+		<section class="panel" aria-labelledby="most-liked-heading" data-panel={PANELS[0].key}>
+			<header class="panel-head">
+				<p id="most-liked-heading" class="eyebrow">Popular</p>
+			</header>
+			{#if mostLiked.length === 0}
+				<p class="empty-line">No likes yet.</p>
+			{:else}
+				<ol class="item-list">
+					{#each mostLiked as item, index (item.id)}
+						<li>
+							<a class="item" href="/tracks/{item.id}">
+								<span class="rank">{padRank(index + 1)}</span>
+								<span class="item-copy">
+									<span class="item-title">{item.title}</span>
+									<span class="item-meta">{item.uploaderName}</span>
 								</span>
-							</span>
-							<span class="item-body">“{comment.body}”</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+								<span class="item-stat">
+									<IconHeart size={12} stroke={1.75} aria-hidden="true" />
+									{item.likeCount}
+								</span>
+							</a>
+						</li>
+					{/each}
+				</ol>
+			{/if}
+		</section>
 
-	<section class="panel" aria-labelledby="genres-heading">
-		<header class="panel-head">
-			<p id="genres-heading" class="eyebrow">Browse</p>
-		</header>
-		{#if genres.length === 0}
-			<p class="empty-line">No genres yet.</p>
-		{:else}
-			<ul class="genre-list">
-				{#each genres as entry (entry.genre)}
-					<li>
-						<a
-							class={['genre-chip', activeGenre === entry.genre && 'active']}
-							href={feedHref({ genre: entry.genre, following })}
-							aria-current={activeGenre === entry.genre ? 'page' : undefined}
-						>
-							<span class="genre-label">{entry.genre}</span>
-							<span class="genre-count">{entry.count}</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+		<section class="panel" aria-labelledby="new-artists-heading" data-panel={PANELS[1].key}>
+			<header class="panel-head">
+				<p id="new-artists-heading" class="eyebrow">New Artists</p>
+			</header>
+			{#if newArtists.length === 0}
+				<p class="empty-line">No artists yet.</p>
+			{:else}
+				<ul class="item-list">
+					{#each newArtists as artist (artist.username)}
+						<li class="artist-line">
+							<a class="item artist" href="/users/{artist.username}">
+								<Avatar src={artist.image} name={artist.name} size="1.85rem" />
+								<span class="item-copy">
+									<span class="item-title">{artist.name}</span>
+									<span class="item-meta">@{artist.username}</span>
+								</span>
+								<span class="item-stat tracks">{artist.trackCount}</span>
+							</a>
+							{#if !artist.isViewer}
+								<FollowButton
+									username={artist.username}
+									name={artist.name}
+									following={Boolean(artist.followedByViewer)}
+									{signedIn}
+									size="sm"
+								/>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+
+		<section class="panel" aria-labelledby="recent-activity-heading" data-panel={PANELS[2].key}>
+			<header class="panel-head">
+				<p id="recent-activity-heading" class="eyebrow">Activity</p>
+			</header>
+			{#if recentComments.length === 0}
+				<p class="empty-line">No comments yet.</p>
+			{:else}
+				<ul class="item-list">
+					{#each recentComments as comment (comment.id)}
+						<li>
+							<a class="item activity" href="/tracks/{comment.trackId}">
+								<span class="activity-head">
+									<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+									<span class="item-topline">
+										<span class="item-title">{comment.userName}</span>
+										<span class="item-meta">on {comment.trackTitle}</span>
+									</span>
+								</span>
+								<span class="item-body">“{comment.body}”</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+
+		<section class="panel" aria-labelledby="genres-heading" data-panel={PANELS[3].key}>
+			<header class="panel-head">
+				<p id="genres-heading" class="eyebrow">Browse</p>
+			</header>
+			{#if genres.length === 0}
+				<p class="empty-line">No genres yet.</p>
+			{:else}
+				<ul class="genre-list">
+					{#each genres as entry (entry.genre)}
+						<li>
+							<a
+								class={['genre-chip', activeGenre === entry.genre && 'active']}
+								href={feedHref({ genre: entry.genre, following })}
+								aria-current={activeGenre === entry.genre ? 'page' : undefined}
+							>
+								<span class="genre-label">{entry.genre}</span>
+								<span class="genre-count">{entry.count}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	</div>
+
+	<nav class="panel-pager" aria-label="Discover panels">
+		{#each PANELS as panel, index (panel.key)}
+			<button
+				type="button"
+				class="pager-dot"
+				aria-label={panel.label}
+				aria-current={activePanel === index ? 'true' : undefined}
+				onclick={() => scrollToPanel(index)}
+			></button>
+		{/each}
+	</nav>
 </aside>
 
 <style>
@@ -187,56 +238,21 @@
 		align-content: start;
 	}
 
+	.panel-rail {
+		display: grid;
+		gap: 1.15rem;
+		min-width: 0;
+	}
+
+	.panel-pager {
+		display: none;
+	}
+
 	@media (min-width: 961px) {
 		.feed-sidebar {
 			position: sticky;
 			top: calc(var(--site-header-height) + 1rem);
 		}
-	}
-
-	.scope-strip {
-		display: flex;
-		width: 100%;
-		border: 1px solid var(--hard-border);
-		box-shadow: 3px 3px 0 var(--hard-shadow);
-	}
-
-	.scope-btn {
-		display: inline-flex;
-		flex: 1;
-		align-items: center;
-		justify-content: center;
-		min-height: 2.25rem;
-		padding: 0.4rem 1rem;
-		border-right: 1px solid var(--hard-border);
-		color: var(--ink);
-		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
-		font-size: 0.7rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		line-height: 1;
-		text-decoration: none;
-		text-transform: uppercase;
-		transition:
-			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
-			background 120ms ease,
-			box-shadow 120ms ease,
-			color 120ms ease;
-	}
-
-	.scope-btn:last-child {
-		border-right: 0;
-	}
-
-	.scope-btn:hover {
-		background: color-mix(in srgb, var(--accent) 35%, var(--paper));
-	}
-
-	.scope-btn[aria-current='page'] {
-		color: var(--on-accent);
-		background: var(--accent);
-		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
-		transform: translate(1px, 1px);
 	}
 
 	.panel {
@@ -487,10 +503,92 @@
 		opacity: 1;
 	}
 
+	@media (max-width: 960px) {
+		.feed-sidebar {
+			gap: 0.65rem;
+		}
+
+		.panel-rail {
+			display: flex;
+			gap: 0.75rem;
+			overflow-x: auto;
+			overscroll-behavior-x: contain;
+			scroll-snap-type: x mandatory;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+			/* room for bottom hard-shadow clipped by overflow-x */
+			padding-bottom: 5px;
+		}
+
+		.panel-rail::-webkit-scrollbar {
+			display: none;
+		}
+
+		.panel {
+			flex: 0 0 100%;
+			min-width: 0;
+			scroll-snap-align: start;
+			scroll-snap-stop: always;
+		}
+
+		.panel-pager {
+			display: flex;
+			justify-content: center;
+			gap: 0.15rem;
+		}
+
+		.pager-dot {
+			display: grid;
+			place-items: center;
+			width: 1.75rem;
+			height: 1.75rem;
+			padding: 0;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			cursor: pointer;
+		}
+
+		.pager-dot::after {
+			width: 0.55rem;
+			height: 0.55rem;
+			border: 1px solid var(--hard-border);
+			background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+			box-shadow: 1px 1px 0 var(--hard-shadow);
+			content: '';
+			transition:
+				background 120ms ease,
+				border-color 120ms ease,
+				box-shadow 120ms ease,
+				transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+		}
+
+		.pager-dot:hover::after {
+			background: color-mix(in srgb, var(--accent) 35%, var(--paper));
+		}
+
+		.pager-dot[aria-current='true']::after {
+			border-color: var(--ink);
+			background: var(--accent);
+			box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+			transform: translate(1px, 1px);
+		}
+
+		.pager-dot:focus-visible {
+			outline: 2px solid var(--ink);
+			outline-offset: 2px;
+		}
+	}
+
 	@media (pointer: coarse) {
-		.scope-btn,
 		.genre-chip {
 			min-height: var(--tap-min);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.panel-rail {
+			scroll-behavior: auto;
 		}
 	}
 </style>

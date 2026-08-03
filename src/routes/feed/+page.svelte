@@ -16,6 +16,17 @@
 	);
 
 	export const snapshot = paged.snapshot;
+
+	/**
+	 * @param {{ genre?: string | null, following?: boolean }} [opts]
+	 */
+	function feedHref({ genre = null, following: scopeFollowing = false } = {}) {
+		const params = new URLSearchParams();
+		if (scopeFollowing) params.set('following', '1');
+		if (genre) params.set('genre', genre);
+		const qs = params.toString();
+		return qs ? `/feed?${qs}` : '/feed';
+	}
 </script>
 
 <svelte:head>
@@ -29,41 +40,48 @@
 
 	<main>
 		<div class="feed-grid">
-			<section class="block" aria-labelledby="feed-heading">
-				<header class="feed-head">
+			<header class="feed-head">
+				<div class="feed-titles">
 					<p class="eyebrow eyebrow-chip accent-text">Feed</p>
 					<h1 id="feed-heading" class="display-face">
 						{data.following ? 'Your Follows' : 'The Feed'}
 					</h1>
-					<p class="intro">
-						{#if data.following}
-							Tracks and reposts from the {data.followingCount ?? 0} creator{data.followingCount ===
-							1
-								? ''
-								: 's'} you follow — newest first.
-						{:else}
-							An aggregation of everything people are posting — newest first.
-						{/if}
-					</p>
-
-					{#if data.genre}
-						<p class="filter-chip" aria-live="polite">
-							<span>Genre: <strong>{data.genre}</strong></span>
-							<a href={data.following ? '/feed?following=1' : '/feed'}>Clear filter</a>
-						</p>
-					{/if}
-				</header>
-
-				<div bind:this={container}>
-					<FeedTrackList
-						list={paged.current}
-						genre={data.genre}
-						following={data.following}
-						viewerName={data.user.name}
-						viewerImage={data.user.image}
-					/>
 				</div>
-			</section>
+
+				<p class="intro">
+					{#if data.following}
+						Tracks and reposts from the {data.followingCount ?? 0} creator{data.followingCount === 1
+							? ''
+							: 's'} you follow — newest first.
+					{:else}
+						An aggregation of everything people are posting — newest first.
+					{/if}
+				</p>
+
+				<nav class="scope-strip" aria-label="Feed scope">
+					<a
+						class="scope-btn"
+						href={feedHref({ genre: data.genre })}
+						aria-current={data.following ? undefined : 'page'}
+					>
+						All
+					</a>
+					<a
+						class="scope-btn"
+						href={feedHref({ genre: data.genre, following: true })}
+						aria-current={data.following ? 'page' : undefined}
+					>
+						Following
+					</a>
+				</nav>
+
+				{#if data.genre}
+					<p class="filter-chip" aria-live="polite">
+						<span>Genre: <strong>{data.genre}</strong></span>
+						<a href={data.following ? '/feed?following=1' : '/feed'}>Clear filter</a>
+					</p>
+				{/if}
+			</header>
 
 			<FeedSidebar
 				mostLiked={data.sidebar.mostLiked}
@@ -74,6 +92,16 @@
 				following={data.following}
 				signedIn={true}
 			/>
+
+			<section class="feed-list" aria-labelledby="feed-heading" bind:this={container}>
+				<FeedTrackList
+					list={paged.current}
+					genre={data.genre}
+					following={data.following}
+					viewerName={data.user.name}
+					viewerImage={data.user.image}
+				/>
+			</section>
 		</div>
 	</main>
 </div>
@@ -95,20 +123,41 @@
 	.feed-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) var(--site-sidebar-width);
+		grid-template-areas:
+			'head side'
+			'list side';
 		gap: clamp(2rem, 5vw, 3rem);
 		align-items: start;
 		animation: rise 0.8s ease both;
 	}
 
-	.block {
+	.feed-head {
+		grid-area: head;
+		display: grid;
+		grid-template-areas:
+			'titles'
+			'intro'
+			'scope'
+			'filter';
+		gap: 0;
+		margin-bottom: 0;
+	}
+
+	.feed-grid :global(.feed-sidebar) {
+		grid-area: side;
+	}
+
+	.feed-list {
+		grid-area: list;
 		min-width: 0;
 	}
 
-	.feed-head {
-		margin-bottom: 2.5rem;
+	.feed-titles {
+		grid-area: titles;
+		min-width: 0;
 	}
 
-	.feed-head > .eyebrow {
+	.feed-titles > .eyebrow {
 		margin: 0 0 0.35rem;
 	}
 
@@ -120,6 +169,7 @@
 	}
 
 	.intro {
+		grid-area: intro;
 		max-width: 34rem;
 		margin: 0.4rem 0 0;
 		color: var(--muted);
@@ -127,7 +177,57 @@
 		animation: rise 0.75s ease 0.05s both;
 	}
 
+	.scope-strip {
+		grid-area: scope;
+		display: flex;
+		width: 100%;
+		max-width: 16rem;
+		margin: 0.85rem 0 0;
+		border: 1px solid var(--hard-border);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+		animation: rise 0.8s ease both;
+	}
+
+	.scope-btn {
+		display: inline-flex;
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		min-height: 2.25rem;
+		padding: 0.4rem 1rem;
+		border-right: 1px solid var(--hard-border);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+		font-size: 0.7rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		text-decoration: none;
+		text-transform: uppercase;
+		transition:
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+			background 120ms ease,
+			box-shadow 120ms ease,
+			color 120ms ease;
+	}
+
+	.scope-btn:last-child {
+		border-right: 0;
+	}
+
+	.scope-btn:hover {
+		background: color-mix(in srgb, var(--accent) 35%, var(--paper));
+	}
+
+	.scope-btn[aria-current='page'] {
+		color: var(--on-accent);
+		background: var(--accent);
+		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+		transform: translate(1px, 1px);
+	}
+
 	.filter-chip {
+		grid-area: filter;
 		display: inline-flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
@@ -164,6 +264,34 @@
 	@media (max-width: 960px) {
 		.feed-grid {
 			grid-template-columns: 1fr;
+			grid-template-areas:
+				'head'
+				'side'
+				'list';
+			gap: 1.25rem;
+		}
+
+		.feed-head {
+			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-areas:
+				'titles scope'
+				'intro intro'
+				'filter filter';
+			column-gap: 0.75rem;
+			align-items: start;
+		}
+
+		.scope-strip {
+			width: auto;
+			max-width: none;
+			margin: 0;
+			align-self: start;
+		}
+
+		.scope-btn {
+			min-height: 2rem;
+			padding: 0.35rem 0.7rem;
+			font-size: 0.65rem;
 		}
 	}
 
@@ -172,16 +300,18 @@
 			padding-top: 0.5rem;
 		}
 
-		.feed-head {
-			margin-bottom: 1.5rem;
-		}
-
 		h1 {
 			font-size: clamp(2rem, 8vw, 3.75rem);
 		}
 
 		.intro {
 			display: none;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.scope-btn {
+			min-height: var(--tap-min);
 		}
 	}
 </style>
