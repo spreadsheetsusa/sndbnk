@@ -1,12 +1,18 @@
 <script>
+	import IconChevronDown from '@tabler/icons-svelte-runes/icons/chevron-down';
+	import IconChevronUp from '@tabler/icons-svelte-runes/icons/chevron-up';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconMusic from '@tabler/icons-svelte-runes/icons/music';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconUserPlus from '@tabler/icons-svelte-runes/icons/user-plus';
 	import IconUsers from '@tabler/icons-svelte-runes/icons/users';
+	import { tick } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import FollowButton from '#lib/components/FollowButton.svelte';
+	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
 	import ArtistRow from '#lib/components/profile/ArtistRow.svelte';
 
 	/**
@@ -71,9 +77,18 @@
 	});
 
 	let activePanel = $state(0);
+	/** Mobile-only: panels start as a single-row strip. */
+	let expanded = $state(false);
+	const isMobile = new MediaQuery('(max-width: 960px)', false);
+	const collapsed = $derived(isMobile.current && !expanded);
 
 	/** @type {HTMLElement | null} */
 	let panelRail = null;
+
+	/** @param {string} value */
+	function vtName(value) {
+		return value.replace(/[^a-zA-Z0-9_-]+/g, '-');
+	}
 
 	/**
 	 * @param {HTMLElement} node
@@ -117,122 +132,170 @@
 		});
 		activePanel = index;
 	}
+
+	async function toggleExpanded() {
+		const apply = () => {
+			expanded = !expanded;
+		};
+		if (
+			prefersReducedMotion.current ||
+			typeof document === 'undefined' ||
+			typeof document.startViewTransition !== 'function'
+		) {
+			apply();
+			return;
+		}
+		document.startViewTransition(async () => {
+			apply();
+			await tick();
+		});
+	}
 </script>
 
-<aside class="profile-sidebar" aria-label="About {name}">
-	<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
-		{#if showStats}
-			<section class="panel" aria-label="Stats" data-panel="stats">
-				<ul class="stat-grid">
-					<li class="stat accent">
-						<IconUsers size={14} stroke={1.75} aria-hidden="true" />
-						<span class="stat-value">{followerCount}</span>
-						<span class="stat-label">Followers</span>
-					</li>
-					<li class="stat">
-						<IconUserPlus size={14} stroke={1.75} aria-hidden="true" />
-						<span class="stat-value">{stats.followingCount}</span>
-						<span class="stat-label">Following</span>
-					</li>
-					<li class="stat">
-						<IconMusic size={14} stroke={1.75} aria-hidden="true" />
-						<span class="stat-value">{stats.trackCount}</span>
-						<span class="stat-label">Tracks</span>
-					</li>
-					<li class="stat">
-						<IconHeart size={14} stroke={1.75} aria-hidden="true" />
-						<span class="stat-value">{stats.likeCount}</span>
-						<span class="stat-label">Likes</span>
-					</li>
-				</ul>
-
-				{#if !isOwner}
-					<div class="panel-action">
-						<FollowButton
-							{username}
-							{name}
-							following={isFollowing}
-							{signedIn}
-							onchange={(state) => (followerOverride = state.followerCount)}
-						/>
-					</div>
-				{/if}
-
-				{#if hasReposts}
-					<button
-						type="button"
-						class="repost-toggle"
-						aria-pressed={showReposts}
-						onclick={() => onrepoststoggle?.(!showReposts)}
-					>
-						<IconRepeat size={14} stroke={1.75} aria-hidden="true" />
-						<span>{showReposts ? 'Reposts on' : 'Reposts off'}</span>
-						<span class="repost-count">{stats.repostCount}</span>
-					</button>
-				{/if}
-			</section>
-		{/if}
-
-		{#if showFansAlsoLike}
-			<section class="panel" aria-labelledby="fans-also-like-heading" data-panel="fans">
-				<header class="panel-head">
-					<p id="fans-also-like-heading" class="eyebrow">Fans Also Like</p>
-				</header>
-				{#if fansAlsoLike.length === 0}
-					<p class="empty-line">Nothing to compare yet.</p>
-				{:else}
-					<ul class="row-list">
-						{#each fansAlsoLike as artist (artist.username)}
-							<li><ArtistRow {artist} {signedIn} {linkBase} /></li>
-						{/each}
-					</ul>
-				{/if}
-			</section>
-		{/if}
-
-		{#if showFollowers}
-			<section class="panel" aria-labelledby="followers-heading" data-panel="followers">
-				<header class="panel-head">
-					<p id="followers-heading" class="eyebrow">Followers ({followerCount})</p>
-				</header>
-				{#if followers.length === 0}
-					<p class="empty-line">No followers yet.</p>
-				{:else}
-					<ul class="row-list">
-						{#each followers as artist (artist.username)}
-							<li><ArtistRow {artist} {signedIn} {linkBase} /></li>
-						{/each}
-					</ul>
-				{/if}
-			</section>
-		{/if}
-
-		{#if showActivity}
-			<section class="panel" aria-labelledby="profile-comments-heading" data-panel="activity">
-				<header class="panel-head">
-					<p id="profile-comments-heading" class="eyebrow">Last Comments</p>
-				</header>
-				{#if recentComments.length === 0}
-					<p class="empty-line">No comments yet.</p>
-				{:else}
-					<ul class="item-list">
-						{#each recentComments as comment (comment.id)}
-							<li>
-								<a class="item" href="/tracks/{comment.trackId}">
-									<span class="activity-head">
-										<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
-										<span class="item-topline">
-											<span class="item-title">{comment.userName}</span>
-											<span class="item-meta">on {comment.trackTitle}</span>
-										</span>
-									</span>
-									<span class="item-body">“{comment.body}”</span>
-								</a>
+<aside class="profile-sidebar" class:collapsed aria-label="About {name}">
+	<div class="rail-row">
+		<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
+			{#if showStats}
+				<section class="panel" aria-label="Stats" data-panel="stats">
+					<SnapMarquee enabled={collapsed} resetKey="profile-stats">
+						<ul class="stat-grid">
+							<li class="stat accent" style:view-transition-name="profile-stat-followers">
+								<IconUsers size={14} stroke={1.75} aria-hidden="true" />
+								<span class="stat-value">{followerCount}</span>
+								<span class="stat-label">Followers</span>
 							</li>
-						{/each}
-					</ul>
+							<li class="stat" style:view-transition-name="profile-stat-following">
+								<IconUserPlus size={14} stroke={1.75} aria-hidden="true" />
+								<span class="stat-value">{stats.followingCount}</span>
+								<span class="stat-label">Following</span>
+							</li>
+							<li class="stat" style:view-transition-name="profile-stat-tracks">
+								<IconMusic size={14} stroke={1.75} aria-hidden="true" />
+								<span class="stat-value">{stats.trackCount}</span>
+								<span class="stat-label">Tracks</span>
+							</li>
+							<li class="stat" style:view-transition-name="profile-stat-likes">
+								<IconHeart size={14} stroke={1.75} aria-hidden="true" />
+								<span class="stat-value">{stats.likeCount}</span>
+								<span class="stat-label">Likes</span>
+							</li>
+						</ul>
+					</SnapMarquee>
+
+					{#if !collapsed && !isOwner}
+						<div class="panel-action">
+							<FollowButton
+								{username}
+								{name}
+								following={isFollowing}
+								{signedIn}
+								onchange={(state) => (followerOverride = state.followerCount)}
+							/>
+						</div>
+					{/if}
+
+					{#if !collapsed && hasReposts}
+						<button
+							type="button"
+							class="repost-toggle"
+							aria-pressed={showReposts}
+							onclick={() => onrepoststoggle?.(!showReposts)}
+						>
+							<IconRepeat size={14} stroke={1.75} aria-hidden="true" />
+							<span>{showReposts ? 'Reposts on' : 'Reposts off'}</span>
+							<span class="repost-count">{stats.repostCount}</span>
+						</button>
+					{/if}
+				</section>
+			{/if}
+
+			{#if showFansAlsoLike}
+				<section class="panel" aria-labelledby="fans-also-like-heading" data-panel="fans">
+					<header class="panel-head">
+						<p id="fans-also-like-heading" class="eyebrow">Fans Also Like</p>
+					</header>
+					{#if fansAlsoLike.length === 0}
+						<p class="empty-line">Nothing to compare yet.</p>
+					{:else}
+						<SnapMarquee enabled={collapsed} resetKey="profile-fans">
+							<ul class="row-list">
+								{#each fansAlsoLike as artist (artist.username)}
+									<li style:view-transition-name="profile-fan-{vtName(artist.username)}">
+										<ArtistRow {artist} {signedIn} {linkBase} showFollow={!collapsed} />
+									</li>
+								{/each}
+							</ul>
+						</SnapMarquee>
+					{/if}
+				</section>
+			{/if}
+
+			{#if showFollowers}
+				<section class="panel" aria-labelledby="followers-heading" data-panel="followers">
+					<header class="panel-head">
+						<p id="followers-heading" class="eyebrow">Followers ({followerCount})</p>
+					</header>
+					{#if followers.length === 0}
+						<p class="empty-line">No followers yet.</p>
+					{:else}
+						<SnapMarquee enabled={collapsed} resetKey="profile-followers">
+							<ul class="row-list">
+								{#each followers as artist (artist.username)}
+									<li style:view-transition-name="profile-follower-{vtName(artist.username)}">
+										<ArtistRow {artist} {signedIn} {linkBase} showFollow={!collapsed} />
+									</li>
+								{/each}
+							</ul>
+						</SnapMarquee>
+					{/if}
+				</section>
+			{/if}
+
+			{#if showActivity}
+				<section class="panel" aria-labelledby="profile-comments-heading" data-panel="activity">
+					<header class="panel-head">
+						<p id="profile-comments-heading" class="eyebrow">Last Comments</p>
+					</header>
+					{#if recentComments.length === 0}
+						<p class="empty-line">No comments yet.</p>
+					{:else}
+						<SnapMarquee enabled={collapsed} resetKey="profile-activity">
+							<ul class="item-list">
+								{#each recentComments as comment (comment.id)}
+									<li style:view-transition-name="profile-act-{vtName(comment.id)}">
+										<a class="item" href="/tracks/{comment.trackId}">
+											<span class="activity-head">
+												<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+												<span class="item-topline">
+													<span class="item-title">{comment.userName}</span>
+													<span class="item-meta">on {comment.trackTitle}</span>
+												</span>
+											</span>
+											<span class="item-body">“{comment.body}”</span>
+										</a>
+									</li>
+								{/each}
+							</ul>
+						</SnapMarquee>
+					{/if}
+				</section>
+			{/if}
+		</div>
+
+		{#if isMobile.current}
+			<button
+				type="button"
+				class="expand-btn"
+				aria-expanded={expanded}
+				aria-label={expanded ? 'Collapse profile cards' : 'Expand profile cards'}
+				onclick={toggleExpanded}
+			>
+				{#if expanded}
+					<IconChevronUp size={18} stroke={1.75} aria-hidden="true" />
+				{:else}
+					<IconChevronDown size={18} stroke={1.75} aria-hidden="true" />
 				{/if}
-			</section>
+			</button>
 		{/if}
 	</div>
 
@@ -260,10 +323,20 @@
 		align-content: start;
 	}
 
+	.rail-row {
+		display: grid;
+		gap: 1.15rem;
+		min-width: 0;
+	}
+
 	.panel-rail {
 		display: grid;
 		gap: 1.15rem;
 		min-width: 0;
+	}
+
+	.expand-btn {
+		display: none;
 	}
 
 	.panel-pager {
@@ -485,18 +558,25 @@
 
 	@media (max-width: 960px) {
 		.profile-sidebar {
-			gap: 0.65rem;
+			gap: 0.45rem;
+		}
+
+		.rail-row {
+			display: flex;
+			gap: 0.45rem;
+			align-items: stretch;
 		}
 
 		.panel-rail {
 			display: flex;
+			flex: 1;
 			gap: 0.75rem;
+			min-width: 0;
 			overflow-x: auto;
 			overscroll-behavior-x: contain;
 			scroll-snap-type: x mandatory;
 			scrollbar-width: none;
 			-ms-overflow-style: none;
-			/* room for bottom hard-shadow clipped by overflow-x */
 			padding-bottom: 5px;
 		}
 
@@ -509,6 +589,41 @@
 			min-width: 0;
 			scroll-snap-align: start;
 			scroll-snap-stop: always;
+			transition: padding 180ms ease;
+		}
+
+		.expand-btn {
+			display: inline-flex;
+			flex-shrink: 0;
+			align-items: center;
+			justify-content: center;
+			align-self: stretch;
+			width: var(--header-chrome-height, 2.25rem);
+			min-height: var(--header-chrome-height, 2.25rem);
+			padding: 0;
+			border: 1px solid var(--hard-border);
+			color: var(--ink);
+			background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+			box-shadow: 3px 3px 0 var(--hard-shadow);
+			cursor: pointer;
+			transition:
+				transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+				background 120ms ease,
+				box-shadow 120ms ease;
+		}
+
+		.expand-btn:hover {
+			background: color-mix(in srgb, var(--accent) 35%, var(--paper));
+		}
+
+		.expand-btn:active,
+		.expand-btn[aria-expanded='true'] {
+			box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+			transform: translate(1px, 1px);
+		}
+
+		.expand-btn :global(svg) {
+			display: block;
 		}
 
 		.panel-pager {
@@ -558,10 +673,100 @@
 			outline: 2px solid var(--ink);
 			outline-offset: 2px;
 		}
+
+		.profile-sidebar.collapsed .panel {
+			display: flex;
+			align-items: center;
+			min-height: var(--header-chrome-height, 2.25rem);
+			padding: 0.2rem 0.45rem;
+			overflow: hidden;
+			background: color-mix(in srgb, var(--paper) 92%, var(--ink));
+			box-shadow: 3px 3px 0 var(--hard-shadow);
+		}
+
+		.profile-sidebar.collapsed .panel-head {
+			display: none;
+		}
+
+		.profile-sidebar.collapsed .empty-line {
+			padding: 0.15rem 0.25rem;
+			font-size: 0.72rem;
+			white-space: nowrap;
+		}
+
+		.profile-sidebar.collapsed .stat-grid {
+			display: flex;
+			flex-direction: row;
+			gap: 0.3rem;
+			align-items: center;
+		}
+
+		.profile-sidebar.collapsed .stat {
+			flex: 0 0 auto;
+			grid-template-columns: auto auto;
+			gap: 0.15rem 0.3rem;
+			padding: 0.2rem 0.4rem;
+			scroll-snap-align: start;
+		}
+
+		.profile-sidebar.collapsed .stat-value {
+			font-size: 0.85rem;
+		}
+
+		.profile-sidebar.collapsed .stat-label {
+			grid-column: auto;
+			font-size: 0.52rem;
+		}
+
+		.profile-sidebar.collapsed .row-list,
+		.profile-sidebar.collapsed .item-list {
+			display: flex;
+			flex-direction: row;
+			gap: 0.35rem;
+			align-items: center;
+		}
+
+		.profile-sidebar.collapsed .row-list > li,
+		.profile-sidebar.collapsed .item-list > li {
+			flex: 0 0 auto;
+			scroll-snap-align: start;
+			min-width: 11rem;
+		}
+
+		.profile-sidebar.collapsed .item {
+			flex-direction: row;
+			align-items: center;
+			gap: 0.4rem;
+			max-width: 16rem;
+			padding: 0.2rem 0.35rem;
+		}
+
+		.profile-sidebar.collapsed .item-body {
+			display: block;
+			overflow: hidden;
+			max-width: 8rem;
+			-webkit-line-clamp: unset;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.profile-sidebar.collapsed .item-title,
+		.profile-sidebar.collapsed .item-meta {
+			font-size: 0.72rem;
+		}
+
+		.profile-sidebar.collapsed .expand-btn {
+			min-height: calc(var(--header-chrome-height, 2.25rem) + 5px);
+		}
 	}
 
 	@media (pointer: coarse) {
 		.repost-toggle {
+			min-height: var(--tap-min);
+		}
+
+		.expand-btn {
+			width: var(--tap-min);
 			min-height: var(--tap-min);
 		}
 	}
@@ -569,6 +774,10 @@
 	@media (prefers-reduced-motion: reduce) {
 		.panel-rail {
 			scroll-behavior: auto;
+		}
+
+		.panel {
+			transition: none;
 		}
 	}
 </style>

@@ -1,10 +1,6 @@
 <script>
-	import IconLayoutCards from '@tabler/icons-svelte-runes/icons/layout-cards';
 	import IconMapPin from '@tabler/icons-svelte-runes/icons/map-pin';
 	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
-	import { slide } from 'svelte/transition';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
@@ -113,22 +109,6 @@
 			sidebarCards.followers ||
 			sidebarCards.activity
 	);
-
-	/** Mobile-only: discover panels start tucked away. Desktop always open. */
-	let showPanels = $state(false);
-	const isMobile = new MediaQuery('(max-width: 960px)', false);
-	const panelsOpen = $derived(!isMobile.current || showPanels);
-
-	/**
-	 * An element takes only one transition directive, so the fade is folded into slide's own css.
-	 * @param {Element} node
-	 * @param {import('svelte/transition').SlideParams} [params]
-	 * @returns {import('svelte/transition').TransitionConfig}
-	 */
-	function slideFade(node, params) {
-		const config = slide(node, params);
-		return { ...config, css: (t, u) => `${config.css?.(t, u) ?? ''};opacity:${t}` };
-	}
 </script>
 
 <div class="profile-page" class:tenant-host={data.viaTenantHost}>
@@ -173,25 +153,10 @@
 							</p>
 						{/if}
 					</div>
-					{#if data.viewer?.isOwner || (showSidebar && isMobile.current)}
-						<div class="identity-actions">
-							{#if data.viewer?.isOwner}
-								<a class="edit-btn" href="/settings" aria-label="Edit profile">
-									<IconPencil size={16} stroke={1.75} aria-hidden="true" />
-								</a>
-							{/if}
-							{#if showSidebar && isMobile.current}
-								<button
-									type="button"
-									class="panels-btn"
-									aria-pressed={showPanels}
-									aria-label={showPanels ? 'Hide discover cards' : 'Show discover cards'}
-									onclick={() => (showPanels = !showPanels)}
-								>
-									<IconLayoutCards size={16} stroke={1.75} aria-hidden="true" />
-								</button>
-							{/if}
-						</div>
+					{#if data.viewer?.isOwner}
+						<a class="edit-btn" href="/settings" aria-label="Edit profile">
+							<IconPencil size={16} stroke={1.75} aria-hidden="true" />
+						</a>
 					{/if}
 				</div>
 
@@ -220,33 +185,26 @@
 				{/if}
 			</section>
 
-			{#if showSidebar && panelsOpen}
-				<div
-					class="sidebar-slot"
-					transition:slideFade={{
-						duration: prefersReducedMotion.current ? 0 : 220
-					}}
-				>
-					<ProfileSidebar
-						username={data.profile.username}
-						name={data.profile.name}
-						stats={data.stats}
-						fansAlsoLike={data.sidebar.fansAlsoLike}
-						followers={data.sidebar.followers}
-						recentComments={data.sidebar.recentComments}
-						signedIn={Boolean(data.viewer)}
-						isOwner={Boolean(data.viewer?.isOwner)}
-						isFollowing={Boolean(data.viewer?.isFollowing)}
-						{hasReposts}
-						{showReposts}
-						{linkBase}
-						showStats={sidebarCards.stats}
-						showFansAlsoLike={sidebarCards.fansAlsoLike}
-						showFollowers={sidebarCards.followers}
-						showActivity={sidebarCards.activity}
-						onrepoststoggle={(next) => (showReposts = next)}
-					/>
-				</div>
+			{#if showSidebar}
+				<ProfileSidebar
+					username={data.profile.username}
+					name={data.profile.name}
+					stats={data.stats}
+					fansAlsoLike={data.sidebar.fansAlsoLike}
+					followers={data.sidebar.followers}
+					recentComments={data.sidebar.recentComments}
+					signedIn={Boolean(data.viewer)}
+					isOwner={Boolean(data.viewer?.isOwner)}
+					isFollowing={Boolean(data.viewer?.isFollowing)}
+					{hasReposts}
+					{showReposts}
+					{linkBase}
+					showStats={sidebarCards.stats}
+					showFansAlsoLike={sidebarCards.fansAlsoLike}
+					showFollowers={sidebarCards.followers}
+					showActivity={sidebarCards.activity}
+					onrepoststoggle={(next) => (showReposts = next)}
+				/>
 			{/if}
 
 			{#if list.items.length > 0}
@@ -397,9 +355,8 @@
 		animation: rise 0.7s ease both;
 	}
 
-	.sidebar-slot {
+	.profile-grid :global(.profile-sidebar) {
 		grid-area: side;
-		min-width: 0;
 	}
 
 	.hero > .eyebrow {
@@ -432,26 +389,16 @@
 		flex: 1;
 	}
 
-	.identity-actions {
-		display: flex;
-		flex-shrink: 0;
-		gap: 0.4rem;
-		align-items: center;
-	}
-
-	.edit-btn,
-	.panels-btn {
+	.edit-btn {
 		display: inline-flex;
 		flex-shrink: 0;
 		align-items: center;
 		justify-content: center;
 		width: 2.1rem;
 		height: 2.1rem;
-		padding: 0;
 		border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 		color: var(--ink);
 		background: transparent;
-		cursor: pointer;
 		text-decoration: none;
 		transition:
 			border-color 120ms ease,
@@ -459,24 +406,16 @@
 			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
 	}
 
-	.edit-btn:hover,
-	.panels-btn:hover {
+	.edit-btn:hover {
 		border-color: var(--ink);
 		background: color-mix(in srgb, var(--ink) 6%, transparent);
 	}
 
-	.edit-btn:active,
-	.panels-btn:active {
+	.edit-btn:active {
 		transform: translate(1px, 1px);
 	}
 
-	.panels-btn[aria-pressed='true'] {
-		border-color: var(--ink);
-		background: color-mix(in srgb, var(--accent) 28%, transparent);
-	}
-
-	.edit-btn :global(svg),
-	.panels-btn :global(svg) {
+	.edit-btn :global(svg) {
 		display: block;
 	}
 
@@ -711,8 +650,7 @@
 	}
 
 	@media (pointer: coarse) {
-		.edit-btn,
-		.panels-btn {
+		.edit-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
 		}
