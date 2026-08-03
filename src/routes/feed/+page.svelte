@@ -443,16 +443,20 @@
 		}
 
 		.scope-row {
+			flex-wrap: nowrap;
+			gap: 0.5rem;
 			margin-top: 0.65rem;
 		}
 
 		.scope-strip {
+			flex: 0 0 auto;
 			width: auto;
 			max-width: none;
 		}
 
 		.feed-search {
-			flex: 1 1 100%;
+			flex: 1 1 auto;
+			min-width: 0;
 			max-width: none;
 		}
 
