@@ -519,6 +519,7 @@
 		max-width: 20rem;
 		padding: 0;
 		flex-shrink: 1;
+		font-family: 'Share Tech Mono', ui-monospace, monospace;
 		/* Dimmer LCD wash: accent muted into ink, then lightly into paper. */
 		--lcd-tint: color-mix(in srgb, var(--accent) 42%, var(--ink));
 		background:
@@ -611,9 +612,9 @@
 		flex-shrink: 0;
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 55%, var(--muted));
 		font-size: 0.55rem;
-		font-weight: 800;
+		font-weight: 400;
 		font-variant-numeric: tabular-nums;
-		letter-spacing: 0.06em;
+		letter-spacing: 0.04em;
 		line-height: 1.15;
 		text-align: right;
 		text-transform: uppercase;
@@ -623,8 +624,8 @@
 	.now-artist {
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 35%, var(--muted));
 		font-size: 0.6rem;
-		font-weight: 700;
-		letter-spacing: 0.02em;
+		font-weight: 400;
+		letter-spacing: 0.01em;
 		text-decoration: none;
 		white-space: nowrap;
 	}
@@ -632,8 +633,8 @@
 	.now-title {
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 28%, var(--ink));
 		font-size: 0.7rem;
-		font-weight: 800;
-		letter-spacing: 0.01em;
+		font-weight: 400;
+		letter-spacing: 0;
 		text-decoration: none;
 		white-space: nowrap;
 	}
@@ -641,7 +642,7 @@
 	.now-sep {
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 30%, var(--muted));
 		font-size: 0.65rem;
-		font-weight: 700;
+		font-weight: 400;
 	}
 
 	.now-artist:hover,

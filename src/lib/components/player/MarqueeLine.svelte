@@ -1,7 +1,8 @@
 <script>
 	/**
-	 * Winamp-style overflow marquee. Scrolls only when the inner track is wider
-	 * than the clip; falls back to ellipsis under prefers-reduced-motion.
+	 * Winamp-style overflow marquee. Bumper-scrolls (left then back) only when
+	 * the inner track is wider than the clip; falls back to ellipsis under
+	 * prefers-reduced-motion.
 	 *
 	 * @type {{
 	 *   resetKey?: string,
@@ -38,8 +39,8 @@
 			const next = Math.max(0, track.scrollWidth - node.clientWidth);
 			travel = next;
 			overflowing = next > 1;
-			// ~28px/s with a floor so short overflows still feel leisurely.
-			durationSec = Math.max(6, Math.min(28, next / 28 + 3));
+			// ~28px/s each way; floor/cap for short and long overflows.
+			durationSec = Math.max(8, Math.min(40, (next / 28) * 2 + 5));
 		};
 
 		const ro = new ResizeObserver(measure);
@@ -139,9 +140,13 @@
 		12% {
 			transform: translateX(0);
 		}
+		38%,
+		62% {
+			transform: translateX(calc(-1 * var(--travel, 0px)));
+		}
 		88%,
 		100% {
-			transform: translateX(calc(-1 * var(--travel, 0px)));
+			transform: translateX(0);
 		}
 	}
 
