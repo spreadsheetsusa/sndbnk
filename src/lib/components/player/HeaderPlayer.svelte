@@ -146,7 +146,6 @@
 						peaks={track.waveform}
 						{durationMs}
 						currentTime={player.currentTime}
-						height={38}
 						label="Seek within {track.title}"
 						onseek={handleWaveSeek}
 						onscrub={(seconds) => (scrubSeconds = seconds)}
@@ -306,6 +305,8 @@
 
 <style>
 	.header-player {
+		/* Compact scrub wave that fits inside the shared chrome cell height. */
+		--waveform-height: 1.75rem;
 		position: relative;
 		display: flex;
 		flex: 1 1 auto;
@@ -334,9 +335,11 @@
 	.cell {
 		display: flex;
 		align-items: center;
-		min-height: 2.25rem;
+		height: var(--header-chrome-height);
+		min-height: var(--header-chrome-height);
 		border: 0;
 		border-right: 1px solid var(--hard-border);
+		overflow: hidden;
 	}
 
 	.bar-actions .cell:last-child {
@@ -384,8 +387,7 @@
 		gap: 0.5rem;
 		flex: 1 1 14rem;
 		min-width: 10rem;
-		min-height: 2.4rem;
-		padding: 0.15rem 0.6rem;
+		padding: 0 0.6rem;
 	}
 
 	.wave-wrap {
@@ -394,7 +396,7 @@
 		flex: 1;
 		align-items: center;
 		min-width: 0;
-		min-height: 38px;
+		min-height: var(--waveform-height);
 	}
 
 	.marker {
@@ -495,10 +497,13 @@
 	.now-meta {
 		display: flex;
 		flex-direction: column;
+		justify-content: center;
 		gap: 0.05rem;
 		min-width: 0;
 		flex: 1;
-		line-height: 1.2;
+		/* Match child type so MarqueeLine line-boxes fit the chrome height. */
+		font-size: 0.7rem;
+		line-height: 1.15;
 	}
 
 	.mobile-meta {
@@ -719,8 +724,7 @@
 			grid-area: scrub;
 			flex: 1 1 auto;
 			min-width: 0;
-			min-height: 2.4rem;
-			padding: 0.15rem 0.5rem;
+			padding: 0 0.5rem;
 			border-right: 0;
 		}
 
@@ -754,7 +758,12 @@
 	}
 
 	@media (pointer: coarse) {
+		.header-player {
+			--waveform-height: calc(var(--tap-min) - 0.5rem);
+		}
+
 		.cell {
+			height: var(--tap-min);
 			min-height: var(--tap-min);
 		}
 
@@ -774,11 +783,12 @@
 
 		.now-playing,
 		.scrub {
+			height: var(--tap-min);
 			min-height: var(--tap-min);
 		}
 
 		.wave-wrap {
-			min-height: 44px;
+			min-height: var(--waveform-height);
 		}
 	}
 </style>

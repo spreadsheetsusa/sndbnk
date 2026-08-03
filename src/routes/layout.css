@@ -44,6 +44,8 @@
 	--site-content-max-wide: var(--site-shell-max);
 	--site-header-height: 5rem;
 	--site-header-gap: clamp(0.75rem, 2vw, 1.25rem);
+	/* Mode-strip / header-player strip cell height (outer chrome adds 1px borders). */
+	--header-chrome-height: 2.25rem;
 	/* Card rail beside feed/list pages (Discover, etc.) */
 	--site-sidebar-width: 20rem;
 	/* Minimum comfortable touch target (44px). Grow hit boxes under pointer: coarse. */

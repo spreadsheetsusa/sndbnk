@@ -83,28 +83,31 @@ Two rules follow:
 ```mermaid
 flowchart TD
   form["POST /library/new"] --> meta["parseTrackMetadata"]
-  meta --> audio["validateAudioFile<br/>100MB, mime+ext allowlist"]
+  meta --> audio["validateAudioFile<br/>500MB, mime+ext allowlist"]
   audio --> cover["validateCoverFile<br/>5MB, jpg/png/webp"]
   cover --> resolve["getStorageAdapter"]
-  resolve --> peaks["generateWaveformPeaks (ffmpeg)"]
-  peaks --> insert["db.insert(track)"]
+  resolve --> insert["db.insert track<br/>waveform=null"]
   insert --> put["storage.put audio + cover"]
-  put -->|ok| done["303 → /library/:id"]
+  put -->|ok| enqueue["BullMQ enqueue waveform"]
+  enqueue --> done["303 → /library/:id"]
   put -->|throws| rollback["storage.delete + db.delete<br/>return ok:false"]
+  enqueue --> worker["sndbnk-waveform-worker<br/>ffmpeg → track.waveform"]
 ```
 
 The ordering is deliberate: the DB row is written **first** so the generated `id` can be the
 `folderKey`, and a storage failure rolls back both the files and the row. Preserve that shape if you
 add another storage step — the rollback is the only thing standing between a failed upload and an
-orphaned row.
+orphaned row. Waveform jobs are enqueued **after** a successful put; enqueue failure is fail-soft
+(upload still succeeds, peaks stay placeholders until a later backfill).
 
 Validation limits live at the top of [`tracks.js`](../src/lib/server/tracks.js):
-`AUDIO_MAX_BYTES` 100MB, `COVER_MAX_BYTES` 5MB, with a MIME-plus-extension allowlist rather than
+`AUDIO_MAX_BYTES` 500MB, `COVER_MAX_BYTES` 5MB, with a MIME-plus-extension allowlist rather than
 trusting the browser's `Content-Type` alone.
 
 Those limits are only reachable if `BODY_SIZE_LIMIT` is above them. `svelte-adapter-bun` defaults to
 512K and answers `413` before any app code runs, so raising an app-side limit means raising that env
-var too — see [operations.md](operations.md).
+var too — see [operations.md](operations.md). Use `520M` to cover 500MB audio + 5MB cover + form
+overhead.
 
 Client-side, [`audio-metadata.js`](../src/lib/media/audio-metadata.js) probes the file with
 `music-metadata` before submit and posts duration, bitrate, sample rate, channels, and codec as
@@ -113,23 +116,35 @@ silently drops anything out of range instead of failing the upload.
 
 ## Waveforms
 
-`generateWaveformPeaks()` shells out to ffmpeg via `Bun.spawn`, decoding to 4 kHz mono 16-bit PCM,
-bucketing into `WAVEFORM_BUCKETS` (1000) max-amplitude buckets (or fewer for sub-second files),
-normalizing against the loudest bucket, and quantizing to integers 0–100. The result is stored as a
-JSON string on `track.waveform` (~2–3 KB), so a profile page ships peaks inline with no extra
-request. Callers pass the audio file extension so the temp input is named `input.{ext}` and ffmpeg
-probes containers like m4a/flac reliably.
+Peak generation runs in a **BullMQ worker** (`bun run worker:waveform`), not inside the upload
+request. That keeps long DJ mixes from blocking the single HTTP process.
 
-Two things to know:
+`generateWaveformPeaksFromPath()` shells out to ffmpeg via `Bun.spawn`, streaming 4 kHz mono 16-bit
+PCM into a coarse ~1 peak/sec envelope, then downsampling to `WAVEFORM_BUCKETS` (1000)
+max-amplitude buckets (or fewer for very short files), normalizing against the loudest bucket, and
+quantizing to integers 0–100. The result is stored as a JSON string on `track.waveform` (~2–3 KB),
+so a profile page ships peaks inline with no extra request. Local-adapter jobs point ffmpeg at the
+file under `MEDIA_ROOT`; SSH tracks are staged to a temp file first.
+
+Redis + worker pieces:
+
+| Piece                                                      | Role                                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| `REDIS_URL`                                                | optional; when unset, enqueue is a no-op (uploads still work) |
+| [`queue/waveform.js`](../src/lib/server/queue/waveform.js) | `enqueueWaveformJob` / `processWaveformJob`                   |
+| `scripts/waveform-worker.js`                               | BullMQ `Worker`, concurrency 1                                |
+| `systemd.waveform-worker.service`                          | production unit beside `sndbnk.service`                       |
+
+Things to know:
 
 - **ffmpeg is required for real waveforms.** Production deploy installs and checks for it. Every
-  failure path still returns `null` (uploads never break on a decode miss), and the input is staged
-  in a temp file that is always cleaned up in `finally`. Failures log a `[waveform]` line with exit
-  code and stderr so `journalctl -u sndbnk` shows why peaks were skipped; the UI falls back to
-  placeholder bars only in that case.
-- **`ensureTrackWaveform(row)` backfills lazily.** Tracks uploaded before waveforms existed — or
-  whose upload-time generation failed — get peaks generated on first read from storage. That is why
-  `serializeTrackForPlayer` is async.
+  failure path still leaves `waveform` null (uploads never break on a decode miss). Failures log
+  `[waveform]` / `[waveform-worker]` lines — check `journalctl -u sndbnk-waveform-worker` as well as
+  `sndbnk`. The UI falls back to placeholder bars until peaks land.
+- **`ensureTrackWaveform(row)` only enqueues.** It never runs ffmpeg on the request path. Missing
+  peaks trigger a deduped BullMQ job (`jobId = trackId`); the caller keeps seeing placeholders until
+  the next load after the worker finishes.
+- **Worker timeout** is 15 minutes so multi-hour mixes can finish decoding at 4 kHz.
 
 `Waveform.svelte` divides the stored 0–100 ints by 100 for wavesurfer, and falls back to a synthetic
 sine pattern when peaks are `null`.

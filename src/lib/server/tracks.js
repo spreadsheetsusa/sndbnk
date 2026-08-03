@@ -11,11 +11,12 @@ import {
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, trackRepost, user } from '#lib/server/db/schema';
 import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
-import { generateWaveformPeaks, parseWaveform } from '#lib/server/media/waveform';
+import { parseWaveform } from '#lib/server/media/waveform';
 import { checkUploadAllowed } from '#lib/server/quota';
+import { enqueueWaveformJob } from '#lib/server/queue/waveform';
 import { getOrCreateStorageSetting, getStorageAdapter } from '#lib/server/storage';
 
-const AUDIO_MAX_BYTES = 100 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 500 * 1024 * 1024;
 const COVER_MAX_BYTES = 5 * 1024 * 1024;
 
 export const TRACK_PAGE_SIZE = 24;
@@ -189,7 +190,7 @@ export function parseTrackMetadata(formData) {
  */
 export async function validateAudioFile(file) {
 	if (file.size > AUDIO_MAX_BYTES) {
-		return { ok: false, message: 'Audio must be 100MB or smaller.' };
+		return { ok: false, message: 'Audio must be 500MB or smaller.' };
 	}
 
 	const head = await readFileHead(file);
@@ -303,9 +304,6 @@ export async function createTrackFromForm(userId, formData) {
 	const now = new Date();
 
 	const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
-	const peaks = await generateWaveformPeaks(audioBytes, {
-		ext: extFromName(audioResult.filename)
-	});
 
 	await db.insert(track).values({
 		id,
@@ -317,7 +315,7 @@ export async function createTrackFromForm(userId, formData) {
 		coverFilename: coverResult?.filename ?? null,
 		coverMime: coverResult?.mime ?? null,
 		coverBytes: coverResult?.bytes ?? null,
-		waveform: peaks ? JSON.stringify(peaks) : null,
+		waveform: null,
 		published: true,
 		storageAdapter: adapterId,
 		folderKey,
@@ -344,6 +342,9 @@ export async function createTrackFromForm(userId, formData) {
 			message: err instanceof Error ? err.message : 'Upload failed. Try again.'
 		};
 	}
+
+	// Peaks are generated asynchronously by the waveform worker (BullMQ).
+	await enqueueWaveformJob(id);
 
 	return { ok: true, trackId: id };
 }
@@ -425,10 +426,8 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			if (audioResult && isFile(audioEntry)) {
 				const bytes = new Uint8Array(await audioEntry.arrayBuffer());
 				await storage.put(existing.folderKey, audioResult.filename, bytes, audioResult.mime);
-				const peaks = await generateWaveformPeaks(bytes, {
-					ext: extFromName(audioResult.filename)
-				});
-				patch.waveform = peaks ? JSON.stringify(peaks) : null;
+				// Clear peaks until the worker regenerates them for the new audio.
+				patch.waveform = null;
 				if (existing.audioFilename !== audioResult.filename) {
 					// Best-effort: leave old file; folder delete on track delete cleans up.
 				}
@@ -449,6 +448,10 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 		.update(track)
 		.set(patch)
 		.where(and(eq(track.id, trackId), eq(track.userId, userId)));
+
+	if (replaceAudio) {
+		await enqueueWaveformJob(trackId);
+	}
 
 	return { ok: true };
 }
@@ -516,9 +519,9 @@ export function canViewTrack(row, viewerId) {
 }
 
 /**
- * Ensure a track row has waveform peaks, generating and persisting them from
- * stored audio when missing (backfill for tracks uploaded before waveforms).
- * Works across all storage adapters since it goes through `adapter.get()`.
+ * Return stored waveform peaks, or enqueue a backfill job when missing.
+ * Never runs ffmpeg on the request path — long mixes would block the HTTP
+ * process. Callers see placeholder bars until the worker finishes.
  *
  * @param {typeof track.$inferSelect} row
  * @returns {Promise<number[] | null>}
@@ -526,31 +529,8 @@ export function canViewTrack(row, viewerId) {
 export async function ensureTrackWaveform(row) {
 	const existing = parseWaveform(row.waveform);
 	if (existing) return existing;
-
-	try {
-		const storage = await getStorageAdapter(
-			row.userId,
-			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
-		);
-		const object = await storage.get(row.folderKey, row.audioFilename);
-		const bytes =
-			object.body instanceof Uint8Array
-				? object.body
-				: new Uint8Array(await new Response(/** @type {BodyInit} */ (object.body)).arrayBuffer());
-
-		const peaks = await generateWaveformPeaks(bytes, {
-			ext: extFromName(row.audioFilename)
-		});
-		if (!peaks) return null;
-
-		await db
-			.update(track)
-			.set({ waveform: JSON.stringify(peaks) })
-			.where(eq(track.id, row.id));
-		return peaks;
-	} catch {
-		return null;
-	}
+	await enqueueWaveformJob(row.id);
+	return null;
 }
 
 /**

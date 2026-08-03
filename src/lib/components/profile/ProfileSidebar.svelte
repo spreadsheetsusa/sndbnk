@@ -59,11 +59,6 @@
 	/** Keeps the follower count in step with the button without a page reload. */
 	let followerOverride = $state(/** @type {number | null} */ (null));
 	const followerCount = $derived(followerOverride ?? stats.followerCount);
-
-	/** @param {number} n */
-	function padCount(n) {
-		return String(n).padStart(2, '0');
-	}
 </script>
 
 <aside class="profile-sidebar" aria-label="About {name}">
@@ -122,10 +117,7 @@
 	{#if showFansAlsoLike}
 		<section class="panel" aria-labelledby="fans-also-like-heading">
 			<header class="panel-head">
-				<div class="panel-titles">
-					<p class="eyebrow">Discover</p>
-					<h2 id="fans-also-like-heading">Fans Also Like</h2>
-				</div>
+				<p id="fans-also-like-heading" class="eyebrow">Fans Also Like</p>
 			</header>
 			{#if fansAlsoLike.length === 0}
 				<p class="empty-line">Nothing to compare yet.</p>
@@ -142,17 +134,7 @@
 	{#if showFollowers}
 		<section class="panel" aria-labelledby="followers-heading">
 			<header class="panel-head">
-				<div class="panel-titles">
-					<p class="eyebrow">Audience</p>
-					<h2 id="followers-heading">
-						{followerCount}
-						{followerCount === 1 ? 'Follower' : 'Followers'}
-					</h2>
-				</div>
-				<span class="panel-meta" aria-hidden="true">
-					<IconUsers size={14} stroke={1.75} />
-					{padCount(followers.length)}
-				</span>
+				<p id="followers-heading" class="eyebrow">Followers ({followerCount})</p>
 			</header>
 			{#if followers.length === 0}
 				<p class="empty-line">No followers yet.</p>
@@ -169,10 +151,7 @@
 	{#if showActivity}
 		<section class="panel" aria-labelledby="profile-comments-heading">
 			<header class="panel-head">
-				<div class="panel-titles">
-					<p class="eyebrow">Activity</p>
-					<h2 id="profile-comments-heading">Last Comments</h2>
-				</div>
+				<p id="profile-comments-heading" class="eyebrow">Last Comments</p>
 			</header>
 			{#if recentComments.length === 0}
 				<p class="empty-line">No comments yet.</p>
@@ -220,50 +199,13 @@
 	}
 
 	.panel-head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
 		margin-bottom: 0.75rem;
 		padding-bottom: 0.65rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
-	.panel-titles {
-		min-width: 0;
-	}
-
-	.panel-titles .eyebrow {
-		margin: 0 0 0.35rem;
-	}
-
-	.panel-titles h2 {
+	.panel-head .eyebrow {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-		font-size: 1.2rem;
-		font-weight: 400;
-		letter-spacing: -0.02em;
-		line-height: 1.15;
-	}
-
-	.panel-meta {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3rem;
-		flex-shrink: 0;
-		padding: 0.28rem 0.4rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
-		color: var(--muted);
-		background: color-mix(in srgb, var(--paper) 92%, var(--ink));
-		font-size: 0.62rem;
-		font-weight: 900;
-		letter-spacing: 0.08em;
-		line-height: 1;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.panel-meta :global(svg) {
-		display: block;
 	}
 
 	.empty-line {

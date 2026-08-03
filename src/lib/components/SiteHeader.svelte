@@ -348,7 +348,7 @@
 		gap: 0.4rem;
 		align-items: center;
 		justify-content: center;
-		min-height: 2.25rem;
+		min-height: var(--header-chrome-height);
 		padding: 0.4rem 0.85rem;
 		border: 0;
 		border-right: 1px solid var(--hard-border);

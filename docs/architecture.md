@@ -153,7 +153,8 @@ src/
       site.js             tenant branding (name, logo, accent, hide branding)
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats
-      media/              waveform.js (ffmpeg), embed-tags.js (taglib)
+      media/              waveform.js (ffmpeg peaks), embed-tags.js (taglib)
+      queue/              BullMQ waveform jobs (Redis); worker: bun run worker:waveform
       storage/            adapter interface, local, ssh, crypto
       safe-redirect.js    adapter-safe redirect
 drizzle/                        Drizzle SQL migrations + meta snapshots

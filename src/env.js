@@ -19,7 +19,12 @@ export const variables = defineEnvVars({
 	},
 	BODY_SIZE_LIMIT: {
 		description:
-			'svelte-adapter-bun / Bun max request body size (e.g. `110M`). Default 512K is too small for library uploads; must cover audio (100MB) + cover (5MB) + form overhead.'
+			'svelte-adapter-bun / Bun max request body size (e.g. `520M`). Default 512K is too small for library uploads; must cover audio (500MB) + cover (5MB) + form overhead.'
+	},
+	REDIS_URL: {
+		schema: (value) => value || undefined,
+		description:
+			'Redis connection URL for BullMQ waveform jobs (e.g. `redis://127.0.0.1:6379`). Leave empty to skip async peak generation.'
 	},
 	STORAGE_SECRET: {
 		description:

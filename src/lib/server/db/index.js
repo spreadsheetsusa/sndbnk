@@ -1,7 +1,6 @@
 import { drizzle } from 'drizzle-orm/bun-sqlite';
-import * as schema from './schema';
-import { DATABASE_URL } from '$app/env/private';
 
-if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
+import { DATABASE_URL } from '#lib/server/app-env';
+import * as schema from './schema';
 
 export const db = drizzle(DATABASE_URL, { schema });

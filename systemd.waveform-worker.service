@@ -1,0 +1,17 @@
+[Unit]
+Description=sndbnk waveform worker
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=exec
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/var/www/sndbnk
+EnvironmentFile=-/var/www/sndbnk/.env
+ExecStart=/home/ubuntu/.bun/bin/bun ./scripts/waveform-worker.js
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

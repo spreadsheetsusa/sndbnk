@@ -110,6 +110,7 @@ jobs:
                 "DATABASE_URL",
                 "MEDIA_ROOT",
                 "BODY_SIZE_LIMIT",
+                "REDIS_URL",
                 "MAIL_TRANSPORT",
                 "MAIL_FROM",
                 "SMTP_HOST",
@@ -142,12 +143,15 @@ jobs:
             if not clean(env.get("MEDIA_ROOT", "")):
                 env["MEDIA_ROOT"] = "./media"
                 print("Set MEDIA_ROOT=./media")
-            # Default Bun/adapter body limit is 512K; library uploads allow 100MB audio + 5MB cover.
-            min_body_limit = parse_as_bytes("110M")
+            # Default Bun/adapter body limit is 512K; library uploads allow 500MB audio + 5MB cover.
+            min_body_limit = parse_as_bytes("520M")
             body_limit_bytes = parse_as_bytes(env.get("BODY_SIZE_LIMIT", ""))
             if body_limit_bytes is None or body_limit_bytes < min_body_limit:
-                env["BODY_SIZE_LIMIT"] = "110M"
-                print("Set BODY_SIZE_LIMIT=110M")
+                env["BODY_SIZE_LIMIT"] = "520M"
+                print("Set BODY_SIZE_LIMIT=520M")
+            if not clean(env.get("REDIS_URL", "")):
+                env["REDIS_URL"] = "redis://127.0.0.1:6379"
+                print("Set REDIS_URL=redis://127.0.0.1:6379")
             secret = clean(env.get("BETTER_AUTH_SECRET", ""))
             if not secret or len(secret) < 32:
                 env["BETTER_AUTH_SECRET"] = secrets.token_hex(32)
@@ -165,6 +169,7 @@ jobs:
                 "BETTER_AUTH_SECRET",
                 "MEDIA_ROOT",
                 "BODY_SIZE_LIMIT",
+                "REDIS_URL",
                 "STORAGE_SECRET",
                 "PROTOCOL_HEADER",
                 "HOST_HEADER",
@@ -228,10 +233,11 @@ jobs:
               fi
             done
 
-            echo "Installing/updating systemd unit..."
+            echo "Installing/updating systemd units..."
             sudo cp "$APP_DIR/systemd.service" /etc/systemd/system/sndbnk.service
+            sudo cp "$APP_DIR/systemd.waveform-worker.service" /etc/systemd/system/sndbnk-waveform-worker.service
             sudo systemctl daemon-reload
-            sudo systemctl enable sndbnk >/dev/null 2>&1 || true
+            sudo systemctl enable sndbnk sndbnk-waveform-worker >/dev/null 2>&1 || true
 
             # /etc/caddy/Caddyfile is a symlink into the repo. Tenant on-demand TLS
             # needs the catch-all site loaded, and Caddy refuses to reload if the
@@ -246,6 +252,18 @@ jobs:
               sudo systemctl start caddy
             fi
             systemctl is-active caddy
+
+            echo "Ensuring redis-server is available for waveform jobs..."
+            if ! command -v redis-server >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y redis-server
+            fi
+            sudo systemctl enable --now redis-server >/dev/null 2>&1 || true
+            if ! redis-cli ping >/dev/null 2>&1; then
+              echo "redis-server is required for waveform jobs but did not respond to PING" >&2
+              exit 1
+            fi
+            echo "Redis: $(redis-cli ping)"
 
             echo "Ensuring ffmpeg is available for waveform generation..."
             if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -292,10 +310,11 @@ jobs:
             echo "Building the project..."
             bun run build
 
-            echo "Restarting the Bun service..."
-            sudo systemctl restart sndbnk
+            echo "Restarting Bun app + waveform worker..."
+            sudo systemctl restart sndbnk sndbnk-waveform-worker
             sleep 2
             systemctl is-active sndbnk
+            systemctl is-active sndbnk-waveform-worker
 
             echo "Smoke-testing auth origin..."
             CODE="$(

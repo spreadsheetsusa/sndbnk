@@ -46,17 +46,18 @@ touch `.env`, source, or `drizzle/` migration files. Afterward you may want
 Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` /
 `$app/env/public`. Anything not in that registry is invisible to the app.
 
-| Variable             | Visibility | Dev                     | Prod                 | Purpose                                                                 |
-| -------------------- | ---------- | ----------------------- | -------------------- | ----------------------------------------------------------------------- |
-| `DATABASE_URL`       | private    | `local.db`              | `local.db`           | SQLite **file path**, not a URL                                         |
-| `ORIGIN`             | private    | `http://localhost:5173` | `https://sndbnk.com` | better-auth `baseURL`; must match the browser origin exactly            |
-| `PUBLIC_BASE_DOMAIN` | **public** | `localhost`             | `sndbnk.com`         | apex hostname for tenant classification                                 |
-| `BETTER_AUTH_SECRET` | private    | any                     | 32+ chars            | signs sessions; changing it logs everyone out                           |
-| `MEDIA_ROOT`         | private    | `./media`               | `./media`            | local upload root                                                       |
-| `BODY_SIZE_LIMIT`    | private    | `110M`                  | `110M`               | max request body; the adapter default of 512K rejects uploads           |
-| `STORAGE_SECRET`     | private    | any                     | 32+ chars            | encrypts BYOS credentials; changing it invalidates every stored SSH key |
-| `PROTOCOL_HEADER`    | adapter    | unset                   | `X-Forwarded-Proto`  | lets the Bun adapter rebuild URLs behind Caddy                          |
-| `HOST_HEADER`        | adapter    | unset                   | `X-Forwarded-Host`   | same                                                                    |
+| Variable             | Visibility | Dev                     | Prod                     | Purpose                                                                 |
+| -------------------- | ---------- | ----------------------- | ------------------------ | ----------------------------------------------------------------------- |
+| `DATABASE_URL`       | private    | `local.db`              | `local.db`               | SQLite **file path**, not a URL                                         |
+| `ORIGIN`             | private    | `http://localhost:5173` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly            |
+| `PUBLIC_BASE_DOMAIN` | **public** | `localhost`             | `sndbnk.com`             | apex hostname for tenant classification                                 |
+| `BETTER_AUTH_SECRET` | private    | any                     | 32+ chars                | signs sessions; changing it logs everyone out                           |
+| `MEDIA_ROOT`         | private    | `./media`               | `./media`                | local upload root                                                       |
+| `BODY_SIZE_LIMIT`    | private    | `520M`                  | `520M`                   | max request body; the adapter default of 512K rejects uploads           |
+| `STORAGE_SECRET`     | private    | any                     | 32+ chars                | encrypts BYOS credentials; changing it invalidates every stored SSH key |
+| `REDIS_URL`          | private    | optional                | `redis://127.0.0.1:6379` | BullMQ waveform jobs; leave empty to skip async peaks                   |
+| `PROTOCOL_HEADER`    | adapter    | unset                   | `X-Forwarded-Proto`      | lets the Bun adapter rebuild URLs behind Caddy                          |
+| `HOST_HEADER`        | adapter    | unset                   | `X-Forwarded-Host`       | same                                                                    |
 
 **Every variable in `src/env.js` is required** unless it declares a validator saying otherwise. A
 `.env` missing one makes the app return 500 on _every_ route at boot, not just on the feature that
@@ -66,9 +67,14 @@ needs it. If your checkout predates a variable, copy it from `.env.example`.
 Without them the app sees `http://localhost:3000` as its origin and better-auth rejects sign-ins with
 `INVALID_ORIGIN` — that is the single most likely cause of "login works locally, fails in prod".
 
-`BODY_SIZE_LIMIT` must exceed the app's own ceilings (100MB audio + 5MB cover + form overhead), or the
+`BODY_SIZE_LIMIT` must exceed the app's own ceilings (500MB audio + 5MB cover + form overhead), or the
 adapter answers `413` before `validateAudioFile()` ever runs — which presents as a broken upload form
-rather than a size rejection.
+rather than a size rejection. Production deploy raises the floor to `520M` when the value is missing
+or too small.
+
+`REDIS_URL` is optional in `src/env.js` so older `.env` files still boot. Without it (or without the
+waveform worker), uploads succeed but tracks keep placeholder waveforms until Redis +
+`sndbnk-waveform-worker` are running and a page view re-enqueues backfill.
 
 **`.env` is currently committed to the repo** with live secrets, as a temporary deploy workaround.
 See [known-issues.md](known-issues.md).
@@ -80,6 +86,10 @@ flowchart LR
   push["push to main"] --> gha["GitHub Actions<br/>lightsail-deploy.yml"]
   gha -->|SSH| box["Lightsail /var/www/sndbnk"]
   box --> unit["systemd sndbnk.service<br/>bun run build/index.js"]
+  box --> worker["systemd sndbnk-waveform-worker<br/>BullMQ + ffmpeg"]
+  box --> redis["redis-server localhost"]
+  worker --> redis
+  unit --> redis
   unit --> port["localhost:3000"]
   caddy["Caddy :443"] --> port
   apex["sndbnk.com<br/>managed certs"] --> caddy
@@ -98,15 +108,18 @@ Steps, in order:
    merges it back: `BETTER_AUTH_SECRET`, `STORAGE_SECRET`, `DATABASE_URL`, and `MEDIA_ROOT` are
    preserved from the live server, while `ORIGIN`, `PUBLIC_BASE_DOMAIN`, `PROTOCOL_HEADER`, and
    `HOST_HEADER` are forced to their production values. Missing secrets are generated, and
-   `BODY_SIZE_LIMIT` is raised to `110M` if it is absent or parses below that.
+   `BODY_SIZE_LIMIT` is raised to `520M` if it is absent or parses below that. `REDIS_URL` is
+   preserved when set, otherwise defaulted to `redis://127.0.0.1:6379`.
 3. Fix ownership and permissions on the SQLite file **and its `-wal` / `-shm` / `-journal`
    sidecars** — SQLite needs write access to all of them, and getting this wrong produces
    read-only-database errors at runtime.
-4. Copy `systemd.service` from the repo to `/etc/systemd/system/sndbnk.service`, `daemon-reload`.
-5. Ensure `ffmpeg` is on PATH (install via apt if missing); fail the deploy if it is still absent.
+4. Copy `systemd.service` and `systemd.waveform-worker.service` from the repo into
+   `/etc/systemd/system/`, `daemon-reload`, enable both units.
+5. Ensure `redis-server` and `ffmpeg` are on PATH (install via apt if missing); fail the deploy if
+   ffmpeg is still absent.
 6. `bun install`, source `.env`, `bun run db:backup` (when the SQLite file exists),
    `bun run db:migrate` (Drizzle SQL under `drizzle/` via the Bun migrator), `bun run build`.
-7. `systemctl restart sndbnk`, confirm `is-active`.
+7. `systemctl restart sndbnk sndbnk-waveform-worker`, confirm both `is-active`.
 8. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with
    `origin: https://sndbnk.com`. A `400`/`401` means the origin was accepted and the deploy passes.
    A `403 INVALID_ORIGIN` or a `500` fails the job and dumps `journalctl -u sndbnk -n 50`.
@@ -121,13 +134,42 @@ That last step is the reason production auth regressions get caught by CI rather
 app port), and `EnvironmentFile=-/var/www/sndbnk/.env` (Bun also auto-loads `.env`; the
 `EnvironmentFile` makes the values visible to non-Bun helpers).
 
+[`systemd.waveform-worker.service`](../systemd.waveform-worker.service) runs the BullMQ consumer
+(`bun ./scripts/waveform-worker.js`) with concurrency 1 so one long mix cannot pile up ffmpeg on the
+box. It wants `redis-server.service`.
+
 Useful commands on the box:
 
 ```sh
-sudo systemctl status sndbnk
+sudo systemctl status sndbnk sndbnk-waveform-worker redis-server
 sudo journalctl -u sndbnk -n 100 -f
-sudo systemctl restart sndbnk
+sudo journalctl -u sndbnk-waveform-worker -n 50 --no-pager
+sudo systemctl restart sndbnk sndbnk-waveform-worker
 ```
+
+### Redis (Ubuntu / Lightsail)
+
+One-time (or via deploy) on the app host — bind localhost only:
+
+```sh
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y redis-server
+# ensure bind 127.0.0.1 ::1 in /etc/redis/redis.conf (Ubuntu default)
+sudo systemctl enable --now redis-server
+redis-cli ping   # PONG
+```
+
+App `.env` on the server:
+
+```sh
+BODY_SIZE_LIMIT=520M
+REDIS_URL=redis://127.0.0.1:6379
+```
+
+Locally: `brew install redis && brew services start redis` (or Docker), then set the same
+`REDIS_URL` and run `bun run worker:waveform` in a second terminal beside `bun run dev`. The worker
+reads config from `process.env` via [`app-env.js`](../src/lib/server/app-env.js) so it can share
+storage/DB modules without SvelteKit’s `$app/env` virtual modules.
 
 ### Caddy
 
@@ -177,8 +219,8 @@ pointing any domain at the server would let it obtain a certificate.
   signup; better-auth `disabledPaths` closes public `/sign-up/email` and unused admin HTTP routes
   (impersonation, create/remove user, set password).
 - **Uploads:** magic-byte sniffing for audio/images; SSH BYOS rejects private / link-local /
-  metadata targets; storage adapters refuse path-escaping segments; ffmpeg waveform extraction has
-  a timeout and PCM size cap.
+  metadata targets; storage adapters refuse path-escaping segments; ffmpeg waveform extraction runs
+  in a BullMQ worker with a long timeout and streams PCM (no full-decode memory cap).
 - **Mutating JSON APIs:** require a same-site / allowed `Origin` (or `Sec-Fetch-Site`).
 
 DNS requirements (platform, Route 53 hosted zone for `sndbnk.com`):
@@ -203,20 +245,20 @@ Creator custom domains (after Studio+ verification):
 
 ## Troubleshooting
 
-| Symptom                                                  | Likely cause                                                                                                          |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Every route 500s with `Invalid environment variables`    | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                    |
-| Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`                 |
-| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                        |
-| Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value     |
-| Tenant host returns 404                                  | profile missing, plan lacks subdomain/custom-domain entitlement, or `customDomainStatus` is not `active`              |
-| `{user}.sndbnk.com` does not resolve                     | missing `*.sndbnk.com` A record in Route 53 — add it pointing at the Lightsail IP                                     |
-| Custom domain verify fails on apex                       | use A/AAAA (or ALIAS) to the platform IPs shown in Settings, not a CNAME                                              |
-| Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                         |
-| Waveforms are flat placeholder bars                      | `ffmpeg` missing or decode failed — check `journalctl -u sndbnk` for `[waveform]` errors                              |
-| Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K                                                      |
-| A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate` |
-| `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                    |
+| Symptom                                                  | Likely cause                                                                                                                            |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Every route 500s with `Invalid environment variables`    | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                                      |
+| Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`                                   |
+| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                                          |
+| Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value                       |
+| Tenant host returns 404                                  | profile missing, plan lacks subdomain/custom-domain entitlement, or `customDomainStatus` is not `active`                                |
+| `{user}.sndbnk.com` does not resolve                     | missing `*.sndbnk.com` A record in Route 53 — add it pointing at the Lightsail IP                                                       |
+| Custom domain verify fails on apex                       | use A/AAAA (or ALIAS) to the platform IPs shown in Settings, not a CNAME                                                                |
+| Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                                           |
+| Waveforms are flat placeholder bars                      | Redis/worker/ffmpeg — check `REDIS_URL`, `systemctl status sndbnk-waveform-worker redis-server`, `journalctl -u sndbnk-waveform-worker` |
+| Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K (need ≥ `520M`)                                                        |
+| A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate`                   |
+| `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                                      |
 
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
 permissions, systemd, the build, and both the API and public HTTPS surfaces. It is marked temporary

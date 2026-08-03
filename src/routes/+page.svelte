@@ -280,8 +280,8 @@
 		padding: clamp(3rem, 6vw, 6rem) 0;
 		overflow: hidden;
 		isolation: isolate;
-		border-top: 1px solid var(--ink);
-		border-bottom: 1px solid var(--ink);
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.manifesto-bg {
@@ -289,6 +289,8 @@
 		inset: 0;
 		z-index: 0;
 		pointer-events: none;
+		/* Solid accent bed — image blend modes pull hue from this. */
+		background: var(--accent);
 	}
 
 	.manifesto-bg img {
@@ -297,22 +299,27 @@
 		height: 100%;
 		object-fit: cover;
 		object-position: center 42%;
-		opacity: 0.4;
+		/* Luminosity: image detail, accent hue/sat from the bed behind. */
+		mix-blend-mode: luminosity;
 	}
 
 	.manifesto-bg::after {
 		position: absolute;
 		inset: 0;
-		background: color-mix(in srgb, var(--paper) 52%, transparent);
+		/* Left side fades to opaque paper; photo reads through on the right. */
+		background: linear-gradient(
+			to right,
+			var(--paper) 0%,
+			var(--paper) 28%,
+			color-mix(in srgb, var(--paper) 62%, transparent) 52%,
+			color-mix(in srgb, var(--paper) 22%, transparent) 78%,
+			transparent 100%
+		);
 		content: '';
 	}
 
-	:global(.dark) .manifesto-bg img {
-		opacity: 0.5;
-	}
-
-	:global(.dark) .manifesto-bg::after {
-		background: color-mix(in srgb, var(--paper) 42%, transparent);
+	:global(.dark) .manifesto-bg {
+		background: color-mix(in srgb, var(--accent) 58%, black);
 	}
 
 	.manifesto > :not(.manifesto-bg) {
