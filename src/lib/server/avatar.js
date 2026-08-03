@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { auth } from '#lib/server/auth';
 import { db } from '#lib/server/db';
 import { profile, user } from '#lib/server/db/schema';
+import { readFileHead, sniffImage } from '#lib/server/media/sniff';
 import { createLocalAdapter } from '#lib/server/storage/local.js';
 
 /**
@@ -22,15 +23,6 @@ const AVATAR_EXT_BY_MIME = {
 };
 
 /**
- * @param {string} filename
- */
-function extFromName(filename) {
-	const idx = filename.lastIndexOf('.');
-	if (idx < 0) return '';
-	return filename.slice(idx + 1).toLowerCase();
-}
-
-/**
  * Public URL for a stored avatar. The version stamp lets the response be
  * cached immutably while still updating the moment a new file is uploaded.
  * @param {string} userId
@@ -43,31 +35,24 @@ export function avatarUrl(userId, updatedAt) {
 /**
  * @param {File} file
  */
-export function validateAvatarFile(file) {
-	const mime = (file.type || '').toLowerCase();
-	const ext = extFromName(file.name);
-	const allowedExt = new Set(['jpg', 'jpeg', 'png', 'webp']);
-
-	let resolvedExt = AVATAR_EXT_BY_MIME[mime];
-	if (!resolvedExt && allowedExt.has(ext)) {
-		resolvedExt = ext === 'jpeg' ? 'jpg' : ext;
+export async function validateAvatarFile(file) {
+	if (file.size > AVATAR_MAX_BYTES) {
+		return { ok: /** @type {const} */ (false), message: 'Avatar must be 2MB or smaller.' };
 	}
 
-	if (!resolvedExt) {
+	const head = await readFileHead(file);
+	const sniffed = sniffImage(head);
+	if (!sniffed || !AVATAR_EXT_BY_MIME[sniffed.mime]) {
 		return {
 			ok: /** @type {const} */ (false),
 			message: 'Avatar must be a jpg, png, or webp image.'
 		};
 	}
 
-	if (file.size > AVATAR_MAX_BYTES) {
-		return { ok: /** @type {const} */ (false), message: 'Avatar must be 2MB or smaller.' };
-	}
-
 	return {
 		ok: /** @type {const} */ (true),
-		filename: `avatar.${resolvedExt}`,
-		mime: mime || `image/${resolvedExt === 'jpg' ? 'jpeg' : resolvedExt}`
+		filename: `avatar.${sniffed.ext}`,
+		mime: sniffed.mime
 	};
 }
 
@@ -93,7 +78,7 @@ async function setUserImage(userId, image, headers) {
  * @returns {Promise<{ ok: true, url: string } | { ok: false, message: string }>}
  */
 export async function saveAvatar(userId, file, headers) {
-	const validated = validateAvatarFile(file);
+	const validated = await validateAvatarFile(file);
 	if (!validated.ok) return validated;
 
 	const storage = createLocalAdapter(userId);

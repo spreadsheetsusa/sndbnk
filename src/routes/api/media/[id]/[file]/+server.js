@@ -1,7 +1,9 @@
 import { error } from '@sveltejs/kit';
 
+import { mediaCorsOrigin } from '#lib/server/request-origin';
 import { canViewTrack, getTrackById } from '#lib/server/tracks';
 import { getStorageAdapter } from '#lib/server/storage';
+import { isTenantResourceAllowed } from '#lib/server/tenant';
 
 /**
  * @param {string} kind
@@ -80,7 +82,7 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 
 	// Public read access: published tracks are playable from public profile pages.
 	const row = await getTrackById(params.id);
-	if (!row || !canViewTrack(row, locals.user?.id)) {
+	if (!row || !isTenantResourceAllowed(locals, row.userId) || !canViewTrack(row, locals.user?.id)) {
 		error(404, 'Not found');
 	}
 
@@ -98,14 +100,14 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 		const mime = resolveMime(kind, row) || object.contentType;
 
 		// ACAO so <audio crossOrigin="anonymous"> can feed MediaElementSource analysers
-		// (Milkdrop). Reflect the request origin when present; same-origin always matches.
-		const allowOrigin = request.headers.get('origin') || url.origin;
+		// (Milkdrop). Only first-party origins (apex + tenant hosts).
+		const allowOrigin = mediaCorsOrigin(request, url);
 
 		setHeaders({
 			'accept-ranges': 'bytes',
 			'cache-control': 'private, max-age=3600',
-			'access-control-allow-origin': allowOrigin,
-			vary: 'Origin'
+			'x-content-type-options': 'nosniff',
+			...(allowOrigin ? { 'access-control-allow-origin': allowOrigin, vary: 'Origin' } : {})
 		});
 
 		const range = parseRange(request.headers.get('range'), object.size);

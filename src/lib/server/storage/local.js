@@ -3,12 +3,16 @@ import path from 'node:path';
 
 import { MEDIA_ROOT } from '$app/env/private';
 
+import { assertSafeStoragePath, assertSafeStorageSegment } from './path-safety.js';
+
 /**
  * @param {string} userId
  * @param {string} folderKey
  */
 function folderPath(userId, folderKey) {
-	return path.join(MEDIA_ROOT, userId, folderKey);
+	assertSafeStorageSegment(userId, 'user id');
+	assertSafeStorageSegment(folderKey, 'folder key');
+	return assertSafeStoragePath(MEDIA_ROOT, userId, folderKey);
 }
 
 /**
@@ -16,10 +20,13 @@ function folderPath(userId, folderKey) {
  * @returns {import('./types.js').StorageAdapter}
  */
 export function createLocalAdapter(userId) {
+	assertSafeStorageSegment(userId, 'user id');
+
 	return {
 		id: 'local',
 
 		async put(folderKey, filename, data, _contentType) {
+			assertSafeStorageSegment(filename, 'filename');
 			const dir = folderPath(userId, folderKey);
 			await mkdir(dir, { recursive: true });
 			const bytes = data instanceof Blob ? new Uint8Array(await data.arrayBuffer()) : data;
@@ -27,6 +34,7 @@ export function createLocalAdapter(userId) {
 		},
 
 		async get(folderKey, filename) {
+			assertSafeStorageSegment(filename, 'filename');
 			const filePath = path.join(folderPath(userId, folderKey), filename);
 			const file = Bun.file(filePath);
 			if (!(await file.exists())) {

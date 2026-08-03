@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 
+import { isTenantResourceAllowed } from '#lib/server/tenant';
 import {
 	canViewTrack,
 	getSocialForTracks,
@@ -10,7 +11,11 @@ import {
 
 export const load = async ({ locals, params }) => {
 	const row = await getTrackWithUploader(params.id);
-	if (!row || !canViewTrack(row.track, locals.user?.id)) {
+	if (
+		!row ||
+		!isTenantResourceAllowed(locals, row.track.userId) ||
+		!canViewTrack(row.track, locals.user?.id)
+	) {
 		error(404, 'Track not found');
 	}
 

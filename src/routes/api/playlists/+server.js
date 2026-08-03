@@ -9,5 +9,6 @@ export async function GET({ locals, url }) {
 		error(400, 'Use mine=1 to list your playlists.');
 	}
 
+	// Session owner's own playlists (for picker UX on apex and tenant hosts).
 	return json({ playlists: await listPlaylistsForOwner(locals.user.id) });
 }

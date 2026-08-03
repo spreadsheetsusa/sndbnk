@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { canRemoveBranding, canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
 import { db } from '#lib/server/db';
 import { site } from '#lib/server/db/schema';
+import { readFileHead, sniffImage } from '#lib/server/media/sniff';
 import { createLocalAdapter } from '#lib/server/storage/local.js';
 
 export const SITE_LOGO_FOLDER_KEY = 'site-logo';
@@ -22,15 +23,6 @@ const IMAGE_EXT_BY_MIME = {
 };
 
 const ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/;
-
-/**
- * @param {string} filename
- */
-function extFromName(filename) {
-	const idx = filename.lastIndexOf('.');
-	if (idx < 0) return '';
-	return filename.slice(idx + 1).toLowerCase();
-}
 
 /**
  * Vault+ subdomain or Studio+ custom domain.
@@ -223,33 +215,26 @@ export async function updateSiteSettings(input) {
  * @param {File} file
  * @param {'logo' | 'og'} kind
  */
-function validateSiteImage(file, kind) {
-	const mime = (file.type || '').toLowerCase();
-	const ext = extFromName(file.name);
-	const allowedExt = new Set(['jpg', 'jpeg', 'png', 'webp']);
-
-	let resolvedExt = IMAGE_EXT_BY_MIME[mime];
-	if (!resolvedExt && allowedExt.has(ext)) {
-		resolvedExt = ext === 'jpeg' ? 'jpg' : ext;
-	}
-
+async function validateSiteImage(file, kind) {
 	const label = kind === 'logo' ? 'Logo' : 'Social image';
 
-	if (!resolvedExt) {
+	if (file.size > SITE_IMAGE_MAX_BYTES) {
+		return { ok: /** @type {const} */ (false), message: `${label} must be 2MB or smaller.` };
+	}
+
+	const head = await readFileHead(file);
+	const sniffed = sniffImage(head);
+	if (!sniffed || !IMAGE_EXT_BY_MIME[sniffed.mime]) {
 		return {
 			ok: /** @type {const} */ (false),
 			message: `${label} must be a jpg, png, or webp image.`
 		};
 	}
 
-	if (file.size > SITE_IMAGE_MAX_BYTES) {
-		return { ok: /** @type {const} */ (false), message: `${label} must be 2MB or smaller.` };
-	}
-
 	return {
 		ok: /** @type {const} */ (true),
-		filename: `${kind}.${resolvedExt}`,
-		mime: mime || `image/${resolvedExt === 'jpg' ? 'jpeg' : resolvedExt}`
+		filename: `${kind}.${sniffed.ext}`,
+		mime: sniffed.mime
 	};
 }
 
@@ -266,7 +251,7 @@ export async function saveSiteLogo(userId, plan, file) {
 		};
 	}
 
-	const validated = validateSiteImage(file, 'logo');
+	const validated = await validateSiteImage(file, 'logo');
 	if (!validated.ok) return validated;
 
 	const storage = createLocalAdapter(userId);
@@ -337,7 +322,7 @@ export async function saveSiteOgImage(userId, plan, file) {
 		};
 	}
 
-	const validated = validateSiteImage(file, 'og');
+	const validated = await validateSiteImage(file, 'og');
 	if (!validated.ok) return validated;
 
 	const storage = createLocalAdapter(userId);

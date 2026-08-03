@@ -18,7 +18,8 @@ export async function GET({ params, setHeaders }) {
 
 		setHeaders({
 			// Safe to cache hard: the URL carries a `?v=` stamp that changes on upload.
-			'cache-control': 'public, max-age=31536000, immutable'
+			'cache-control': 'public, max-age=31536000, immutable',
+			'x-content-type-options': 'nosniff'
 		});
 
 		return new Response(/** @type {BodyInit} */ (object.body), {

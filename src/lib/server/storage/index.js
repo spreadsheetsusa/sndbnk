@@ -5,6 +5,7 @@ import { db } from '#lib/server/db';
 import { profile, storageSetting } from '#lib/server/db/schema';
 import { decryptSecret, encryptSecret } from './crypto.js';
 import { createLocalAdapter } from './local.js';
+import { assertPublicSshHost } from './ssh-host.js';
 import { createSshAdapter } from './ssh.js';
 
 /** @type {import('./types.js').StorageAdapterMeta[]} */
@@ -149,6 +150,9 @@ export async function saveStorageSetting(userId, input) {
 		if (!privateKey.trim() && !existing.sshPrivateKeyEnc) {
 			return { ok: false, message: 'Paste an SSH private key.' };
 		}
+
+		const hostCheck = await assertPublicSshHost(host);
+		if (!hostCheck.ok) return hostCheck;
 
 		patch.sshHost = host;
 		patch.sshPort = port;

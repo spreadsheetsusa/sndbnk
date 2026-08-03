@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 
 import { resetPasswordWithToken } from '#lib/server/forgot-password';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = ({ locals, url }) => {
@@ -19,11 +20,20 @@ export const load = ({ locals, url }) => {
 };
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async (event) => {
+		const { request } = event;
 		const formData = await request.formData();
 		const token = formData.get('token')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 		const confirmPassword = formData.get('confirmPassword')?.toString() ?? '';
+
+		const limited = rateLimit(`reset:${clientIp(event)}`, {
+			windowMs: 60 * 60 * 1000,
+			max: 10
+		});
+		if (!limited.ok) {
+			return fail(429, { message: 'Too many reset attempts. Try again later.', token });
+		}
 
 		const result = await resetPasswordWithToken({
 			token,

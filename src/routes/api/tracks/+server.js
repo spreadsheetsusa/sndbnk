@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 
 import { listFeedTracks } from '#lib/server/feed';
 import { listFollowingIds } from '#lib/server/social';
-import { getProfileByUsername } from '#lib/server/tenant';
+import { getProfileByUsername, isTenantUsernameAllowed } from '#lib/server/tenant';
 import { serializeTimelineRows } from '#lib/server/timeline';
 import {
 	listProfileItemsWithUploader,
@@ -24,6 +24,11 @@ export async function GET({ locals, url }) {
 	const direction = url.searchParams.get('direction') === 'newer' ? 'newer' : 'older';
 	const inclusive = url.searchParams.get('inclusive') === '1';
 	const page = { limit: TRACK_PAGE_SIZE, cursor, direction, inclusive };
+
+	// Tenant hosts only expose that creator's public profile listing.
+	if (locals.tenant && scope !== 'profile') {
+		error(404, 'Not found.');
+	}
 
 	if (scope === 'feed') {
 		if (!locals.user) error(401, 'Sign in to browse the feed.');
@@ -49,6 +54,9 @@ export async function GET({ locals, url }) {
 
 	if (scope === 'profile') {
 		const username = normalizeUsername(url.searchParams.get('username') ?? '');
+		if (!isTenantUsernameAllowed(locals, username)) {
+			error(404, 'Profile not found.');
+		}
 		const owner = username ? await getProfileByUsername(username) : null;
 		if (!owner) error(404, 'Profile not found.');
 

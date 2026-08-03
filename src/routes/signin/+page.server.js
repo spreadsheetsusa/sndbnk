@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth/api';
 
 import { auth } from '#lib/server/auth';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
 export const load = ({ locals, url }) => {
@@ -13,13 +14,25 @@ export const load = ({ locals, url }) => {
 };
 
 export const actions = {
-	default: async ({ cookies, request, url }) => {
+	default: async (event) => {
+		const { cookies, request, url } = event;
 		const formData = await request.formData();
 		const email = formData.get('email')?.toString().trim() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 
 		if (!email || !password) {
 			return fail(400, { message: 'Enter your email and password.', email });
+		}
+
+		const limited = rateLimit(`signin:${clientIp(event)}:${email.toLowerCase()}`, {
+			windowMs: 10 * 60 * 1000,
+			max: 20
+		});
+		if (!limited.ok) {
+			return fail(429, {
+				message: 'Too many sign-in attempts. Try again in a few minutes.',
+				email
+			});
 		}
 
 		try {

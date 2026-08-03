@@ -31,6 +31,8 @@ export function parseHostname(hostHeader) {
 }
 
 /**
+ * Prefer X-Forwarded-Host when present. Production Bun binds loopback-only
+ * (see systemd.service), so only the local reverse proxy can set this header.
  * @param {import('@sveltejs/kit').RequestEvent} event
  * @returns {string}
  */
@@ -38,6 +40,26 @@ export function getRequestHostname(event) {
 	const forwarded = event.request.headers.get('x-forwarded-host');
 	const host = event.request.headers.get('host');
 	return parseHostname(forwarded || host || event.url.host);
+}
+
+/**
+ * On tenant hosts, resources must belong to the tenant creator. Apex is open.
+ * @param {{ tenant?: TenantContext | null | undefined }} locals
+ * @param {string | null | undefined} ownerUserId
+ */
+export function isTenantResourceAllowed(locals, ownerUserId) {
+	if (!locals.tenant) return true;
+	return Boolean(ownerUserId) && locals.tenant.userId === ownerUserId;
+}
+
+/**
+ * On tenant hosts, profile-scoped APIs may only target the tenant username.
+ * @param {{ tenant?: TenantContext | null | undefined }} locals
+ * @param {string | null | undefined} username
+ */
+export function isTenantUsernameAllowed(locals, username) {
+	if (!locals.tenant) return true;
+	return Boolean(username) && locals.tenant.username === username;
 }
 
 /**
