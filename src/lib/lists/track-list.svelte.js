@@ -16,6 +16,7 @@ import { tick } from 'svelte';
  *   scope: 'feed' | 'library' | 'profile',
  *   username?: string | null,
  *   genre?: string | null,
+ *   q?: string | null,
  *   following?: boolean,
  *   owner?: string | null
  * }} ListQuery
@@ -75,6 +76,7 @@ export class TrackList {
 		this.#params = { scope: query.scope };
 		if (query.username) this.#params.username = query.username;
 		if (query.genre) this.#params.genre = query.genre;
+		if (query.q) this.#params.q = query.q;
 		if (query.following) this.#params.following = '1';
 		this.#getContainer = getContainer;
 

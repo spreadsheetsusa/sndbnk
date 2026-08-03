@@ -7,18 +7,23 @@
 	 * @type {{
 	 *   list: import('#lib/lists/track-list.svelte.js').TrackList,
 	 *   genre: string | null,
+	 *   q?: string | null,
 	 *   following?: boolean,
 	 *   viewerName: string | null,
 	 *   viewerImage?: string | null
 	 * }}
 	 */
-	let { list, genre, following = false, viewerName, viewerImage = null } = $props();
+	let { list, genre, q = null, following = false, viewerName, viewerImage = null } = $props();
 </script>
 
 {#if list.items.length === 0}
 	<div class="empty" aria-live="polite">
 		<p>
-			{#if following}
+			{#if q}
+				No matches for “{q}”{genre ? ` in ${genre}` : ''}{following
+					? ' among people you follow'
+					: ''}.
+			{:else if following}
 				Nothing from the people you follow yet. Follow more creators to fill this out.
 			{:else if genre}
 				No tracks in this genre yet.
@@ -26,7 +31,9 @@
 				No tracks yet. Be the first to upload.
 			{/if}
 		</p>
-		<a class="pressable" href="/library/new">Upload track</a>
+		{#if !q}
+			<a class="pressable" href="/library/new">Upload track</a>
+		{/if}
 	</div>
 {:else}
 	<InfiniteList {list} endLabel="You're all caught up">

@@ -184,6 +184,7 @@ export const profileLinkRelations = relations(profileLink, ({ one }) => ({
 }));
 
 /** @typedef {'local' | 'ssh'} StorageAdapterId */
+/** @typedef {'track' | 'mix' | 'sample' | 'loop' | 'podcast'} TrackMediaType */
 
 export const storageSetting = sqliteTable('storage_setting', {
 	userId: text('user_id')
@@ -216,6 +217,8 @@ export const track = sqliteTable(
 		artist: text('artist'),
 		album: text('album'),
 		genre: text('genre'),
+		/** Catalog kind: track | mix | sample | loop | podcast. */
+		mediaType: text('media_type').notNull().default('track'),
 		year: integer('year'),
 		trackNumber: integer('track_number'),
 		bpm: integer('bpm'),

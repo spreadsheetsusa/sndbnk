@@ -1,0 +1,1 @@
+ALTER TABLE `track` ADD `media_type` text DEFAULT 'track' NOT NULL;

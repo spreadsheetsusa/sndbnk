@@ -5,6 +5,7 @@ import {
 	listNewArtists,
 	listRecentComments
 } from '#lib/server/feed';
+import { normalizeSearchQuery } from '#lib/server/search-query';
 import { listFollowingIds } from '#lib/server/social';
 import { getProfileByUserId } from '#lib/server/tenant';
 import { serializeTimelineRows } from '#lib/server/timeline';
@@ -21,11 +22,12 @@ export const load = async ({ locals, url }) => {
 	}
 
 	const genreParam = url.searchParams.get('genre')?.trim() || null;
+	const qParam = normalizeSearchQuery(url.searchParams.get('q'));
 	const following = url.searchParams.get('following') === '1';
 	const followingIds = following ? await listFollowingIds(locals.user.id) : null;
 
 	const [{ rows, nextCursor }, mostLiked, newArtists, recentComments, genres] = await Promise.all([
-		listFeedTracks({ genre: genreParam, followingIds }),
+		listFeedTracks({ genre: genreParam, q: qParam, followingIds }),
 		listMostLikedTracks(),
 		listNewArtists({ viewerId: locals.user.id }),
 		listRecentComments(),
@@ -43,6 +45,7 @@ export const load = async ({ locals, url }) => {
 		items,
 		nextCursor,
 		genre: genreParam,
+		q: qParam,
 		following,
 		followingCount: followingIds?.length ?? null,
 		sidebar: {

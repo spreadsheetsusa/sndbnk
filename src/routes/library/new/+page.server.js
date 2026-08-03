@@ -46,6 +46,7 @@ export const actions = {
 				artist: formData.get('artist')?.toString() ?? '',
 				album: formData.get('album')?.toString() ?? '',
 				genre: formData.get('genre')?.toString() ?? '',
+				mediaType: formData.get('mediaType')?.toString() ?? '',
 				year: formData.get('year')?.toString() ?? '',
 				trackNumber: formData.get('trackNumber')?.toString() ?? '',
 				bpm: formData.get('bpm')?.toString() ?? '',

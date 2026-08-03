@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, like, or } from 'drizzle-orm';
 
 import {
 	decodeCursor,
@@ -9,6 +9,7 @@ import {
 } from '#lib/server/cursor';
 import { db } from '#lib/server/db';
 import { playlist, playlistLike, playlistTrack, profile, track, user } from '#lib/server/db/schema';
+import { likePattern, normalizeSearchQuery } from '#lib/server/search-query';
 import {
 	getSocialForTracks,
 	listTimedCommentsForTracks,
@@ -415,7 +416,8 @@ export async function listPlaylistsForOwner(userId) {
  *   limit?: number,
  *   cursor?: string | null,
  *   direction?: import('#lib/server/cursor').Direction,
- *   inclusive?: boolean
+ *   inclusive?: boolean,
+ *   q?: string | null
  * }} [opts]
  */
 export async function listPlaylistRows({
@@ -424,18 +426,22 @@ export async function listPlaylistRows({
 	limit = PLAYLIST_PAGE_SIZE,
 	cursor = null,
 	direction = 'older',
-	inclusive = false
+	inclusive = false,
+	q = null
 } = {}) {
 	if (userIds && userIds.length === 0) {
 		return { rows: [], nextCursor: null };
 	}
 
 	const decoded = cursor ? decodeCursor(cursor) : null;
+	const search = normalizeSearchQuery(q);
+	const term = search ? likePattern(search) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [];
 	if (publishedOnly) conditions.push(eq(playlist.published, true));
 	if (userIds) conditions.push(inArray(playlist.userId, userIds));
+	if (term) conditions.push(or(like(playlist.title, term), like(profile.username, term)));
 	if (decoded) {
 		conditions.push(
 			keysetCondition(playlist.createdAt, playlist.id, decoded, direction, inclusive)

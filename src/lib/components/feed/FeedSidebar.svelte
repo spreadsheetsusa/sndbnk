@@ -25,6 +25,7 @@
 	 *   genres: GenreCount[],
 	 *   activeGenre?: string | null,
 	 *   following?: boolean,
+	 *   q?: string | null,
 	 *   signedIn?: boolean
 	 * }}
 	 */
@@ -35,6 +36,7 @@
 		genres,
 		activeGenre = null,
 		following = false,
+		q = null,
 		signedIn = false
 	} = $props();
 
@@ -67,12 +69,13 @@
 	}
 
 	/**
-	 * @param {{ genre?: string | null, following?: boolean }} [opts]
+	 * @param {{ genre?: string | null, following?: boolean, q?: string | null }} [opts]
 	 */
-	function feedHref({ genre = null, following: scopeFollowing = false } = {}) {
+	function feedHref({ genre = null, following: scopeFollowing = false, q: query = null } = {}) {
 		const params = new URLSearchParams();
 		if (scopeFollowing) params.set('following', '1');
 		if (genre) params.set('genre', genre);
+		if (query) params.set('q', query);
 		const qs = params.toString();
 		return qs ? `/feed?${qs}` : '/feed';
 	}
@@ -249,7 +252,7 @@
 								<li style:view-transition-name="feed-genre-{vtName(entry.genre)}">
 									<a
 										class={['genre-chip', activeGenre === entry.genre && 'active']}
-										href={feedHref({ genre: entry.genre, following })}
+										href={feedHref({ genre: entry.genre, following, q })}
 										aria-current={activeGenre === entry.genre ? 'page' : undefined}
 									>
 										<span class="genre-label">{entry.genre}</span>

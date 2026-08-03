@@ -1,4 +1,7 @@
 <script>
+	import IconSearch from '@tabler/icons-svelte-runes/icons/search';
+	import IconX from '@tabler/icons-svelte-runes/icons/x';
+
 	import FeedSidebar from '#lib/components/feed/FeedSidebar.svelte';
 	import FeedTrackList from '#lib/components/feed/FeedTrackList.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
@@ -10,7 +13,7 @@
 	let container;
 
 	const paged = restorableList(
-		() => ({ scope: 'feed', genre: data.genre, following: data.following }),
+		() => ({ scope: 'feed', genre: data.genre, following: data.following, q: data.q }),
 		() => data,
 		() => container
 	);
@@ -18,12 +21,13 @@
 	export const snapshot = paged.snapshot;
 
 	/**
-	 * @param {{ genre?: string | null, following?: boolean }} [opts]
+	 * @param {{ genre?: string | null, following?: boolean, q?: string | null }} [opts]
 	 */
-	function feedHref({ genre = null, following: scopeFollowing = false } = {}) {
+	function feedHref({ genre = null, following: scopeFollowing = false, q = null } = {}) {
 		const params = new URLSearchParams();
 		if (scopeFollowing) params.set('following', '1');
 		if (genre) params.set('genre', genre);
+		if (q) params.set('q', q);
 		const qs = params.toString();
 		return qs ? `/feed?${qs}` : '/feed';
 	}
@@ -58,28 +62,66 @@
 					{/if}
 				</p>
 
-				<nav class="scope-strip" aria-label="Feed scope">
-					<a
-						class="scope-btn"
-						href={feedHref({ genre: data.genre })}
-						aria-current={data.following ? undefined : 'page'}
-					>
-						All
-					</a>
-					<a
-						class="scope-btn"
-						href={feedHref({ genre: data.genre, following: true })}
-						aria-current={data.following ? 'page' : undefined}
-					>
-						Following
-					</a>
-				</nav>
+				<div class="scope-row">
+					<nav class="scope-strip" aria-label="Feed scope">
+						<a
+							class="scope-btn"
+							href={feedHref({ genre: data.genre, q: data.q })}
+							aria-current={data.following ? undefined : 'page'}
+						>
+							All
+						</a>
+						<a
+							class="scope-btn"
+							href={feedHref({ genre: data.genre, following: true, q: data.q })}
+							aria-current={data.following ? 'page' : undefined}
+						>
+							Following
+						</a>
+					</nav>
+
+					<form class="feed-search" method="get" action="/feed" role="search">
+						{#if data.following}
+							<input type="hidden" name="following" value="1" />
+						{/if}
+						{#if data.genre}
+							<input type="hidden" name="genre" value={data.genre} />
+						{/if}
+						<label class="visually-hidden" for="feed-q">Search the feed</label>
+						<div class="feed-search-field">
+							<input
+								id="feed-q"
+								name="q"
+								type="search"
+								value={data.q ?? ''}
+								placeholder="Title, artist, @user, genre"
+								autocomplete="off"
+								maxlength="80"
+								class:has-clear={Boolean(data.q)}
+							/>
+							{#if data.q}
+								<a
+									class="feed-search-clear"
+									href={feedHref({ genre: data.genre, following: data.following })}
+									aria-label="Clear search"
+								>
+									<IconX size={14} stroke={2} aria-hidden="true" />
+								</a>
+							{/if}
+						</div>
+						<button type="submit" aria-label="Search">
+							<IconSearch size={16} stroke={2} aria-hidden="true" />
+						</button>
+					</form>
+				</div>
 
 				{#if data.genre}
-					<p class="filter-chip" aria-live="polite">
-						<span>Genre: <strong>{data.genre}</strong></span>
-						<a href={data.following ? '/feed?following=1' : '/feed'}>Clear filter</a>
-					</p>
+					<div class="filter-chips" aria-live="polite">
+						<p class="filter-chip">
+							<span>Genre: <strong>{data.genre}</strong></span>
+							<a href={feedHref({ following: data.following, q: data.q })}>Clear</a>
+						</p>
+					</div>
 				{/if}
 			</header>
 
@@ -90,6 +132,7 @@
 				genres={data.sidebar.genres}
 				activeGenre={data.genre}
 				following={data.following}
+				q={data.q}
 				signedIn={true}
 			/>
 
@@ -97,6 +140,7 @@
 				<FeedTrackList
 					list={paged.current}
 					genre={data.genre}
+					q={data.q}
 					following={data.following}
 					viewerName={data.user.name}
 					viewerImage={data.user.image}
@@ -177,15 +221,23 @@
 		animation: rise 0.75s ease 0.05s both;
 	}
 
-	.scope-strip {
+	.scope-row {
 		grid-area: scope;
 		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		align-items: center;
+		margin: 0.85rem 0 0;
+		animation: rise 0.8s ease both;
+	}
+
+	.scope-strip {
+		display: flex;
+		flex: 0 0 auto;
 		width: 100%;
 		max-width: 16rem;
-		margin: 0.85rem 0 0;
 		border: 1px solid var(--hard-border);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
-		animation: rise 0.8s ease both;
 	}
 
 	.scope-btn {
@@ -226,13 +278,125 @@
 		transform: translate(1px, 1px);
 	}
 
-	.filter-chip {
+	.feed-search {
+		display: flex;
+		flex: 1 1 12rem;
+		align-items: stretch;
+		min-width: min(100%, 12rem);
+		max-width: 22rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--ink));
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+	}
+
+	.feed-search-field {
+		position: relative;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.feed-search input[type='search'] {
+		display: block;
+		width: 100%;
+		min-width: 0;
+		padding: 0.4rem 0.65rem;
+		border: 0;
+		border-radius: 0.125rem 0 0 0.125rem;
+		color: var(--ink);
+		background: transparent;
+		font: inherit;
+		font-size: 0.82rem;
+		font-weight: 500;
+		outline: none;
+	}
+
+	.feed-search input[type='search'].has-clear {
+		padding-right: 1.85rem;
+	}
+
+	.feed-search input[type='search']::placeholder {
+		color: var(--muted);
+		opacity: 0.9;
+	}
+
+	.feed-search input[type='search']::-webkit-search-cancel-button {
+		appearance: none;
+	}
+
+	.feed-search-clear {
+		position: absolute;
+		top: 50%;
+		right: 0.2rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 0;
+		border-radius: 0.125rem;
+		color: var(--muted);
+		background: transparent;
+		transform: translateY(-50%);
+		text-decoration: none;
+	}
+
+	.feed-search-clear:hover {
+		color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 10%, transparent);
+	}
+
+	.feed-search button {
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		min-width: 2.25rem;
+		padding: 0 0.55rem;
+		border: 0;
+		border-left: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border-radius: 0 0.125rem 0.125rem 0;
+		color: var(--ink);
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
+		cursor: pointer;
+	}
+
+	.feed-search button:hover {
+		background: color-mix(in srgb, var(--accent) 28%, transparent);
+	}
+
+	.feed-search:focus-within {
+		outline: 2px solid var(--ink);
+		outline-offset: 3px;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.filter-chips {
 		grid-area: filter;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin: 0.85rem 0 0;
+		animation: rise 0.8s ease both;
+	}
+
+	.filter-chip {
 		display: inline-flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
 		align-items: center;
-		margin: 0.85rem 0 0;
+		margin: 0;
 		padding: 0.55rem 0.75rem;
 		border: 1px solid var(--ink);
 		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
@@ -240,7 +404,6 @@
 		font-weight: 700;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
-		animation: rise 0.8s ease both;
 	}
 
 	.filter-chip a {
@@ -272,20 +435,29 @@
 		}
 
 		.feed-head {
-			grid-template-columns: minmax(0, 1fr) auto;
 			grid-template-areas:
-				'titles scope'
-				'intro intro'
-				'filter filter';
-			column-gap: 0.75rem;
-			align-items: start;
+				'titles'
+				'intro'
+				'scope'
+				'filter';
+		}
+
+		.scope-row {
+			flex-wrap: nowrap;
+			gap: 0.5rem;
+			margin-top: 0.65rem;
 		}
 
 		.scope-strip {
+			flex: 0 0 auto;
 			width: auto;
 			max-width: none;
-			margin: 0;
-			align-self: start;
+		}
+
+		.feed-search {
+			flex: 1 1 auto;
+			min-width: 0;
+			max-width: none;
 		}
 
 		.scope-btn {
@@ -310,8 +482,19 @@
 	}
 
 	@media (pointer: coarse) {
-		.scope-btn {
+		.scope-btn,
+		.feed-search button {
 			min-height: var(--tap-min);
+		}
+
+		.feed-search-clear {
+			width: var(--tap-min);
+			height: var(--tap-min);
+			right: 0;
+		}
+
+		.feed-search input[type='search'].has-clear {
+			padding-right: calc(var(--tap-min) + 0.15rem);
 		}
 	}
 </style>
