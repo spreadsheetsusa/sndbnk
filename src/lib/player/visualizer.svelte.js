@@ -22,9 +22,21 @@ const BACKDROP_CYCLE_MS = 50_000;
 
 /** Slower / softer presets for the hero ambient layer. Filtered against the pack at load. */
 const MELLOW_PRESET_KEYS = [
+	'Aderrasi - Potion of Spirits',
+	'Aderrasi - Songflower (Moss Posy)',
+	'Eo.S. + Zylot - skylight (Stained Glass Majesty mix)',
+	'Flexi + Martin - astral projection',
+	'Flexi + Martin - cascading decay swing',
 	'Flexi - alien fish pond',
+	'Flexi - truly soft piece of software - this is generic texturing (Jelly) ',
 	'Geiss - Cauldron - painterly 2 (saturation remix)',
 	'Geiss - Reaction Diffusion 2',
+	'_Geiss - Desert Rose 2',
+	'cope + martin - mother-of-pearl',
+	'martin - angel flight',
+	'martin - castle in the air',
+	'martin - frosty caves 2',
+	'martin - ghost city',
 	'martin - reflections on black tiles',
 	'yin - 191 - Temporal singularities',
 	'Zylot - Paint Spill (Music Reactive Paint Mix)'
@@ -304,21 +316,30 @@ class Visualizer {
 	async #loadModules() {
 		if (this.#butterchurn && this.#presets) return;
 
-		const [butterMod, presetsMod] = await Promise.all([
+		// Static import() paths so Vite can code-split; merge all packs (~395 unique).
+		const [butterMod, ...presetMods] = await Promise.all([
 			import('butterchurn'),
-			import('butterchurn-presets/lib/butterchurnPresetsMinimal.min.js')
+			import('butterchurn-presets/lib/butterchurnPresets.min.js'),
+			import('butterchurn-presets/lib/butterchurnPresetsExtra.min.js'),
+			import('butterchurn-presets/lib/butterchurnPresetsExtra2.min.js'),
+			import('butterchurn-presets/lib/butterchurnPresetsMD1.min.js')
 		]);
 
 		const butterchurn = unwrapModule(butterMod);
-		const presetsPack = unwrapModule(presetsMod);
 		if (!butterchurn?.createVisualizer) {
 			throw new Error('butterchurn.createVisualizer missing');
 		}
 
-		const presets =
-			typeof presetsPack?.getPresets === 'function' ? presetsPack.getPresets() : presetsPack;
+		/** @type {Record<string, unknown>} */
+		const presets = {};
+		for (const mod of presetMods) {
+			const pack = unwrapModule(mod);
+			const next = typeof pack?.getPresets === 'function' ? pack.getPresets() : pack;
+			if (next && typeof next === 'object') Object.assign(presets, next);
+		}
+
 		this.#butterchurn = butterchurn;
-		this.#presets = /** @type {Record<string, unknown>} */ (presets);
+		this.#presets = presets;
 		this.#presetKeys = Object.keys(this.#presets);
 		if (this.#presetKeys.length === 0) throw new Error('No Milkdrop presets loaded');
 
