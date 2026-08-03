@@ -37,6 +37,7 @@ export async function GET({ locals, url }) {
 		const { rows, nextCursor } = await listFeedTracks({
 			...page,
 			genre: url.searchParams.get('genre')?.trim() || null,
+			q: url.searchParams.get('q')?.trim() || null,
 			followingIds: following ? await listFollowingIds(locals.user.id) : null
 		});
 

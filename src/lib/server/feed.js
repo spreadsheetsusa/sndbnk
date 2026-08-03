@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, like, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
 import {
@@ -20,9 +20,23 @@ import {
 	user
 } from '#lib/server/db/schema';
 import { listPlaylistRows } from '#lib/server/playlists';
+import { likePattern, normalizeSearchQuery } from '#lib/server/search-query';
 
 export const FEED_PAGE_SIZE = 24;
 const COMMENT_BODY_MAX = 80;
+
+/**
+ * Match title, artist, genre, or uploader username.
+ * @param {string} term LIKE pattern from likePattern()
+ */
+function trackSearchCondition(term) {
+	return or(
+		like(track.title, term),
+		like(track.artist, term),
+		like(track.genre, term),
+		like(profile.username, term)
+	);
+}
 
 /**
  * @param {string} body
@@ -38,15 +52,16 @@ function truncateBody(body, max = COMMENT_BODY_MAX) {
  */
 
 /**
- * Site-wide tracks (and playlists) newest first, with optional genre filter and
- * keyset cursor. Genre filters exclude playlists. With `followingIds`, the feed
- * is restricted to those users and also includes tracks they reposted (ordered
- * by repost time) plus their published playlists.
+ * Site-wide tracks (and playlists) newest first, with optional genre / text
+ * filters and keyset cursor. Genre filters exclude playlists. With
+ * `followingIds`, the feed is restricted to those users and also includes
+ * tracks they reposted (ordered by repost time) plus their published playlists.
  *
  * @param {{
  *   limit?: number,
  *   cursor?: string | null,
  *   genre?: string | null,
+ *   q?: string | null,
  *   followingIds?: string[] | null,
  *   direction?: import('#lib/server/cursor').Direction,
  *   inclusive?: boolean
@@ -57,6 +72,7 @@ export async function listFeedTracks({
 	limit = FEED_PAGE_SIZE,
 	cursor = null,
 	genre = null,
+	q = null,
 	followingIds = null,
 	direction = 'older',
 	inclusive = false
@@ -66,11 +82,14 @@ export async function listFeedTracks({
 	}
 
 	const decoded = cursor ? decodeCursor(cursor) : null;
+	const search = normalizeSearchQuery(q);
+	const term = search ? likePattern(search) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.published, true)];
 	if (genre) conditions.push(eq(track.genre, genre));
 	if (followingIds) conditions.push(inArray(track.userId, followingIds));
+	if (term) conditions.push(trackSearchCondition(term));
 	if (decoded) {
 		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
 	}
@@ -100,7 +119,15 @@ export async function listFeedTracks({
 	if (followingIds) {
 		rows = [
 			...rows,
-			...(await listRepostedFeedRows({ limit, genre, followingIds, decoded, direction, inclusive }))
+			...(await listRepostedFeedRows({
+				limit,
+				genre,
+				term,
+				followingIds,
+				decoded,
+				direction,
+				inclusive
+			}))
 		];
 	}
 
@@ -112,7 +139,8 @@ export async function listFeedTracks({
 			limit,
 			cursor,
 			direction,
-			inclusive
+			inclusive,
+			q: search
 		});
 		rows = [
 			...rows,
@@ -175,6 +203,7 @@ function dedupeById(rows) {
  * @param {{
  *   limit: number,
  *   genre: string | null,
+ *   term: string | null,
  *   followingIds: string[],
  *   decoded: { ms: number, id: string } | null,
  *   direction: import('#lib/server/cursor').Direction,
@@ -182,13 +211,22 @@ function dedupeById(rows) {
  * }} input
  * @returns {Promise<import('#lib/server/tracks').ProfileTrackRow[]>}
  */
-async function listRepostedFeedRows({ limit, genre, followingIds, decoded, direction, inclusive }) {
+async function listRepostedFeedRows({
+	limit,
+	genre,
+	term,
+	followingIds,
+	decoded,
+	direction,
+	inclusive
+}) {
 	const reposter = alias(user, 'reposter');
 	const reposterProfile = alias(profile, 'reposter_profile');
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.published, true), inArray(trackRepost.userId, followingIds)];
 	if (genre) conditions.push(eq(track.genre, genre));
+	if (term) conditions.push(trackSearchCondition(term));
 	if (decoded) {
 		conditions.push(
 			keysetCondition(trackRepost.createdAt, trackRepost.trackId, decoded, direction, inclusive)

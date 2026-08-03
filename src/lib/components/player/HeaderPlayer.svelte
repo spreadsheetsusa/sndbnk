@@ -1014,6 +1014,13 @@
 		}
 	}
 
+	/* Extremely narrow: drop KBPS / STEREO / KHZ so artist/title keep the row. */
+	@media (max-width: 380px) {
+		.now-tech {
+			display: none;
+		}
+	}
+
 	@media (pointer: coarse) {
 		.header-player {
 			--waveform-height: calc(var(--tap-min) - 0.5rem);
