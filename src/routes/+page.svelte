@@ -137,6 +137,9 @@
 			{/if}
 
 			<section class="manifesto" aria-label="Our intention">
+				<div class="manifesto-bg" aria-hidden="true">
+					<img src="/sf79Q.webp" alt="" width="1536" height="1024" decoding="async" />
+				</div>
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">
 					Starting from what we know and are familiar with and taking it for a ride. Things will get
@@ -291,13 +294,52 @@
 	}
 
 	.manifesto {
+		position: relative;
 		display: grid;
 		grid-template-columns: 0.35fr 1fr auto;
 		gap: 2rem;
 		align-items: start;
 		padding: clamp(3rem, 6vw, 6rem) 0;
+		overflow: hidden;
+		isolation: isolate;
 		border-top: 1px solid var(--ink);
 		border-bottom: 1px solid var(--ink);
+	}
+
+	.manifesto-bg {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	.manifesto-bg img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center 42%;
+		opacity: 0.4;
+	}
+
+	.manifesto-bg::after {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--paper) 52%, transparent);
+		content: '';
+	}
+
+	:global(.dark) .manifesto-bg img {
+		opacity: 0.5;
+	}
+
+	:global(.dark) .manifesto-bg::after {
+		background: color-mix(in srgb, var(--paper) 42%, transparent);
+	}
+
+	.manifesto > :not(.manifesto-bg) {
+		position: relative;
+		z-index: 1;
 	}
 
 	.manifesto .eyebrow {
