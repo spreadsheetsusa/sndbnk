@@ -1,4 +1,5 @@
 <script>
+	import IconGripVertical from '@tabler/icons-svelte-runes/icons/grip-vertical';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
@@ -8,6 +9,8 @@
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
+	import { flip } from 'svelte/animate';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import Avatar from '#lib/components/Avatar.svelte';
@@ -28,6 +31,8 @@
 	 * @property {string | null} userImage
 	 */
 
+	const DRAG_THRESHOLD_PX = 6;
+
 	const signedIn = $derived(Boolean(page.data.nav?.name));
 
 	let queueOpen = $state(false);
@@ -40,8 +45,17 @@
 	/** @type {string | null} */
 	let hoveredMarkerId = $state(null);
 
+	/** @type {string | null} */
+	let draggingId = $state(null);
+	let dragMoved = false;
+	/** @type {{ x: number, y: number } | null} */
+	let dragOrigin = null;
+	/** @type {HTMLElement | null} */
+	let dragHandleEl = null;
+
 	const displayTime = $derived(scrubSeconds ?? player.currentTime);
 	const durationMs = $derived(player.current?.durationMs ?? Math.round(player.duration * 1000));
+	const flipDuration = $derived(prefersReducedMotion.current ? 0 : 180);
 
 	const markers = $derived.by(() => {
 		if (durationMs <= 0) return [];
@@ -98,6 +112,61 @@
 		} finally {
 			likeBusy = false;
 		}
+	}
+
+	/**
+	 * @param {PointerEvent} event
+	 * @param {string} trackId
+	 */
+	function startQueueDrag(event, trackId) {
+		if (event.button !== 0) return;
+		event.preventDefault();
+		draggingId = trackId;
+		dragMoved = false;
+		dragOrigin = { x: event.clientX, y: event.clientY };
+		dragHandleEl = /** @type {HTMLElement} */ (event.currentTarget);
+		dragHandleEl.setPointerCapture(event.pointerId);
+	}
+
+	/** @param {PointerEvent} event */
+	function onQueueDragMove(event) {
+		if (!draggingId || !dragOrigin) return;
+		const dx = event.clientX - dragOrigin.x;
+		const dy = event.clientY - dragOrigin.y;
+		if (!dragMoved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+		dragMoved = true;
+
+		const fromIndex = player.queue.findIndex((t) => t.id === draggingId);
+		if (fromIndex < 0) return;
+
+		const el = document.elementFromPoint(event.clientX, event.clientY);
+		const row = el instanceof Element ? el.closest('li[data-queue-id]') : null;
+		if (!row) return;
+		const overId = row.getAttribute('data-queue-id');
+		if (!overId || overId === draggingId) return;
+		const toIndex = player.queue.findIndex((t) => t.id === overId);
+		if (toIndex < 0) return;
+		player.moveInQueue(fromIndex, toIndex);
+	}
+
+	/** @param {PointerEvent} event */
+	function endQueueDrag(event) {
+		if (!draggingId) return;
+		if (dragHandleEl?.hasPointerCapture(event.pointerId)) {
+			dragHandleEl.releasePointerCapture(event.pointerId);
+		}
+		draggingId = null;
+		dragOrigin = null;
+		dragHandleEl = null;
+	}
+
+	/** @param {number} index */
+	function playQueuedTrack(index) {
+		if (dragMoved) {
+			dragMoved = false;
+			return;
+		}
+		player.playFromQueue(index);
 	}
 </script>
 
@@ -274,16 +343,25 @@
 				{#if player.queue.length === 0}
 					<p class="queue-empty">Nothing queued. Use “Add to Next Up” on any track.</p>
 				{:else}
-					<ol>
+					<ol class:queue-dragging={draggingId != null}>
 						{#each player.queue as queued, index (queued.id)}
-							<li>
+							<li
+								data-queue-id={queued.id}
+								class:dragging={draggingId === queued.id}
+								animate:flip={{ duration: flipDuration }}
+							>
 								<button
 									type="button"
-									class="queue-track"
-									onclick={() => {
-										player.playFromQueue(index);
-									}}
+									class="queue-handle"
+									aria-label="Reorder {queued.title}"
+									onpointerdown={(e) => startQueueDrag(e, queued.id)}
+									onpointermove={onQueueDragMove}
+									onpointerup={endQueueDrag}
+									onpointercancel={endQueueDrag}
 								>
+									<IconGripVertical size={15} stroke={1.75} aria-hidden="true" />
+								</button>
+								<button type="button" class="queue-track" onclick={() => playQueuedTrack(index)}>
 									<span class="queue-title">{queued.title}</span>
 									<span class="queue-artist">{queued.artist || queued.uploaderName}</span>
 								</button>
@@ -614,6 +692,43 @@
 		align-items: center;
 	}
 
+	.queue-panel li.dragging {
+		background: color-mix(in srgb, var(--ink) 7%, transparent);
+	}
+
+	.queue-panel ol.queue-dragging {
+		user-select: none;
+	}
+
+	.queue-handle {
+		display: inline-flex;
+		width: 1.6rem;
+		height: 1.6rem;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 0;
+		color: var(--muted);
+		background: transparent;
+		cursor: grab;
+		touch-action: none;
+		user-select: none;
+		flex-shrink: 0;
+	}
+
+	.queue-handle :global(svg) {
+		display: block;
+	}
+
+	.queue-handle:hover {
+		color: var(--ink);
+	}
+
+	.queue-panel li.dragging .queue-handle {
+		cursor: grabbing;
+		color: var(--ink);
+	}
+
 	.queue-track {
 		display: flex;
 		flex: 1;
@@ -767,6 +882,7 @@
 			width: 3.25rem;
 		}
 
+		.queue-handle,
 		.queue-remove {
 			width: var(--tap-min);
 			height: var(--tap-min);
