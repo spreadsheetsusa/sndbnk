@@ -1,5 +1,4 @@
 <script>
-	import { onMount } from 'svelte';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
@@ -33,10 +32,6 @@
 
 	let queueOpen = $state(false);
 	let likeBusy = $state(false);
-	let scrubbing = $state(false);
-	let scrubValue = $state(0);
-	/** Mobile stacked layout (matches header wrap). */
-	let stacked = $state(false);
 	/** Waveform scrub preview in seconds. @type {number | null} */
 	let scrubSeconds = $state(null);
 
@@ -45,10 +40,6 @@
 	/** @type {string | null} */
 	let hoveredMarkerId = $state(null);
 
-	const progress = $derived(
-		player.duration > 0 ? Math.min(player.currentTime / player.duration, 1) : 0
-	);
-	const sliderValue = $derived(scrubbing ? scrubValue : Math.round(progress * 1000));
 	const displayTime = $derived(scrubSeconds ?? player.currentTime);
 	const durationMs = $derived(player.current?.durationMs ?? Math.round(player.duration * 1000));
 
@@ -64,17 +55,6 @@
 	});
 
 	const activeMarker = $derived(markers.find((marker) => marker.id === hoveredMarkerId) ?? null);
-
-	onMount(() => {
-		const mq = window.matchMedia('(max-width: 960px)');
-		stacked = mq.matches;
-		const onChange = () => {
-			stacked = mq.matches;
-			if (!mq.matches) scrubSeconds = null;
-		};
-		mq.addEventListener('change', onChange);
-		return () => mq.removeEventListener('change', onChange);
-	});
 
 	// Network fetch for avatar markers — not derivable from local state.
 	$effect(() => {
@@ -99,22 +79,6 @@
 
 		return () => controller.abort();
 	});
-
-	/**
-	 * @param {Event & { currentTarget: HTMLInputElement }} event
-	 */
-	function handleSeekInput(event) {
-		scrubValue = Number(event.currentTarget.value);
-	}
-
-	/**
-	 * @param {Event & { currentTarget: HTMLInputElement }} event
-	 */
-	function handleSeekCommit(event) {
-		const value = Number(event.currentTarget.value);
-		player.seek((value / 1000) * player.duration);
-		scrubbing = false;
-	}
 
 	/** @param {number} seconds */
 	function handleWaveSeek(seconds) {
@@ -177,63 +141,44 @@
 			<div class="cell scrub">
 				<span class="time elapsed">{formatDuration(displayTime * 1000)}</span>
 
-				{#if stacked}
-					<div class="wave-wrap">
-						<Waveform
-							peaks={track.waveform}
-							{durationMs}
-							currentTime={player.currentTime}
-							height={38}
-							label="Seek within {track.title}"
-							onseek={handleWaveSeek}
-							onscrub={(seconds) => (scrubSeconds = seconds)}
-						/>
-						{#each markers as marker (marker.id)}
-							<button
-								type="button"
-								class="marker"
-								class:active={activeMarker?.id === marker.id}
-								style:left="{marker.leftPct}%"
-								aria-label="{marker.userName} commented at {formatDuration(
-									marker.atMs
-								)}: {marker.body}"
-								onmouseenter={() => (hoveredMarkerId = marker.id)}
-								onmouseleave={() => (hoveredMarkerId = null)}
-								onfocus={() => (hoveredMarkerId = marker.id)}
-								onblur={() => (hoveredMarkerId = null)}
-							>
-								<Avatar src={marker.userImage} name={marker.userName} size="1rem" />
-							</button>
-						{/each}
-						{#if activeMarker}
-							<div
-								class="marker-tip"
-								style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
-								transition:fade={{ duration: 120 }}
-							>
-								<span class="tip-name">{activeMarker.userName}</span>
-								<span class="tip-body">{activeMarker.body}</span>
-							</div>
-						{/if}
-					</div>
-				{:else}
-					<input
-						class="seek"
-						type="range"
-						min="0"
-						max="1000"
-						step="1"
-						value={sliderValue}
-						aria-label="Seek"
-						style:--fill="{(sliderValue / 1000) * 100}%"
-						onpointerdown={() => {
-							scrubbing = true;
-							scrubValue = Math.round(progress * 1000);
-						}}
-						oninput={handleSeekInput}
-						onchange={handleSeekCommit}
+				<div class="wave-wrap">
+					<Waveform
+						peaks={track.waveform}
+						{durationMs}
+						currentTime={player.currentTime}
+						height={38}
+						label="Seek within {track.title}"
+						onseek={handleWaveSeek}
+						onscrub={(seconds) => (scrubSeconds = seconds)}
 					/>
-				{/if}
+					{#each markers as marker (marker.id)}
+						<button
+							type="button"
+							class="marker"
+							class:active={activeMarker?.id === marker.id}
+							style:left="{marker.leftPct}%"
+							aria-label="{marker.userName} commented at {formatDuration(
+								marker.atMs
+							)}: {marker.body}"
+							onmouseenter={() => (hoveredMarkerId = marker.id)}
+							onmouseleave={() => (hoveredMarkerId = null)}
+							onfocus={() => (hoveredMarkerId = marker.id)}
+							onblur={() => (hoveredMarkerId = null)}
+						>
+							<Avatar src={marker.userImage} name={marker.userName} size="1rem" />
+						</button>
+					{/each}
+					{#if activeMarker}
+						<div
+							class="marker-tip"
+							style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
+							transition:fade={{ duration: 120 }}
+						>
+							<span class="tip-name">{activeMarker.userName}</span>
+							<span class="tip-body">{activeMarker.body}</span>
+						</div>
+					{/if}
+				</div>
 
 				<span class="time total">{formatDuration(player.duration * 1000)}</span>
 			</div>
@@ -437,9 +382,10 @@
 
 	.scrub {
 		gap: 0.5rem;
-		flex: 1 1 12rem;
-		min-width: 7rem;
-		padding: 0 0.6rem;
+		flex: 1 1 14rem;
+		min-width: 10rem;
+		min-height: 2.4rem;
+		padding: 0.15rem 0.6rem;
 	}
 
 	.wave-wrap {
@@ -518,53 +464,6 @@
 
 	.time.total {
 		color: var(--muted);
-	}
-
-	.seek {
-		flex: 1;
-		min-width: 3.5rem;
-		height: 1rem;
-		margin: 0;
-		appearance: none;
-		background: transparent;
-		cursor: pointer;
-		touch-action: none;
-	}
-
-	.seek::-webkit-slider-runnable-track {
-		height: 4px;
-		background: linear-gradient(
-			to right,
-			var(--accent) var(--fill, 0%),
-			color-mix(in srgb, var(--ink) 22%, transparent) var(--fill, 0%)
-		);
-	}
-
-	.seek::-moz-range-track {
-		height: 4px;
-		background: linear-gradient(
-			to right,
-			var(--accent) var(--fill, 0%),
-			color-mix(in srgb, var(--ink) 22%, transparent) var(--fill, 0%)
-		);
-	}
-
-	.seek::-webkit-slider-thumb {
-		width: 10px;
-		height: 10px;
-		margin-top: -3px;
-		appearance: none;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		background: var(--accent);
-	}
-
-	.seek::-moz-range-thumb {
-		width: 8px;
-		height: 8px;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		background: var(--accent);
 	}
 
 	.now-playing {
@@ -868,43 +767,18 @@
 			width: 3.25rem;
 		}
 
-		.seek {
-			height: 1.75rem;
-		}
-
-		.seek::-webkit-slider-runnable-track {
-			height: 6px;
-		}
-
-		.seek::-moz-range-track {
-			height: 6px;
-		}
-
-		.seek::-webkit-slider-thumb {
-			width: 18px;
-			height: 18px;
-			margin-top: -6px;
-		}
-
-		.seek::-moz-range-thumb {
-			width: 18px;
-			height: 18px;
-		}
-
 		.queue-remove {
 			width: var(--tap-min);
 			height: var(--tap-min);
 		}
 
-		@media (max-width: 960px) {
-			.now-playing,
-			.scrub {
-				min-height: var(--tap-min);
-			}
+		.now-playing,
+		.scrub {
+			min-height: var(--tap-min);
+		}
 
-			.wave-wrap {
-				min-height: 44px;
-			}
+		.wave-wrap {
+			min-height: 44px;
 		}
 	}
 </style>
