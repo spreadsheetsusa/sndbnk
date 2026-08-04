@@ -456,6 +456,7 @@
 		min-width: 0;
 		max-width: 100%;
 		justify-content: center;
+		overflow: visible;
 	}
 
 	.strip {
@@ -464,6 +465,7 @@
 		/* Wider than content-sized, but leave breathing room beside logo/nav. */
 		width: min(100%, 44rem);
 		min-width: 0;
+		overflow: visible;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
@@ -475,6 +477,13 @@
 		display: flex;
 		align-items: stretch;
 		flex-shrink: 0;
+	}
+
+	/* Let .queue-count overhang neighboring cells without being clipped. */
+	.bar-actions {
+		position: relative;
+		z-index: 2;
+		overflow: visible;
 	}
 
 	.cell {
@@ -758,14 +767,18 @@
 		position: relative;
 	}
 
-	/* Badge overhangs the next sibling; elevate this button so .queue-count wins. */
+	/*
+	 * Badge overhangs neighboring controls. Override .cell overflow:hidden and
+	 * elevate this button above sibling action cells so .queue-count wins.
+	 */
 	.queue-btn {
-		z-index: 1;
+		overflow: visible;
+		z-index: 50;
 	}
 
 	.queue-count {
 		position: absolute;
-		z-index: 20;
+		z-index: 50;
 		top: -0.4rem;
 		right: -0.4rem;
 		min-width: 1rem;
