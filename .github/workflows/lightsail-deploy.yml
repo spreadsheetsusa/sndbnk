@@ -40,21 +40,24 @@ jobs:
             echo "Current directory: $(pwd)"
 
             echo "Pulling latest changes..."
-            # Preserve any existing server .env across pull (tracked .env would otherwise conflict
-            # with an untracked local file, and we want to keep live secrets when present).
+            # .env is gitignored and must never be deleted or overwritten by pull.
+            # Snapshot it, clear any tracked dirt so ff-only can apply a deletion cleanly,
+            # then restore the live file before the merge script runs.
             PRE_PULL_ENV="/tmp/sndbnk.env.pre-pull"
             rm -f "$PRE_PULL_ENV"
             if [ -f .env ]; then
-              cp .env "$PRE_PULL_ENV"
-              # If .env is untracked, move it aside so git pull can materialize the tracked file.
-              if ! git ls-files --error-unmatch .env >/dev/null 2>&1; then
-                mv .env "${PRE_PULL_ENV}.untracked"
-                cp "${PRE_PULL_ENV}.untracked" "$PRE_PULL_ENV"
-              fi
+              cp -a .env "$PRE_PULL_ENV"
             fi
             git fetch origin main
             git checkout main
+            if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+              # Discard local edits to the formerly tracked file so pull is not blocked.
+              git checkout HEAD -- .env
+            fi
             git pull --ff-only origin main
+            if [ -f "$PRE_PULL_ENV" ]; then
+              cp -a "$PRE_PULL_ENV" .env
+            fi
 
             echo "Ensuring production .env values..."
             PRE_PULL_ENV="$PRE_PULL_ENV" python3 - <<'PY'
@@ -189,7 +192,7 @@ jobs:
             for key in managed:
                 if key not in seen:
                     out.append(f"{key}={env[key]}")
-            # Append preserved secrets that exist only on the server (not in tracked .env).
+            # Append preserved secrets that exist only on the server.
             for key in preserve_keys:
                 if key not in seen and key not in managed and clean(env.get(key, "")):
                     out.append(f"{key}={env[key]}")

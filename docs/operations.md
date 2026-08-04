@@ -76,8 +76,9 @@ or too small.
 waveform worker), uploads succeed but tracks keep placeholder waveforms until Redis +
 `sndbnk-waveform-worker` are running and a page view re-enqueues backfill.
 
-**`.env` is currently committed to the repo** with live secrets, as a temporary deploy workaround.
-See [known-issues.md](known-issues.md).
+`.env` is gitignored and instance-local. Copy from `.env.example` for new checkouts; production
+deploy snapshots and restores the server file across `git pull`, then merges managed keys. Older
+commits still contain former secret values — see [known-issues.md](known-issues.md).
 
 ## Production topology
 
@@ -104,12 +105,14 @@ flowchart LR
 Steps, in order:
 
 1. Put Bun on `PATH` explicitly — a non-interactive SSH session does not load shell rc files.
-2. Snapshot the existing `.env`, `git pull --ff-only origin main`, then run a Python script that
-   merges it back: `BETTER_AUTH_SECRET`, `STORAGE_SECRET`, `DATABASE_URL`, and `MEDIA_ROOT` are
-   preserved from the live server, while `ORIGIN`, `PUBLIC_BASE_DOMAIN`, `PROTOCOL_HEADER`, and
-   `HOST_HEADER` are forced to their production values. Missing secrets are generated, and
-   `BODY_SIZE_LIMIT` is raised to `520M` if it is absent or parses below that. `REDIS_URL` is
-   preserved when set, otherwise defaulted to `redis://127.0.0.1:6379`.
+2. Snapshot the existing `.env`, clear any formerly-tracked dirt so pull can ff, restore the
+   snapshot after `git pull --ff-only origin main` (so git never deletes instance secrets), then
+   run a Python script that merges managed keys: `BETTER_AUTH_SECRET`, `STORAGE_SECRET`,
+   `DATABASE_URL`, and `MEDIA_ROOT` are preserved from the live server, while `ORIGIN`,
+   `PUBLIC_BASE_DOMAIN`, `PROTOCOL_HEADER`, and `HOST_HEADER` are forced to their production
+   values. Missing secrets are generated, and `BODY_SIZE_LIMIT` is raised to `520M` if it is
+   absent or parses below that. `REDIS_URL` is preserved when set, otherwise defaulted to
+   `redis://127.0.0.1:6379`.
 3. Fix ownership and permissions on the SQLite file **and its `-wal` / `-shm` / `-journal`
    sidecars** — SQLite needs write access to all of them, and getting this wrong produces
    read-only-database errors at runtime.
