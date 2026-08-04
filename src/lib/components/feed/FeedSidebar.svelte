@@ -143,6 +143,17 @@
 
 <aside class="feed-sidebar" class:collapsed aria-label="Discover">
 	<div class="rail-row">
+		<nav class="panel-pager" aria-label="Discover panels">
+			{#each PANELS as panel, index (panel.key)}
+				<button
+					type="button"
+					class="pager-dot"
+					aria-label={panel.label}
+					aria-current={activePanel === index ? 'true' : undefined}
+					onclick={() => scrollToPanel(index)}
+				></button>
+			{/each}
+		</nav>
 		<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
 			<section class="panel" aria-labelledby="most-liked-heading" data-panel={PANELS[0].key}>
 				<header class="panel-head">
@@ -282,18 +293,6 @@
 			</button>
 		{/if}
 	</div>
-
-	<nav class="panel-pager" aria-label="Discover panels">
-		{#each PANELS as panel, index (panel.key)}
-			<button
-				type="button"
-				class="pager-dot"
-				aria-label={panel.label}
-				aria-current={activePanel === index ? 'true' : undefined}
-				onclick={() => scrollToPanel(index)}
-			></button>
-		{/each}
-	</nav>
 </aside>
 
 <style>
@@ -650,15 +649,24 @@
 
 		.panel-pager {
 			display: flex;
+			flex-direction: column;
+			flex-shrink: 0;
+			align-items: center;
+			align-self: stretch;
 			justify-content: center;
-			gap: 0.15rem;
+			gap: 0.12rem;
+			width: 0.7rem;
+			/* 0 intrinsic height so siblings set the row; stretch fills the widget. */
+			height: 0;
+			min-height: 0;
 		}
 
 		.pager-dot {
 			display: grid;
+			flex: 0 0 auto;
 			place-items: center;
-			width: 1.75rem;
-			height: 1.75rem;
+			width: 0.7rem;
+			height: 0.45rem;
 			padding: 0;
 			border: 0;
 			border-radius: 0;
@@ -667,8 +675,8 @@
 		}
 
 		.pager-dot::after {
-			width: 0.55rem;
-			height: 0.55rem;
+			width: 0.32rem;
+			height: 0.32rem;
 			border: 1px solid var(--hard-border);
 			background: color-mix(in srgb, var(--paper) 88%, var(--ink));
 			box-shadow: 1px 1px 0 var(--hard-shadow);

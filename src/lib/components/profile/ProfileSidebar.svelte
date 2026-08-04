@@ -154,6 +154,21 @@
 
 <aside class="profile-sidebar" class:collapsed aria-label="About {name}">
 	<div class="rail-row">
+		{#if panels.length > 1}
+			<nav class="panel-pager" aria-label="Profile panels">
+				{#each panels as panel, index (panel.key)}
+					<button
+						type="button"
+						class="pager-dot"
+						aria-label={panel.label}
+						aria-current={activePanel === index ? 'true' : undefined}
+						onclick={() => scrollToPanel(index)}
+					>
+						<span class="pager-dot-mark" aria-hidden="true"></span>
+					</button>
+				{/each}
+			</nav>
+		{/if}
 		<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
 			{#if showStats}
 				<section class="panel" aria-label="Stats" data-panel="stats">
@@ -298,22 +313,6 @@
 			</button>
 		{/if}
 	</div>
-
-	{#if panels.length > 1}
-		<nav class="panel-pager" aria-label="Profile panels">
-			{#each panels as panel, index (panel.key)}
-				<button
-					type="button"
-					class="pager-dot"
-					aria-label={panel.label}
-					aria-current={activePanel === index ? 'true' : undefined}
-					onclick={() => scrollToPanel(index)}
-				>
-					<span class="pager-dot-mark" aria-hidden="true"></span>
-				</button>
-			{/each}
-		</nav>
-	{/if}
 </aside>
 
 <style>
@@ -628,15 +627,24 @@
 
 		.panel-pager {
 			display: flex;
+			flex-direction: column;
+			flex-shrink: 0;
+			align-items: center;
+			align-self: stretch;
 			justify-content: center;
-			gap: 0.15rem;
+			gap: 0.12rem;
+			width: 0.7rem;
+			/* 0 intrinsic height so siblings set the row; stretch fills the widget. */
+			height: 0;
+			min-height: 0;
 		}
 
 		.pager-dot {
 			display: grid;
+			flex: 0 0 auto;
 			place-items: center;
-			width: 1.75rem;
-			height: 1.75rem;
+			width: 0.7rem;
+			height: 0.45rem;
 			padding: 0;
 			border: 0;
 			border-radius: 0;
@@ -646,8 +654,8 @@
 
 		.pager-dot-mark {
 			display: block;
-			width: 0.55rem;
-			height: 0.55rem;
+			width: 0.32rem;
+			height: 0.32rem;
 			border: 1px solid var(--hard-border);
 			background: color-mix(in srgb, var(--paper) 88%, var(--ink));
 			box-shadow: 1px 1px 0 var(--hard-shadow);
