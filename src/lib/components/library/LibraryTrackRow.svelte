@@ -40,6 +40,8 @@
 	let { track, selected = false, onselect, ondeleted } = $props();
 
 	let menuOpen = $state(false);
+	/** @type {HTMLButtonElement | null} */
+	let moreBtn = $state(null);
 	let playlistPickerOpen = $state(false);
 	let copied = $state(false);
 	let deleteBusy = $state(false);
@@ -81,6 +83,12 @@
 		menuOpen = false;
 		releaseMenu?.();
 		releaseMenu = null;
+	}
+
+	function closeMenuAndRestoreFocus() {
+		if (!menuOpen) return;
+		closeMenu();
+		moreBtn?.focus();
 	}
 
 	function toggleMenu() {
@@ -159,7 +167,7 @@
 
 	/** @param {KeyboardEvent} event */
 	function handleKeydown(event) {
-		if (event.key === 'Escape' && menuOpen) closeMenu();
+		if (event.key === 'Escape' && menuOpen) closeMenuAndRestoreFocus();
 	}
 </script>
 
@@ -240,9 +248,11 @@
 		<button
 			type="button"
 			class="more-btn"
+			bind:this={moreBtn}
 			aria-label="More actions for {track.title}"
 			aria-expanded={menuOpen}
 			aria-haspopup="menu"
+			aria-controls="library-menu-{track.id}"
 			onclick={toggleMenu}
 		>
 			<span class="more-icon" aria-hidden="true">
@@ -258,7 +268,7 @@
 		</button>
 
 		{#if menuOpen}
-			<div class="menu" role="menu">
+			<div class="menu" id="library-menu-{track.id}" role="menu">
 				<a class="menu-item" role="menuitem" href="/tracks/{track.id}">Open page</a>
 				<a class="menu-item" role="menuitem" href="/library/{track.id}">Edit</a>
 				<button type="button" role="menuitem" onclick={copyLink}>

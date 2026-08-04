@@ -9,7 +9,8 @@ const DISALLOW = [
 	'/forgot-password',
 	'/reset-password',
 	'/admin',
-	'/billing'
+	'/billing',
+	'/playlists/new'
 ];
 
 export const GET = () => {

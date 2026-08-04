@@ -1,5 +1,5 @@
 import { ORIGIN } from '$app/env/private';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { playlist, profile, track } from '#lib/server/db/schema';
@@ -10,31 +10,81 @@ import { playlist, profile, track } from '#lib/server/db/schema';
 const escapeXml = (value) =>
 	value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/**
+ * @param {Date | null | undefined} value
+ */
+const toLastmod = (value) => {
+	if (!value) return null;
+	const date = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date.toISOString();
+};
+
+/**
+ * @param {string} loc
+ * @param {Date | null | undefined} [lastmod]
+ */
+const urlEntry = (loc, lastmod) => {
+	const iso = toLastmod(lastmod);
+	return iso
+		? `  <url><loc>${escapeXml(loc)}</loc><lastmod>${iso}</lastmod></url>`
+		: `  <url><loc>${escapeXml(loc)}</loc></url>`;
+};
+
 export const GET = async () => {
 	const origin = ORIGIN.replace(/\/$/, '');
 
-	const [profiles, tracks, playlists] = await Promise.all([
-		db.select({ username: profile.username }).from(profile),
-		db.select({ id: track.id }).from(track).where(eq(track.published, true)),
-		db.select({ id: playlist.id }).from(playlist).where(eq(playlist.published, true))
+	const [tracks, playlists] = await Promise.all([
+		db
+			.select({
+				id: track.id,
+				userId: track.userId,
+				updatedAt: track.updatedAt,
+				createdAt: track.createdAt
+			})
+			.from(track)
+			.where(eq(track.published, true)),
+		db
+			.select({
+				id: playlist.id,
+				userId: playlist.userId,
+				updatedAt: playlist.updatedAt,
+				createdAt: playlist.createdAt
+			})
+			.from(playlist)
+			.where(eq(playlist.published, true))
 	]);
 
-	/** @type {string[]} */
-	const locs = [
-		`${origin}/`,
-		`${origin}/plans`,
-		`${origin}/privacy`,
-		`${origin}/terms`,
-		`${origin}/copyright`,
-		...profiles.map((row) => `${origin}/users/${row.username}`),
-		...tracks.map((row) => `${origin}/tracks/${row.id}`),
-		...playlists.map((row) => `${origin}/playlists/${row.id}`)
+	const activeUserIds = [
+		...new Set([...tracks.map((r) => r.userId), ...playlists.map((r) => r.userId)])
 	];
+	const profiles =
+		activeUserIds.length === 0
+			? []
+			: await db
+					.select({
+						username: profile.username,
+						updatedAt: profile.updatedAt,
+						createdAt: profile.createdAt
+					})
+					.from(profile)
+					.where(inArray(profile.userId, activeUserIds));
 
 	const body = [
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-		...locs.map((loc) => `  <url><loc>${escapeXml(loc)}</loc></url>`),
+		urlEntry(`${origin}/`),
+		urlEntry(`${origin}/plans`),
+		urlEntry(`${origin}/privacy`),
+		urlEntry(`${origin}/terms`),
+		urlEntry(`${origin}/copyright`),
+		...profiles.map((row) =>
+			urlEntry(`${origin}/users/${row.username}`, row.updatedAt ?? row.createdAt)
+		),
+		...tracks.map((row) => urlEntry(`${origin}/tracks/${row.id}`, row.updatedAt ?? row.createdAt)),
+		...playlists.map((row) =>
+			urlEntry(`${origin}/playlists/${row.id}`, row.updatedAt ?? row.createdAt)
+		),
 		'</urlset>',
 		''
 	].join('\n');

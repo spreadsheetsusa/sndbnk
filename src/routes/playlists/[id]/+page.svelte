@@ -2,31 +2,47 @@
 	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
-	import { absoluteUrl } from '#lib/seo.js';
-	import { page } from '$app/state';
+	import { absoluteUrl, musicPlaylistJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
 
-	const origin = $derived(page.url.origin);
 	const title = $derived(`${data.playlist.title} | SNDBNK`);
 	const description = $derived(
 		data.playlist.description?.trim() ||
 			`Playlist by ${data.playlist.uploaderName} on SNDBNK — ${data.playlist.trackCount} tracks.`
+	);
+	const seoCanonical = $derived(`${data.siteOrigin}/playlists/${data.playlist.id}`);
+	const seoImage = $derived.by(() => {
+		if (data.playlist.coverTrackId) return `/api/media/${data.playlist.coverTrackId}/cover`;
+		const covered = data.playlist.tracks.find((t) => t.hasCover);
+		return covered ? `/api/media/${covered.id}/cover` : null;
+	});
+	const seoJsonLd = $derived(
+		musicPlaylistJsonLd({
+			name: data.playlist.title,
+			byArtist: data.playlist.uploaderName,
+			url: seoCanonical,
+			image: seoImage ? absoluteUrl(data.siteOrigin, seoImage) : null,
+			description,
+			numTracks: data.playlist.trackCount
+		})
 	);
 </script>
 
 <SeoHead
 	{title}
 	{description}
-	canonical={absoluteUrl(origin, `/playlists/${data.playlist.id}`)}
-	{origin}
+	canonical={seoCanonical}
+	origin={data.siteOrigin}
+	image={seoImage}
 	type="website"
+	jsonLd={seoJsonLd}
 />
 
 <div class="page">
 	<SiteHeader />
 
-	<main>
+	<main id="main">
 		<header class="page-head">
 			<p class="eyebrow eyebrow-chip accent-text">Playlist</p>
 			{#if data.playlist.isOwner}
@@ -41,6 +57,7 @@
 			signedIn={Boolean(data.viewer)}
 			viewerName={data.viewer?.name ?? null}
 			viewerImage={data.viewer?.image ?? null}
+			titleAsHeading
 		/>
 
 		{#if data.playlist.description}

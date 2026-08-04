@@ -90,6 +90,39 @@ export function musicRecordingJsonLd({
 }
 
 /**
+ * @param {{
+ *   name: string,
+ *   byArtist: string,
+ *   url: string,
+ *   image?: string | null,
+ *   description?: string | null,
+ *   numTracks?: number | null
+ * }} input
+ */
+export function musicPlaylistJsonLd({
+	name,
+	byArtist,
+	url,
+	image = null,
+	description = null,
+	numTracks = null
+}) {
+	return {
+		'@context': 'https://schema.org',
+		'@type': 'MusicPlaylist',
+		name,
+		byArtist: {
+			'@type': 'Person',
+			name: byArtist
+		},
+		url,
+		...(image ? { image } : {}),
+		...(description ? { description } : {}),
+		...(numTracks != null ? { numTracks } : {})
+	};
+}
+
+/**
  * Safe JSON-LD payload for embedding in HTML (escapes `<`).
  * @param {Record<string, unknown>} value
  */

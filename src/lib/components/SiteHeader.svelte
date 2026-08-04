@@ -277,6 +277,7 @@
 					type="button"
 					class="menu-toggle"
 					aria-expanded={guestMenuOpen}
+					aria-haspopup="true"
 					aria-controls="site-menu"
 					aria-label={guestMenuLabel}
 					title={guestMenuLabel}

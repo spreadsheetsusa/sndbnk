@@ -22,35 +22,6 @@ existing local file.
 So when you add an env var: update `.env.example`, update the deploy workflow's managed list, and
 either give it a validator marking it optional or expect everyone to edit their `.env`.
 
-## The signup username `pattern` is silently dead
-
-[`src/routes/signup/+page.svelte`](../src/routes/signup/+page.svelte) sets:
-
-```html
-pattern="[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?"
-```
-
-Modern browsers compile the `pattern` attribute with the regex `v` flag, under which a bare `-` at the
-end of a character class is a syntax error. The browser therefore throws and **discards the pattern
-entirely**, so client-side username validation never runs and the console shows:
-
-```
-Pattern attribute value … is not a valid regular expression: Invalid character class
-```
-
-Verifiable directly:
-
-```js
-new RegExp('[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?', 'u'); // fine
-new RegExp('[a-zA-Z0-9](?:[a-zA-Z0-9-]{1,28}[a-zA-Z0-9])?', 'v'); // throws
-```
-
-Not a security problem — `validateUsername()` in
-[`src/lib/server/username.js`](../src/lib/server/username.js) still rejects bad usernames server-side,
-and its regex is used without the `v` flag so it is unaffected. The cost is a lost instant-feedback
-guardrail plus console noise. The fix is to escape the dash (`[a-zA-Z0-9\-]`) or move it to the front
-of the class.
-
 ## `.env` is still tracked with live secrets
 
 `.gitignore` lists `.env` (and ignores `.env.*` except `.env.example` / `.env.test`), but the file

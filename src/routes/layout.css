@@ -190,6 +190,39 @@ a {
 	outline-offset: 3px;
 }
 
+.skip-link {
+	position: absolute;
+	top: 0.75rem;
+	left: 0.75rem;
+	z-index: 1000;
+	padding: 0.55rem 0.85rem;
+	color: var(--on-accent);
+	font-weight: 700;
+	text-decoration: none;
+	background: var(--accent);
+	border: 1px solid var(--ink);
+	box-shadow: 3px 3px 0 var(--hard-shadow);
+	transform: translateY(-150%);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+	transform: translateY(0);
+	outline-offset: 2px;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 .display-face {
 	font-family: 'Audiowide', 'Helvetica Neue', sans-serif;
 	font-weight: 400;

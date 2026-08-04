@@ -68,6 +68,7 @@
 	 *   viewerImage?: string | null,
 	 *   showCommentForm?: boolean,
 	 *   linkBase?: string,
+	 *   titleAsHeading?: boolean,
 	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
 	 *   ondeleted?: () => void
 	 * }}
@@ -79,6 +80,7 @@
 		viewerImage = null,
 		showCommentForm = true,
 		linkBase = '',
+		titleAsHeading = false,
 		oncommented,
 		ondeleted
 	} = $props();
@@ -182,6 +184,8 @@
 	let postedComments = $state([]);
 
 	let menuOpen = $state(false);
+	/** @type {HTMLButtonElement | null} */
+	let moreBtn = $state(null);
 	let playlistPickerOpen = $state(false);
 	let copied = $state(false);
 	let likeBusy = $state(false);
@@ -411,6 +415,8 @@
 	function handleKeydown(event) {
 		if (event.key === 'Escape' && menuOpen) {
 			menuOpen = false;
+			playlistPickerOpen = false;
+			moreBtn?.focus();
 		}
 	}
 
@@ -472,7 +478,11 @@
 				{:else}
 					<span class="artist">{track.artist || track.uploaderName}</span>
 				{/if}
-				<a class="title" href="/tracks/{track.id}">{track.title}</a>
+				{#if titleAsHeading}
+					<h1 class="title">{track.title}</h1>
+				{:else}
+					<a class="title" href="/tracks/{track.id}">{track.title}</a>
+				{/if}
 			</div>
 
 			<div class="aside">
@@ -504,9 +514,11 @@
 				<button
 					type="button"
 					class="more-btn"
+					bind:this={moreBtn}
 					aria-label="More actions for {track.title}"
 					aria-expanded={menuOpen}
 					aria-haspopup="menu"
+					aria-controls="track-menu-{track.id}"
 					onclick={() => {
 						menuOpen = !menuOpen;
 						if (!menuOpen) playlistPickerOpen = false;
@@ -525,7 +537,7 @@
 				</button>
 
 				{#if menuOpen}
-					<div class="menu" role="menu">
+					<div class="menu" id="track-menu-{track.id}" role="menu">
 						<button type="button" role="menuitem" onclick={copyLink}>
 							{copied ? 'Copied!' : 'Copy link'}
 						</button>
@@ -664,6 +676,7 @@
 						name="comment"
 						rows="1"
 						placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+						aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
 						maxlength="1000"
 						autocomplete="off"
 						bind:value={commentBody}
@@ -784,6 +797,7 @@
 
 	.title {
 		overflow: hidden;
+		margin: 0;
 		color: var(--ink);
 		font-size: 1.02rem;
 		font-weight: 800;
@@ -793,7 +807,7 @@
 		white-space: nowrap;
 	}
 
-	.title:hover {
+	a.title:hover {
 		text-decoration: underline;
 		text-underline-offset: 0.2rem;
 	}

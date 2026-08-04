@@ -21,7 +21,9 @@
 	export const snapshot = paged.snapshot;
 
 	const pageTitle = $derived(`${data.profile.name} (@${data.profile.username}) | SNDBNK`);
-	const pageDescription = $derived(`${data.profile.name} on SNDBNK — a public profile for sound.`);
+	const pageDescription = $derived(
+		data.profile.bio?.trim() || `${data.profile.name} on SNDBNK — a public profile for sound.`
+	);
 	const seoCanonical = $derived(`${data.siteOrigin}/users/${data.profile.username}`);
 	const seoJsonLd = $derived(
 		personJsonLd({
