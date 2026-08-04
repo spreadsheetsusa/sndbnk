@@ -467,6 +467,7 @@
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
+		container-type: inline-size;
 	}
 
 	.transport,
@@ -1014,8 +1015,8 @@
 		}
 	}
 
-	/* Extremely narrow: drop KBPS / STEREO / KHZ so artist/title keep the row. */
-	@media (max-width: 380px) {
+	/* Drop KBPS / STEREO / KHZ when the strip itself is tight (desktop squeeze or narrow). */
+	@container (max-width: 36rem) {
 		.now-tech {
 			display: none;
 		}
