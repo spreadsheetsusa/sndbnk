@@ -17,7 +17,7 @@
 
 	/**
 	 * @typedef {import('#lib/components/profile/ArtistRow.svelte').Artist} Artist
-	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, trackId: string, trackTitle: string }} RecentComment
+	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string }} RecentComment
 	 * @typedef {{ followerCount: number, followingCount: number, trackCount: number, likeCount: number, repostCount: number }} ProfileStats
 	 */
 
@@ -88,6 +88,11 @@
 	/** @param {string} value */
 	function vtName(value) {
 		return value.replace(/[^a-zA-Z0-9_-]+/g, '-');
+	}
+
+	/** @param {RecentComment} comment */
+	function commentHref(comment) {
+		return `/tracks/${comment.trackId}#comment-${comment.id}`;
 	}
 
 	/**
@@ -278,16 +283,28 @@
 							<ul class="item-list">
 								{#each recentComments as comment (comment.id)}
 									<li style:view-transition-name="profile-act-{vtName(comment.id)}">
-										<a class="item" href="/tracks/{comment.trackId}">
+										<div class="item activity">
 											<span class="activity-head">
-												<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
-												<span class="item-topline">
-													<span class="item-title">{comment.userName}</span>
-													<span class="item-meta">on {comment.trackTitle}</span>
+												{#if comment.username}
+													<a class="activity-user" href="{linkBase}/users/{comment.username}">
+														<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+														<span class="item-title">{comment.userName}</span>
+													</a>
+												{:else}
+													<span class="activity-user">
+														<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+														<span class="item-title">{comment.userName}</span>
+													</span>
+												{/if}
+												<span class="item-meta">
+													on
+													<a class="activity-track" href={commentHref(comment)}
+														>{comment.trackTitle}</a
+													>
 												</span>
 											</span>
-											<span class="item-body">“{comment.body}”</span>
-										</a>
+											<a class="item-body" href={commentHref(comment)}>“{comment.body}”</a>
+										</div>
 									</li>
 								{/each}
 							</ul>
@@ -514,13 +531,18 @@
 		min-width: 0;
 	}
 
-	.item-topline {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.5rem;
+	.activity-user {
+		display: inline-flex;
+		gap: 0.45rem;
+		align-items: center;
 		min-width: 0;
 		flex: 1;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.activity-user:hover .item-title {
+		text-decoration: underline;
 	}
 
 	.item-title {
@@ -545,6 +567,16 @@
 		white-space: nowrap;
 	}
 
+	.activity-track {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.activity-track:hover {
+		color: var(--ink);
+		text-decoration: underline;
+	}
+
 	.item-body {
 		overflow: hidden;
 		display: -webkit-box;
@@ -553,6 +585,14 @@
 		color: var(--ink);
 		font-size: 0.76rem;
 		line-height: 1.4;
+		text-decoration: none;
+	}
+
+	.item-body:hover,
+	.item-body:focus-visible {
+		color: var(--ink);
+		text-decoration: none;
+		opacity: 0.78;
 	}
 
 	@media (max-width: 960px) {
