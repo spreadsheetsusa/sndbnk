@@ -660,23 +660,28 @@
 		padding: 0;
 		flex-shrink: 1;
 		overflow: visible;
-		font-family: 'Share Tech Mono', ui-monospace, monospace;
+		font-family: 'Bitcount Prop Single', ui-monospace, monospace;
 		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
 		container-type: inline-size;
-		/* Dimmer LCD wash: accent muted into ink, then lightly into paper. */
+		/* Soft glass LCD: top catch-light, mid wash, bottom shade — no scanlines. */
 		--lcd-tint: color-mix(in srgb, var(--accent) 42%, var(--ink));
 		background:
-			repeating-linear-gradient(
-				0deg,
-				color-mix(in srgb, var(--lcd-tint) 4%, transparent) 0 1px,
-				transparent 1px 3px
+			radial-gradient(
+				120% 90% at 50% -20%,
+				color-mix(in srgb, var(--lcd-tint) 16%, transparent) 0%,
+				transparent 55%
 			),
 			linear-gradient(
-				180deg,
-				color-mix(in srgb, var(--lcd-tint) 7%, var(--paper)) 0%,
-				color-mix(in srgb, var(--lcd-tint) 4%, var(--paper)) 100%
+				165deg,
+				color-mix(in srgb, var(--lcd-tint) 14%, var(--paper)) 0%,
+				color-mix(in srgb, var(--lcd-tint) 5%, var(--paper)) 42%,
+				color-mix(in srgb, var(--lcd-tint) 7%, var(--paper)) 72%,
+				color-mix(in srgb, var(--lcd-tint) 12%, var(--paper)) 100%
 			);
-		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 10%, transparent);
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 22%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent),
+			inset 0 0 1.1rem color-mix(in srgb, var(--lcd-tint) 9%, transparent);
 	}
 
 	.now-playing.queue-open {
@@ -697,17 +702,22 @@
 	:global(.dark) .now-playing {
 		--lcd-tint: color-mix(in srgb, var(--accent) 48%, var(--ink));
 		background:
-			repeating-linear-gradient(
-				0deg,
-				color-mix(in srgb, var(--lcd-tint) 5%, transparent) 0 1px,
-				transparent 1px 3px
+			radial-gradient(
+				120% 90% at 50% -20%,
+				color-mix(in srgb, var(--lcd-tint) 22%, transparent) 0%,
+				transparent 55%
 			),
 			linear-gradient(
-				180deg,
-				color-mix(in srgb, var(--lcd-tint) 12%, var(--paper)) 0%,
-				color-mix(in srgb, var(--lcd-tint) 7%, var(--paper)) 100%
+				165deg,
+				color-mix(in srgb, var(--lcd-tint) 18%, var(--paper)) 0%,
+				color-mix(in srgb, var(--lcd-tint) 8%, var(--paper)) 42%,
+				color-mix(in srgb, var(--lcd-tint) 11%, var(--paper)) 72%,
+				color-mix(in srgb, var(--lcd-tint) 16%, var(--paper)) 100%
 			);
-		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 14%, transparent);
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 28%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent),
+			inset 0 0 1.25rem color-mix(in srgb, var(--lcd-tint) 14%, transparent);
 	}
 
 	.bar-cover-btn {
@@ -787,7 +797,7 @@
 		align-items: flex-end;
 		gap: 0.05rem;
 		flex-shrink: 0;
-		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 55%, var(--muted));
+		color: color-mix(in srgb, var(--accent) 68%, var(--muted));
 		font-size: 0.55rem;
 		font-weight: 400;
 		font-variant-numeric: tabular-nums;
@@ -796,6 +806,16 @@
 		text-align: right;
 		text-transform: uppercase;
 		white-space: nowrap;
+		text-shadow:
+			0 0 0.35em color-mix(in srgb, var(--accent) 50%, transparent),
+			0 0 0.8em color-mix(in srgb, var(--accent) 22%, transparent);
+	}
+
+	:global(.dark) .now-tech {
+		color: color-mix(in srgb, var(--accent) 78%, var(--muted));
+		text-shadow:
+			0 0 0.4em color-mix(in srgb, var(--accent) 58%, transparent),
+			0 0 0.95em color-mix(in srgb, var(--accent) 30%, transparent);
 	}
 
 	.now-artist {

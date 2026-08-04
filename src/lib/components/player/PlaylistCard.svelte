@@ -176,14 +176,8 @@
 			Boolean(commentNote)
 	);
 
-	let extraComments = $state(0);
-	/** Reset per active track id so counts stay honest when switching members. */
+	/** Track id that `postedComments` markers belong to; reset when the target changes. */
 	let commentTrackId = $state(/** @type {string | null} */ (null));
-	const commentCount = $derived.by(() => {
-		if (!activeTrack) return 0;
-		const base = activeTrack.commentCount;
-		return activeTrack.id === commentTrackId ? base + extraComments : base;
-	});
 
 	/** @type {TimedComment[]} */
 	let postedComments = $state([]);
@@ -283,7 +277,6 @@
 	function playAt(index) {
 		if (!playlist.tracks[index]) return;
 		selectedIndex = index;
-		extraComments = 0;
 		postedComments = [];
 		commentTrackId = null;
 		player.playFromPlaylist(playlist.id, asPlayerTracks(), index);
@@ -369,10 +362,8 @@
 				commentBody = '';
 				if (commentTrackId !== trackId) {
 					commentTrackId = trackId;
-					extraComments = 0;
 					postedComments = [];
 				}
-				extraComments += 1;
 				if (data.comment.atMs != null) {
 					postedComments = [...postedComments, data.comment];
 				}
@@ -625,15 +616,6 @@
 						<span class="comment-note" role="status">{commentNote}</span>
 					{/if}
 				</form>
-			{/if}
-
-			{#if commentCount > 0}
-				<div class="meta">
-					<span class="counts">
-						{commentCount}
-						{commentCount === 1 ? 'comment' : 'comments'} on this track
-					</span>
-				</div>
 			{/if}
 		{/if}
 
@@ -1013,12 +995,6 @@
 
 	.comment-note {
 		width: 100%;
-		color: var(--muted);
-		font-size: 0.72rem;
-		font-weight: 600;
-	}
-
-	.meta {
 		color: var(--muted);
 		font-size: 0.72rem;
 		font-weight: 600;

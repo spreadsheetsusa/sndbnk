@@ -174,8 +174,6 @@
 			Boolean(commentBody.trim()) ||
 			Boolean(commentNote)
 	);
-	let extraComments = $state(0);
-	const commentCount = $derived(track.commentCount + extraComments);
 
 	/**
 	 * Comments posted from this card since load, so markers appear without a reload.
@@ -377,7 +375,6 @@
 			if (res.ok) {
 				const data = await res.json();
 				commentBody = '';
-				extraComments += 1;
 				if (data.comment.atMs != null) {
 					postedComments = [...postedComments, data.comment];
 				}
@@ -686,15 +683,6 @@
 					<span class="comment-note" role="status">{commentNote}</span>
 				{/if}
 			</form>
-		{/if}
-
-		{#if commentCount > 0}
-			<div class="meta">
-				<span class="counts">
-					{commentCount}
-					{commentCount === 1 ? 'comment' : 'comments'}
-				</span>
-			</div>
 		{/if}
 	</div>
 </article>
@@ -1153,17 +1141,6 @@
 
 	.menu button:not(:disabled):hover .menu-count {
 		color: inherit;
-	}
-
-	.meta {
-		display: flex;
-		justify-content: flex-end;
-	}
-
-	.counts {
-		color: var(--muted);
-		font-size: 0.72rem;
-		font-weight: 600;
 	}
 
 	@media (max-width: 640px) {
