@@ -393,6 +393,16 @@
 							{/if}
 						</div>
 						<p class="hint">JPG, PNG, or WebP · 2MB</p>
+						<p class="hint email-current" title={data.user.email}>{data.user.email}</p>
+						<button
+							type="button"
+							class="text-btn"
+							aria-expanded={emailOpen}
+							aria-controls="email-change-panel"
+							onclick={toggleEmailOpen}
+						>
+							{emailOpen ? 'Cancel' : 'Change email'}
+						</button>
 					</div>
 
 					<div class="profile-fields">
@@ -463,23 +473,6 @@
 								{profileBusy ? 'Saving…' : 'Save profile'}
 							</button>
 						</form>
-					</div>
-				</div>
-
-				<div class="email-disclosure">
-					<div class="email-disclosure-row">
-						<p class="hint email-current">
-							Sign-in: <strong>{data.user.email}</strong>
-						</p>
-						<button
-							type="button"
-							class="text-btn"
-							aria-expanded={emailOpen}
-							aria-controls="email-change-panel"
-							onclick={toggleEmailOpen}
-						>
-							{emailOpen ? 'Cancel' : 'Change email'}
-						</button>
 					</div>
 
 					{#if emailOpen}
@@ -1486,6 +1479,17 @@
 		line-height: 1.35;
 	}
 
+	.profile-avatar .email-current {
+		max-width: 7.5rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.profile-avatar .text-btn {
+		margin-top: 0.15rem;
+	}
+
 	.profile-fields form {
 		margin-top: 0;
 	}
@@ -1876,26 +1880,10 @@
 		margin-top: 0.75rem;
 	}
 
-	.email-disclosure {
-		margin-top: 1.5rem;
-		padding-top: 1.25rem;
-		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-	}
-
-	.email-disclosure-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.45rem 1rem;
-		align-items: baseline;
-		justify-content: space-between;
-	}
-
-	.email-current {
-		margin: 0;
-	}
-
 	.email-panel {
-		margin-top: 0.85rem;
+		grid-column: 1 / -1;
+		padding-top: 1rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.email-panel form {
