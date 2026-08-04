@@ -1,16 +1,20 @@
 import { ORIGIN } from '$app/env/private';
 
 import { canRemoveBranding } from '#lib/server/billing/plans';
+import { getPlatformSettings } from '#lib/server/platform-settings';
 import { getSitePublic } from '#lib/server/site';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
 
 export const load = async ({ locals }) => {
+	const playThresholds = await getPlatformSettings();
+
 	if (locals.tenant) {
 		const site = await getSitePublic(locals.tenant.userId);
 		return {
 			siteOrigin,
+			playThresholds,
 			nav: { name: null, username: null, image: null, isAdmin: false },
 			tenantSite: site
 				? {
@@ -33,6 +37,7 @@ export const load = async ({ locals }) => {
 	if (!locals.user) {
 		return {
 			siteOrigin,
+			playThresholds,
 			nav: { name: null, username: null, image: null, isAdmin: false },
 			tenantSite: null
 		};
@@ -42,6 +47,7 @@ export const load = async ({ locals }) => {
 
 	return {
 		siteOrigin,
+		playThresholds,
 		nav: {
 			name: locals.user.name ?? locals.user.email,
 			username: profile?.username ?? null,

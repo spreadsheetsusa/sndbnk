@@ -21,7 +21,14 @@
 	// list, so this stays empty and inert there.
 	const paged = restorableList(
 		() => ({
-			scope: 'profile',
+			scope:
+				data.mode === 'tenant-profile'
+					? data.tab === 'likes'
+						? 'likes'
+						: data.tab === 'history'
+							? 'history'
+							: 'profile'
+					: 'profile',
 			username: data.mode === 'tenant-profile' ? data.profile.username : null
 		}),
 		() => (data.mode === 'tenant-profile' ? data : { items: [], nextCursor: null }),

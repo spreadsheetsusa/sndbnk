@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import IconSearch from '@tabler/icons-svelte-runes/icons/search';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 
@@ -11,6 +12,12 @@
 
 	/** @type {HTMLElement | undefined} */
 	let container;
+
+	/** @type {HTMLInputElement | undefined} */
+	let searchInput;
+
+	let searchManuallyOpen = $state(false);
+	const searchOpen = $derived(searchManuallyOpen || Boolean(data.q));
 
 	const paged = restorableList(
 		() => ({ scope: 'feed', genre: data.genre, following: data.following, q: data.q }),
@@ -30,6 +37,35 @@
 		if (q) params.set('q', q);
 		const qs = params.toString();
 		return qs ? `/feed?${qs}` : '/feed';
+	}
+
+	function isCompactSearchViewport() {
+		return typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+	}
+
+	/** @param {MouseEvent & { currentTarget: HTMLButtonElement }} e */
+	async function onSearchButtonClick(e) {
+		if (!searchOpen && isCompactSearchViewport()) {
+			searchManuallyOpen = true;
+			await tick();
+			searchInput?.focus({ preventScroll: true });
+			return;
+		}
+		e.currentTarget.form?.requestSubmit();
+	}
+
+	/** @param {FocusEvent} e */
+	function onSearchFocusOut(e) {
+		const form = /** @type {HTMLFormElement} */ (e.currentTarget);
+		const next = /** @type {Node | null} */ (e.relatedTarget);
+		if (next && form.contains(next)) return;
+		// Defer so a just-opened field can take focus before we decide to collapse.
+		queueMicrotask(() => {
+			if (data.q) return;
+			if (form.contains(document.activeElement)) return;
+			const value = searchInput?.value?.trim() ?? '';
+			if (!value) searchManuallyOpen = false;
+		});
 	}
 </script>
 
@@ -80,7 +116,14 @@
 						</a>
 					</nav>
 
-					<form class="feed-search" method="get" action="/feed" role="search">
+					<form
+						class="feed-search"
+						class:is-open={searchOpen}
+						method="get"
+						action="/feed"
+						role="search"
+						onfocusout={onSearchFocusOut}
+					>
 						{#if data.following}
 							<input type="hidden" name="following" value="1" />
 						{/if}
@@ -91,6 +134,7 @@
 						<div class="feed-search-field">
 							<input
 								id="feed-q"
+								bind:this={searchInput}
 								name="q"
 								type="search"
 								value={data.q ?? ''}
@@ -109,7 +153,7 @@
 								</a>
 							{/if}
 						</div>
-						<button type="submit" aria-label="Search">
+						<button type="button" aria-label="Search" onclick={onSearchButtonClick}>
 							<IconSearch size={16} stroke={2} aria-hidden="true" />
 						</button>
 					</form>
@@ -178,12 +222,14 @@
 	.feed-head {
 		grid-area: head;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
 		grid-template-areas:
-			'titles'
-			'intro'
-			'scope'
-			'filter';
-		gap: 0;
+			'titles scope'
+			'intro intro'
+			'filter filter';
+		column-gap: 1rem;
+		row-gap: 0;
+		align-items: end;
 		margin-bottom: 0;
 	}
 
@@ -224,17 +270,19 @@
 	.scope-row {
 		grid-area: scope;
 		display: flex;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		gap: 0.65rem;
 		align-items: center;
-		margin: 0.85rem 0 0;
+		justify-content: flex-end;
+		justify-self: end;
+		margin: 0;
 		animation: rise 0.8s ease both;
 	}
 
 	.scope-strip {
 		display: flex;
 		flex: 0 0 auto;
-		width: 100%;
+		width: auto;
 		max-width: 16rem;
 		border: 1px solid var(--hard-border);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
@@ -281,10 +329,10 @@
 	.feed-search {
 		--feed-search-h: 2.25rem;
 		display: flex;
-		flex: 1 1 12rem;
+		flex: 0 1 12rem;
 		align-items: stretch;
-		min-width: min(100%, 12rem);
-		max-width: 22rem;
+		min-width: 0;
+		max-width: 12rem;
 		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--ink));
 		border-radius: 0.125rem;
 		background: color-mix(in srgb, var(--accent) 8%, var(--paper));
@@ -445,28 +493,19 @@
 		}
 
 		.feed-head {
+			grid-template-columns: minmax(0, 1fr) auto;
 			grid-template-areas:
-				'titles'
-				'intro'
-				'scope'
-				'filter';
+				'titles scope'
+				'intro intro'
+				'filter filter';
+			column-gap: 0.65rem;
 		}
 
 		.scope-row {
-			flex-wrap: nowrap;
 			gap: 0.5rem;
-			margin-top: 0.65rem;
 		}
 
 		.scope-strip {
-			flex: 0 0 auto;
-			width: auto;
-			max-width: none;
-		}
-
-		.feed-search {
-			flex: 1 1 auto;
-			min-width: 0;
 			max-width: none;
 		}
 
@@ -488,6 +527,26 @@
 
 		.intro {
 			display: none;
+		}
+
+		.feed-search:not(.is-open) {
+			flex: 0 0 auto;
+			max-width: none;
+		}
+
+		.feed-search:not(.is-open) .feed-search-field {
+			display: none;
+		}
+
+		.feed-search:not(.is-open) button {
+			border-left: 0;
+			border-radius: 0.125rem;
+		}
+
+		.feed-search.is-open {
+			flex: 1 1 auto;
+			min-width: 0;
+			max-width: none;
 		}
 	}
 

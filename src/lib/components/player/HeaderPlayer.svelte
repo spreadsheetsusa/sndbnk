@@ -460,15 +460,24 @@
 	}
 
 	.strip {
+		--player-radius: 0.125rem;
 		display: flex;
 		align-items: stretch;
 		/* Wider than content-sized, but leave breathing room beside logo/nav. */
-		width: min(100%, 44rem);
+		width: min(100%, 47.75rem);
 		min-width: 0;
 		overflow: visible;
 		border: 1px solid var(--hard-border);
+		border-radius: var(--player-radius);
 		background: var(--paper);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
+	}
+
+	/* Round only outer corners of edge cells so fills follow the strip radius
+	   without overflow:hidden on .strip (queue badge / marker tips must escape). */
+	.transport .cell:first-child {
+		border-top-left-radius: var(--player-radius);
+		border-bottom-left-radius: var(--player-radius);
 	}
 
 	.transport,
@@ -497,6 +506,8 @@
 
 	.bar-actions .cell:last-child {
 		border-right: 0;
+		border-top-right-radius: var(--player-radius);
+		border-bottom-right-radius: var(--player-radius);
 	}
 
 	.transport-btn,
@@ -803,6 +814,7 @@
 		padding: 0.85rem;
 		overflow: auto;
 		border: 1px solid var(--hard-border);
+		border-radius: 0.125rem;
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
@@ -968,6 +980,7 @@
 			padding: 0;
 			border-right: 0;
 			border-bottom: 1px solid var(--hard-border);
+			border-top-left-radius: var(--player-radius);
 		}
 
 		.now-body {
@@ -981,6 +994,17 @@
 
 		.bar-actions .cell:first-child {
 			border-left: 1px solid var(--hard-border);
+		}
+
+		/* Two-row grid: reset desktop side radii; corners are TL meta, TR actions, BL transport, BR scrub. */
+		.transport .cell:first-child {
+			border-top-left-radius: 0;
+			border-bottom-left-radius: var(--player-radius);
+		}
+
+		.bar-actions .cell:last-child {
+			border-top-right-radius: var(--player-radius);
+			border-bottom-right-radius: 0;
 		}
 
 		.transport {
@@ -997,6 +1021,7 @@
 			min-width: 0;
 			padding: 0 0.5rem;
 			border-right: 0;
+			border-bottom-right-radius: var(--player-radius);
 		}
 
 		.desktop-meta {
@@ -1012,6 +1037,7 @@
 		.bar-cover {
 			width: 2.1rem;
 			height: 2.1rem;
+			border-top-left-radius: var(--player-radius);
 		}
 
 		.now-artist,

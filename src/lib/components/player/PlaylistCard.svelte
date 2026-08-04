@@ -256,6 +256,7 @@
 			artist: t.artist,
 			username: t.username,
 			uploaderName: t.uploaderName,
+			mediaType: t.mediaType ?? 'track',
 			durationMs: t.durationMs,
 			bitrate: t.bitrate ?? null,
 			sampleRate: t.sampleRate ?? null,
@@ -263,7 +264,8 @@
 			codec: t.codec ?? null,
 			hasCover: t.hasCover,
 			waveform: t.waveform,
-			likedByViewer: t.likedByViewer
+			likedByViewer: t.likedByViewer,
+			playCount: t.playCount ?? 0
 		}));
 	}
 

@@ -87,7 +87,8 @@
 	}
 
 	.head > :not(.head-row) {
-		max-width: 36rem;
+		max-width: 48rem;
+		text-wrap: pretty;
 	}
 
 	.eyebrow {
@@ -113,7 +114,7 @@
 
 	.lede {
 		margin: 0;
-		max-width: 34rem;
+		max-width: 46rem;
 		color: color-mix(in srgb, var(--muted) 88%, var(--ink));
 		font-size: clamp(1rem, 1.35vw, 1.125rem);
 		line-height: 1.55;
@@ -130,18 +131,65 @@
 	}
 
 	.item {
+		--bank-tone: 72%;
+		--bank-lo: 10%;
+		--bank-hi: 22%;
+		--bank-dur: 7.2s;
 		display: grid;
 		grid-template-columns: auto auto minmax(0, 1fr);
 		gap: 0.85rem 1rem;
 		align-items: start;
 		padding: 1.35rem 1.25rem 1.35rem 0;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-		animation: rise 0.7s ease both;
-		animation-delay: calc(var(--i) * 70ms);
+		background-color: color-mix(
+			in srgb,
+			color-mix(in srgb, var(--accent) var(--bank-tone), black) var(--bank-lo),
+			transparent
+		);
+		animation:
+			rise 0.7s ease both,
+			bank-pulse var(--bank-dur) ease-in-out infinite;
+		animation-delay: calc(var(--i) * 70ms), calc(var(--i) * -1.1s);
+	}
+
+	.item:nth-child(1) {
+		--bank-tone: 58%;
+		--bank-lo: 7%;
+		--bank-hi: 18%;
+		--bank-dur: 8.4s;
+	}
+
+	.item:nth-child(2) {
+		--bank-tone: 78%;
+		--bank-lo: 12%;
+		--bank-hi: 28%;
+		--bank-dur: 6.1s;
+	}
+
+	.item:nth-child(3) {
+		--bank-tone: 48%;
+		--bank-lo: 9%;
+		--bank-hi: 20%;
+		--bank-dur: 9s;
+	}
+
+	.item:nth-child(4) {
+		--bank-tone: 68%;
+		--bank-lo: 11%;
+		--bank-hi: 26%;
+		--bank-dur: 5.6s;
+	}
+
+	.item:nth-child(5) {
+		--bank-tone: 82%;
+		--bank-lo: 8%;
+		--bank-hi: 24%;
+		--bank-dur: 7.8s;
 	}
 
 	.item:nth-child(odd) {
 		padding-right: 1.75rem;
+		padding-left: 1.75rem;
 		border-right: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
 	}
 
@@ -152,7 +200,6 @@
 	/* Odd last item alone on the final row spans full width. */
 	.item:last-child:nth-child(odd) {
 		grid-column: 1 / -1;
-		padding-right: 0;
 		border-right: none;
 	}
 
@@ -204,6 +251,24 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
+		}
+	}
+
+	@keyframes bank-pulse {
+		0%,
+		100% {
+			background-color: color-mix(
+				in srgb,
+				color-mix(in srgb, var(--accent) var(--bank-tone), black) var(--bank-lo),
+				transparent
+			);
+		}
+		50% {
+			background-color: color-mix(
+				in srgb,
+				color-mix(in srgb, var(--accent) var(--bank-tone), black) var(--bank-hi),
+				transparent
+			);
 		}
 	}
 

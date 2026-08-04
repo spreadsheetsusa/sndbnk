@@ -1,5 +1,7 @@
 import { browser } from '$app/env';
 
+import { getPlayThresholds } from '#lib/player/play-thresholds.js';
+
 /**
  * A track loaded into the global player. Carries everything the player bar
  * and waveforms need so playback survives navigation without refetching.
@@ -10,6 +12,7 @@ import { browser } from '$app/env';
  * @property {string | null} artist
  * @property {string | null} username
  * @property {string} uploaderName
+ * @property {string} [mediaType]
  * @property {number | null} durationMs
  * @property {number | null} [bitrate]
  * @property {number | null} [sampleRate]
@@ -18,6 +21,7 @@ import { browser } from '$app/env';
  * @property {boolean} hasCover
  * @property {number[] | null} waveform
  * @property {boolean} likedByViewer
+ * @property {number} [playCount]
  */
 
 const QUEUE_STORAGE_KEY = 'sndbnk:next-up';
@@ -58,6 +62,13 @@ class Player {
 	/** @type {HTMLAudioElement | null} */
 	#audio = null;
 	#raf = 0;
+	/** Track ids already counted as a play this browser session. */
+	#recordedPlays = new Set();
+	/** Accumulated ms spent actually playing the current track. */
+	#playedMs = 0;
+	/** performance.now() of the last playing tick; 0 while paused. */
+	#lastTickWall = 0;
+	#recordingPlay = false;
 
 	constructor() {
 		if (browser) {
@@ -125,6 +136,8 @@ class Player {
 		this.current = track;
 		this.currentTime = atSeconds ?? 0;
 		this.duration = (track.durationMs ?? 0) / 1000;
+		this.#playedMs = 0;
+		this.#lastTickWall = 0;
 
 		el.src = `/api/media/${track.id}/audio`;
 		if (atSeconds != null && atSeconds > 0) {
@@ -321,6 +334,7 @@ class Player {
 		});
 		el.addEventListener('pause', () => {
 			this.playing = false;
+			this.#lastTickWall = 0;
 			this.#stopTicking();
 			this.currentTime = el.currentTime;
 		});
@@ -350,18 +364,69 @@ class Player {
 		return el;
 	}
 
-	/** Smooth playhead updates while playing. */
+	/** Smooth playhead updates while playing; also accumulates listen time. */
 	#startTicking() {
 		this.#stopTicking();
+		this.#lastTickWall = performance.now();
 		const tick = () => {
 			const el = this.#audio;
 			if (!el) return;
+			const now = performance.now();
+			if (this.#lastTickWall > 0) {
+				this.#playedMs += now - this.#lastTickWall;
+			}
+			this.#lastTickWall = now;
 			this.currentTime = el.currentTime;
+			this.#maybeRecordPlay();
 			if (this.playing) {
 				this.#raf = requestAnimationFrame(tick);
 			}
 		};
 		this.#raf = requestAnimationFrame(tick);
+	}
+
+	/**
+	 * Fire POST /play once per track per session when admin thresholds are met.
+	 * Mixes use accumulated playtime; everything else uses percent of duration.
+	 */
+	#maybeRecordPlay() {
+		const track = this.current;
+		if (!track || this.#recordedPlays.has(track.id) || this.#recordingPlay) return;
+
+		const { trackPlayPercent, mixPlayContinualMs } = getPlayThresholds();
+		const durationMs = (this.duration > 0 ? this.duration * 1000 : null) ?? track.durationMs ?? 0;
+
+		let met = false;
+		if (track.mediaType === 'mix') {
+			const need = durationMs > 0 ? Math.min(mixPlayContinualMs, durationMs) : mixPlayContinualMs;
+			met = this.#playedMs >= need;
+		} else if (durationMs > 0) {
+			met = (this.currentTime * 1000) / durationMs >= trackPlayPercent / 100;
+		}
+		if (!met) return;
+
+		this.#recordedPlays.add(track.id);
+		this.#recordingPlay = true;
+		void this.#postPlay(track.id);
+	}
+
+	/** @param {string} trackId */
+	async #postPlay(trackId) {
+		try {
+			const res = await fetch(`/api/tracks/${trackId}/play`, { method: 'POST' });
+			if (!res.ok) {
+				this.#recordedPlays.delete(trackId);
+				return;
+			}
+			const data = await res.json();
+			if (this.current?.id === trackId && typeof data.playCount === 'number') {
+				this.current = { ...this.current, playCount: data.playCount };
+			}
+		} catch {
+			this.#recordedPlays.delete(trackId);
+		} finally {
+			this.#recordingPlay = false;
+		}
 	}
 
 	#stopTicking() {

@@ -2,10 +2,11 @@ import { error } from '@sveltejs/kit';
 
 import { loadPublicProfilePage } from '#lib/server/profile-page';
 
-export const load = async ({ locals, params }) => {
+export const load = async ({ locals, params, url }) => {
 	const data = await loadPublicProfilePage({
 		username: params.username ?? '',
-		locals
+		locals,
+		url
 	});
 
 	if (!data) {

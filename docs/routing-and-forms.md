@@ -19,11 +19,14 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/playlists/[id]`                  | public                 | playlist detail (waveform + member list)                                |
 | `/playlists/[id]/edit`             | owner only             | edit metadata, reorder/remove members                                   |
 | `/users/[username]`                | public                 | public profile by path                                                  |
+| `/admin`                           | admin only (apex)      | Plans, discounts, users, site play thresholds, business-planning docs   |
+| `/admin/docs/[slug]`               | admin only (apex)      | Serves `docs/*.html` briefs (plan, finance, migrations)                 |
 | `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                      |
 | `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                |
-| `/api/tracks`                      | mixed                  | paged feed/library/profile items (`{ items, nextCursor }`)              |
+| `/api/tracks`                      | mixed                  | paged feed/library/profile/likes/history (`{ items, nextCursor }`)      |
 | `/api/tracks/[id]`                 | required               | `DELETE` a track                                                        |
 | `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                   |
+| `/api/tracks/[id]/play`            | public                 | `POST` records a play (`{ playCount }`); history when signed in         |
 | `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                   |
 | `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                     |
 | `/api/playlists/[id]`              | required               | `DELETE` a playlist                                                     |

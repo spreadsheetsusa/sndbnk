@@ -729,6 +729,7 @@ export async function listTimedCommentsForTracks(trackIds) {
  * @param {{
  *   username: string | null,
  *   uploaderName: string | null,
+ *   listAt?: number | null,
  *   repostedAt?: number | null,
  *   repostedByName?: string | null,
  *   repostedByUsername?: string | null
@@ -746,6 +747,7 @@ export async function serializeTrackForPlayer(row, uploader, social, viewer, tim
 		title: row.title,
 		artist: row.artist,
 		genre: row.genre,
+		mediaType: row.mediaType ?? 'track',
 		durationMs: row.durationMs,
 		bitrate: row.bitrate ?? null,
 		sampleRate: row.sampleRate ?? null,
@@ -753,9 +755,13 @@ export async function serializeTrackForPlayer(row, uploader, social, viewer, tim
 		codec: row.codec ?? null,
 		hasCover: Boolean(row.coverFilename),
 		published: Boolean(row.published),
+		playCount: row.playCount ?? 0,
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
 		// Position in the paged list, so the client can resume from any item.
-		cursor: encodeCursor(uploader.repostedAt ?? row.createdAt ?? Date.now(), row.id),
+		cursor: encodeCursor(
+			uploader.listAt ?? uploader.repostedAt ?? row.createdAt ?? Date.now(),
+			row.id
+		),
 		username: uploader.username,
 		uploaderName: uploaderName(uploader),
 		waveform,
@@ -812,6 +818,7 @@ export async function serializeTrackRows(rows, viewer) {
  *   track: typeof track.$inferSelect,
  *   username: string | null,
  *   uploaderName: string | null,
+ *   listAt?: number | null,
  *   repostedAt: number | null,
  *   repostedByName?: string | null,
  *   repostedByUsername?: string | null
@@ -821,7 +828,8 @@ export async function serializeTrackRows(rows, viewer) {
  *   kind: 'playlist',
  *   playlist: typeof import('#lib/server/db/schema').playlist.$inferSelect,
  *   username: string | null,
- *   uploaderName: string | null
+ *   uploaderName: string | null,
+ *   listAt?: number | null
  * }} ProfilePlaylistRow
  *
  * @typedef {ProfileTrackRow | ProfilePlaylistRow} ProfileItemRow

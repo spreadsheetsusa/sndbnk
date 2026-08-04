@@ -49,6 +49,7 @@
 					artist: data.track.artist,
 					username: data.track.username,
 					uploaderName: data.track.uploaderName,
+					mediaType: data.track.mediaType ?? 'track',
 					durationMs: data.track.durationMs,
 					bitrate: data.track.bitrate ?? null,
 					sampleRate: data.track.sampleRate ?? null,
@@ -56,7 +57,8 @@
 					codec: data.track.codec ?? null,
 					hasCover: data.track.hasCover,
 					waveform: data.track.waveform,
-					likedByViewer: data.track.likedByViewer
+					likedByViewer: data.track.likedByViewer,
+					playCount: data.track.playCount ?? 0
 				},
 				seconds
 			);

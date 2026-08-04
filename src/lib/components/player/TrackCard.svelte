@@ -1,5 +1,6 @@
 <script>
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
+	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
@@ -35,6 +36,7 @@
 	 * @property {string} title
 	 * @property {string | null} artist
 	 * @property {string | null} genre
+	 * @property {string} [mediaType]
 	 * @property {number | null} durationMs
 	 * @property {number | null} [bitrate]
 	 * @property {number | null} [sampleRate]
@@ -48,6 +50,7 @@
 	 * @property {number} likeCount
 	 * @property {number} commentCount
 	 * @property {number} [repostCount]
+	 * @property {number} [playCount]
 	 * @property {boolean} likedByViewer
 	 * @property {boolean} [repostedByViewer]
 	 * @property {number | null} [repostedAt]
@@ -89,6 +92,11 @@
 	let repostOverride = $state(null);
 	const reposted = $derived(repostOverride?.reposted ?? track.repostedByViewer ?? false);
 	const repostCount = $derived(repostOverride?.count ?? track.repostCount ?? 0);
+	const playCount = $derived(
+		player.isCurrent(track.id)
+			? (player.current?.playCount ?? track.playCount ?? 0)
+			: (track.playCount ?? 0)
+	);
 
 	let commentBody = $state('');
 	let commentBusy = $state(false);
@@ -258,6 +266,7 @@
 			artist: track.artist,
 			username: track.username,
 			uploaderName: track.uploaderName,
+			mediaType: track.mediaType ?? 'track',
 			durationMs: track.durationMs,
 			bitrate: track.bitrate ?? null,
 			sampleRate: track.sampleRate ?? null,
@@ -265,7 +274,8 @@
 			codec: track.codec ?? null,
 			hasCover: track.hasCover,
 			waveform: track.waveform,
-			likedByViewer: liked
+			likedByViewer: liked,
+			playCount: track.playCount ?? 0
 		};
 	}
 
@@ -482,6 +492,12 @@
 				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
 					{relativeTime(track.createdAt)}
 				</span>
+				{#if playCount > 0}
+					<span class="plays" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
+						<IconHeadphones size={12} stroke={2} aria-hidden="true" />
+						{playCount}
+					</span>
+				{/if}
 				{#if track.genre}
 					<span class="tag"># {track.genre}</span>
 				{/if}
@@ -806,6 +822,16 @@
 	}
 
 	.uploaded {
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.plays {
+		display: inline-flex;
+		gap: 0.25rem;
+		align-items: center;
 		color: var(--muted);
 		font-size: 0.72rem;
 		font-weight: 600;

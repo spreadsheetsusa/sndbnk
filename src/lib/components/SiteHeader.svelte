@@ -77,10 +77,14 @@
 			if (!target || node.contains(target)) return;
 
 			// Defer so native <select> option picks can apply before the panel unmounts.
+			// Only keep open for that case — clicking non-focusable page chrome leaves focus on
+			// the avatar button, which must not block dismiss.
 			queueMicrotask(() => {
 				if (!accountMenuOpen) return;
-				if (node.contains(document.activeElement)) return;
+				const active = document.activeElement;
+				if (active instanceof HTMLSelectElement && node.contains(active)) return;
 				accountMenuOpen = false;
+				pickerOpen = false;
 			});
 		}
 

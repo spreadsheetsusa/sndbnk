@@ -528,7 +528,8 @@ export async function serializePlaylistForCard(row, owner, social, viewer, creat
  * @param {Array<{
  *   playlist: typeof playlist.$inferSelect,
  *   username: string | null,
- *   uploaderName: string | null
+ *   uploaderName: string | null,
+ *   listAt?: number | null
  * }>} rows
  * @param {{ id: string } | null | undefined} viewer
  */
@@ -538,7 +539,13 @@ export async function serializePlaylistRows(rows, viewer) {
 
 	return Promise.all(
 		rows.map((row) =>
-			serializePlaylistForCard(row.playlist, row, social.get(row.playlist.id), viewer)
+			serializePlaylistForCard(
+				row.playlist,
+				row,
+				social.get(row.playlist.id),
+				viewer,
+				row.listAt ?? undefined
+			)
 		)
 	);
 }

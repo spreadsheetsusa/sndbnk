@@ -9,17 +9,19 @@ Read [architecture.md](architecture.md) first. Everything else is reference you 
 
 ## Where to look for what
 
-| I need to…                                            | Read                                               |
-| ----------------------------------------------------- | -------------------------------------------------- |
-| Understand the request lifecycle, layers, or tenancy  | [architecture.md](architecture.md)                 |
-| Add or change a table, column, or query               | [data-model.md](data-model.md)                     |
-| Manage Drizzle migrations (standalone HTML guide)     | [drizzle-migrations.html](drizzle-migrations.html) |
-| Add a page, `load`, form action, or API endpoint      | [routing-and-forms.md](routing-and-forms.md)       |
-| Write or review a `.svelte` / `.svelte.js` file       | [reactivity.md](reactivity.md)                     |
-| Style anything, or touch colors and dark mode         | [design-system.md](design-system.md)               |
-| Work on uploads, waveforms, tags, or storage adapters | [media-and-storage.md](media-and-storage.md)       |
-| Set up env vars, deploy, or debug production          | [operations.md](operations.md)                     |
-| Understand something that looks wrong                 | [known-issues.md](known-issues.md)                 |
+| I need to…                                            | Read                                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Understand the request lifecycle, layers, or tenancy  | [architecture.md](architecture.md)                                              |
+| Add or change a table, column, or query               | [data-model.md](data-model.md)                                                  |
+| Manage Drizzle migrations (standalone HTML guide)     | [drizzle-migrations.html](drizzle-migrations.html)                              |
+| Keep the product vision / what to build next          | [business-plan.html](business-plan.html) (also Admin → Business planning)       |
+| Budget, burn rate, ramp, and money next steps         | [business-finance.html](business-finance.html) (also Admin → Business planning) |
+| Add a page, `load`, form action, or API endpoint      | [routing-and-forms.md](routing-and-forms.md)                                    |
+| Write or review a `.svelte` / `.svelte.js` file       | [reactivity.md](reactivity.md)                                                  |
+| Style anything, or touch colors and dark mode         | [design-system.md](design-system.md)                                            |
+| Work on uploads, waveforms, tags, or storage adapters | [media-and-storage.md](media-and-storage.md)                                    |
+| Set up env vars, deploy, or debug production          | [operations.md](operations.md)                                                  |
+| Understand something that looks wrong                 | [known-issues.md](known-issues.md)                                              |
 
 Normative style rules live in [`.cursor/rules/`](../.cursor/rules), not here. These docs explain
 how the system is put together and why; the rules say what to do while editing it.

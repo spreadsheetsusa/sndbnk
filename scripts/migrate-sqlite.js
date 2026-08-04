@@ -261,6 +261,18 @@ sqlite.exec(`
 UPDATE profile SET subscription_status = 'grandfathered'
 WHERE plan <> 'free' AND stripe_subscription_id IS NULL AND subscription_status IS NULL
 `);
+
+// Singleton play-threshold knobs; INSERT OR IGNORE so admin edits survive redeploys.
+sqlite
+	.prepare(
+		`
+INSERT OR IGNORE INTO platform_settings (
+	id, track_play_percent, mix_play_continual_ms, updated_at
+) VALUES ('default', 60, 600000, ?)
+`
+	)
+	.run(now);
+
 const tables = sqlite
 	.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
 	.all()

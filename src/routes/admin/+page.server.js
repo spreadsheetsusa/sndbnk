@@ -18,16 +18,22 @@ import { downgradeToFree } from '#lib/server/billing/sync';
 import { billingEnabled } from '#lib/server/billing/stripe';
 import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
+import { getPlatformSettings, updatePlatformSettings } from '#lib/server/platform-settings';
 
 export const load = async ({ locals, url }) => {
 	const admin = requireAdmin(locals);
 
 	const query = url.searchParams.get('q') ?? '';
+	const siteSettings = await getPlatformSettings();
 
 	return {
 		billingEnabled,
 		viewerId: admin.id,
 		query,
+		siteSettings: {
+			trackPlayPercent: siteSettings.trackPlayPercent,
+			mixPlayContinualMinutes: siteSettings.mixPlayContinualMs / 60_000
+		},
 		plans: (await listPlansWithCounts()).map((row) => ({
 			id: row.id,
 			label: row.label,
@@ -196,6 +202,25 @@ export const actions = {
 		if (!result.ok) return fail(400, { userMessage: result.message });
 
 		return { userSuccess: 'Account deleted.' };
+	},
+
+	saveSiteSettings: async ({ locals, request }) => {
+		requireAdmin(locals);
+
+		const formData = await request.formData();
+		const result = await updatePlatformSettings({
+			trackPlayPercent: formData.get('trackPlayPercent')?.toString(),
+			mixPlayContinualMinutes: formData.get('mixPlayContinualMinutes')?.toString()
+		});
+		if (!result.ok) return fail(400, { siteMessage: result.message });
+
+		return {
+			siteSuccess: 'Play thresholds saved.',
+			siteSettings: {
+				trackPlayPercent: result.settings.trackPlayPercent,
+				mixPlayContinualMinutes: result.settings.mixPlayContinualMs / 60_000
+			}
+		};
 	}
 };
 

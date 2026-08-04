@@ -10,7 +10,27 @@
 	const sections = [
 		{ id: 'plans', label: 'Plans' },
 		{ id: 'discounts', label: 'Discounts' },
-		{ id: 'users', label: 'Users' }
+		{ id: 'users', label: 'Users' },
+		{ id: 'site', label: 'Site' },
+		{ id: 'planning', label: 'Business planning' }
+	];
+
+	const planningDocs = [
+		{
+			slug: 'business-plan',
+			title: 'Founder plan',
+			blurb: 'North star, wedge, shipped product, and what to build next.'
+		},
+		{
+			slug: 'business-finance',
+			title: 'Finance & ramp',
+			blurb: 'Burn rate, budget buckets, break-even math, and money next steps.'
+		},
+		{
+			slug: 'drizzle-migrations',
+			title: 'Schema migrations',
+			blurb: 'Drizzle generate → review → migrate ops guide for SQLite.'
+		}
 	];
 
 	function sectionFromUrl() {
@@ -22,6 +42,8 @@
 	let planBusy = $state(false);
 	let promoBusy = $state(false);
 	let userBusy = $state(false);
+	let siteBusy = $state(false);
+	const siteSettings = $derived(form?.siteSettings ?? data.siteSettings);
 	/** @type {string | null} */
 	let openPlan = $state(null);
 	let promoDuration = $state('once');
@@ -115,13 +137,14 @@
 	}
 
 	/**
-	 * @param {'plan' | 'promo' | 'user'} which
+	 * @param {'plan' | 'promo' | 'user' | 'site'} which
 	 */
 	function busyHandler(which) {
 		return () => {
 			if (which === 'plan') planBusy = true;
 			if (which === 'promo') promoBusy = true;
 			if (which === 'user') userBusy = true;
+			if (which === 'site') siteBusy = true;
 
 			return async ({ update }) => {
 				try {
@@ -130,6 +153,7 @@
 					if (which === 'plan') planBusy = false;
 					if (which === 'promo') promoBusy = false;
 					if (which === 'user') userBusy = false;
+					if (which === 'site') siteBusy = false;
 				}
 			};
 		};
@@ -197,7 +221,10 @@
 		<header class="page-head">
 			<p class="eyebrow eyebrow-chip accent-text">Superuser</p>
 			<h1 class="display-face">Admin</h1>
-			<p class="intro">Plan limits, discount codes, and accounts. Changes here are immediate.</p>
+			<p class="intro">
+				Plan limits, discount codes, accounts, site playback rules, and founder planning docs.
+				Changes here are immediate.
+			</p>
 		</header>
 
 		{#if !data.billingEnabled}
@@ -583,6 +610,95 @@
 			</div>
 		{/if}
 
+		{#if activeSection === 'site'}
+			<div class="block" role="tabpanel" id="panel-site" aria-labelledby="tab-site">
+				<div class="block-head">
+					<h2>Site</h2>
+					<p>
+						When a listen counts as a play. Tracks (and samples, loops, podcasts) use a percent of
+						duration; mixes use accumulated playtime while audio is actually playing.
+					</p>
+				</div>
+
+				{#if form?.siteMessage && !siteBusy}
+					<div class="banner error" role="alert">{form.siteMessage}</div>
+				{/if}
+				{#if form?.siteSuccess && !siteBusy}
+					<div class="banner ok" role="status">{form.siteSuccess}</div>
+				{/if}
+
+				<form
+					class="site-form"
+					method="POST"
+					action="?/saveSiteSettings&section=site"
+					aria-label="Play thresholds"
+					aria-busy={siteBusy}
+					use:enhance={busyHandler('site')}
+				>
+					<div class="field-grid">
+						<div class="field">
+							<label for="track-play-percent">Track play percent</label>
+							<input
+								id="track-play-percent"
+								type="number"
+								name="trackPlayPercent"
+								min="1"
+								max="100"
+								step="1"
+								required
+								value={siteSettings.trackPlayPercent}
+								disabled={siteBusy}
+							/>
+							<p class="hint">Percent of duration before a non-mix counts as a play.</p>
+						</div>
+						<div class="field">
+							<label for="mix-play-minutes">Mix continual play (minutes)</label>
+							<input
+								id="mix-play-minutes"
+								type="number"
+								name="mixPlayContinualMinutes"
+								min="1"
+								step="0.5"
+								required
+								value={siteSettings.mixPlayContinualMinutes}
+								disabled={siteBusy}
+							/>
+							<p class="hint">
+								Accumulated playing time for mixes. Short mixes still count when finished.
+							</p>
+						</div>
+					</div>
+					<button class="pressable accent-fill" type="submit" disabled={siteBusy}>
+						{siteBusy ? 'Saving…' : 'Save thresholds'}
+					</button>
+				</form>
+			</div>
+		{/if}
+
+		{#if activeSection === 'planning'}
+			<div class="block" role="tabpanel" id="panel-planning" aria-labelledby="tab-planning">
+				<div class="block-head">
+					<h2>Business planning</h2>
+					<p>
+						Admin-only briefs from <code>docs/</code>. Open in a new tab — same standalone HTML you
+						can still open on disk.
+					</p>
+				</div>
+
+				<ul class="planning-list">
+					{#each planningDocs as doc (doc.slug)}
+						<li>
+							<a class="planning-card" href="/admin/docs/{doc.slug}" target="_blank" rel="noopener">
+								<span class="planning-title">{doc.title}</span>
+								<span class="planning-blurb">{doc.blurb}</span>
+								<span class="planning-path">/admin/docs/{doc.slug}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
 		{#if activeSection === 'users'}
 			<div class="block" role="tabpanel" id="panel-users" aria-labelledby="tab-users">
 				<div class="block-head">
@@ -899,6 +1015,46 @@
 		margin-top: 1.75rem;
 	}
 
+	.planning-list {
+		display: grid;
+		gap: 0.85rem;
+		margin: 1.75rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.planning-card {
+		display: grid;
+		gap: 0.35rem;
+		padding: 1.1rem 1.2rem;
+		border: 1px solid var(--hard-border);
+		box-shadow: 4px 4px 0 var(--hard-shadow);
+		color: inherit;
+		text-decoration: none;
+		background: var(--paper);
+	}
+
+	.planning-card:hover {
+		background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+	}
+
+	.planning-title {
+		font-size: 1.1rem;
+		font-weight: 700;
+	}
+
+	.planning-blurb {
+		color: var(--muted);
+		font-size: 0.88rem;
+		line-height: 1.45;
+	}
+
+	.planning-path {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.75rem;
+		color: color-mix(in srgb, var(--ink) 70%, var(--muted));
+	}
+
 	.plan-row {
 		padding: 1.15rem 1.25rem;
 		border: 1px solid var(--hard-border);
@@ -954,6 +1110,11 @@
 		border-color: var(--ink);
 		color: var(--on-accent);
 		background: var(--accent);
+	}
+
+	.site-form {
+		margin-top: 1.5rem;
+		max-width: 36rem;
 	}
 
 	.plan-form,

@@ -237,6 +237,8 @@ export const track = sqliteTable(
 		codec: text('codec'),
 		/** JSON array of ~1000 peak ints (0-100) for waveform rendering. */
 		waveform: text('waveform'),
+		/** Denormalized listen count; incremented by recordTrackPlay. */
+		playCount: integer('play_count').notNull().default(0),
 		published: integer('published', { mode: 'boolean' }).notNull().default(true),
 		storageAdapter: text('storage_adapter').notNull().default('local'),
 		folderKey: text('folder_key').notNull(),
@@ -490,5 +492,59 @@ export const playlistLikeRelations = relations(playlistLike, ({ one }) => ({
 		references: [user.id]
 	})
 }));
+
+/**
+ * Per-user listening history. One row per (user, track); lastPlayedAt moves on
+ * each counted play. Private to the listener — profile History tab is owner-only.
+ */
+export const listenHistory = sqliteTable(
+	'listen_history',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		trackId: text('track_id')
+			.notNull()
+			.references(() => track.id, { onDelete: 'cascade' }),
+		lastPlayedAt: integer('last_played_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		playCount: integer('play_count').notNull().default(1)
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.trackId] }),
+		index('listen_history_userId_lastPlayedAt_idx').on(
+			table.userId,
+			table.lastPlayedAt,
+			table.trackId
+		)
+	]
+);
+
+export const listenHistoryRelations = relations(listenHistory, ({ one }) => ({
+	user: one(user, {
+		fields: [listenHistory.userId],
+		references: [user.id]
+	}),
+	track: one(track, {
+		fields: [listenHistory.trackId],
+		references: [track.id]
+	})
+}));
+
+/**
+ * Singleton platform knobs (id = 'default'). Play thresholds are admin-editable.
+ */
+export const platformSettings = sqliteTable('platform_settings', {
+	id: text('id').primaryKey().default('default'),
+	/** Percent of duration (1–100) that counts as a play for non-mix media. */
+	trackPlayPercent: integer('track_play_percent').notNull().default(60),
+	/** Accumulated playing ms that counts as a play for mixes. */
+	mixPlayContinualMs: integer('mix_play_continual_ms').notNull().default(600_000),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.$defaultFn(() => new Date())
+		.$onUpdate(() => new Date())
+		.notNull()
+});
 
 export * from './auth.schema';

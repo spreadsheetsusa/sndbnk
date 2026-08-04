@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>sndbnk · Finance &amp; ramp</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Audiowide&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				--accent: #c8ff3d;
+				--on-accent: #11110f;
+				--ink: #11110f;
+				--paper: #f2f0e8;
+				--muted: #696861;
+				--inverse: #11110f;
+				--on-inverse: #f2f0e8;
+				--hard-border: var(--ink);
+				--hard-shadow: var(--ink);
+				--chroma-red: #ff2f4f;
+				--chroma-cyan: #21e0ff;
+				--chroma-offset: 0.022em;
+				--shell: 920px;
+				--pad: clamp(1rem, 3.5vw, 3rem);
+				color-scheme: light;
+				font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+				color: var(--ink);
+				background: var(--paper);
+			}
+
+			.dark {
+				--ink: #f2f0e8;
+				--paper: #141410;
+				--muted: #a8a69c;
+				--inverse: #050504;
+				--on-inverse: #f2f0e8;
+				--hard-border: var(--accent);
+				--hard-shadow: color-mix(in srgb, color-mix(in srgb, var(--accent) 55%, black) 70%, black);
+				--chroma-red: #ff5a72;
+				--chroma-cyan: #57e9ff;
+				color-scheme: dark;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html {
+				scroll-behavior: smooth;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				html {
+					scroll-behavior: auto;
+				}
+				*,
+				*::before,
+				*::after {
+					animation: none !important;
+					transition: none !important;
+				}
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				background-color: var(--paper);
+				background-image:
+					linear-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px),
+					linear-gradient(
+						90deg,
+						color-mix(in srgb, var(--ink) 6%, transparent) 1px,
+						transparent 1px
+					),
+					radial-gradient(
+						ellipse 80% 50% at 10% -10%,
+						color-mix(in srgb, var(--accent) 18%, transparent),
+						transparent 55%
+					);
+				background-size:
+					28px 28px,
+					28px 28px,
+					auto;
+			}
+
+			.shell {
+				width: min(100%, var(--shell));
+				margin: 0 auto;
+				padding: 2rem var(--pad) 4rem;
+			}
+
+			.topbar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+				margin-bottom: 2.5rem;
+				flex-wrap: wrap;
+			}
+
+			.brand {
+				font-family: Audiowide, cursive;
+				font-size: clamp(1.75rem, 4vw, 2.4rem);
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				position: relative;
+				color: var(--ink);
+				text-decoration: none;
+			}
+
+			.brand::before,
+			.brand::after {
+				content: attr(data-text);
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+			}
+
+			.brand::before {
+				color: var(--chroma-red);
+				transform: translate(calc(var(--chroma-offset) * -1), 0);
+				mix-blend-mode: multiply;
+				opacity: 0.7;
+			}
+
+			.brand::after {
+				color: var(--chroma-cyan);
+				transform: translate(var(--chroma-offset), 0);
+				mix-blend-mode: multiply;
+				opacity: 0.7;
+			}
+
+			.dark .brand::before,
+			.dark .brand::after {
+				mix-blend-mode: screen;
+			}
+
+			.topbar-actions {
+				display: flex;
+				align-items: center;
+				gap: 0.65rem;
+				flex-wrap: wrap;
+				justify-content: flex-end;
+			}
+
+			.doc-nav {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.4rem;
+			}
+
+			.doc-nav a {
+				border: 1px solid var(--hard-border);
+				padding: 0.45rem 0.7rem;
+				color: var(--ink);
+				text-decoration: none;
+				font-weight: 600;
+				font-size: 0.9rem;
+				background: var(--paper);
+				box-shadow: 3px 3px 0 var(--hard-shadow);
+			}
+
+			.doc-nav a:hover {
+				background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+			}
+
+			.doc-nav a[aria-current='page'] {
+				background: var(--accent);
+				color: var(--on-accent);
+			}
+
+			.theme-btn {
+				border: 1px solid var(--hard-border);
+				background: var(--paper);
+				color: var(--ink);
+				padding: 0.55rem 0.85rem;
+				font: inherit;
+				font-weight: 600;
+				cursor: pointer;
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+			}
+
+			.theme-btn:hover {
+				background: var(--accent);
+				color: var(--on-accent);
+			}
+
+			.theme-btn:focus-visible {
+				outline: 2px solid var(--ink);
+				outline-offset: 3px;
+			}
+
+			.hero {
+				border: 1px solid var(--hard-border);
+				background: var(--inverse);
+				color: var(--on-inverse);
+				padding: clamp(1.5rem, 4vw, 2.5rem);
+				box-shadow: 8px 8px 0 var(--hard-shadow);
+				margin-bottom: 2.5rem;
+				animation: rise 520ms ease-out both;
+			}
+
+			.eyebrow {
+				display: inline-block;
+				font-size: 0.75rem;
+				font-weight: 800;
+				letter-spacing: 0.15em;
+				text-transform: uppercase;
+				background: var(--accent);
+				color: var(--on-accent);
+				padding: 0.25rem 0.5rem;
+				margin-bottom: 1rem;
+			}
+
+			.hero h1 {
+				font-family: Audiowide, cursive;
+				font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+				line-height: 1.15;
+				margin: 0 0 0.85rem;
+				text-transform: uppercase;
+			}
+
+			.hero p {
+				margin: 0;
+				max-width: 40rem;
+				color: color-mix(in srgb, var(--on-inverse) 82%, var(--muted));
+				font-size: 1.05rem;
+				line-height: 1.55;
+			}
+
+			nav.toc {
+				display: grid;
+				gap: 0.5rem;
+				margin-bottom: 2.5rem;
+				animation: rise 620ms ease-out both;
+			}
+
+			nav.toc a {
+				display: block;
+				border: 1px solid var(--hard-border);
+				padding: 0.7rem 0.9rem;
+				color: var(--ink);
+				text-decoration: none;
+				background: var(--paper);
+				box-shadow: 3px 3px 0 var(--hard-shadow);
+				font-weight: 600;
+			}
+
+			nav.toc a:hover {
+				background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+			}
+
+			section {
+				margin-bottom: 2.75rem;
+				animation: rise 700ms ease-out both;
+			}
+
+			h2 {
+				font-family: 'Space Grotesk', sans-serif;
+				font-size: 1.45rem;
+				margin: 0 0 0.85rem;
+				padding-bottom: 0.4rem;
+				border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+			}
+
+			h3 {
+				font-size: 1.05rem;
+				margin: 1.4rem 0 0.55rem;
+			}
+
+			p,
+			li {
+				line-height: 1.55;
+				color: color-mix(in srgb, var(--ink) 92%, var(--muted));
+			}
+
+			ul,
+			ol {
+				padding-left: 1.2rem;
+			}
+
+			li + li {
+				margin-top: 0.35rem;
+			}
+
+			code,
+			kbd {
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+				font-size: 0.9em;
+				background: color-mix(in srgb, var(--accent) 14%, transparent);
+				border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+				padding: 0.05em 0.3em;
+			}
+
+			.panel {
+				border: 1px solid var(--hard-border);
+				padding: 1rem 1.1rem;
+				background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+				margin: 1rem 0;
+			}
+
+			.panel.warn {
+				background: color-mix(in srgb, var(--chroma-red) 10%, var(--paper));
+			}
+
+			.panel strong {
+				display: block;
+				margin-bottom: 0.35rem;
+			}
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.95rem;
+				margin: 1rem 0;
+			}
+
+			th,
+			td {
+				border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+				padding: 0.55rem 0.65rem;
+				text-align: left;
+				vertical-align: top;
+			}
+
+			th {
+				background: color-mix(in srgb, var(--ink) 8%, var(--paper));
+				font-weight: 700;
+			}
+
+			.num {
+				font-variant-numeric: tabular-nums;
+				white-space: nowrap;
+			}
+
+			.flow {
+				display: grid;
+				gap: 0.65rem;
+				margin: 1rem 0;
+			}
+
+			.flow-step {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 0.75rem;
+				align-items: start;
+				border: 1px solid var(--hard-border);
+				padding: 0.8rem 0.9rem;
+				background: var(--paper);
+			}
+
+			.flow-n {
+				width: 1.75rem;
+				height: 1.75rem;
+				display: grid;
+				place-items: center;
+				background: var(--accent);
+				color: var(--on-accent);
+				font-weight: 800;
+			}
+
+			.risk-safe {
+				color: color-mix(in srgb, #1a7a3a 80%, var(--ink));
+			}
+
+			.risk-careful {
+				color: color-mix(in srgb, #9a6b00 85%, var(--ink));
+			}
+
+			.risk-danger {
+				color: color-mix(in srgb, var(--chroma-red) 85%, var(--ink));
+			}
+
+			footer {
+				margin-top: 3rem;
+				padding-top: 1rem;
+				border-top: 1px solid color-mix(in srgb, var(--ink) 24%, transparent);
+				color: var(--muted);
+				font-size: 0.9rem;
+			}
+
+			@keyframes rise {
+				from {
+					opacity: 0;
+					transform: translateY(10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="shell">
+			<header class="topbar">
+				<a class="brand" href="#top" data-text="sndbnk">sndbnk</a>
+				<div class="topbar-actions">
+					<nav class="doc-nav" aria-label="Docs">
+						<a href="business-plan.html">Plan</a>
+						<a href="business-finance.html" aria-current="page">Finance</a>
+						<a href="drizzle-migrations.html">Migrations</a>
+					</nav>
+					<button type="button" class="theme-btn" id="themeToggle" aria-pressed="false">
+						Dark mode
+					</button>
+				</div>
+			</header>
+
+			<section class="hero" id="top">
+				<span class="eyebrow">Finance brief</span>
+				<h1>Burn, budget, ramp</h1>
+				<p>
+					Bootstrap money math for SNDBNK: what the box costs now, how revenue covers it, what you
+					can spend as you grow, and the next financial moves that actually matter. Pair with the
+					<a href="business-plan.html" style="color: var(--accent)">founder plan</a> for product
+					order.
+				</p>
+			</section>
+
+			<nav class="toc" aria-label="Sections">
+				<a href="#thesis">1. Money thesis</a>
+				<a href="#stack">2. Current cost stack</a>
+				<a href="#burn">3. Burn rate by stage</a>
+				<a href="#unit">4. Unit economics</a>
+				<a href="#breakeven">5. Break-even &amp; coverage</a>
+				<a href="#ramp">6. 12-month ramp</a>
+				<a href="#budget">7. Budget buckets</a>
+				<a href="#dont">8. What not to buy yet</a>
+				<a href="#scoreboard">9. Monthly scoreboard</a>
+				<a href="#next">10. Next steps (do these)</a>
+			</nav>
+
+			<section id="thesis">
+				<h2>1. Money thesis</h2>
+				<p>
+					You’re in a <strong>bootstrap</strong> posture: a real product on a single Lightsail box,
+					Stripe-ready tiers, and your time as the main scarce resource. Cash burn can stay tiny.
+					The trap is spending like a funded growth company before you have proof (paying creators
+					who stay).
+				</p>
+				<div class="panel">
+					<strong>One sentence rule</strong>
+					Keep fixed ops under ~$50/mo until you have paying Studio customers. Spend discretionary
+					dollars only against a milestone (trust hygiene, Free BYO, first 5 paid, first 25 paid) —
+					never against vibes.
+				</div>
+				<p>
+					Numbers below are <strong>planning ranges</strong> (USD, 2026 Lightsail list prices +
+					typical AWS/Stripe fee shapes). Replace with your actual AWS invoice and Stripe Dashboard
+					as soon as you have two months of data.
+				</p>
+			</section>
+
+			<section id="stack">
+				<h2>2. Current cost stack</h2>
+				<p>
+					Production is one Ubuntu box (Bun app + Caddy + Redis + waveform worker + SQLite + media
+					disk) plus DNS and mail. No managed DB, no multi-region, no CDN required to ship.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Line item</th>
+							<th>Typical /mo</th>
+							<th>Notes</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Lightsail 2&nbsp;GB</td>
+							<td class="num">~$12</td>
+							<td>List price with public IPv4; fine early if RAM holds</td>
+						</tr>
+						<tr>
+							<td>Lightsail 4&nbsp;GB</td>
+							<td class="num">~$24</td>
+							<td>Comfortable for Bun + Redis + ffmpeg spikes; upgrade when swap thrashes</td>
+						</tr>
+						<tr>
+							<td>Lightsail 8&nbsp;GB</td>
+							<td class="num">~$44</td>
+							<td>Ramp when hosted media + concurrent peaks get heavy</td>
+						</tr>
+						<tr>
+							<td>Snapshots / backups</td>
+							<td class="num">~$1–5</td>
+							<td>~$0.05/GB-month; keep a few known-good images</td>
+						</tr>
+						<tr>
+							<td>Route&nbsp;53 hosted zone</td>
+							<td class="num">~$0.50</td>
+							<td>Plus tiny query charges; wildcard A for <code>*.sndbnk.com</code></td>
+						</tr>
+						<tr>
+							<td>Domain renewal</td>
+							<td class="num">~$1–2</td>
+							<td>Amortize yearly <code>sndbnk.com</code> cost</td>
+						</tr>
+						<tr>
+							<td>SES (Mail Manager / SMTP)</td>
+							<td class="num">~$0–5</td>
+							<td>Auth mail volume is tiny until growth; watch bounce/complaint</td>
+						</tr>
+						<tr>
+							<td>GitHub / misc SaaS</td>
+							<td class="num">~$0–20</td>
+							<td>Actions minutes usually free-tier; don’t stack vanity tools</td>
+						</tr>
+						<tr>
+							<td>Stripe</td>
+							<td class="num">% of GMV</td>
+							<td>~2.9% + $0.30 per successful US card charge (confirm your rate)</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>Working “now” ops burn</strong>
+					Assume <strong>~$20–40/mo</strong> all-in for a healthy single-box setup (4&nbsp;GB + DNS
+					+ mail + snapshots). If you’re still on 2&nbsp;GB and quiet traffic,
+					<strong>~$15–25/mo</strong> is realistic. Your <em>true</em> burn is that plus whatever
+					you choose to pay yourself — keep those separate in your head.
+				</div>
+			</section>
+
+			<section id="burn">
+				<h2>3. Burn rate by stage</h2>
+				<p>
+					Burn = fixed ops + discretionary spend. Don’t let discretionary become “fixed” by habit.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Stage</th>
+							<th>Ops burn</th>
+							<th>Discretionary cap</th>
+							<th>Total target</th>
+							<th>Trigger to leave stage</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><strong>0 · Bootstrap</strong></td>
+							<td class="num">$20–40</td>
+							<td class="num">$0–50</td>
+							<td class="num risk-safe">≤ $90</td>
+							<td>Stripe live; secrets rotated; first paying user</td>
+						</tr>
+						<tr>
+							<td><strong>1 · Proof</strong></td>
+							<td class="num">$25–50</td>
+							<td class="num">$50–150</td>
+							<td class="num">≤ $200</td>
+							<td>5 paying creators (prefer Studio)</td>
+						</tr>
+						<tr>
+							<td><strong>2 · Pull</strong></td>
+							<td class="num">$40–80</td>
+							<td class="num">$150–400</td>
+							<td class="num">≤ $480</td>
+							<td>25 paying; support load still solo-manageable</td>
+						</tr>
+						<tr>
+							<td><strong>3 · Scale spend</strong></td>
+							<td class="num">$80–200+</td>
+							<td class="num">tied to CAC</td>
+							<td class="num risk-careful">only if LTV &gt; 3× CAC</td>
+							<td>Paid acquisition that pays back in &lt; 3 months</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel warn">
+					<strong>Time is the real burn</strong>
+					If you value your evenings at even $40/hr and ship 10 hours/week, that’s ~$1,600/mo of
+					opportunity cost. Protect that by killing low-leverage work (fantasy Label teams,
+					premature multi-region) and shipping the Free/Studio wedge from the founder plan.
+				</div>
+			</section>
+
+			<section id="unit">
+				<h2>4. Unit economics</h2>
+				<p>
+					Seeded list prices (before tax). Net ≈ list − Stripe fees. Hosted storage cost is the main
+					variable COGS on Free/Vault; BYO storage pushes COGS near zero for that user.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Plan</th>
+							<th>List /mo</th>
+							<th>~Stripe fee</th>
+							<th>~Net /mo</th>
+							<th>Hosted storage</th>
+							<th>Notes</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><strong>Free</strong></td>
+							<td class="num">$0</td>
+							<td class="num">—</td>
+							<td class="num">$0</td>
+							<td>5&nbsp;GB</td>
+							<td>Acquisition + BYO wedge; not a revenue line</td>
+						</tr>
+						<tr>
+							<td><strong>Vault</strong></td>
+							<td class="num">$5</td>
+							<td class="num">~$0.45</td>
+							<td class="num">~$4.55</td>
+							<td>30&nbsp;GB</td>
+							<td>Subdomain on-ramp; thin margin if all bytes are hosted</td>
+						</tr>
+						<tr>
+							<td><strong>Studio</strong></td>
+							<td class="num">$14</td>
+							<td class="num">~$0.71</td>
+							<td class="num">~$13.29</td>
+							<td>150&nbsp;GB</td>
+							<td>Economic center — domain + unbranded</td>
+						</tr>
+						<tr>
+							<td><strong>Label</strong></td>
+							<td class="num">$35</td>
+							<td class="num">~$1.32</td>
+							<td class="num">~$33.68</td>
+							<td>500&nbsp;GB</td>
+							<td>Don’t sell hard until teams UI exists</td>
+						</tr>
+					</tbody>
+				</table>
+				<ul>
+					<li>
+						Yearly (~20% off) improves cash and retention; Stripe still takes a cut per charge
+						cycle.
+					</li>
+					<li>
+						<strong>Prefer Studio over many Vaults</strong> for cash: ~3 Vaults ≈ 1 Studio in net,
+						with more support surface.
+					</li>
+					<li>
+						BYO (SSH now; S3/R2 next) is a margin feature — heavy catalogs that stay on Free via BYO
+						are fine; they’re not free if they eat your disk.
+					</li>
+				</ul>
+			</section>
+
+			<section id="breakeven">
+				<h2>5. Break-even &amp; coverage</h2>
+				<p>
+					Infra break-even is embarrassingly close. That’s the gift of the single-box architecture —
+					use it. Don’t confuse “covers AWS” with “covers your life.”
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Monthly ops target</th>
+							<th>Covered by Vault (~$4.55 net)</th>
+							<th>Covered by Studio (~$13.29 net)</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td class="num">$30 ops</td>
+							<td>~7 Vault</td>
+							<td>~3 Studio</td>
+						</tr>
+						<tr>
+							<td class="num">$50 ops</td>
+							<td>~11 Vault</td>
+							<td>~4 Studio</td>
+						</tr>
+						<tr>
+							<td class="num">$200 (ops + light ads)</td>
+							<td>~44 Vault</td>
+							<td>~15 Studio</td>
+						</tr>
+						<tr>
+							<td class="num">$2,000 “part-time stipend”</td>
+							<td>~440 Vault</td>
+							<td>~151 Studio</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>Near-term win condition</strong>
+					Get to <strong>ops + a small marketing budget paid by Studio MRR</strong> — e.g. 5 Studio
+					(~$66 net) covers a $40 box and leaves ~$25 for experiments. That’s Stage&nbsp;1 proof.
+					Don’t model a founder salary until Stage&nbsp;2 pull is real.
+				</div>
+			</section>
+
+			<section id="ramp">
+				<h2>6. 12-month ramp</h2>
+				<p>
+					Milestones first, spend second. If a milestone slips, cut discretionary — don’t “buy”
+					progress with ads before the Free/Studio paths feel inevitable.
+				</p>
+				<div class="flow">
+					<div class="flow-step">
+						<span class="flow-n">1</span>
+						<div>
+							<strong>Months 0–2 · Trust &amp; sellable</strong>
+							<p style="margin: 0.25rem 0 0">
+								Spend cap: ops only (+ ≤$50 one-shots). Rotate secrets, confirm Stripe bootstrap +
+								webhook, smoke-test checkout. Goal: paid tiers not “Not available yet”; you could
+								take money tomorrow without embarrassment.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">2</span>
+						<div>
+							<strong>Months 2–4 · Finish Free promise + Studio path</strong>
+							<p style="margin: 0.25rem 0 0">
+								Spend cap: ≤$150/mo discretionary. Ship S3/R2 BYO; polish custom domain + unbranded.
+								Soft launch to people you know. Goal: 1–5 paying (Studio preferred).
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">3</span>
+						<div>
+							<strong>Months 4–8 · Proof loop</strong>
+							<p style="margin: 0.25rem 0 0">
+								Spend cap: ≤$200–400/mo if MRR covers it. Small, measurable outreach (communities,
+								creators you’d use as case studies). Goal: 5–25 paying; write down why they
+								converted.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">4</span>
+						<div>
+							<strong>Months 8–12 · Controlled pull</strong>
+							<p style="margin: 0.25rem 0 0">
+								Only then: upgrade box if metrics force it; tiny paid experiments with a kill
+								switch. Goal: MRR &gt; ops + experiments; Label/teams only if someone is asking.
+							</p>
+						</div>
+					</div>
+				</div>
+				<table>
+					<thead>
+						<tr>
+							<th>Checkpoint</th>
+							<th>MRR (gross)</th>
+							<th>What it unlocks</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>First dollar</td>
+							<td class="num">any</td>
+							<td>Billing path proven end-to-end</td>
+						</tr>
+						<tr>
+							<td>Ops covered</td>
+							<td class="num">~$50+</td>
+							<td>Box + DNS paid by customers</td>
+						</tr>
+						<tr>
+							<td>Proof</td>
+							<td class="num">~$70–150</td>
+							<td>~5–10 Studio-equivalent; case studies</td>
+						</tr>
+						<tr>
+							<td>Pull</td>
+							<td class="num">~$350+</td>
+							<td>~25 Studio-equivalent; justified ad tests</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+
+			<section id="budget">
+				<h2>7. Budget buckets</h2>
+				<p>
+					Split every dollar into a bucket. If it doesn’t fit, it’s a no until a milestone moves.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Bucket</th>
+							<th>Bootstrap</th>
+							<th>Proof</th>
+							<th>What it pays for</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><strong>Keep the lights on</strong></td>
+							<td class="num">$20–40</td>
+							<td class="num">$25–50</td>
+							<td>Lightsail, DNS, SES, snapshots</td>
+						</tr>
+						<tr>
+							<td><strong>Trust / legal / hygiene</strong></td>
+							<td class="num">one-shots</td>
+							<td class="num">as needed</td>
+							<td>Secret rotation effort, domain/email reputation, accountant later</td>
+						</tr>
+						<tr>
+							<td><strong>Product leverage</strong></td>
+							<td class="num">$0</td>
+							<td class="num">$0–50</td>
+							<td>Only tools that unblock shipping (not “nice IDE skins”)</td>
+						</tr>
+						<tr>
+							<td><strong>Distribution</strong></td>
+							<td class="num">$0</td>
+							<td class="num">$50–150</td>
+							<td>Creator outreach, small boosts, stickers/swag only if tied to a named person</td>
+						</tr>
+						<tr>
+							<td><strong>Contingency</strong></td>
+							<td class="num">1× monthly ops</td>
+							<td class="num">2× monthly ops</td>
+							<td>Disk emergency, accidental overage, restore drill</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>Cash buffer habit</strong>
+					Keep at least <strong>3 months of ops burn</strong> in a separate “SNDBNK ops” envelope
+					(~$100–150 early). Don’t touch it for features or ads.
+				</div>
+			</section>
+
+			<section id="dont">
+				<h2>8. What not to buy yet</h2>
+				<table>
+					<thead>
+						<tr>
+							<th>Temptation</th>
+							<th>Why wait</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Multi-region / Kubernetes / managed Postgres</td>
+							<td class="risk-danger">SQLite + one box is the strategy until it isn’t</td>
+						</tr>
+						<tr>
+							<td>Native mobile apps</td>
+							<td class="risk-careful">Web player is the product; apps are a second company</td>
+						</tr>
+						<tr>
+							<td>Big ad campaigns / agency retainers</td>
+							<td class="risk-danger">No CAC baseline; you’ll buy noise</td>
+						</tr>
+						<tr>
+							<td>Hiring before support pain</td>
+							<td class="risk-careful">Contract tiny tasks only when a week is blocked</td>
+						</tr>
+						<tr>
+							<td>Label “enterprise” sales motion</td>
+							<td class="risk-careful">Teams UI missing; overselling burns trust</td>
+						</tr>
+						<tr>
+							<td>Stack of analytics/CRM/growth SaaS</td>
+							<td class="risk-safe">Stripe + a spreadsheet is enough through Stage&nbsp;1</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+
+			<section id="scoreboard">
+				<h2>9. Monthly scoreboard</h2>
+				<p>
+					Fifteen minutes on the 1st of the month. If you don’t write the numbers, the budget is
+					fiction.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Metric</th>
+							<th>Where</th>
+							<th>Healthy early signal</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>AWS / Lightsail invoice</td>
+							<td>AWS Billing</td>
+							<td>Flat or stepped only when you chose an upgrade</td>
+						</tr>
+						<tr>
+							<td>Gross MRR / ARR</td>
+							<td>Stripe</td>
+							<td>Any → ops covered → proof thresholds above</td>
+						</tr>
+						<tr>
+							<td>Paying creators (Vault / Studio / Label)</td>
+							<td>Stripe + admin</td>
+							<td>Studio share rising over time</td>
+						</tr>
+						<tr>
+							<td>Hosted GB used (local adapter)</td>
+							<td>Library quotas / disk</td>
+							<td>Not sneaking up on the Lightsail disk</td>
+						</tr>
+						<tr>
+							<td>Discretionary spend</td>
+							<td>Your card / envelope</td>
+							<td>Under stage cap</td>
+						</tr>
+						<tr>
+							<td>Support hours</td>
+							<td>Honest estimate</td>
+							<td>Still fun; not a second job of firefighting</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>Spreadsheet columns (minimum)</strong>
+					<code>month</code>, <code>ops_burn</code>, <code>discretionary</code>,
+					<code>gross_mrr</code>, <code>net_mrr</code>, <code>paying_vault</code>,
+					<code>paying_studio</code>, <code>hosted_gb</code>, <code>notes</code>. That’s enough.
+				</div>
+			</section>
+
+			<section id="next">
+				<h2>10. Next steps (do these)</h2>
+				<p>
+					Ordered for a bootstrap founder. Check them off in order; skip nothing in block&nbsp;A
+					before spending on growth.
+				</p>
+				<h3>A · Money plumbing (this week)</h3>
+				<div class="flow">
+					<div class="flow-step">
+						<span class="flow-n">1</span>
+						<div>
+							<strong>Open last AWS bill</strong>
+							<p style="margin: 0.25rem 0 0">
+								Write down actual Lightsail + Route&nbsp;53 + SES. Replace the ranges in §2 with
+								your numbers.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">2</span>
+						<div>
+							<strong>Confirm Stripe can charge</strong>
+							<p style="margin: 0.25rem 0 0">
+								<code>bun run stripe:bootstrap</code> in prod if needed; webhook
+								<code>https://sndbnk.com/api/stripe/webhook</code>; buy your own Vault or Studio
+								once as a test (refund via admin/Stripe if you want).
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">3</span>
+						<div>
+							<strong>Create the ops envelope</strong>
+							<p style="margin: 0.25rem 0 0">
+								Park 3× monthly ops (~$100–150) somewhere you won’t spend on features. Set a
+								calendar reminder: “SNDBNK scoreboard” on the 1st.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">4</span>
+						<div>
+							<strong>Trust before traffic</strong>
+							<p style="margin: 0.25rem 0 0">
+								Untrack <code>.env</code>, rotate secrets (see known-issues). Advertising into a
+								leaky secret story is how bootstrap dreams get expensive.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<h3>B · Earn the right to spend (next 30–60 days)</h3>
+				<div class="flow">
+					<div class="flow-step">
+						<span class="flow-n">5</span>
+						<div>
+							<strong>Ship margin features, not ad spend</strong>
+							<p style="margin: 0.25rem 0 0">
+								S3/R2 BYO + Studio custom-domain polish (founder plan §8). These raise willingness
+								to pay without raising burn.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">6</span>
+						<div>
+							<strong>Land 5 humans</strong>
+							<p style="margin: 0.25rem 0 0">
+								Personal outreach beats ads. Offer help migrating a catalog. Prefer Studio trials
+								with a clear “your domain on SNDBNK” pitch.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">7</span>
+						<div>
+							<strong>Write the conversion note</strong>
+							<p style="margin: 0.25rem 0 0">
+								For each paid user: why they paid, what almost blocked them. That note becomes your
+								only allowed ad copy later.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<h3>C · Only after proof</h3>
+				<div class="flow">
+					<div class="flow-step">
+						<span class="flow-n">8</span>
+						<div>
+							<strong>Upgrade the box when metrics force it</strong>
+							<p style="margin: 0.25rem 0 0">
+								OOM / swap / disk &gt;70% sustained — not “feels slow once.” Step 2→4→8&nbsp;GB.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">9</span>
+						<div>
+							<strong>Tiny paid experiment</strong>
+							<p style="margin: 0.25rem 0 0">
+								≤$100, one channel, two-week kill date. Keep only if cost per paying Studio &lt;
+								~$40 (about 3 months gross).
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">10</span>
+						<div>
+							<strong>Revisit Label / salary fantasies</strong>
+							<p style="margin: 0.25rem 0 0">
+								Teams product and founder stipend are Stage&nbsp;2+ conversations. Until then,
+								reinvest surplus into reliability and the Studio path.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="panel">
+					<strong>If you’re overwhelmed, do only this</strong>
+					(1) Know your real AWS number. (2) Make sure Stripe can take a Studio payment. (3) Keep
+					monthly burn ≤ $90 until a stranger pays you. (4) Ship Free BYO + Studio polish.
+					Everything else is optional noise.
+				</div>
+			</section>
+
+			<footer>
+				sndbnk finance brief · The American Spreadsheet Co. · also at
+				<code>/admin/docs/business-finance</code> (admins) · open locally from
+				<code>docs/business-finance.html</code> · see also
+				<a href="business-plan.html">business-plan.html</a>
+			</footer>
+		</div>
+
+		<script>
+			(() => {
+				const root = document.documentElement;
+				const btn = document.getElementById('themeToggle');
+				const key = 'sndbnk-docs-theme';
+				const preferDark = () =>
+					localStorage.getItem(key) === 'dark' ||
+					(!localStorage.getItem(key) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+				const apply = (dark) => {
+					root.classList.toggle('dark', dark);
+					btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+					btn.textContent = dark ? 'Light mode' : 'Dark mode';
+				};
+
+				apply(preferDark());
+				btn.addEventListener('click', () => {
+					const next = !root.classList.contains('dark');
+					localStorage.setItem(key, next ? 'dark' : 'light');
+					apply(next);
+				});
+			})();
+		</script>
+	</body>
+</html>

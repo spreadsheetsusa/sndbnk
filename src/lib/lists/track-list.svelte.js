@@ -13,7 +13,7 @@ import { tick } from 'svelte';
  * when the scope alone does not say.
  *
  * @typedef {{
- *   scope: 'feed' | 'library' | 'profile',
+ *   scope: 'feed' | 'library' | 'profile' | 'likes' | 'history',
  *   username?: string | null,
  *   genre?: string | null,
  *   q?: string | null,

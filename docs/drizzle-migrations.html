@@ -99,6 +99,41 @@
 				justify-content: space-between;
 				gap: 1rem;
 				margin-bottom: 2.5rem;
+				flex-wrap: wrap;
+			}
+
+			.topbar-actions {
+				display: flex;
+				align-items: center;
+				gap: 0.65rem;
+				flex-wrap: wrap;
+				justify-content: flex-end;
+			}
+
+			.doc-nav {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.4rem;
+			}
+
+			.doc-nav a {
+				border: 1px solid var(--hard-border);
+				padding: 0.45rem 0.7rem;
+				color: var(--ink);
+				text-decoration: none;
+				font-weight: 600;
+				font-size: 0.9rem;
+				background: var(--paper);
+				box-shadow: 3px 3px 0 var(--hard-shadow);
+			}
+
+			.doc-nav a:hover {
+				background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+			}
+
+			.doc-nav a[aria-current='page'] {
+				background: var(--accent);
+				color: var(--on-accent);
 			}
 
 			.brand {
@@ -379,9 +414,16 @@
 		<div class="shell">
 			<header class="topbar">
 				<a class="brand" href="#top" data-text="sndbnk">sndbnk</a>
-				<button type="button" class="theme-btn" id="themeToggle" aria-pressed="false">
-					Dark mode
-				</button>
+				<div class="topbar-actions">
+					<nav class="doc-nav" aria-label="Docs">
+						<a href="business-plan.html">Plan</a>
+						<a href="business-finance.html">Finance</a>
+						<a href="drizzle-migrations.html" aria-current="page">Migrations</a>
+					</nav>
+					<button type="button" class="theme-btn" id="themeToggle" aria-pressed="false">
+						Dark mode
+					</button>
+				</div>
 			</header>
 
 			<section class="hero" id="top">
@@ -726,8 +768,8 @@ ls -lt backups | head</code></pre>
 			</section>
 
 			<footer>
-				sndbnk schema ops · standalone artifact · open locally from
-				<code>docs/drizzle-migrations.html</code>
+				sndbnk schema ops · also at <code>/admin/docs/drizzle-migrations</code> (admins) · open
+				locally from <code>docs/drizzle-migrations.html</code>
 			</footer>
 		</div>
 

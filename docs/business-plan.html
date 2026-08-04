@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>sndbnk · Founder business plan</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Audiowide&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				--accent: #c8ff3d;
+				--on-accent: #11110f;
+				--ink: #11110f;
+				--paper: #f2f0e8;
+				--muted: #696861;
+				--inverse: #11110f;
+				--on-inverse: #f2f0e8;
+				--hard-border: var(--ink);
+				--hard-shadow: var(--ink);
+				--chroma-red: #ff2f4f;
+				--chroma-cyan: #21e0ff;
+				--chroma-offset: 0.022em;
+				--shell: 920px;
+				--pad: clamp(1rem, 3.5vw, 3rem);
+				color-scheme: light;
+				font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+				color: var(--ink);
+				background: var(--paper);
+			}
+
+			.dark {
+				--ink: #f2f0e8;
+				--paper: #141410;
+				--muted: #a8a69c;
+				--inverse: #050504;
+				--on-inverse: #f2f0e8;
+				--hard-border: var(--accent);
+				--hard-shadow: color-mix(in srgb, color-mix(in srgb, var(--accent) 55%, black) 70%, black);
+				--chroma-red: #ff5a72;
+				--chroma-cyan: #57e9ff;
+				color-scheme: dark;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html {
+				scroll-behavior: smooth;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				html {
+					scroll-behavior: auto;
+				}
+				*,
+				*::before,
+				*::after {
+					animation: none !important;
+					transition: none !important;
+				}
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				background-color: var(--paper);
+				background-image:
+					linear-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px),
+					linear-gradient(
+						90deg,
+						color-mix(in srgb, var(--ink) 6%, transparent) 1px,
+						transparent 1px
+					),
+					radial-gradient(
+						ellipse 80% 50% at 10% -10%,
+						color-mix(in srgb, var(--accent) 18%, transparent),
+						transparent 55%
+					);
+				background-size:
+					28px 28px,
+					28px 28px,
+					auto;
+			}
+
+			.shell {
+				width: min(100%, var(--shell));
+				margin: 0 auto;
+				padding: 2rem var(--pad) 4rem;
+			}
+
+			.topbar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+				margin-bottom: 2.5rem;
+				flex-wrap: wrap;
+			}
+
+			.topbar-actions {
+				display: flex;
+				align-items: center;
+				gap: 0.65rem;
+				flex-wrap: wrap;
+				justify-content: flex-end;
+			}
+
+			.doc-nav {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.4rem;
+			}
+
+			.doc-nav a {
+				border: 1px solid var(--hard-border);
+				padding: 0.45rem 0.7rem;
+				color: var(--ink);
+				text-decoration: none;
+				font-weight: 600;
+				font-size: 0.9rem;
+				background: var(--paper);
+				box-shadow: 3px 3px 0 var(--hard-shadow);
+			}
+
+			.doc-nav a:hover {
+				background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+			}
+
+			.doc-nav a[aria-current='page'] {
+				background: var(--accent);
+				color: var(--on-accent);
+			}
+
+			.brand {
+				font-family: Audiowide, cursive;
+				font-size: clamp(1.75rem, 4vw, 2.4rem);
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				position: relative;
+				color: var(--ink);
+				text-decoration: none;
+			}
+
+			.brand::before,
+			.brand::after {
+				content: attr(data-text);
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+			}
+
+			.brand::before {
+				color: var(--chroma-red);
+				transform: translate(calc(var(--chroma-offset) * -1), 0);
+				mix-blend-mode: multiply;
+				opacity: 0.7;
+			}
+
+			.brand::after {
+				color: var(--chroma-cyan);
+				transform: translate(var(--chroma-offset), 0);
+				mix-blend-mode: multiply;
+				opacity: 0.7;
+			}
+
+			.dark .brand::before,
+			.dark .brand::after {
+				mix-blend-mode: screen;
+			}
+
+			.theme-btn {
+				border: 1px solid var(--hard-border);
+				background: var(--paper);
+				color: var(--ink);
+				padding: 0.55rem 0.85rem;
+				font: inherit;
+				font-weight: 600;
+				cursor: pointer;
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+			}
+
+			.theme-btn:hover {
+				background: var(--accent);
+				color: var(--on-accent);
+			}
+
+			.theme-btn:focus-visible {
+				outline: 2px solid var(--ink);
+				outline-offset: 3px;
+			}
+
+			.hero {
+				border: 1px solid var(--hard-border);
+				background: var(--inverse);
+				color: var(--on-inverse);
+				padding: clamp(1.5rem, 4vw, 2.5rem);
+				box-shadow: 8px 8px 0 var(--hard-shadow);
+				margin-bottom: 2.5rem;
+				animation: rise 520ms ease-out both;
+			}
+
+			.eyebrow {
+				display: inline-block;
+				font-size: 0.75rem;
+				font-weight: 800;
+				letter-spacing: 0.15em;
+				text-transform: uppercase;
+				background: var(--accent);
+				color: var(--on-accent);
+				padding: 0.25rem 0.5rem;
+				margin-bottom: 1rem;
+			}
+
+			.hero h1 {
+				font-family: Audiowide, cursive;
+				font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+				line-height: 1.15;
+				margin: 0 0 0.85rem;
+				text-transform: uppercase;
+			}
+
+			.hero p {
+				margin: 0;
+				max-width: 38rem;
+				color: color-mix(in srgb, var(--on-inverse) 82%, var(--muted));
+				font-size: 1.05rem;
+				line-height: 1.55;
+			}
+
+			nav.toc {
+				display: grid;
+				gap: 0.5rem;
+				margin-bottom: 2.5rem;
+				animation: rise 620ms ease-out both;
+			}
+
+			nav.toc a {
+				display: block;
+				border: 1px solid var(--hard-border);
+				padding: 0.7rem 0.9rem;
+				color: var(--ink);
+				text-decoration: none;
+				background: var(--paper);
+				box-shadow: 3px 3px 0 var(--hard-shadow);
+				font-weight: 600;
+			}
+
+			nav.toc a:hover {
+				background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+			}
+
+			section {
+				margin-bottom: 2.75rem;
+				animation: rise 700ms ease-out both;
+			}
+
+			h2 {
+				font-family: 'Space Grotesk', sans-serif;
+				font-size: 1.45rem;
+				margin: 0 0 0.85rem;
+				padding-bottom: 0.4rem;
+				border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+			}
+
+			h3 {
+				font-size: 1.05rem;
+				margin: 1.4rem 0 0.55rem;
+			}
+
+			p,
+			li {
+				line-height: 1.55;
+				color: color-mix(in srgb, var(--ink) 92%, var(--muted));
+			}
+
+			ul,
+			ol {
+				padding-left: 1.2rem;
+			}
+
+			li + li {
+				margin-top: 0.35rem;
+			}
+
+			code,
+			kbd {
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+				font-size: 0.9em;
+				background: color-mix(in srgb, var(--accent) 14%, transparent);
+				border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+				padding: 0.05em 0.3em;
+			}
+
+			pre {
+				overflow-x: auto;
+				border: 1px solid var(--hard-border);
+				background: var(--inverse);
+				color: var(--on-inverse);
+				padding: 1rem;
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+				font-size: 0.85rem;
+				line-height: 1.5;
+			}
+
+			pre code {
+				background: none;
+				border: 0;
+				padding: 0;
+				color: inherit;
+			}
+
+			.panel {
+				border: 1px solid var(--hard-border);
+				padding: 1rem 1.1rem;
+				background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+				box-shadow: 4px 4px 0 var(--hard-shadow);
+				margin: 1rem 0;
+			}
+
+			.panel.warn {
+				background: color-mix(in srgb, var(--chroma-red) 10%, var(--paper));
+			}
+
+			.panel strong {
+				display: block;
+				margin-bottom: 0.35rem;
+			}
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.95rem;
+				margin: 1rem 0;
+			}
+
+			th,
+			td {
+				border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+				padding: 0.55rem 0.65rem;
+				text-align: left;
+				vertical-align: top;
+			}
+
+			th {
+				background: color-mix(in srgb, var(--ink) 8%, var(--paper));
+				font-weight: 700;
+			}
+
+			.flow {
+				display: grid;
+				gap: 0.65rem;
+				margin: 1rem 0;
+			}
+
+			.flow-step {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 0.75rem;
+				align-items: start;
+				border: 1px solid var(--hard-border);
+				padding: 0.8rem 0.9rem;
+				background: var(--paper);
+			}
+
+			.flow-n {
+				width: 1.75rem;
+				height: 1.75rem;
+				display: grid;
+				place-items: center;
+				background: var(--accent);
+				color: var(--on-accent);
+				font-weight: 800;
+			}
+
+			.risk-safe {
+				color: color-mix(in srgb, #1a7a3a 80%, var(--ink));
+			}
+
+			.risk-careful {
+				color: color-mix(in srgb, #9a6b00 85%, var(--ink));
+			}
+
+			.risk-danger {
+				color: color-mix(in srgb, var(--chroma-red) 85%, var(--ink));
+			}
+
+			footer {
+				margin-top: 3rem;
+				padding-top: 1rem;
+				border-top: 1px solid color-mix(in srgb, var(--ink) 24%, transparent);
+				color: var(--muted);
+				font-size: 0.9rem;
+			}
+
+			@keyframes rise {
+				from {
+					opacity: 0;
+					transform: translateY(10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="shell">
+			<header class="topbar">
+				<a class="brand" href="#top" data-text="sndbnk">sndbnk</a>
+				<div class="topbar-actions">
+					<nav class="doc-nav" aria-label="Docs">
+						<a href="business-plan.html" aria-current="page">Plan</a>
+						<a href="business-finance.html">Finance</a>
+						<a href="drizzle-migrations.html">Migrations</a>
+					</nav>
+					<button type="button" class="theme-btn" id="themeToggle" aria-pressed="false">
+						Dark mode
+					</button>
+				</div>
+			</header>
+
+			<section class="hero" id="top">
+				<span class="eyebrow">Founder brief</span>
+				<h1>Build the dream</h1>
+				<p>
+					A place for sound — an audio multi-tool for artists and creative listeners. This page is
+					your north star when the backlog gets loud: what you already shipped, how it pays, and
+					what to focus on next.
+				</p>
+			</section>
+
+			<nav class="toc" aria-label="Sections">
+				<a href="#north-star">1. North star</a>
+				<a href="#who">2. Who it’s for</a>
+				<a href="#shipped">3. What’s shipped</a>
+				<a href="#money">4. How it makes money</a>
+				<a href="#wedge">5. Wedge vs incumbents</a>
+				<a href="#ops">6. How it runs today</a>
+				<a href="#risks">7. Risks &amp; hygiene</a>
+				<a href="#next">8. Focus next</a>
+				<a href="#cadence">9. Operating cadence</a>
+				<a href="#manifesto">10. Manifesto</a>
+			</nav>
+
+			<section id="north-star">
+				<h2>1. North star</h2>
+				<p>
+					<strong>SNDBNK</strong> is a SoundCloud-style audio host with a sharper job: help creators
+					put sound online with a real address, keep files where they want them, and actually enjoy
+					the listening chrome — waveforms, a persistent header player, Milkdrop when the vibe calls
+					for it.
+				</p>
+				<p>The live brand already says it:</p>
+				<ul>
+					<li><strong>Eyebrow:</strong> A place for sound</li>
+					<li><strong>Hero:</strong> Punch it in. Turn it up.</li>
+					<li>
+						<strong>Pitch:</strong> An audio multi-tool for both artists and creative listeners
+					</li>
+					<li>
+						<strong>Loop:</strong> host → store → tag → visualize → post — any sound, not just
+						“tracks for the algorithm”
+					</li>
+				</ul>
+				<div class="panel">
+					<strong>Maker, not enterprise DAM</strong>
+					Built by The American Spreadsheet Co. Indie energy, Winamp-adjacent chrome, ownership over
+					lock-in. You’re not chasing corporate media-asset management — you’re building the tool
+					you wish existed for vibes and catalogs.
+				</div>
+			</section>
+
+			<section id="who">
+				<h2>2. Who it’s for</h2>
+				<p>
+					Job to be done:
+					<em>“Put my sound online with a real address and keep the files where I want them.”</em>
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Who</th>
+							<th>What they need</th>
+							<th>What SNDBNK gives them</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Indie artists &amp; producers</td>
+							<td>A public home for mixes, loops, samples, podcasts</td>
+							<td>Upload, publish, profile, waveform play, social light</td>
+						</tr>
+						<tr>
+							<td>Creators who already run infra</td>
+							<td>Own storage + own URL</td>
+							<td>BYO SSH/SFTP today; subdomain (Vault+) or custom domain (Studio+)</td>
+						</tr>
+						<tr>
+							<td>Creative listeners</td>
+							<td>Discover and play without a dead player</td>
+							<td>Feed, follows, likes, comments, playlists, Milkdrop</td>
+						</tr>
+						<tr>
+							<td>Labels / serious catalogs</td>
+							<td>Scale + seats (aspirational)</td>
+							<td>Label tier seeds 500&nbsp;GB + 5 seats — product UI still to build</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+
+			<section id="shipped">
+				<h2>3. What’s shipped</h2>
+				<p>
+					You’re not staring at a mock. Production is live on <code>sndbnk.com</code>. Treat this as
+					proof you can ship — then aim the next weeks at conversion and trust, not greenfield
+					fantasy.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Surface</th>
+							<th>In the product today</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Identity</td>
+							<td>
+								Signup / signin, password reset, email change, welcome mail; profiles with bio,
+								location, links, avatar, follows, reposts
+							</td>
+						</tr>
+						<tr>
+							<td>Hosting addresses</td>
+							<td>
+								Path always (<code>/users/{username}</code>); subdomain Vault+; custom domain
+								Studio+ with Caddy on-demand TLS; per-tenant site branding
+							</td>
+						</tr>
+						<tr>
+							<td>Library &amp; media</td>
+							<td>
+								File-manager library, up to 500&nbsp;MB audio / 5&nbsp;MB cover, metadata autofill,
+								tag write-back, waveforms (async for big files), publish toggle, media types
+							</td>
+						</tr>
+						<tr>
+							<td>Listening</td>
+							<td>
+								Global header player (desktop + mobile), Wavesurfer scrub, Milkdrop floating window
+								+ ambient hero backdrop
+							</td>
+						</tr>
+						<tr>
+							<td>Social</td>
+							<td>Feed (ALL / FOLLOWING + search), likes, timed comments, playlists</td>
+						</tr>
+						<tr>
+							<td>Billing &amp; ops</td>
+							<td>
+								Stripe Checkout on <code>/plans</code>, customer portal, admin for plans / coupons /
+								users, SES mail in prod
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>You already have a real product</strong>
+					The gap is not “can this exist?” — it’s finish the Free promise (cloud BYO), polish the
+					Studio conversion path, earn a handful of paying creators, and keep the box trustworthy
+					before you advertise hard.
+				</div>
+			</section>
+
+			<section id="money">
+				<h2>4. How it makes money</h2>
+				<p>
+					Seeded catalog (USD; yearly ≈ 20% off). Admin can edit amounts later; paid tiers stay “Not
+					available yet” until monthly <em>and</em> yearly Stripe price IDs exist (<code
+						>bun run stripe:bootstrap</code
+					>).
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Plan</th>
+							<th>Monthly</th>
+							<th>Yearly</th>
+							<th>Hosted storage</th>
+							<th>Unlocks</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><strong>Free</strong></td>
+							<td>$0</td>
+							<td>$0</td>
+							<td>5&nbsp;GB</td>
+							<td>Path profile, unlimited tracks, BYO (SSH now; S3/R2 promised)</td>
+						</tr>
+						<tr>
+							<td><strong>Vault</strong></td>
+							<td>$5</td>
+							<td>$48</td>
+							<td>30&nbsp;GB</td>
+							<td><code>you.sndbnk.com</code> + site edit</td>
+						</tr>
+						<tr>
+							<td><strong>Studio</strong></td>
+							<td>$14</td>
+							<td>$134</td>
+							<td>150&nbsp;GB</td>
+							<td>Custom domain, remove branding — featured “full power” tier</td>
+						</tr>
+						<tr>
+							<td><strong>Label</strong></td>
+							<td>$35</td>
+							<td>$336</td>
+							<td>500&nbsp;GB</td>
+							<td>Teams (5 seats seeded; UI not built yet)</td>
+						</tr>
+					</tbody>
+				</table>
+				<ul>
+					<li>
+						Hosted quota meters <strong>local</strong> adapter bytes only — BYO is the Free escape
+						hatch.
+					</li>
+					<li>
+						BYO adapters are allowed on every seeded tier; track caps are unlimited by default.
+					</li>
+					<li>
+						Economic center of gravity: <strong>Studio</strong> (domain + unbranded). Vault is the
+						on-ramp. Label waits until Studio conversion is real.
+					</li>
+				</ul>
+			</section>
+
+			<section id="wedge">
+				<h2>5. Wedge vs incumbents</h2>
+				<p>
+					Do <strong>not</strong> try to beat SoundCloud at discovery network effects. Win on
+					ownership tooling plus a listening UX people actually want to keep open.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>SNDBNK lean</th>
+							<th>Typical platform lean</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Creator owns the URL (path → subdomain → custom + unbranded)</td>
+							<td>Platform-first URLs / marketplace framing</td>
+						</tr>
+						<tr>
+							<td>BYO storage (SSH live; S3/R2 next)</td>
+							<td>Files live on the platform only</td>
+						</tr>
+						<tr>
+							<td>Unlimited tracks on Free + small hosted quota + BYO</td>
+							<td>Free tiers capped hard or ad-driven</td>
+						</tr>
+						<tr>
+							<td>Library as file-manager / multi-tool (tags into files)</td>
+							<td>Stream-social UX first</td>
+						</tr>
+						<tr>
+							<td>Milkdrop / Winamp-ish chrome</td>
+							<td>Standard web player</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel">
+					<strong>Closest wedge in one line</strong>
+					SoundCloud listening UX + Bandcamp-like ownership + self-host option.
+				</div>
+				<h3>Explicit non-goals (for now)</h3>
+				<ul>
+					<li>Native mobile apps</li>
+					<li>Listener tip jars / download store / full marketplace</li>
+					<li>Heavy personalized discovery algorithms</li>
+					<li>Multi-region / multi-box architecture</li>
+				</ul>
+				<p>Say no so the next six months stay sharp.</p>
+			</section>
+
+			<section id="ops">
+				<h2>6. How it runs today</h2>
+				<p>
+					Single AWS Lightsail box. Cheap, shippable, honest. Don’t plan like a multi-region
+					platform until the product forces it.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Layer</th>
+							<th>Reality</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Host</td>
+							<td>
+								<code>sndbnk.com</code> · SSH <code>ubuntu@sndbnk.com</code> ·
+								<code>/var/www/sndbnk</code>
+							</td>
+						</tr>
+						<tr>
+							<td>Runtime</td>
+							<td>
+								Bun + <code>svelte-adapter-bun</code> → <code>build/index.js</code> on
+								<code>:3000</code>
+							</td>
+						</tr>
+						<tr>
+							<td>Edge</td>
+							<td>
+								Caddy: apex certs; <code>*.sndbnk.com</code> + custom domains via on-demand TLS
+							</td>
+						</tr>
+						<tr>
+							<td>Data</td>
+							<td>SQLite on disk; deploy backs up then migrates</td>
+						</tr>
+						<tr>
+							<td>Media &amp; jobs</td>
+							<td>Local <code>MEDIA_ROOT</code> + optional SSH; Redis + BullMQ waveform worker</td>
+						</tr>
+						<tr>
+							<td>Mail</td>
+							<td>AWS SES Mail Manager in production</td>
+						</tr>
+						<tr>
+							<td>Deploy</td>
+							<td>GitHub Actions → SSH on push to <code>main</code></td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+
+			<section id="risks">
+				<h2>7. Risks &amp; hygiene</h2>
+				<p>
+					These are real debts from <code>docs/known-issues.md</code> — not vibes. Clear them before
+					a growth push.
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Item</th>
+							<th>Risk</th>
+							<th>Why it matters</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><code>.env</code> still tracked with live secrets</td>
+							<td class="risk-danger">High</td>
+							<td>
+								Untrack, provision env outside the repo, rotate
+								<code>BETTER_AUTH_SECRET</code> / <code>STORAGE_SECRET</code> (logs everyone out;
+								invalidates stored SSH creds) before advertising hard
+							</td>
+						</tr>
+						<tr>
+							<td>CSP is Report-Only</td>
+							<td class="risk-careful">Medium</td>
+							<td>
+								Inventory Butterchurn / Stripe / Fonts, then flip to enforcing when production
+								reports are clean
+							</td>
+						</tr>
+						<tr>
+							<td>Stripe price IDs missing</td>
+							<td class="risk-careful">Medium</td>
+							<td>
+								Paid tiers show “Not available yet” until bootstrap writes monthly + yearly IDs
+							</td>
+						</tr>
+						<tr>
+							<td>S3 / R2 adapters stubbed</td>
+							<td class="risk-careful">Medium</td>
+							<td>Marketed on Free; <code>enabled: false</code> — Free promise incomplete</td>
+						</tr>
+						<tr>
+							<td>Label teams UI missing</td>
+							<td class="risk-safe">Low (for now)</td>
+							<td>Seats seeded; don’t sell Label hard until product exists</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="panel warn">
+					<strong>Before any advertising push</strong>
+					<ol style="margin: 0.4rem 0 0; padding-left: 1.2rem">
+						<li>Untrack <code>.env</code> and rotate secrets.</li>
+						<li>
+							Confirm Stripe bootstrap + webhook
+							(<code>https://sndbnk.com/api/stripe/webhook</code>).
+						</li>
+						<li>Smoke-test signup → upload → play → like/comment → sign out on production.</li>
+					</ol>
+				</div>
+			</section>
+
+			<section id="next">
+				<h2>8. Focus next</h2>
+				<p>
+					Ordered on purpose. Resist skipping ahead to Label teams or discovery science while Free
+					and Studio still have holes.
+				</p>
+				<div class="flow">
+					<div class="flow-step">
+						<span class="flow-n">1</span>
+						<div>
+							<strong>Trust &amp; launch hygiene</strong>
+							<p style="margin: 0.25rem 0 0">
+								Untrack/rotate secrets. Confirm Stripe + webhook in prod. Tighten CSP when
+								report-only is clean. Don’t pour traffic on a shaky trust story.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">2</span>
+						<div>
+							<strong>Finish the Free promise</strong>
+							<p style="margin: 0.25rem 0 0">
+								Implement S3/R2 BYO adapters so Free isn’t “SSH or 5&nbsp;GB hosted only.” This is
+								the ownership wedge on the card people actually read.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">3</span>
+						<div>
+							<strong>Earn Studio</strong>
+							<p style="margin: 0.25rem 0 0">
+								Polish custom-domain verify, site branding, and unbranded as the conversion path.
+								Studio is the economic center — make that flow feel inevitable.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">4</span>
+						<div>
+							<strong>Grow with proof</strong>
+							<p style="margin: 0.25rem 0 0">
+								Get a handful of real creators onto Vault/Studio. Fix the sharp edges they hit —
+								signup pattern console noise, empty states, reliability — not hypothetical scale
+								problems.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">5</span>
+						<div>
+							<strong>Then Label teams</strong>
+							<p style="margin: 0.25rem 0 0">
+								Seats exist in the plan table; product doesn’t. Build teams only after Studio
+								conversion is real and someone is asking for seats.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">6</span>
+						<div>
+							<strong>Deliberately later</strong>
+							<p style="margin: 0.25rem 0 0">
+								Listener monetization, native apps, heavy discovery algorithms, multi-region. Park
+								them. Revisit when the wedge is paying for itself.
+							</p>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section id="cadence">
+				<h2>9. Operating cadence</h2>
+				<p>
+					Attach the dream to a weekly habit, not a fantasy backlog. When stuck or tired, shrink the
+					unit of work.
+				</p>
+				<div class="panel">
+					<strong>When stuck / when tired</strong>
+					<ol style="margin: 0.4rem 0 0; padding-left: 1.2rem">
+						<li>Ship one vertical slice — one visible improvement an end user can feel.</li>
+						<li>
+							Smoke-test the core path:
+							<code>/signup</code> → <code>/library/new</code> → play on profile → like/comment on
+							<code>/tracks/{id}</code> → sign out → <code>/signin</code>.
+						</li>
+						<li>Check light and dark if you touched anything visual.</li>
+						<li>One conventional commit. Leave the branch cleaner than you found it.</li>
+					</ol>
+				</div>
+				<p>
+					Technical docs stay in the rest of <code>docs/</code>. This page is the why and the order
+					— not the how.
+				</p>
+			</section>
+
+			<section id="manifesto">
+				<h2>10. Manifesto</h2>
+				<div class="panel">
+					<strong>Keep building</strong>
+					<ul style="margin: 0.4rem 0 0; padding-left: 1.2rem">
+						<li>Vibes over enterprise polish.</li>
+						<li>Ownership over lock-in.</li>
+						<li>Multi-tool over feed addiction.</li>
+						<li>A place for sound — punch it in, turn it up.</li>
+					</ul>
+					<p style="margin: 0.85rem 0 0">
+						You already shipped a real host. The next chapter is trust, Free BYO, Studio conversion,
+						and a few creators who never want to leave. That’s enough focus for a dream.
+					</p>
+				</div>
+			</section>
+
+			<footer>
+				sndbnk founder brief · The American Spreadsheet Co. · also at
+				<code>/admin/docs/business-plan</code> (admins) · open locally from
+				<code>docs/business-plan.html</code>
+			</footer>
+		</div>
+
+		<script>
+			(() => {
+				const root = document.documentElement;
+				const btn = document.getElementById('themeToggle');
+				const key = 'sndbnk-docs-theme';
+				const preferDark = () =>
+					localStorage.getItem(key) === 'dark' ||
+					(!localStorage.getItem(key) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+				const apply = (dark) => {
+					root.classList.toggle('dark', dark);
+					btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+					btn.textContent = dark ? 'Light mode' : 'Dark mode';
+				};
+
+				apply(preferDark());
+				btn.addEventListener('click', () => {
+					const next = !root.classList.contains('dark');
+					localStorage.setItem(key, next ? 'dark' : 'light');
+					apply(next);
+				});
+			})();
+		</script>
+	</body>
+</html>

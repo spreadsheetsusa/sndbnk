@@ -5,11 +5,12 @@ import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { getSiteStats, listLatestMembers, pickHeroTrack } from '#lib/server/showcase';
 
-export const load = async ({ cookies, locals }) => {
+export const load = async ({ cookies, locals, url }) => {
 	if (locals.tenant) {
 		const profilePage = await loadPublicProfilePage({
 			username: locals.tenant.username,
-			locals
+			locals,
+			url
 		});
 
 		if (!profilePage) {

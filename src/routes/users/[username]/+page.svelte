@@ -10,7 +10,10 @@
 	let container;
 
 	const paged = restorableList(
-		() => ({ scope: 'profile', username: data.profile.username }),
+		() => ({
+			scope: data.tab === 'likes' ? 'likes' : data.tab === 'history' ? 'history' : 'profile',
+			username: data.profile.username
+		}),
 		() => data,
 		() => container
 	);

@@ -204,7 +204,7 @@
 											<span class="item-title">{artist.name}</span>
 											<span class="item-meta">@{artist.username}</span>
 										</span>
-										<span class="item-stat tracks">{artist.trackCount}</span>
+										<span class="item-stat">{artist.trackCount}</span>
 									</a>
 									{#if !collapsed && !artist.isViewer}
 										<FollowButton
@@ -495,11 +495,6 @@
 
 	.item-stat :global(svg) {
 		display: block;
-	}
-
-	.item-stat.tracks::after {
-		content: ' TRK';
-		letter-spacing: 0.08em;
 	}
 
 	.item:hover .item-stat {

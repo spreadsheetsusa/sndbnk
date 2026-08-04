@@ -4,6 +4,7 @@
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import MilkdropWindow from '#lib/components/player/MilkdropWindow.svelte';
+	import { setPlayThresholds } from '#lib/player/play-thresholds.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { initAccent, onAccentFor } from '#lib/stores/brand.js';
 	import { initTheme } from '#lib/stores/theme.js';
@@ -12,6 +13,10 @@
 
 	const tenantLogo = $derived(data.tenantSite?.logoUrl ?? null);
 	const tenantAccent = $derived(data.tenantSite?.accentColor ?? null);
+
+	$effect(() => {
+		setPlayThresholds(data.playThresholds);
+	});
 
 	onMount(() => {
 		initTheme();

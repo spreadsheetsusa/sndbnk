@@ -13,7 +13,9 @@
 
 	/**
 	 * @typedef {{
+	 *   tab: 'tracks' | 'likes' | 'history',
 	 *   profile: {
+	 *     userId?: string,
 	 *     username: string,
 	 *     name: string,
 	 *     plan: string,
@@ -69,13 +71,50 @@
 
 	/** Viewer-side filter only — nothing about it is persisted. */
 	let showReposts = $state(true);
-	const hasReposts = $derived(list.items.some((track) => track.repostedAt));
+	const hasReposts = $derived(
+		data.tab === 'tracks' && list.items.some((track) => track.repostedAt)
+	);
 	const items = $derived(
-		showReposts ? list.items : list.items.filter((track) => !track.repostedAt)
+		data.tab === 'tracks' && !showReposts
+			? list.items.filter((track) => !track.repostedAt)
+			: list.items
 	);
 	const linkBase = $derived(data.viaTenantHost ? data.siteOrigin : '');
 	const siteName = $derived(data.site?.name?.trim() || data.profile.name);
 	const showPoweredBy = $derived(data.viaTenantHost && !data.site?.hideBranding);
+
+	const tabs = $derived.by(() => {
+		/** @type {Array<{ id: 'tracks' | 'likes' | 'history', label: string }>} */
+		const base = [
+			{ id: 'tracks', label: 'Tracks' },
+			{ id: 'likes', label: 'Likes' }
+		];
+		if (data.viewer?.isOwner) base.push({ id: 'history', label: 'Listening History' });
+		return base;
+	});
+
+	const emptyCopy = $derived(
+		data.tab === 'likes'
+			? 'No likes yet.'
+			: data.tab === 'history'
+				? 'Nothing in listening history yet.'
+				: 'No tracks have been uploaded yet.'
+	);
+
+	const headingCopy = $derived(
+		data.tab === 'likes'
+			? `Likes by ${data.profile.name}`
+			: data.tab === 'history'
+				? 'Your listening history'
+				: `Tracks and playlists by ${data.profile.name}`
+	);
+
+	/**
+	 * @param {'tracks' | 'likes' | 'history'} id
+	 */
+	function tabHref(id) {
+		return id === 'tracks' ? '?' : `?tab=${id}`;
+	}
 
 	/** null = apex/subdomain → full sidebar; custom domain uses site flags. */
 	const sidebarCards = $derived.by(() => {
@@ -179,10 +218,6 @@
 						{/each}
 					</ul>
 				{/if}
-
-				{#if list.items.length === 0}
-					<p class="lede">No tracks have been uploaded yet.</p>
-				{/if}
 			</section>
 
 			{#if showSidebar}
@@ -207,42 +242,53 @@
 				/>
 			{/if}
 
-			{#if list.items.length > 0}
-				<section class="tracks" aria-labelledby="tracks-heading">
-					<h2 id="tracks-heading" class="sr-only">Tracks and playlists by {data.profile.name}</h2>
-					{#if items.length === 0}
-						<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
-					{:else}
-						<InfiniteList {list} moreLabel="Load more">
-							<ul class="profile-track-list">
-								{#each items as item (item.id)}
-									<li data-cursor={item.cursor}>
-										{#if item.kind === 'playlist'}
-											<PlaylistCard
-												playlist={item}
-												{linkBase}
-												signedIn={Boolean(data.viewer)}
-												viewerName={data.viewer?.name ?? null}
-												viewerImage={data.viewer?.image ?? null}
-												ondeleted={() => list.remove(item.id)}
-											/>
-										{:else}
-											<TrackCard
-												track={item}
-												{linkBase}
-												signedIn={Boolean(data.viewer)}
-												viewerName={data.viewer?.name ?? null}
-												viewerImage={data.viewer?.image ?? null}
-												ondeleted={() => list.remove(item.id)}
-											/>
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</InfiniteList>
-					{/if}
-				</section>
-			{/if}
+			<section class="tracks" aria-labelledby="tracks-heading">
+				<nav class="scope-strip" aria-label="Profile library">
+					{#each tabs as tab (tab.id)}
+						<a
+							class="scope-btn"
+							href={tabHref(tab.id)}
+							aria-current={data.tab === tab.id ? 'page' : undefined}
+						>
+							{tab.label}
+						</a>
+					{/each}
+				</nav>
+				<h2 id="tracks-heading" class="sr-only">{headingCopy}</h2>
+				{#if list.items.length === 0}
+					<p class="lede">{emptyCopy}</p>
+				{:else if items.length === 0}
+					<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
+				{:else}
+					<InfiniteList {list} moreLabel="Load more">
+						<ul class="profile-track-list">
+							{#each items as item (item.id)}
+								<li data-cursor={item.cursor}>
+									{#if item.kind === 'playlist'}
+										<PlaylistCard
+											playlist={item}
+											{linkBase}
+											signedIn={Boolean(data.viewer)}
+											viewerName={data.viewer?.name ?? null}
+											viewerImage={data.viewer?.image ?? null}
+											ondeleted={() => list.remove(item.id)}
+										/>
+									{:else}
+										<TrackCard
+											track={item}
+											{linkBase}
+											signedIn={Boolean(data.viewer)}
+											viewerName={data.viewer?.name ?? null}
+											viewerImage={data.viewer?.image ?? null}
+											ondeleted={() => list.remove(item.id)}
+										/>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</InfiniteList>
+				{/if}
+			</section>
 		</div>
 	</main>
 
@@ -517,6 +563,51 @@
 		animation: rise 0.85s ease 0.2s both;
 	}
 
+	.tracks > .lede {
+		margin-top: 1.25rem;
+	}
+
+	.scope-strip {
+		display: flex;
+		flex-wrap: wrap;
+		width: fit-content;
+		max-width: 100%;
+		margin-bottom: 1.25rem;
+		border: 1px solid var(--hard-border);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+	}
+
+	.scope-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 2.25rem;
+		padding: 0.4rem 1rem;
+		border-right: 1px solid var(--hard-border);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+		font-size: 0.7rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		text-decoration: none;
+		text-transform: uppercase;
+	}
+
+	.scope-btn:last-child {
+		border-right: 0;
+	}
+
+	.scope-btn:hover {
+		background: color-mix(in srgb, var(--accent) 35%, var(--paper));
+	}
+
+	.scope-btn[aria-current='page'] {
+		color: var(--on-accent);
+		background: var(--accent);
+		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+	}
+
 	.sr-only {
 		position: absolute;
 		width: 1px;
@@ -628,10 +719,6 @@
 
 		h1 {
 			font-size: clamp(2rem, 7vw, 4.5rem);
-		}
-
-		.hero > .lede {
-			display: none;
 		}
 
 		.tracks {
