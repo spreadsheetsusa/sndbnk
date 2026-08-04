@@ -16,6 +16,16 @@ function folderPath(userId, folderKey) {
 }
 
 /**
+ * Wipe every local media folder for a user (tracks, avatar, site assets, orphans).
+ * @param {string} userId
+ */
+export async function wipeUserLocalMedia(userId) {
+	assertSafeStorageSegment(userId, 'user id');
+	const dir = assertSafeStoragePath(MEDIA_ROOT, userId);
+	await rm(dir, { recursive: true, force: true });
+}
+
+/**
  * @param {string} userId
  * @returns {import('./types.js').StorageAdapter}
  */

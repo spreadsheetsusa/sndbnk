@@ -1,11 +1,14 @@
 import { error } from '@sveltejs/kit';
 import { desc, eq, like, or, sql } from 'drizzle-orm';
 
+import { auth } from '#lib/server/auth';
 import { priceLookupKey, productPayload, STRIPE_APP_TAG } from '#lib/server/billing/catalog';
-import { invalidatePlanCache } from '#lib/server/billing/plans';
+import { invalidatePlanCache, planOrDefault } from '#lib/server/billing/plans';
 import { billingEnabled, getStripe } from '#lib/server/billing/stripe';
 import { db } from '#lib/server/db';
 import { plan, profile, track, user } from '#lib/server/db/schema';
+import { getStorageAdapter } from '#lib/server/storage';
+import { wipeUserLocalMedia } from '#lib/server/storage/local.js';
 
 /**
  * The better-auth admin plugin puts the role on the user row, so authorization is
@@ -334,7 +337,12 @@ export async function searchUsers(query) {
 			createdAt: profile.createdAt,
 			trackCount: sql`(select count(*) from ${track} where ${track.userId} = ${user.id})`.mapWith(
 				Number
-			)
+			),
+			localBytes: sql`(
+				select coalesce(sum(${track.audioBytes} + coalesce(${track.coverBytes}, 0)), 0)
+				from ${track}
+				where ${track.userId} = ${user.id} and ${track.storageAdapter} = 'local'
+			)`.mapWith(Number)
 		})
 		.from(user)
 		.leftJoin(profile, eq(profile.userId, user.id))
@@ -346,7 +354,84 @@ export async function searchUsers(query) {
 		.orderBy(desc(profile.createdAt))
 		.limit(50);
 
-	return rows.map((row) => ({ ...row, createdAt: row.createdAt?.getTime() ?? null }));
+	return rows.map((row) => {
+		const tier = planOrDefault(row.plan);
+		return {
+			...row,
+			createdAt: row.createdAt?.getTime() ?? null,
+			planLabel: tier.label,
+			maxLocalBytes: tier.maxLocalBytes
+		};
+	});
+}
+
+/**
+ * Permanently remove a user: cancel Stripe, wipe media, then delete the auth row
+ * (DB cascades clear owned rows). HTTP `/admin/remove-user` stays disabled.
+ *
+ * @param {string} actorId
+ * @param {string} userId
+ * @param {Headers} headers
+ * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
+ */
+export async function deleteUserForAdmin(actorId, userId, headers) {
+	if (!userId) return { ok: false, message: 'Pick a user.' };
+	if (userId === actorId) return { ok: false, message: 'You cannot delete yourself.' };
+
+	const found = await db.select({ id: user.id }).from(user).where(eq(user.id, userId)).limit(1);
+	if (!found[0]) return { ok: false, message: 'No such account.' };
+
+	const profileRows = await db
+		.select({ stripeSubscriptionId: profile.stripeSubscriptionId })
+		.from(profile)
+		.where(eq(profile.userId, userId))
+		.limit(1);
+	const subscriptionId = profileRows[0]?.stripeSubscriptionId;
+
+	if (billingEnabled && subscriptionId) {
+		try {
+			await getStripe().subscriptions.cancel(subscriptionId);
+		} catch (err) {
+			console.error(`[admin] could not cancel Stripe subscription for ${userId}:`, err);
+		}
+	}
+
+	const tracks = await db
+		.select({
+			folderKey: track.folderKey,
+			storageAdapter: track.storageAdapter
+		})
+		.from(track)
+		.where(eq(track.userId, userId));
+
+	for (const row of tracks) {
+		try {
+			const storage = await getStorageAdapter(
+				userId,
+				/** @type {'local' | 'ssh'} */ (row.storageAdapter === 'ssh' ? 'ssh' : 'local')
+			);
+			await storage.delete(row.folderKey);
+		} catch {
+			// Still remove the account if remote/local cleanup fails.
+		}
+	}
+
+	try {
+		await wipeUserLocalMedia(userId);
+	} catch {
+		// Orphan local files are preferable to a stuck delete.
+	}
+
+	try {
+		await auth.api.removeUser({ body: { userId }, headers });
+	} catch (err) {
+		return {
+			ok: false,
+			message: err instanceof Error ? err.message : 'Could not delete that account.'
+		};
+	}
+
+	return { ok: true };
 }
 
 /**

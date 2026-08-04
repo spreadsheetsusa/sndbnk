@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import {
 	archivePromotion,
 	createPromotion,
+	deleteUserForAdmin,
 	listPlansWithCounts,
 	listPromotions,
 	requireAdmin,
@@ -19,12 +20,13 @@ import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
 
 export const load = async ({ locals, url }) => {
-	requireAdmin(locals);
+	const admin = requireAdmin(locals);
 
 	const query = url.searchParams.get('q') ?? '';
 
 	return {
 		billingEnabled,
+		viewerId: admin.id,
 		query,
 		plans: (await listPlansWithCounts()).map((row) => ({
 			id: row.id,
@@ -175,6 +177,25 @@ export const actions = {
 		}
 
 		return { userSuccess: banned ? 'Account banned.' : 'Ban lifted.' };
+	},
+
+	deleteUser: async ({ locals, request }) => {
+		const admin = requireAdmin(locals);
+
+		const formData = await request.formData();
+		const userId = formData.get('userId')?.toString() ?? '';
+		const purge = formData.get('purge')?.toString() === 'on';
+
+		if (!purge) {
+			return fail(400, {
+				userMessage: 'Check the box to permanently delete the user and all their data.'
+			});
+		}
+
+		const result = await deleteUserForAdmin(admin.id, userId, request.headers);
+		if (!result.ok) return fail(400, { userMessage: result.message });
+
+		return { userSuccess: 'Account deleted.' };
 	}
 };
 

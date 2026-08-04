@@ -25,16 +25,73 @@
 	/** @type {string | null} */
 	let openPlan = $state(null);
 	let promoDuration = $state('once');
+	/** @type {string | null} */
+	let deleteConfirmUserId = $state(null);
+	let purgeChecked = $state(false);
 
 	/**
 	 * @param {string} id
 	 */
 	function selectSection(id) {
 		activeSection = id;
+		deleteConfirmUserId = null;
+		purgeChecked = false;
 
 		const url = new URL(page.url);
 		url.searchParams.set('section', id);
 		replaceState(url, page.state);
+	}
+
+	/**
+	 * @param {string} userId
+	 */
+	function openDeleteConfirm(userId) {
+		if (deleteConfirmUserId === userId) {
+			deleteConfirmUserId = null;
+			purgeChecked = false;
+			return;
+		}
+		deleteConfirmUserId = userId;
+		purgeChecked = false;
+	}
+
+	function closeDeleteConfirm() {
+		deleteConfirmUserId = null;
+		purgeChecked = false;
+	}
+
+	/** @type {import('svelte/attachments').Attachment} */
+	function deleteConfirmAttach(node) {
+		/** @param {PointerEvent} event */
+		function onPointerDown(event) {
+			if (!deleteConfirmUserId) return;
+			const target = /** @type {Node | null} */ (event.target);
+			if (target && !node.contains(target)) closeDeleteConfirm();
+		}
+
+		/** @param {KeyboardEvent} event */
+		function onKeydown(event) {
+			if (event.key === 'Escape') closeDeleteConfirm();
+		}
+
+		document.addEventListener('pointerdown', onPointerDown);
+		window.addEventListener('keydown', onKeydown);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown);
+			window.removeEventListener('keydown', onKeydown);
+		};
+	}
+
+	function deleteBusyHandler() {
+		userBusy = true;
+		return async ({ update }) => {
+			try {
+				await update();
+				closeDeleteConfirm();
+			} finally {
+				userBusy = false;
+			}
+		};
 	}
 
 	/**
@@ -94,6 +151,37 @@
 		return ms
 			? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(ms))
 			: '—';
+	}
+
+	/**
+	 * @param {number} value
+	 */
+	function bytesLabel(value) {
+		if (value < 1024) return `${value} B`;
+		const units = ['KB', 'MB', 'GB', 'TB'];
+		let n = value / 1024;
+		let i = 0;
+		while (n >= 1024 && i < units.length - 1) {
+			n /= 1024;
+			i += 1;
+		}
+		return `${n >= 10 ? Math.round(n) : n.toFixed(1)} ${units[i]}`;
+	}
+
+	/**
+	 * @param {number} localBytes
+	 * @param {number | null} maxLocalBytes
+	 */
+	function storageFill(localBytes, maxLocalBytes) {
+		if (!maxLocalBytes) return 0;
+		return Math.min(100, Math.round((localBytes / maxLocalBytes) * 100));
+	}
+
+	/**
+	 * @param {{ username: string | null, email: string }} account
+	 */
+	function accountLabel(account) {
+		return account.username ? `@${account.username}` : account.email;
 	}
 </script>
 
@@ -531,6 +619,7 @@
 							<tr>
 								<th scope="col">Account</th>
 								<th scope="col">Plan</th>
+								<th scope="col">Storage</th>
 								<th scope="col">Tracks</th>
 								<th scope="col">Joined</th>
 								<th scope="col">Actions</th>
@@ -571,6 +660,38 @@
 											<span class="account-meta">{account.subscriptionStatus}</span>
 										{/if}
 									</td>
+									<td>
+										<div
+											class="storage-meter"
+											aria-label="Hosted storage for {accountLabel(account)}"
+										>
+											<div class="meter-head">
+												<span class="meter-label">Hosted</span>
+												<span class="meter-value">
+													{#if account.maxLocalBytes !== null}
+														{bytesLabel(account.localBytes)} / {bytesLabel(account.maxLocalBytes)}
+													{:else}
+														{bytesLabel(account.localBytes)}
+													{/if}
+												</span>
+											</div>
+											<div
+												class="meter-track"
+												role="progressbar"
+												aria-valuenow={account.localBytes}
+												aria-valuemin="0"
+												aria-valuemax={account.maxLocalBytes ?? account.localBytes}
+												aria-label="Hosted storage used"
+											>
+												<span
+													class="meter-fill"
+													style="width: {account.maxLocalBytes !== null
+														? storageFill(account.localBytes, account.maxLocalBytes)
+														: 0}%"
+												></span>
+											</div>
+										</div>
+									</td>
 									<td>{account.trackCount}</td>
 									<td>{shortDate(account.createdAt)}</td>
 									<td class="cell-actions">
@@ -608,6 +729,66 @@
 												{account.banned ? 'Unban' : 'Ban'}
 											</button>
 										</form>
+										{#if account.userId !== data.viewerId}
+											<div
+												class="delete-wrap"
+												{@attach deleteConfirmUserId === account.userId && deleteConfirmAttach}
+											>
+												<button
+													type="button"
+													class="pressable ghost small danger"
+													aria-expanded={deleteConfirmUserId === account.userId}
+													aria-haspopup="dialog"
+													aria-controls="delete-confirm-{account.userId}"
+													disabled={userBusy}
+													onclick={() => openDeleteConfirm(account.userId)}
+												>
+													Delete
+												</button>
+												{#if deleteConfirmUserId === account.userId}
+													<form
+														id="delete-confirm-{account.userId}"
+														class="delete-panel"
+														method="POST"
+														action="?/deleteUser&section=users"
+														aria-label="Confirm delete {accountLabel(account)}"
+														aria-busy={userBusy}
+														use:enhance={deleteBusyHandler}
+													>
+														<input type="hidden" name="userId" value={account.userId} />
+														<p class="delete-warn">
+															Delete {accountLabel(account)}? This cannot be undone.
+														</p>
+														<label class="purge-check">
+															<input
+																type="checkbox"
+																name="purge"
+																bind:checked={purgeChecked}
+																disabled={userBusy}
+															/>
+															<span>Permanently delete this user and all their data</span>
+														</label>
+														<div class="delete-actions">
+															<button
+																type="button"
+																class="pressable ghost small"
+																disabled={userBusy}
+																onclick={closeDeleteConfirm}
+															>
+																Cancel
+															</button>
+															<button
+																class="pressable small danger"
+																type="submit"
+																disabled={userBusy || !purgeChecked}
+															>
+																{userBusy ? 'Deleting…' : 'Delete'}
+															</button>
+														</div>
+													</form>
+												{/if}
+											</div>
+										{/if}
 									</td>
 								</tr>
 							{/each}
@@ -982,6 +1163,107 @@
 		width: auto;
 		padding: 0.4rem 0.5rem;
 		font-size: 0.75rem;
+	}
+
+	.storage-meter {
+		width: 100%;
+		min-width: 8.5rem;
+		max-width: 12rem;
+	}
+
+	.meter-head {
+		display: flex;
+		gap: 0.6rem;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: 0.3rem;
+	}
+
+	.meter-label {
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.meter-value {
+		color: var(--muted);
+		font-size: 0.72rem;
+		white-space: nowrap;
+	}
+
+	.meter-track {
+		height: 0.5rem;
+		border: 1px solid var(--ink);
+		background: transparent;
+	}
+
+	.meter-fill {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+	}
+
+	.delete-wrap {
+		position: relative;
+	}
+
+	.delete-panel {
+		position: absolute;
+		top: calc(100% + 0.4rem);
+		right: 0;
+		z-index: 20;
+		display: grid;
+		gap: 0.75rem;
+		width: min(18rem, 70vw);
+		padding: 0.9rem 1rem;
+		border: 1px solid var(--hard-border);
+		background: var(--paper);
+		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.delete-warn {
+		margin: 0;
+		font-size: 0.8rem;
+		font-weight: 700;
+		line-height: 1.4;
+	}
+
+	.purge-check {
+		display: flex;
+		gap: 0.55rem;
+		align-items: flex-start;
+		margin: 0;
+		font-size: 0.78rem;
+		font-weight: 400;
+		letter-spacing: 0;
+		text-transform: none;
+		line-height: 1.35;
+		cursor: pointer;
+	}
+
+	.purge-check input {
+		width: auto;
+		margin-top: 0.15rem;
+		accent-color: var(--accent);
+	}
+
+	.delete-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		justify-content: flex-end;
+	}
+
+	.pressable.danger {
+		border-color: var(--ink);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--accent) 28%, transparent);
+	}
+
+	.pressable.danger:not(.ghost) {
+		color: var(--on-accent);
+		background: var(--accent);
 	}
 
 	code {
