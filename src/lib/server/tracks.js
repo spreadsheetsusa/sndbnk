@@ -42,7 +42,8 @@ const COVER_EXT_BY_MIME = {
 	'image/jpeg': 'jpg',
 	'image/jpg': 'jpg',
 	'image/png': 'png',
-	'image/webp': 'webp'
+	'image/webp': 'webp',
+	'image/gif': 'gif'
 };
 
 /**
@@ -237,7 +238,7 @@ export async function validateCoverFile(file) {
 	const head = await readFileHead(file);
 	const sniffed = sniffImage(head);
 	if (!sniffed || !COVER_EXT_BY_MIME[sniffed.mime]) {
-		return { ok: false, message: 'Cover art must be jpg, png, or webp.' };
+		return { ok: false, message: 'Cover art must be jpg, png, webp, or gif.' };
 	}
 
 	return {

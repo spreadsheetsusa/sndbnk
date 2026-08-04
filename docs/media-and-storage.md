@@ -84,7 +84,7 @@ Two rules follow:
 flowchart TD
   form["POST /library/new"] --> meta["parseTrackMetadata"]
   meta --> audio["validateAudioFile<br/>500MB, mime+ext allowlist"]
-  audio --> cover["validateCoverFile<br/>5MB, jpg/png/webp"]
+  audio --> cover["validateCoverFile<br/>5MB, jpg/png/webp/gif"]
   cover --> resolve["getStorageAdapter"]
   resolve --> insert["db.insert track<br/>waveform=null"]
   insert --> put["storage.put audio + cover"]
