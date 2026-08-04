@@ -505,23 +505,9 @@
 		align-items: stretch;
 		gap: 0.25rem;
 		min-width: 0;
-		padding: 0.45rem 0.4rem;
-		border: 1px solid transparent;
+		padding: 0.45rem 0.15rem;
 		color: inherit;
 		text-decoration: none;
-		transition:
-			background 120ms ease,
-			border-color 120ms ease,
-			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
-	}
-
-	.item:hover {
-		border-color: color-mix(in srgb, var(--ink) 22%, transparent);
-		background: color-mix(in srgb, var(--ink) 6%, transparent);
-	}
-
-	.item:active {
-		transform: translate(1px, 1px);
 	}
 
 	.activity-head {

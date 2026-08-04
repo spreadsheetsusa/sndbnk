@@ -415,10 +415,26 @@
 		flex: 1;
 	}
 
+	.item-copy .item-meta {
+		text-align: left;
+	}
+
 	.item.activity {
 		flex-direction: column;
 		align-items: stretch;
 		gap: 0.25rem;
+		border: 0;
+		padding-inline: 0.15rem;
+		transition: none;
+	}
+
+	.item.activity:hover {
+		border-color: transparent;
+		background: transparent;
+	}
+
+	.item.activity:active {
+		transform: none;
 	}
 
 	.activity-head {
