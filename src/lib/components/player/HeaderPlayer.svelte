@@ -456,6 +456,7 @@
 		min-width: 0;
 		max-width: 100%;
 		justify-content: center;
+		overflow: visible;
 	}
 
 	.strip {
@@ -464,10 +465,10 @@
 		/* Wider than content-sized, but leave breathing room beside logo/nav. */
 		width: min(100%, 44rem);
 		min-width: 0;
+		overflow: visible;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
-		container-type: inline-size;
 	}
 
 	.transport,
@@ -475,6 +476,13 @@
 		display: flex;
 		align-items: stretch;
 		flex-shrink: 0;
+	}
+
+	/* Let .queue-count overhang neighboring cells without being clipped. */
+	.bar-actions {
+		position: relative;
+		z-index: 2;
+		overflow: visible;
 	}
 
 	.cell {
@@ -623,6 +631,8 @@
 		padding: 0;
 		flex-shrink: 1;
 		font-family: 'Share Tech Mono', ui-monospace, monospace;
+		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
+		container-type: inline-size;
 		/* Dimmer LCD wash: accent muted into ink, then lightly into paper. */
 		--lcd-tint: color-mix(in srgb, var(--accent) 42%, var(--ink));
 		background:
@@ -758,14 +768,18 @@
 		position: relative;
 	}
 
-	/* Badge overhangs the next sibling; elevate this button so .queue-count wins. */
+	/*
+	 * Badge overhangs neighboring controls. Override .cell overflow:hidden and
+	 * elevate this button above sibling action cells so .queue-count wins.
+	 */
 	.queue-btn {
-		z-index: 1;
+		overflow: visible;
+		z-index: 50;
 	}
 
 	.queue-count {
 		position: absolute;
-		z-index: 20;
+		z-index: 50;
 		top: -0.4rem;
 		right: -0.4rem;
 		min-width: 1rem;
@@ -1018,8 +1032,8 @@
 		}
 	}
 
-	/* Drop KBPS / STEREO / KHZ when the strip itself is tight (desktop squeeze or narrow). */
-	@container (max-width: 36rem) {
+	/* Drop KBPS / STEREO / KHZ when the meta column is squeezed (maxes at 20rem). */
+	@container (max-width: 13rem) {
 		.now-tech {
 			display: none;
 		}
