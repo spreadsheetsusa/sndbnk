@@ -12,12 +12,15 @@
 	 */
 	let { src = null, name = null, size = '2rem', alt = '' } = $props();
 
+	/** @type {string | null} */
+	let brokenSrc = $state(null);
 	const initial = $derived((name ?? '?').trim().charAt(0).toUpperCase() || '?');
+	const showImage = $derived(Boolean(src) && src !== brokenSrc);
 </script>
 
 <span class="avatar" style:--avatar-size={size}>
-	{#if src}
-		<img {src} {alt} loading="lazy" />
+	{#if showImage}
+		<img {src} {alt} loading="lazy" decoding="async" onerror={() => (brokenSrc = src)} />
 	{:else}
 		<span aria-hidden="true">{initial}</span>
 	{/if}

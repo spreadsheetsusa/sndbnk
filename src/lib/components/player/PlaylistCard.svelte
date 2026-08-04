@@ -10,6 +10,7 @@
 	import { fade, slide } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
@@ -104,12 +105,8 @@
 
 	const activeTrack = $derived(playlist.tracks[activeIndex] ?? null);
 
-	const coverSrc = $derived(
-		playlist.coverTrackId
-			? `/api/media/${playlist.coverTrackId}/cover`
-			: playlist.tracks.find((t) => t.hasCover)
-				? `/api/media/${playlist.tracks.find((t) => t.hasCover)?.id}/cover`
-				: null
+	const coverTrackId = $derived(
+		playlist.coverTrackId ?? playlist.tracks.find((t) => t.hasCover)?.id ?? null
 	);
 
 	let commentBody = $state('');
@@ -424,20 +421,15 @@
 
 <article
 	class="playlist-card"
-	style:--cover-url={coverSrc ? `url(${coverSrc})` : 'none'}
 	onfocusin={() => (focusWithin = true)}
 	onfocusout={handleFocusOut}
 	{@attach whileNearViewport((visible) => (nearViewport = visible))}
 >
-	<div class="cover">
-		{#if coverSrc}
-			<img src={coverSrc} alt="" loading="lazy" />
-		{:else}
-			<span class="cover-placeholder" aria-hidden="true">
-				<IconPlaylist size={36} stroke={1.5} />
-			</span>
-		{/if}
-	</div>
+	<CoverArt trackId={coverTrackId ?? ''} hasCover={Boolean(coverTrackId)} wash wrapperClass="cover">
+		{#snippet placeholder()}
+			<IconPlaylist size={36} stroke={1.5} />
+		{/snippet}
+	</CoverArt>
 
 	<div class="body">
 		<div class="head">
@@ -669,14 +661,14 @@
 		padding: 1rem;
 	}
 
-	.cover {
+	.playlist-card :global(> .cover) {
 		width: var(--track-card-cover-size, 10rem);
 		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
 	}
 
-	.cover img,
-	.cover-placeholder {
+	.playlist-card :global(> .cover img),
+	.playlist-card :global(> .cover .cover-placeholder) {
 		display: flex;
 		width: 100%;
 		height: 100%;
@@ -689,11 +681,11 @@
 		color: var(--muted);
 	}
 
-	.cover img {
+	.playlist-card :global(> .cover img) {
 		display: block;
 	}
 
-	.cover-placeholder {
+	.playlist-card :global(> .cover .cover-placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
@@ -1100,21 +1092,8 @@
 			position: relative;
 		}
 
-		.cover {
+		.playlist-card :global(> .cover) {
 			display: none;
-		}
-
-		.playlist-card::before {
-			content: '';
-			position: absolute;
-			inset: 0;
-			z-index: 0;
-			background-image: var(--cover-url);
-			background-position: center;
-			background-size: cover;
-			opacity: 0.12;
-			pointer-events: none;
-			filter: blur(8px);
 		}
 
 		.body {

@@ -2,6 +2,7 @@
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
@@ -76,9 +77,13 @@
 
 {#if track}
 	<div class="sound-card live" class:playing={isPlaying} aria-label={cardLabel}>
-		{#if track.hasCover}
-			<img class="cover-bleed" src="/api/media/{track.id}/cover" alt="" aria-hidden="true" />
-		{/if}
+		<CoverArt
+			trackId={track.id}
+			hasCover={track.hasCover}
+			class="cover-bleed"
+			loading="eager"
+			placeholder={false}
+		/>
 
 		<div class="card-topline">
 			<span>{artistLabel}</span>
@@ -86,11 +91,14 @@
 		</div>
 
 		<div class="stage">
-			{#if track.hasCover}
-				<img class="cover" src="/api/media/{track.id}/cover" alt="" width="280" height="280" />
-			{:else}
-				<span class="cover placeholder" aria-hidden="true"></span>
-			{/if}
+			<CoverArt
+				trackId={track.id}
+				hasCover={track.hasCover}
+				class="cover"
+				loading="eager"
+				width="280"
+				height="280"
+			/>
 
 			<button
 				type="button"
@@ -171,7 +179,7 @@
 		gap: clamp(1rem, 2.5vw, 1.5rem);
 	}
 
-	.cover-bleed {
+	.sound-card :global(img.cover-bleed) {
 		position: absolute;
 		z-index: -1;
 		inset: 0;
@@ -252,7 +260,8 @@
 		align-self: center;
 	}
 
-	.cover {
+	.stage :global(img.cover),
+	.stage :global(span.cover.placeholder) {
 		display: block;
 		width: min(100%, 16rem);
 		aspect-ratio: 1;
@@ -261,7 +270,7 @@
 		object-fit: cover;
 	}
 
-	.cover.placeholder {
+	.stage :global(span.cover.placeholder) {
 		background:
 			linear-gradient(
 				135deg,
@@ -371,7 +380,8 @@
 			box-shadow: 0.65rem 0.65rem 0 color-mix(in srgb, var(--accent) 60%, black);
 		}
 
-		.cover {
+		.stage :global(img.cover),
+		.stage :global(span.cover.placeholder) {
 			width: min(100%, 12rem);
 		}
 

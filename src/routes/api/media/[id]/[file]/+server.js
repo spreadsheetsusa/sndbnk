@@ -74,6 +74,42 @@ async function sliceBody(body, start, end) {
 	return bytes.subarray(start, end + 1);
 }
 
+/**
+ * Definite absence — do not retry (local missing file, SFTP ENOENT).
+ * @param {unknown} err
+ */
+function isMissingFileError(err) {
+	if (!(err instanceof Error)) return false;
+	if (err.message === 'File not found.') return true;
+	const code = /** @type {{ code?: number | string }} */ (err).code;
+	return code === 2 || code === 'ENOENT';
+}
+
+/**
+ * Retry transient storage failures (SSH connect blips). Skip clear misses.
+ *
+ * @param {import('#lib/server/storage/types.js').StorageAdapter} adapter
+ * @param {string} folderKey
+ * @param {string} filename
+ */
+async function getWithRetry(adapter, folderKey, filename) {
+	const delaysMs = [0, 120, 240];
+	/** @type {unknown} */
+	let lastErr;
+	for (let i = 0; i < delaysMs.length; i++) {
+		if (delaysMs[i] > 0) {
+			await new Promise((resolve) => setTimeout(resolve, delaysMs[i]));
+		}
+		try {
+			return await adapter.get(folderKey, filename);
+		} catch (err) {
+			lastErr = err;
+			if (isMissingFileError(err)) throw err;
+		}
+	}
+	throw lastErr;
+}
+
 export async function GET({ locals, params, request, setHeaders, url }) {
 	const kind = params.file;
 	if (kind !== 'audio' && kind !== 'cover') {
@@ -96,7 +132,7 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 			row.userId,
 			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
 		);
-		const object = await adapter.get(row.folderKey, filename);
+		const object = await getWithRetry(adapter, row.folderKey, filename);
 		const mime = resolveMime(kind, row) || object.contentType;
 
 		// ACAO so <audio crossOrigin="anonymous"> can feed MediaElementSource analysers
@@ -145,6 +181,8 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 			}
 		});
 	} catch {
+		// Avoid sticky negative caching of transient SSH/storage misses.
+		setHeaders({ 'cache-control': 'private, no-store' });
 		error(404, 'Not found');
 	}
 }
