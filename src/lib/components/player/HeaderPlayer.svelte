@@ -273,50 +273,6 @@
 				</button>
 			</div>
 
-			<div class="cell scrub">
-				<span class="time elapsed">{formatDuration(displayTime * 1000)}</span>
-
-				<div class="wave-wrap">
-					<Waveform
-						peaks={track.waveform}
-						{durationMs}
-						currentTime={player.currentTime}
-						label="Seek within {track.title}"
-						onseek={handleWaveSeek}
-						onscrub={(seconds) => (scrubSeconds = seconds)}
-					/>
-					{#each markers as marker (marker.id)}
-						<button
-							type="button"
-							class="marker"
-							class:active={activeMarker?.id === marker.id}
-							style:left="{marker.leftPct}%"
-							aria-label="{marker.userName} commented at {formatDuration(
-								marker.atMs
-							)}: {marker.body}"
-							onmouseenter={() => (hoveredMarkerId = marker.id)}
-							onmouseleave={() => (hoveredMarkerId = null)}
-							onfocus={() => (hoveredMarkerId = marker.id)}
-							onblur={() => (hoveredMarkerId = null)}
-						>
-							<Avatar src={marker.userImage} name={marker.userName} size="1rem" />
-						</button>
-					{/each}
-					{#if activeMarker}
-						<div
-							class="marker-tip"
-							style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
-							transition:fade={{ duration: 120 }}
-						>
-							<span class="tip-name">{activeMarker.userName}</span>
-							<span class="tip-body">{activeMarker.body}</span>
-						</div>
-					{/if}
-				</div>
-
-				<span class="time total">{formatDuration(player.duration * 1000)}</span>
-			</div>
-
 			<div class="cell now-playing" class:queue-open={queueOpen}>
 				<div class="cover-wrap">
 					<button
@@ -436,6 +392,50 @@
 				</div>
 			</div>
 
+			<div class="cell scrub">
+				<span class="time elapsed">{formatDuration(displayTime * 1000)}</span>
+
+				<div class="wave-wrap">
+					<Waveform
+						peaks={track.waveform}
+						{durationMs}
+						currentTime={player.currentTime}
+						label="Seek within {track.title}"
+						onseek={handleWaveSeek}
+						onscrub={(seconds) => (scrubSeconds = seconds)}
+					/>
+					{#each markers as marker (marker.id)}
+						<button
+							type="button"
+							class="marker"
+							class:active={activeMarker?.id === marker.id}
+							style:left="{marker.leftPct}%"
+							aria-label="{marker.userName} commented at {formatDuration(
+								marker.atMs
+							)}: {marker.body}"
+							onmouseenter={() => (hoveredMarkerId = marker.id)}
+							onmouseleave={() => (hoveredMarkerId = null)}
+							onfocus={() => (hoveredMarkerId = marker.id)}
+							onblur={() => (hoveredMarkerId = null)}
+						>
+							<Avatar src={marker.userImage} name={marker.userName} size="1rem" />
+						</button>
+					{/each}
+					{#if activeMarker}
+						<div
+							class="marker-tip"
+							style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
+							transition:fade={{ duration: 120 }}
+						>
+							<span class="tip-name">{activeMarker.userName}</span>
+							<span class="tip-body">{activeMarker.body}</span>
+						</div>
+					{/if}
+				</div>
+
+				<span class="time total">{formatDuration(player.duration * 1000)}</span>
+			</div>
+
 			{#if signedIn || visualizer.supported}
 				<div class="bar-actions">
 					{#if signedIn}
@@ -535,8 +535,8 @@
 		border-bottom-right-radius: var(--player-radius);
 	}
 
-	/* Queue moved to cover — when no like/viz actions remain, round the meta edge. */
-	.strip:not(:has(.bar-actions)) .now-playing {
+	/* When no like/viz actions remain, scrub is the rightmost cell. */
+	.strip:not(:has(.bar-actions)) .scrub {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
@@ -581,8 +581,8 @@
 
 	.scrub {
 		gap: 0.5rem;
-		flex: 1 1 16rem;
-		min-width: 11rem;
+		flex: 1 1 12rem;
+		min-width: 8rem;
 		max-width: 100%;
 		padding: 0 0.6rem;
 	}
@@ -669,10 +669,12 @@
 
 	.now-playing {
 		gap: 0;
-		min-width: 0;
+		/* Cover (~2.25rem) + title room; shrink only after scrub has given ground. */
+		flex: 0 1 16rem;
+		min-width: 9.5rem;
 		max-width: 20rem;
 		padding: 0;
-		flex-shrink: 1;
+		/* Visible so the queue badge can escape; clip spill inside .now-body. */
 		overflow: visible;
 		font-family: 'Bitcount Prop Single', ui-monospace, monospace;
 		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
@@ -785,6 +787,8 @@
 		min-width: 0;
 		flex: 1;
 		padding: 0 0.1rem 0 0.45rem;
+		/* Keep bitrate/stereo from painting over the adjacent waveform. */
+		overflow: hidden;
 	}
 
 	.now-meta {
@@ -1060,6 +1064,8 @@
 
 		.now-playing {
 			grid-area: meta;
+			flex: none;
+			min-width: 0;
 			max-width: none;
 			min-height: 2.1rem;
 			padding: 0;
@@ -1071,6 +1077,12 @@
 		.strip:not(:has(.bar-actions)) .now-playing {
 			border-top-right-radius: var(--player-radius);
 			border-bottom-right-radius: 0;
+		}
+
+		/* Undo desktop “scrub is rightmost” radii — top-right stays on meta. */
+		.strip:not(:has(.bar-actions)) .scrub {
+			border-top-right-radius: 0;
+			border-bottom-right-radius: var(--player-radius);
 		}
 
 		.now-body {
@@ -1152,8 +1164,8 @@
 		}
 	}
 
-	/* Drop KBPS / STEREO / KHZ when the meta column is squeezed (maxes at 20rem). */
-	@container (max-width: 13rem) {
+	/* Drop KBPS / STEREO / KHZ first when the LCD cell is squeezed (before title collapses). */
+	@container (max-width: 14.5rem) {
 		.now-tech {
 			display: none;
 		}
