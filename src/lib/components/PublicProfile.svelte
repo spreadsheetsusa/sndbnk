@@ -166,59 +166,111 @@
 
 	<main id="main">
 		<div class="profile-grid" class:no-sidebar={!showSidebar}>
-			<section class="hero" aria-labelledby="profile-name">
-				<p class="eyebrow eyebrow-chip accent-text">
-					{data.viaTenantHost ? 'Home' : 'Public profile'}
-				</p>
-				<div class="name-block">
-					<div class="signal" aria-hidden="true">
-						<svg viewBox="0 0 800 180" role="presentation" preserveAspectRatio="none">
-							<path
-								d="M0 90 H40 L55 60 L70 120 L90 30 L110 150 L130 70 L150 100 L170 20 L190 160 L210 55 L230 115 L250 40 L270 140 L290 80 L310 95 L330 50 L350 130 L370 75 L390 105 L410 35 L430 145 L450 65 L470 110 L490 45 L510 135 L530 85 L550 100 L570 25 L590 155 L610 60 L630 120 L650 70 L670 100 L690 55 L710 125 L730 90 H800"
-							/>
-						</svg>
+			<!-- Main column wraps hero + tabs so the tall sidebar cannot stretch the
+			     hero row (CSS grid spanning was inventing a large gap above the border). -->
+			<div class="profile-main">
+				<section class="hero" aria-labelledby="profile-name">
+					<p class="eyebrow eyebrow-chip accent-text">
+						{data.viaTenantHost ? 'Home' : 'Public profile'}
+					</p>
+					<div class="name-block">
+						<div class="signal" aria-hidden="true">
+							<svg viewBox="0 0 800 180" role="presentation" preserveAspectRatio="none">
+								<path
+									d="M0 90 H40 L55 60 L70 120 L90 30 L110 150 L130 70 L150 100 L170 20 L190 160 L210 55 L230 115 L250 40 L270 140 L290 80 L310 95 L330 50 L350 130 L370 75 L390 105 L410 35 L430 145 L450 65 L470 110 L490 45 L510 135 L530 85 L550 100 L570 25 L590 155 L610 60 L630 120 L650 70 L670 100 L690 55 L710 125 L730 90 H800"
+								/>
+							</svg>
+						</div>
+						<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
 					</div>
-					<h1 id="profile-name" class="display-face">{data.profile.name}</h1>
-				</div>
 
-				<div class="identity">
-					<Avatar src={data.profile.avatarUrl} name={data.profile.name} size="3.5rem" />
-					<div class="identity-copy">
-						<p class="handle">@{data.profile.username}</p>
-						{#if data.profile.location}
-							<p class="location">
-								<IconMapPin size={15} stroke={1.75} />
-								{data.profile.location}
-							</p>
+					<div class="identity">
+						<Avatar src={data.profile.avatarUrl} name={data.profile.name} size="3.5rem" />
+						<div class="identity-copy">
+							<p class="handle">@{data.profile.username}</p>
+							{#if data.profile.location}
+								<p class="location">
+									<IconMapPin size={15} stroke={1.75} />
+									{data.profile.location}
+								</p>
+							{/if}
+						</div>
+						{#if data.viewer?.isOwner}
+							<a class="edit-btn" href="/settings" aria-label="Edit profile">
+								<IconPencil size={16} stroke={1.75} aria-hidden="true" />
+							</a>
 						{/if}
 					</div>
-					{#if data.viewer?.isOwner}
-						<a class="edit-btn" href="/settings" aria-label="Edit profile">
-							<IconPencil size={16} stroke={1.75} aria-hidden="true" />
-						</a>
+
+					{#if data.profile.bio}
+						<p class="bio">{data.profile.bio}</p>
 					{/if}
-				</div>
 
-				{#if data.profile.bio}
-					<p class="bio">{data.profile.bio}</p>
-				{/if}
+					{#if data.links.length > 0}
+						<ul class="link-list" aria-label="Links">
+							{#each data.links as link (link.id)}
+								<li>
+									<a href={link.url} target="_blank" rel="me noopener nofollow">
+										<span class="link-glyph" aria-hidden="true">
+											<ProfileLinkIcon label={link.label} />
+										</span>
+										<span class="link-label">{link.label}</span>
+										<span class="link-url">{displayUrl(link.url)}</span>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</section>
 
-				{#if data.links.length > 0}
-					<ul class="link-list" aria-label="Links">
-						{#each data.links as link (link.id)}
-							<li>
-								<a href={link.url} target="_blank" rel="me noopener nofollow">
-									<span class="link-glyph" aria-hidden="true">
-										<ProfileLinkIcon label={link.label} />
-									</span>
-									<span class="link-label">{link.label}</span>
-									<span class="link-url">{displayUrl(link.url)}</span>
-								</a>
-							</li>
+				<section class="tracks" aria-labelledby="tracks-heading">
+					<nav class="scope-strip" aria-label="Profile library">
+						{#each tabs as tab (tab.id)}
+							<a
+								class="scope-btn"
+								href={tabHref(tab.id)}
+								aria-current={data.tab === tab.id ? 'page' : undefined}
+							>
+								{tab.label}
+							</a>
 						{/each}
-					</ul>
-				{/if}
-			</section>
+					</nav>
+					<h2 id="tracks-heading" class="sr-only">{headingCopy}</h2>
+					{#if list.items.length === 0}
+						<p class="lede">{emptyCopy}</p>
+					{:else if items.length === 0}
+						<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
+					{:else}
+						<InfiniteList {list} moreLabel="Load more">
+							<ul class="profile-track-list">
+								{#each items as item (item.id)}
+									<li data-cursor={item.cursor}>
+										{#if item.kind === 'playlist'}
+											<PlaylistCard
+												playlist={item}
+												{linkBase}
+												signedIn={Boolean(data.viewer)}
+												viewerName={data.viewer?.name ?? null}
+												viewerImage={data.viewer?.image ?? null}
+												ondeleted={() => list.remove(item.id)}
+											/>
+										{:else}
+											<TrackCard
+												track={item}
+												{linkBase}
+												signedIn={Boolean(data.viewer)}
+												viewerName={data.viewer?.name ?? null}
+												viewerImage={data.viewer?.image ?? null}
+												ondeleted={() => list.remove(item.id)}
+											/>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</InfiniteList>
+					{/if}
+				</section>
+			</div>
 
 			{#if showSidebar}
 				<ProfileSidebar
@@ -241,54 +293,6 @@
 					onrepoststoggle={(next) => (showReposts = next)}
 				/>
 			{/if}
-
-			<section class="tracks" aria-labelledby="tracks-heading">
-				<nav class="scope-strip" aria-label="Profile library">
-					{#each tabs as tab (tab.id)}
-						<a
-							class="scope-btn"
-							href={tabHref(tab.id)}
-							aria-current={data.tab === tab.id ? 'page' : undefined}
-						>
-							{tab.label}
-						</a>
-					{/each}
-				</nav>
-				<h2 id="tracks-heading" class="sr-only">{headingCopy}</h2>
-				{#if list.items.length === 0}
-					<p class="lede">{emptyCopy}</p>
-				{:else if items.length === 0}
-					<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
-				{:else}
-					<InfiniteList {list} moreLabel="Load more">
-						<ul class="profile-track-list">
-							{#each items as item (item.id)}
-								<li data-cursor={item.cursor}>
-									{#if item.kind === 'playlist'}
-										<PlaylistCard
-											playlist={item}
-											{linkBase}
-											signedIn={Boolean(data.viewer)}
-											viewerName={data.viewer?.name ?? null}
-											viewerImage={data.viewer?.image ?? null}
-											ondeleted={() => list.remove(item.id)}
-										/>
-									{:else}
-										<TrackCard
-											track={item}
-											{linkBase}
-											signedIn={Boolean(data.viewer)}
-											viewerName={data.viewer?.name ?? null}
-											viewerImage={data.viewer?.image ?? null}
-											ondeleted={() => list.remove(item.id)}
-										/>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					</InfiniteList>
-				{/if}
-			</section>
 		</div>
 	</main>
 
@@ -377,18 +381,19 @@
 	.profile-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) var(--site-sidebar-width);
-		grid-template-areas:
-			'head side'
-			'list side';
-		gap: clamp(2rem, 5vw, 3rem);
+		column-gap: clamp(2rem, 5vw, 3rem);
 		align-items: start;
 	}
 
 	.profile-grid.no-sidebar {
 		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas:
-			'head'
-			'list';
+	}
+
+	.profile-main {
+		display: flex;
+		flex-direction: column;
+		gap: 0.65rem;
+		min-width: 0;
 	}
 
 	.profile-page.tenant-host .profile-grid {
@@ -396,13 +401,8 @@
 	}
 
 	.hero {
-		grid-area: head;
 		max-width: 38rem;
 		animation: rise 0.7s ease both;
-	}
-
-	.profile-grid :global(.profile-sidebar) {
-		grid-area: side;
 	}
 
 	.hero > .eyebrow {
@@ -555,10 +555,8 @@
 	}
 
 	.tracks {
-		grid-area: list;
 		min-width: 0;
-		margin-top: 2.5rem;
-		padding-top: clamp(1.5rem, 4vw, 2rem);
+		padding-top: clamp(1rem, 2.5vw, 1.25rem);
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.85s ease 0.2s both;
 	}
@@ -677,22 +675,26 @@
 
 	@media (max-width: 960px) {
 		.profile-grid {
-			grid-template-columns: 1fr;
-			grid-template-areas:
-				'head'
-				'side'
-				'list';
-			gap: 1.25rem;
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
 		}
 
-		.profile-grid.no-sidebar {
-			grid-template-areas:
-				'head'
-				'list';
+		/* Flatten so sidebar can sit between hero and tabs (mobile snap rail). */
+		.profile-main {
+			display: contents;
+		}
+
+		.hero {
+			order: 1;
+		}
+
+		.profile-grid :global(.profile-sidebar) {
+			order: 2;
 		}
 
 		.tracks {
-			margin-top: 0;
+			order: 3;
 		}
 	}
 
@@ -710,7 +712,7 @@
 		}
 
 		.tracks {
-			padding-top: 1.25rem;
+			padding-top: 1rem;
 		}
 	}
 
