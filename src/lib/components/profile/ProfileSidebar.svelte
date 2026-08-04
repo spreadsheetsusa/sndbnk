@@ -561,9 +561,15 @@
 		}
 
 		.rail-row {
+			position: relative;
 			display: flex;
 			gap: 0.45rem;
 			align-items: stretch;
+		}
+
+		.rail-row:has(.panel-pager) {
+			/* Room for the absolutely positioned pager on the left. */
+			padding-left: 0.85rem;
 		}
 
 		.panel-rail {
@@ -626,17 +632,16 @@
 		}
 
 		.panel-pager {
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			left: 0;
 			display: flex;
 			flex-direction: column;
-			flex-shrink: 0;
 			align-items: center;
-			align-self: stretch;
 			justify-content: center;
 			gap: 0.12rem;
 			width: 0.7rem;
-			/* 0 intrinsic height so siblings set the row; stretch fills the widget. */
-			height: 0;
-			min-height: 0;
 		}
 
 		.pager-dot {
