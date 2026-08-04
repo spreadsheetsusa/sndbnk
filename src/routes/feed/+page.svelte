@@ -285,8 +285,6 @@
 		align-items: stretch;
 		min-width: min(100%, 12rem);
 		max-width: 22rem;
-		height: var(--feed-search-h);
-		min-height: var(--feed-search-h);
 		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--ink));
 		border-radius: 0.125rem;
 		background: color-mix(in srgb, var(--accent) 8%, var(--paper));
@@ -305,7 +303,7 @@
 		display: block;
 		box-sizing: border-box;
 		width: 100%;
-		height: 100%;
+		height: var(--feed-search-h);
 		min-width: 0;
 		margin: 0;
 		padding: 0 0.65rem;
@@ -316,7 +314,7 @@
 		font: inherit;
 		font-size: 0.82rem;
 		font-weight: 500;
-		/* Match control height so single-line text/placeholder centers in the bar. */
+		/* Same used size as height so single-line text/placeholder centers. */
 		line-height: var(--feed-search-h);
 		outline: none;
 		appearance: none;
@@ -363,6 +361,7 @@
 		align-items: center;
 		justify-content: center;
 		min-width: 2.25rem;
+		min-height: var(--feed-search-h);
 		padding: 0 0.55rem;
 		border: 0;
 		border-left: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
