@@ -4,6 +4,7 @@
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import FeatureHighlights from '#lib/components/home/FeatureHighlights.svelte';
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
 	import HeroVisualizer from '#lib/components/home/HeroVisualizer.svelte';
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
@@ -127,6 +128,10 @@
 					<LatestMembers members={data.latestMembers} />
 				</section>
 			{/if}
+
+			<div class="features">
+				<FeatureHighlights />
+			</div>
 
 			<section class="manifesto" aria-label="Our intention">
 				<div class="manifesto-bg" aria-hidden="true">
@@ -267,6 +272,12 @@
 	.latest-members {
 		width: 100%;
 		padding: clamp(2rem, 4vw, 3rem) 0;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		animation: rise 0.85s ease both;
+	}
+
+	.features {
+		width: 100%;
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.85s ease both;
 	}
