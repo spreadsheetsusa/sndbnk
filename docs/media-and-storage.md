@@ -86,19 +86,22 @@ flowchart TD
   meta --> audio["validateAudioFile<br/>500MB, mime+ext allowlist"]
   audio --> cover["validateCoverFile<br/>5MB, jpg/png/webp/gif"]
   cover --> resolve["getStorageAdapter"]
-  resolve --> insert["db.insert track<br/>waveform=null"]
+  resolve --> insert["db.insert track<br/>waveform=null, cover=null"]
   insert --> put["storage.put audio + cover"]
-  put -->|ok| enqueue["BullMQ enqueue waveform"]
+  put -->|ok| coverCols["db.update cover columns"]
+  coverCols --> enqueue["BullMQ enqueue waveform"]
   enqueue --> done["303 → /library/:id"]
   put -->|throws| rollback["storage.delete + db.delete<br/>return ok:false"]
   enqueue --> worker["sndbnk-waveform-worker<br/>ffmpeg → track.waveform"]
 ```
 
 The ordering is deliberate: the DB row is written **first** so the generated `id` can be the
-`folderKey`, and a storage failure rolls back both the files and the row. Preserve that shape if you
-add another storage step — the rollback is the only thing standing between a failed upload and an
-orphaned row. Waveform jobs are enqueued **after** a successful put; enqueue failure is fail-soft
-(upload still succeeds, peaks stay placeholders until a later backfill).
+`folderKey`, and a storage failure rolls back both the files and the row. Cover columns stay null
+until after a successful cover put so feed/library do not request `/cover` while bytes are still
+landing. Preserve that shape if you add another storage step — the rollback is the only thing
+standing between a failed upload and an orphaned row. Waveform jobs are enqueued **after** a
+successful put; enqueue failure is fail-soft (upload still succeeds, peaks stay placeholders until a
+later backfill).
 
 Validation limits live at the top of [`tracks.js`](../src/lib/server/tracks.js):
 `AUDIO_MAX_BYTES` 500MB, `COVER_MAX_BYTES` 5MB, with a MIME-plus-extension allowlist rather than
@@ -175,12 +178,22 @@ intentionally so:
 
 - **Public, no session check.** Tracks must play from public profiles, and that is documented inline
   at the check site.
-- Sets `accept-ranges: bytes` and `cache-control: private, max-age=3600`.
+- Sets `accept-ranges: bytes`. Published covers use `cache-control: public, max-age=3600`; audio and
+  unpublished owner previews stay `private, max-age=3600`.
 - Parses a single `Range: bytes=a-b` header (including suffix ranges) and answers `206` with
   `content-range`. `sliceBody()` uses `Blob.slice` for local files, so seeking never reads the whole
   file off disk.
-- Any failure — bad `file` param, missing track, storage error — is a flat `404`. It deliberately
-  does not distinguish "no such track" from "storage down" to the client.
+- `storage.get` is tried up to three times with short backoff for transient failures (SSH connect
+  blips). Clear missing-file errors (`File not found.`, SFTP/ENOENT) are not retried.
+- Any failure — bad `file` param, missing track, storage error after retries — is a flat `404` with
+  `cache-control: private, no-store` so intermediaries do not sticky-cache a transient miss. It
+  deliberately does not distinguish "no such track" from "storage down" to the client.
+
+Cover `<img>` tags go through `#lib/components/CoverArt.svelte`, which uses native `loading` /
+`decoding="async"`, retries failed loads with a `?r=` cache-bust (up to three attempts), then falls
+back to a placeholder. Upload inserts the track row before `storage.put` (folderKey = id) but leaves
+`coverFilename` null until the cover bytes are stored, so listings do not advertise `hasCover`
+during the put window.
 
 The player points an `HTMLAudioElement` at this URL and lets the browser do the ranged fetching:
 `el.src = /api/media/${track.id}/audio`.

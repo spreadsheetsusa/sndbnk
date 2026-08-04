@@ -649,7 +649,10 @@
 								value={siteSettings.trackPlayPercent}
 								disabled={siteBusy}
 							/>
-							<p class="hint">Percent of duration before a non-mix counts as a play.</p>
+							<p class="hint">
+								Accumulated playing time as a percent of duration (pauses OK; seeking does not
+								count).
+							</p>
 						</div>
 						<div class="field">
 							<label for="mix-play-minutes">Mix continual play (minutes)</label>
@@ -664,7 +667,8 @@
 								disabled={siteBusy}
 							/>
 							<p class="hint">
-								Accumulated playing time for mixes. Short mixes still count when finished.
+								Accumulated playing time for mixes (pauses OK; seeking does not count). Short mixes
+								still count when finished.
 							</p>
 						</div>
 					</div>

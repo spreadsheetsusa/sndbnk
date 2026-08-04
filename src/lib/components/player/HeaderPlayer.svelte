@@ -13,6 +13,7 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import Avatar from '#lib/components/Avatar.svelte';
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -286,17 +287,15 @@
 						aria-haspopup="true"
 						onclick={() => (queueOpen = !queueOpen)}
 					>
-						{#if track.hasCover}
-							<img
-								class="bar-cover"
-								src="/api/media/{track.id}/cover"
-								alt=""
-								width="32"
-								height="32"
-							/>
-						{:else}
-							<span class="bar-cover placeholder" aria-hidden="true"></span>
-						{/if}
+						<CoverArt
+							trackId={track.id}
+							hasCover={track.hasCover}
+							class="bar-cover"
+							loading="eager"
+							fetchpriority="high"
+							width="32"
+							height="32"
+						/>
 						{#if player.queue.length > 0}
 							<span class="queue-count">{player.queue.length}</span>
 						{/if}
@@ -676,7 +675,7 @@
 		padding: 0;
 		/* Visible so the queue badge can escape; clip spill inside .now-body. */
 		overflow: visible;
-		font-family: 'Bitcount Prop Single', ui-monospace, monospace;
+		font-family: 'Bitcount Prop Double', ui-monospace, monospace;
 		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
 		container-type: inline-size;
 		/* Soft glass LCD: top catch-light, mid wash, bottom shade — no scanlines. */
@@ -757,7 +756,8 @@
 		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);
 	}
 
-	.bar-cover {
+	.bar-cover-btn :global(img.bar-cover),
+	.bar-cover-btn :global(span.bar-cover.placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -768,7 +768,7 @@
 		pointer-events: none;
 	}
 
-	.bar-cover.placeholder {
+	.bar-cover-btn :global(span.bar-cover.placeholder) {
 		background:
 			linear-gradient(
 				135deg,
@@ -1142,7 +1142,8 @@
 			border-top-left-radius: var(--player-radius);
 		}
 
-		.bar-cover {
+		.bar-cover-btn :global(img.bar-cover),
+		.bar-cover-btn :global(span.bar-cover.placeholder) {
 			border-top-left-radius: var(--player-radius);
 		}
 

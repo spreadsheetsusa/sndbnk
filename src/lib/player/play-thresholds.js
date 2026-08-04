@@ -1,5 +1,7 @@
 /**
  * Client-side play thresholds, set once from root layout data.
+ * Both values mean accumulated playing time (pauses OK; seeking does not count):
+ * trackPlayPercent of duration for non-mix, mixPlayContinualMs for mixes.
  * The player reads these; cards never need them.
  */
 

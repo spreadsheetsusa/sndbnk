@@ -9,6 +9,7 @@
 	import { fade } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
@@ -374,18 +375,8 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<article
-	class="track-card"
-	style:--cover-url={track.hasCover ? `url(/api/media/${track.id}/cover)` : 'none'}
-	{@attach whileNearViewport((visible) => (nearViewport = visible))}
->
-	<div class="cover">
-		{#if track.hasCover}
-			<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-		{:else}
-			<span class="cover-placeholder" aria-hidden="true"></span>
-		{/if}
-	</div>
+<article class="track-card" {@attach whileNearViewport((visible) => (nearViewport = visible))}>
+	<CoverArt trackId={track.id} hasCover={track.hasCover} wash wrapperClass="cover" />
 
 	<div class="body">
 		<div class="head">
@@ -468,11 +459,7 @@
 						<IconDots size={16} stroke={1.75} />
 					</span>
 					<span class="more-cover" aria-hidden="true">
-						{#if track.hasCover}
-							<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-						{:else}
-							<span class="cover-thumb-placeholder"></span>
-						{/if}
+						<CoverArt trackId={track.id} hasCover={track.hasCover} />
 					</span>
 				</button>
 
@@ -633,21 +620,27 @@
 
 <style>
 	.track-card {
+		--cover-art-wash-scrim: linear-gradient(
+			to bottom,
+			color-mix(in srgb, var(--paper) 62%, transparent),
+			var(--paper)
+		);
 		display: grid;
 		grid-template-columns: auto 1fr;
 		gap: 1rem;
 		padding: 1rem;
 	}
 
-	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list. */
-	.cover {
+	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list.
+	   CoverArt owns the .cover node, so pierce with :global. */
+	.track-card :global(> .cover) {
 		width: var(--track-card-cover-size, 10rem);
 		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
 	}
 
-	.cover img,
-	.cover-placeholder {
+	.track-card :global(> .cover img),
+	.track-card :global(> .cover .cover-placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -657,7 +650,7 @@
 		object-fit: cover;
 	}
 
-	.cover-placeholder {
+	.track-card :global(> .cover .cover-placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
@@ -1028,7 +1021,7 @@
 		display: none;
 	}
 
-	.cover-thumb-placeholder {
+	.more-cover :global(.cover-placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -1114,22 +1107,7 @@
 			grid-template-columns: 1fr;
 		}
 
-		/* Blurred cover behind the whole row; the paper scrim keeps text legible. */
-		.track-card::before {
-			content: '';
-			position: absolute;
-			z-index: -1;
-			inset: 0;
-			background:
-				linear-gradient(to bottom, color-mix(in srgb, var(--paper) 62%, transparent), var(--paper)),
-				var(--cover-url, none) center / cover no-repeat;
-			filter: blur(14px) saturate(1.15);
-			opacity: var(--track-card-wash, 0.5);
-			transform: scale(1.08);
-			pointer-events: none;
-		}
-
-		.cover {
+		.track-card :global(> .cover) {
 			display: var(--track-card-cover-mobile, none);
 			width: var(--track-card-cover-size, 100%);
 			height: auto;
@@ -1159,7 +1137,7 @@
 			height: 100%;
 		}
 
-		.more-cover img {
+		.more-cover :global(img) {
 			display: block;
 			width: 100%;
 			height: 100%;

@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
 	import { untrack } from 'svelte';
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import { AUDIO_FILE_ACCEPT } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata, formatDuration } from '#lib/media/audio-metadata.js';
@@ -336,11 +337,14 @@
 				{#if data.track.hasCover}
 					<div class="current-cover">
 						<p class="eyebrow">Current cover</p>
-						<img
-							src="/api/media/{data.track.id}/cover"
+						<CoverArt
+							trackId={data.track.id}
+							hasCover
+							loading="eager"
 							alt="Current cover for {data.track.title}"
 							width="160"
 							height="160"
+							placeholder={false}
 						/>
 					</div>
 				{/if}
@@ -647,7 +651,7 @@
 		background: color-mix(in srgb, var(--ink) 3%, transparent);
 	}
 
-	.current-cover img {
+	.current-cover :global(img) {
 		display: block;
 		width: 10rem;
 		height: 10rem;
@@ -872,7 +876,7 @@
 			grid-template-columns: 1fr;
 		}
 
-		.current-cover img,
+		.current-cover :global(img),
 		.cover-preview img {
 			width: min(100%, 14rem);
 			height: auto;

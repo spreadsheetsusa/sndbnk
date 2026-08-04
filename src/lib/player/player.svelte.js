@@ -387,7 +387,9 @@ class Player {
 
 	/**
 	 * Fire POST /play once per track per session when admin thresholds are met.
-	 * Mixes use accumulated playtime; everything else uses percent of duration.
+	 * Both media types use accumulated playing time (#playedMs); pauses freeze it,
+	 * seeking does not inflate it, and switching tracks resets it.
+	 * Mixes use a fixed ms threshold; everything else uses percent of duration.
 	 */
 	#maybeRecordPlay() {
 		const track = this.current;
@@ -401,7 +403,7 @@ class Player {
 			const need = durationMs > 0 ? Math.min(mixPlayContinualMs, durationMs) : mixPlayContinualMs;
 			met = this.#playedMs >= need;
 		} else if (durationMs > 0) {
-			met = (this.currentTime * 1000) / durationMs >= trackPlayPercent / 100;
+			met = this.#playedMs >= durationMs * (trackPlayPercent / 100);
 		}
 		if (!met) return;
 

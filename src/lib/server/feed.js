@@ -347,12 +347,14 @@ export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 			createdAt: trackComment.createdAt,
 			userName: user.name,
 			userImage: user.image,
+			username: profile.username,
 			trackId: track.id,
 			trackTitle: track.title
 		})
 		.from(trackComment)
 		.innerJoin(track, eq(trackComment.trackId, track.id))
 		.leftJoin(user, eq(user.id, trackComment.userId))
+		.leftJoin(profile, eq(profile.userId, trackComment.userId))
 		.where(and(...conditions))
 		.orderBy(desc(trackComment.createdAt))
 		.limit(limit);
@@ -363,6 +365,7 @@ export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
 		userName: row.userName ?? 'Unknown',
 		userImage: row.userImage ?? null,
+		username: row.username ?? null,
 		trackId: row.trackId,
 		trackTitle: row.trackTitle
 	}));
