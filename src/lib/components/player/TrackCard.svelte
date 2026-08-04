@@ -904,7 +904,7 @@
 		position: relative;
 		display: flex;
 		gap: 0.5rem;
-		align-items: flex-end;
+		align-items: center;
 	}
 
 	.comment-field {
@@ -939,7 +939,12 @@
 		border-color: var(--comment-field-border-focus);
 		background: var(--comment-field-surface-focus);
 		box-shadow: var(--comment-field-inner-shadow);
+		color: var(--comment-field-ink-focus);
 		outline: none;
+	}
+
+	.comment-field textarea:focus::placeholder {
+		color: color-mix(in srgb, var(--comment-field-ink-focus) 55%, transparent);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
