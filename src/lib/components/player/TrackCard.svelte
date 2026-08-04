@@ -6,10 +6,7 @@
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
-	import { onDestroy } from 'svelte';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
-	import { fade, slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import CoverArt from '#lib/components/CoverArt.svelte';
@@ -109,7 +106,6 @@
 	/** @type {HTMLTextAreaElement | null} */
 	let commentField = $state(null);
 
-	const COMMENT_LINE_PX = 22;
 	const COMMENT_FIELD_MAX_LINES = 4;
 
 	function resizeCommentField() {
@@ -118,8 +114,9 @@
 		el.style.height = 'auto';
 		const styles = getComputedStyle(el);
 		const padY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
-		const min = padY + COMMENT_LINE_PX;
-		const max = padY + COMMENT_LINE_PX * COMMENT_FIELD_MAX_LINES;
+		const line = parseFloat(styles.lineHeight) || 18;
+		const min = parseFloat(styles.minHeight) || padY + line;
+		const max = padY + line * COMMENT_FIELD_MAX_LINES;
 		const content = el.scrollHeight;
 		el.style.height = `${Math.min(Math.max(content, min), max)}px`;
 		el.style.overflowY = content > max ? 'auto' : 'hidden';
@@ -131,53 +128,6 @@
 		event.preventDefault();
 		/** @type {HTMLTextAreaElement} */ (event.currentTarget).form?.requestSubmit();
 	}
-
-	/** True while the pointer is over the waveform (not the whole card). */
-	let waveHovered = $state(false);
-	/** Keeps the bar open when moving from the waveform onto the comment form. */
-	let commentHovered = $state(false);
-	let focusWithin = $state(false);
-	/** @type {ReturnType<typeof setTimeout> | null} */
-	let waveLeaveTimer = null;
-
-	// Touch / stylus devices have no hover — keep the comment row always visible.
-	// SSR fallback assumes a hover-capable pointer so desktop does not flash open.
-	const canHover = new MediaQuery('hover: hover', true);
-
-	/**
-	 * Waveform hover opens the bar; a short leave delay lets the pointer reach the
-	 * comment form before the row collapses.
-	 * @param {boolean} hovering
-	 */
-	function handleWaveHover(hovering) {
-		if (waveLeaveTimer != null) {
-			clearTimeout(waveLeaveTimer);
-			waveLeaveTimer = null;
-		}
-		if (hovering) {
-			waveHovered = true;
-			return;
-		}
-		waveLeaveTimer = setTimeout(() => {
-			waveHovered = false;
-			waveLeaveTimer = null;
-		}, 120);
-	}
-
-	onDestroy(() => {
-		if (waveLeaveTimer != null) clearTimeout(waveLeaveTimer);
-	});
-
-	// A draft or a fresh confirmation keeps the bar open, so a stray mouse-out cannot discard either.
-	// On no-hover devices the bar is always open — there is no mouse to reveal it.
-	const commentBarOpen = $derived(
-		!canHover.current ||
-			waveHovered ||
-			commentHovered ||
-			focusWithin ||
-			Boolean(commentBody.trim()) ||
-			Boolean(commentNote)
-	);
 
 	/**
 	 * Comments posted from this card since load, so markers appear without a reload.
@@ -421,33 +371,11 @@
 			moreBtn?.focus();
 		}
 	}
-
-	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
-	function handleFocusOut(event) {
-		const next = /** @type {Node | null} */ (event.relatedTarget);
-		if (!next || !event.currentTarget.contains(next)) focusWithin = false;
-	}
-
-	/**
-	 * An element takes only one transition directive, so the fade is folded into slide's own css.
-	 * @param {Element} node
-	 * @param {import('svelte/transition').SlideParams} [params]
-	 * @returns {import('svelte/transition').TransitionConfig}
-	 */
-	function slideFade(node, params) {
-		const config = slide(node, params);
-		return { ...config, css: (t, u) => `${config.css?.(t, u) ?? ''};opacity:${t}` };
-	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<article
-	class="track-card"
-	onfocusin={() => (focusWithin = true)}
-	onfocusout={handleFocusOut}
-	{@attach whileNearViewport((visible) => (nearViewport = visible))}
->
+<article class="track-card" {@attach whileNearViewport((visible) => (nearViewport = visible))}>
 	<CoverArt trackId={track.id} hasCover={track.hasCover} wash wrapperClass="cover" />
 
 	<div class="body">
@@ -613,7 +541,6 @@
 					label="Seek within {track.title}"
 					onseek={handleSeek}
 					onscrub={(seconds) => (scrubSeconds = seconds)}
-					onhover={handleWaveHover}
 				/>
 			{:else}
 				<!-- Same height as the real waveform, so mounting one shifts nothing. -->
@@ -658,16 +585,8 @@
 			{/if}
 		</div>
 
-		{#if signedIn && showCommentForm && commentBarOpen}
-			<form
-				class="comment-row"
-				transition:slideFade={{
-					duration: prefersReducedMotion.current || !canHover.current ? 0 : 200
-				}}
-				onsubmit={submitComment}
-				onmouseenter={() => (commentHovered = true)}
-				onmouseleave={() => (commentHovered = false)}
-			>
+		{#if signedIn && showCommentForm}
+			<form class="comment-row" onsubmit={submitComment}>
 				<Avatar src={viewerImage} name={viewerName} />
 				<div class="comment-field">
 					<textarea
@@ -688,7 +607,7 @@
 						aria-label="Post comment"
 						disabled={commentBusy || !commentBody.trim()}
 					>
-						<IconArrowUp size={16} stroke={1.75} aria-hidden="true" />
+						<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
 					</button>
 				</div>
 				{#if commentNote}
@@ -745,7 +664,6 @@
 		min-width: 0;
 	}
 
-	/* Spacing lives on the children, not as a flex gap, so `slide` can collapse it with the row. */
 	.body > * + * {
 		margin-top: 0.75rem;
 	}
@@ -979,7 +897,7 @@
 		position: relative;
 		display: flex;
 		gap: 0.5rem;
-		align-items: flex-end;
+		align-items: center;
 	}
 
 	.comment-field {
@@ -991,24 +909,35 @@
 	.comment-field textarea {
 		display: block;
 		width: 100%;
-		min-height: calc(0.55rem * 2 + 1.375rem);
-		max-height: calc(0.55rem * 2 + 1.375rem * 4);
-		padding: 0.55rem 2.5rem 0.55rem 0.75rem;
-		border: 1px solid var(--field-border);
+		min-height: 2rem;
+		max-height: calc(2rem + 1.125rem * 3);
+		padding: 0.3rem 1.85rem 0.3rem 0.55rem;
+		border: 1px solid var(--comment-field-border);
 		border-radius: 0.125rem;
-		background: var(--field-surface);
+		background: var(--comment-field-surface);
+		box-shadow: var(--comment-field-inner-shadow);
 		color: var(--ink);
 		font: inherit;
-		font-size: 0.85rem;
-		line-height: 1.375rem;
+		font-size: 0.82rem;
+		line-height: 1.125rem;
 		resize: none;
 		overflow-y: hidden;
-		transition: height 160ms ease;
+		transition:
+			height 160ms ease,
+			border-color 120ms ease,
+			background-color 120ms ease;
 	}
 
 	.comment-field textarea:focus {
-		border-color: var(--field-border);
+		border-color: var(--comment-field-border-focus);
+		background: var(--comment-field-surface-focus);
+		box-shadow: var(--comment-field-inner-shadow);
+		color: var(--comment-field-ink-focus);
 		outline: none;
+	}
+
+	.comment-field textarea:focus::placeholder {
+		color: color-mix(in srgb, var(--comment-field-ink-focus) 55%, transparent);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -1019,11 +948,11 @@
 
 	.send-btn {
 		position: absolute;
-		right: 0.35rem;
-		bottom: 0.35rem;
+		right: 0.28rem;
+		bottom: 0.28rem;
 		display: inline-flex;
-		width: 1.75rem;
-		height: 1.75rem;
+		width: 1.25rem;
+		height: 1.25rem;
 		align-items: center;
 		justify-content: center;
 		padding: 0;
@@ -1264,12 +1193,12 @@
 		}
 
 		.comment-field textarea {
-			padding-right: 2.85rem;
+			padding-right: 2.1rem;
 		}
 
 		.send-btn {
-			width: 2rem;
-			height: 2rem;
+			width: 1.45rem;
+			height: 1.45rem;
 		}
 
 		.marker :global(.avatar) {

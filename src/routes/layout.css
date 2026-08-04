@@ -31,6 +31,13 @@
 		var(--muted)
 	);
 	--field-surface: color-mix(in srgb, var(--accent) 7%, transparent);
+	/* Compact comment composers: faint resting chrome, darkened accent focus */
+	--comment-field-border: color-mix(in srgb, var(--ink) 16%, transparent);
+	--comment-field-surface: transparent;
+	--comment-field-border-focus: var(--accent);
+	--comment-field-surface-focus: color-mix(in srgb, var(--accent) 24%, black);
+	--comment-field-ink-focus: var(--paper);
+	--comment-field-inner-shadow: inset 0 2px 4px 0 color-mix(in srgb, var(--ink) 12%, transparent);
 	/* Chromatic aberration fringes for display type */
 	--chroma-red: #ff2f4f;
 	--chroma-cyan: #21e0ff;
@@ -96,6 +103,12 @@
 		var(--muted)
 	);
 	--field-surface: color-mix(in srgb, var(--accent) 10%, transparent);
+	--comment-field-border: color-mix(in srgb, var(--ink) 20%, transparent);
+	--comment-field-surface: transparent;
+	--comment-field-border-focus: var(--accent);
+	--comment-field-surface-focus: color-mix(in srgb, var(--accent) 16%, black);
+	--comment-field-ink-focus: var(--ink);
+	--comment-field-inner-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.45);
 	/* Scrim reads hotter against dark paper — keep the wash subtler. */
 	--track-card-wash: 0.38;
 	--chroma-red: #ff5a72;
