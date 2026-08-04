@@ -42,12 +42,19 @@ jobs:
             echo "Pulling latest changes..."
             # .env is gitignored and must never be deleted or overwritten by pull.
             # Snapshot it, clear any tracked dirt so ff-only can apply a deletion cleanly,
-            # then restore the live file before the merge script runs.
+            # then restore the live file (EXIT trap covers pull failures too).
             PRE_PULL_ENV="/tmp/sndbnk.env.pre-pull"
             rm -f "$PRE_PULL_ENV"
             if [ -f .env ]; then
               cp -a .env "$PRE_PULL_ENV"
             fi
+            restore_pre_pull_env() {
+              if [ -f "$PRE_PULL_ENV" ]; then
+                cp -a "$PRE_PULL_ENV" .env
+                chmod 600 .env || true
+              fi
+            }
+            trap restore_pre_pull_env EXIT
             git fetch origin main
             git checkout main
             if git ls-files --error-unmatch .env >/dev/null 2>&1; then
@@ -55,9 +62,8 @@ jobs:
               git checkout HEAD -- .env
             fi
             git pull --ff-only origin main
-            if [ -f "$PRE_PULL_ENV" ]; then
-              cp -a "$PRE_PULL_ENV" .env
-            fi
+            restore_pre_pull_env
+            trap - EXIT
 
             echo "Ensuring production .env values..."
             PRE_PULL_ENV="$PRE_PULL_ENV" python3 - <<'PY'
