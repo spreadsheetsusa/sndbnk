@@ -7,7 +7,6 @@
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconPlayerSkipBackFilled from '@tabler/icons-svelte-runes/icons/player-skip-back-filled';
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
-	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { flip } from 'svelte/animate';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -307,12 +306,86 @@
 				<span class="time total">{formatDuration(player.duration * 1000)}</span>
 			</div>
 
-			<div class="cell now-playing">
-				{#if track.hasCover}
-					<img class="bar-cover" src="/api/media/{track.id}/cover" alt="" width="32" height="32" />
-				{:else}
-					<span class="bar-cover placeholder" aria-hidden="true"></span>
-				{/if}
+			<div class="cell now-playing" class:queue-open={queueOpen}>
+				<div class="cover-wrap">
+					<button
+						type="button"
+						class="bar-cover-btn"
+						class:active={queueOpen}
+						aria-label="Next Up queue"
+						aria-expanded={queueOpen}
+						onclick={() => (queueOpen = !queueOpen)}
+					>
+						{#if track.hasCover}
+							<img
+								class="bar-cover"
+								src="/api/media/{track.id}/cover"
+								alt=""
+								width="32"
+								height="32"
+							/>
+						{:else}
+							<span class="bar-cover placeholder" aria-hidden="true"></span>
+						{/if}
+						{#if player.queue.length > 0}
+							<span class="queue-count">{player.queue.length}</span>
+						{/if}
+					</button>
+
+					{#if queueOpen}
+						<aside class="queue-panel" aria-label="Next Up">
+							<header>
+								<span class="eyebrow">Next Up</span>
+								{#if player.queue.length > 0}
+									<button type="button" class="queue-clear" onclick={() => player.clearQueue()}>
+										Clear
+									</button>
+								{/if}
+							</header>
+							{#if player.queue.length === 0}
+								<p class="queue-empty">Nothing queued. Use “Add to Next Up” on any track.</p>
+							{:else}
+								<ol class:queue-dragging={draggingId != null}>
+									{#each player.queue as queued (queued.id)}
+										<li
+											data-queue-id={queued.id}
+											class:dragging={draggingId === queued.id}
+											animate:flip={{ duration: flipDuration }}
+										>
+											<button
+												type="button"
+												class="queue-handle"
+												aria-label="Reorder {queued.title}"
+												onpointerdown={(e) => startQueueDrag(e, queued.id)}
+												onpointermove={onQueueDragMove}
+												onpointerup={endQueueDrag}
+												onpointercancel={endQueueDrag}
+											>
+												<IconGripVertical size={15} stroke={1.75} aria-hidden="true" />
+											</button>
+											<button
+												type="button"
+												class="queue-track"
+												onclick={() => playQueuedById(queued.id)}
+											>
+												<span class="queue-title">{queued.title}</span>
+												<span class="queue-artist">{queued.artist || queued.uploaderName}</span>
+											</button>
+											<button
+												type="button"
+												class="queue-remove"
+												aria-label="Remove {queued.title} from queue"
+												onclick={() => removeQueuedById(queued.id)}
+											>
+												<IconX size={14} stroke={1.75} aria-hidden="true" />
+											</button>
+										</li>
+									{/each}
+								</ol>
+							{/if}
+						</aside>
+					{/if}
+				</div>
 
 				<div class="now-body">
 					<div class="now-meta desktop-meta">
@@ -349,100 +422,39 @@
 				</div>
 			</div>
 
-			<div class="bar-actions">
-				{#if signedIn}
-					<button
-						type="button"
-						class="cell icon-btn"
-						class:active={track.likedByViewer}
-						aria-label={track.likedByViewer ? 'Unlike' : 'Like'}
-						aria-pressed={track.likedByViewer}
-						onclick={toggleLike}
-					>
-						{#if track.likedByViewer}
-							<IconHeartFilled size={15} aria-hidden="true" />
-						{:else}
-							<IconHeart size={15} stroke={1.75} aria-hidden="true" />
-						{/if}
-					</button>
-				{/if}
-				<button
-					type="button"
-					class="cell icon-btn queue-btn"
-					class:active={queueOpen}
-					aria-label="Next Up queue"
-					aria-expanded={queueOpen}
-					onclick={() => (queueOpen = !queueOpen)}
-				>
-					<IconPlaylist size={15} stroke={1.75} aria-hidden="true" />
-					{#if player.queue.length > 0}
-						<span class="queue-count">{player.queue.length}</span>
-					{/if}
-				</button>
-				{#if visualizer.supported}
-					<button
-						type="button"
-						class="cell icon-btn"
-						class:active={visualizer.enabled}
-						aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
-						aria-pressed={visualizer.enabled}
-						onclick={() => visualizer.toggle()}
-					>
-						<IconPlanet size={15} stroke={1.75} aria-hidden="true" />
-					</button>
-				{/if}
-			</div>
-		</div>
-
-		{#if queueOpen}
-			<aside class="queue-panel" aria-label="Next Up">
-				<header>
-					<span class="eyebrow">Next Up</span>
-					{#if player.queue.length > 0}
-						<button type="button" class="queue-clear" onclick={() => player.clearQueue()}>
-							Clear
+			{#if signedIn || visualizer.supported}
+				<div class="bar-actions">
+					{#if signedIn}
+						<button
+							type="button"
+							class="cell icon-btn"
+							class:active={track.likedByViewer}
+							aria-label={track.likedByViewer ? 'Unlike' : 'Like'}
+							aria-pressed={track.likedByViewer}
+							onclick={toggleLike}
+						>
+							{#if track.likedByViewer}
+								<IconHeartFilled size={15} aria-hidden="true" />
+							{:else}
+								<IconHeart size={15} stroke={1.75} aria-hidden="true" />
+							{/if}
 						</button>
 					{/if}
-				</header>
-				{#if player.queue.length === 0}
-					<p class="queue-empty">Nothing queued. Use “Add to Next Up” on any track.</p>
-				{:else}
-					<ol class:queue-dragging={draggingId != null}>
-						{#each player.queue as queued (queued.id)}
-							<li
-								data-queue-id={queued.id}
-								class:dragging={draggingId === queued.id}
-								animate:flip={{ duration: flipDuration }}
-							>
-								<button
-									type="button"
-									class="queue-handle"
-									aria-label="Reorder {queued.title}"
-									onpointerdown={(e) => startQueueDrag(e, queued.id)}
-									onpointermove={onQueueDragMove}
-									onpointerup={endQueueDrag}
-									onpointercancel={endQueueDrag}
-								>
-									<IconGripVertical size={15} stroke={1.75} aria-hidden="true" />
-								</button>
-								<button type="button" class="queue-track" onclick={() => playQueuedById(queued.id)}>
-									<span class="queue-title">{queued.title}</span>
-									<span class="queue-artist">{queued.artist || queued.uploaderName}</span>
-								</button>
-								<button
-									type="button"
-									class="queue-remove"
-									aria-label="Remove {queued.title} from queue"
-									onclick={() => removeQueuedById(queued.id)}
-								>
-									<IconX size={14} stroke={1.75} aria-hidden="true" />
-								</button>
-							</li>
-						{/each}
-					</ol>
-				{/if}
-			</aside>
-		{/if}
+					{#if visualizer.supported}
+						<button
+							type="button"
+							class="cell icon-btn"
+							class:active={visualizer.enabled}
+							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
+							aria-pressed={visualizer.enabled}
+							onclick={() => visualizer.toggle()}
+						>
+							<IconPlanet size={15} stroke={1.75} aria-hidden="true" />
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	</div>
 {/if}
 
@@ -487,7 +499,6 @@
 		flex-shrink: 0;
 	}
 
-	/* Let .queue-count overhang neighboring cells without being clipped. */
 	.bar-actions {
 		position: relative;
 		z-index: 2;
@@ -505,6 +516,13 @@
 	}
 
 	.bar-actions .cell:last-child {
+		border-right: 0;
+		border-top-right-radius: var(--player-radius);
+		border-bottom-right-radius: var(--player-radius);
+	}
+
+	/* Queue moved to cover — when no like/viz actions remain, round the meta edge. */
+	.strip:not(:has(.bar-actions)) .now-playing {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
@@ -641,6 +659,7 @@
 		max-width: 20rem;
 		padding: 0;
 		flex-shrink: 1;
+		overflow: visible;
 		font-family: 'Share Tech Mono', ui-monospace, monospace;
 		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
 		container-type: inline-size;
@@ -660,6 +679,21 @@
 		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 10%, transparent);
 	}
 
+	.now-playing.queue-open {
+		z-index: 30;
+	}
+
+	.cover-wrap {
+		position: relative;
+		flex-shrink: 0;
+		overflow: visible;
+		z-index: 1;
+	}
+
+	.now-playing.queue-open .cover-wrap {
+		z-index: 50;
+	}
+
 	:global(.dark) .now-playing {
 		--lcd-tint: color-mix(in srgb, var(--accent) 48%, var(--ink));
 		background:
@@ -676,17 +710,36 @@
 		box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lcd-tint) 14%, transparent);
 	}
 
-	.bar-cover {
+	.bar-cover-btn {
+		position: relative;
 		display: block;
 		width: var(--header-chrome-height);
 		height: var(--header-chrome-height);
+		padding: 0;
 		border: 0;
 		border-right: 1px solid
 			color-mix(in srgb, var(--lcd-tint, var(--accent)) 18%, var(--hard-border));
 		border-radius: 0;
+		background: transparent;
+		cursor: pointer;
+		overflow: visible;
+		flex-shrink: 0;
+	}
+
+	.bar-cover-btn.active {
+		/* Subtle accent cue — keep artwork visible. */
+		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);
+	}
+
+	.bar-cover {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		border-radius: 0;
 		box-shadow: none;
 		object-fit: cover;
-		flex-shrink: 0;
+		pointer-events: none;
 	}
 
 	.bar-cover.placeholder {
@@ -779,15 +832,6 @@
 		position: relative;
 	}
 
-	/*
-	 * Badge overhangs neighboring controls. Override .cell overflow:hidden and
-	 * elevate this button above sibling action cells so .queue-count wins.
-	 */
-	.queue-btn {
-		overflow: visible;
-		z-index: 50;
-	}
-
 	.queue-count {
 		position: absolute;
 		z-index: 50;
@@ -808,7 +852,7 @@
 		position: absolute;
 		z-index: 20;
 		top: calc(100% + 0.5rem);
-		right: 0;
+		left: 0;
 		width: min(22rem, calc(100vw - 2 * var(--site-shell-pad-x)));
 		max-height: 60vh;
 		padding: 0.85rem;
@@ -973,6 +1017,13 @@
 			align-items: stretch;
 		}
 
+		.strip:not(:has(.bar-actions)) {
+			grid-template-columns: auto 1fr;
+			grid-template-areas:
+				'meta meta'
+				'transport scrub';
+		}
+
 		.now-playing {
 			grid-area: meta;
 			max-width: none;
@@ -981,6 +1032,11 @@
 			border-right: 0;
 			border-bottom: 1px solid var(--hard-border);
 			border-top-left-radius: var(--player-radius);
+		}
+
+		.strip:not(:has(.bar-actions)) .now-playing {
+			border-top-right-radius: var(--player-radius);
+			border-bottom-right-radius: 0;
 		}
 
 		.now-body {
@@ -1034,9 +1090,13 @@
 			align-items: center;
 		}
 
-		.bar-cover {
+		.bar-cover-btn {
 			width: 2.1rem;
 			height: 2.1rem;
+			border-top-left-radius: var(--player-radius);
+		}
+
+		.bar-cover {
 			border-top-left-radius: var(--player-radius);
 		}
 
@@ -1090,7 +1150,7 @@
 			height: var(--tap-min);
 		}
 
-		.bar-cover {
+		.bar-cover-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
 		}
