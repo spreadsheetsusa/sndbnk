@@ -36,6 +36,13 @@ export const load = async ({ locals, params }) => {
 	return {
 		track,
 		description: row.track.description,
+		meta: {
+			album: row.track.album ?? null,
+			year: row.track.year ?? null,
+			trackNumber: row.track.trackNumber ?? null,
+			bpm: row.track.bpm ?? null,
+			isrc: row.track.isrc ?? null
+		},
 		comments,
 		viaTenantHost: Boolean(locals.tenant),
 		viewer: locals.user

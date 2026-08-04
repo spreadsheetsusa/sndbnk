@@ -6,6 +6,7 @@
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
+	import TrackInfoConsole from '#lib/components/player/TrackInfoConsole.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
@@ -127,62 +128,87 @@
 			</section>
 		{/if}
 
-		<section class="comments" aria-labelledby="comments-heading">
-			<h2 id="comments-heading">
-				{data.comments.length}
-				{data.comments.length === 1 ? 'comment' : 'comments'}
-			</h2>
+		<div class="below-player">
+			<section class="comments" aria-labelledby="comments-heading">
+				<h2 id="comments-heading">
+					{data.comments.length}
+					{data.comments.length === 1 ? 'comment' : 'comments'}
+				</h2>
 
-			{#if data.comments.length === 0}
-				<p class="comments-empty">
-					No comments yet.
-					{#if data.viewer}
-						Be the first — drop one above while the track plays.
-					{:else}
-						<a href="/signin">Sign in</a> to leave one.
-					{/if}
-				</p>
-			{:else}
-				<ul class="comment-list">
-					{#each data.comments as comment (comment.id)}
-						<li>
-							<Avatar src={comment.userImage} name={comment.userName} />
-							<div class="comment-body">
-								<div class="comment-head">
-									<p class="comment-meta">
-										<span class="comment-author">{comment.userName}</span>
-										{#if comment.atMs != null}
+				{#if data.comments.length === 0}
+					<p class="comments-empty">
+						No comments yet.
+						{#if data.viewer}
+							Be the first — drop one above while the track plays.
+						{:else}
+							<a href="/signin">Sign in</a> to leave one.
+						{/if}
+					</p>
+				{:else}
+					<ul class="comment-list">
+						{#each data.comments as comment (comment.id)}
+							<li>
+								<Avatar src={comment.userImage} name={comment.userName} />
+								<div class="comment-body">
+									<div class="comment-head">
+										<p class="comment-meta">
+											<span class="comment-author">{comment.userName}</span>
+											{#if comment.atMs != null}
+												<button
+													type="button"
+													class="comment-at"
+													title="Play from this moment"
+													onclick={() => seekToComment(comment.atMs ?? 0)}
+												>
+													at {formatDuration(comment.atMs)}
+												</button>
+											{/if}
+											<span class="comment-when">{relativeTime(comment.createdAt)}</span>
+										</p>
+										{#if data.viewer?.id === comment.userId}
 											<button
 												type="button"
-												class="comment-at"
-												title="Play from this moment"
-												onclick={() => seekToComment(comment.atMs ?? 0)}
+												class="comment-delete"
+												title="Delete comment"
+												aria-label="Delete comment"
+												disabled={deletingCommentId === comment.id}
+												onclick={() => deleteOwnComment(comment.id)}
 											>
-												at {formatDuration(comment.atMs)}
+												<IconTrash size={14} stroke={1.75} aria-hidden="true" />
 											</button>
 										{/if}
-										<span class="comment-when">{relativeTime(comment.createdAt)}</span>
-									</p>
-									{#if data.viewer?.id === comment.userId}
-										<button
-											type="button"
-											class="comment-delete"
-											title="Delete comment"
-											aria-label="Delete comment"
-											disabled={deletingCommentId === comment.id}
-											onclick={() => deleteOwnComment(comment.id)}
-										>
-											<IconTrash size={14} stroke={1.75} aria-hidden="true" />
-										</button>
-									{/if}
+									</div>
+									<p class="comment-text">{comment.body}</p>
 								</div>
-								<p class="comment-text">{comment.body}</p>
-							</div>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+
+			<div class="info-rail">
+				<TrackInfoConsole
+					trackId={data.track.id}
+					hasCover={data.track.hasCover}
+					mediaType={data.track.mediaType}
+					genre={data.track.genre}
+					album={data.meta.album}
+					year={data.meta.year}
+					trackNumber={data.meta.trackNumber}
+					bpm={data.meta.bpm}
+					isrc={data.meta.isrc}
+					durationMs={data.track.durationMs}
+					bitrate={data.track.bitrate}
+					sampleRate={data.track.sampleRate}
+					channels={data.track.channels}
+					codec={data.track.codec}
+					playCount={data.track.playCount}
+					likeCount={data.track.likeCount}
+					commentCount={data.track.commentCount}
+					createdAt={data.track.createdAt}
+				/>
+			</div>
+		</div>
 	</main>
 </div>
 
@@ -195,7 +221,7 @@
 	}
 
 	main {
-		width: min(100%, var(--site-content-max));
+		width: min(100%, var(--site-content-max-wide));
 		margin: 0 auto;
 		padding-top: clamp(1.25rem, 4vw, 2.5rem);
 	}
@@ -237,11 +263,35 @@
 		white-space: pre-line;
 	}
 
-	.comments {
+	.below-player {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: clamp(1.5rem, 4vw, 2.5rem);
+		align-items: start;
 		margin-top: clamp(2rem, 5vw, 3rem);
 		padding-top: 1.5rem;
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	@media (min-width: 961px) {
+		.below-player {
+			grid-template-columns: minmax(0, 1fr) var(--site-sidebar-width);
+		}
+
+		.info-rail {
+			position: sticky;
+			top: calc(var(--site-header-height) + 1rem);
+		}
+	}
+
+	.comments {
+		min-width: 0;
 		animation: rise 0.8s ease 0.1s both;
+	}
+
+	.info-rail {
+		min-width: 0;
+		animation: rise 0.85s ease 0.14s both;
 	}
 
 	.comments h2 {

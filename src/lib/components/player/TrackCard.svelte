@@ -1,6 +1,7 @@
 <script>
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
+	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
@@ -496,15 +497,23 @@
 						{/if}
 					</span>
 				{/if}
-				<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
-					{relativeTime(track.createdAt)}
-				</span>
-				{#if playCount > 0}
-					<span class="plays" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
-						<IconHeadphones size={12} stroke={2} aria-hidden="true" />
-						{playCount}
+				<span class="aside-stats">
+					<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
+						{relativeTime(track.createdAt)}
 					</span>
-				{/if}
+					{#if playCount > 0}
+						<span class="stat" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
+							<IconHeadphones size={12} stroke={2} aria-hidden="true" />
+							{playCount}
+						</span>
+					{/if}
+					{#if likeCount > 0}
+						<span class="stat" title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}">
+							<IconHeart size={12} stroke={2} aria-hidden="true" />
+							{likeCount}
+						</span>
+					{/if}
+				</span>
 				{#if track.genre}
 					<span class="tag"># {track.genre}</span>
 				{/if}
@@ -815,22 +824,25 @@
 	.aside {
 		display: flex;
 		order: 2;
-		flex-direction: column;
-		gap: 0.35rem;
-		align-items: flex-end;
-		justify-content: flex-start;
+		flex-wrap: wrap;
+		gap: 0.3rem 0.55rem;
+		align-items: center;
+		justify-content: flex-end;
 		margin-left: auto;
 		flex-shrink: 0;
+		max-width: 100%;
 	}
 
-	.uploaded {
-		color: var(--muted);
-		font-size: 0.72rem;
-		font-weight: 600;
-		white-space: nowrap;
+	.aside-stats {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+		align-items: center;
+		justify-content: flex-end;
 	}
 
-	.plays {
+	.uploaded,
+	.stat {
 		display: inline-flex;
 		gap: 0.25rem;
 		align-items: center;
@@ -838,12 +850,18 @@
 		font-size: 0.72rem;
 		font-weight: 600;
 		white-space: nowrap;
+	}
+
+	.stat :global(svg) {
+		display: block;
 	}
 
 	.repost-badge {
 		display: inline-flex;
+		flex-basis: 100%;
 		gap: 0.25rem;
 		align-items: center;
+		justify-content: flex-end;
 		padding: 0.2rem 0.4rem;
 		border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
 		background: color-mix(in srgb, var(--accent) 30%, var(--paper));

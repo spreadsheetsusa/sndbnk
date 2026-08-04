@@ -329,10 +329,10 @@
 	.feed-search {
 		--feed-search-h: 2.25rem;
 		display: flex;
-		flex: 0 1 12rem;
+		flex: 0 1 16.5rem;
 		align-items: stretch;
 		min-width: 0;
-		max-width: 12rem;
+		max-width: 16.5rem;
 		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--ink));
 		border-radius: 0.125rem;
 		background: color-mix(in srgb, var(--accent) 8%, var(--paper));

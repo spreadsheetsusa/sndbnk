@@ -11,8 +11,8 @@
 	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
 
 	/**
-	 * @typedef {{ id: string, title: string, uploaderName: string, username: string | null, likeCount: number }} LikedTrack
-	 * @typedef {{ username: string, name: string, image: string | null, trackCount: number, isViewer?: boolean, followedByViewer?: boolean }} Artist
+	 * @typedef {{ id: string, title: string, uploaderName: string, uploaderImage: string | null, username: string | null, likeCount: number }} LikedTrack
+	 * @typedef {{ username: string, name: string, image: string | null, isViewer?: boolean, followedByViewer?: boolean }} Artist
 	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, trackId: string, trackTitle: string }} RecentComment
 	 * @typedef {{ genre: string, count: number }} GenreCount
 	 */
@@ -166,8 +166,9 @@
 						<ol class="item-list">
 							{#each mostLiked as item, index (item.id)}
 								<li style:view-transition-name="feed-pop-{vtName(item.id)}">
-									<a class="item" href="/tracks/{item.id}">
+									<a class="item avatar-row" href="/tracks/{item.id}">
 										<span class="rank">{padRank(index + 1)}</span>
+										<Avatar src={item.uploaderImage} name={item.uploaderName} size="1.85rem" />
 										<span class="item-copy">
 											<span class="item-title">{item.title}</span>
 											<span class="item-meta">{item.uploaderName}</span>
@@ -198,13 +199,12 @@
 									class="artist-line"
 									style:view-transition-name="feed-art-{vtName(artist.username)}"
 								>
-									<a class="item artist" href="/users/{artist.username}">
+									<a class="item avatar-row" href="/users/{artist.username}">
 										<Avatar src={artist.image} name={artist.name} size="1.85rem" />
 										<span class="item-copy">
 											<span class="item-title">{artist.name}</span>
 											<span class="item-meta">@{artist.username}</span>
 										</span>
-										<span class="item-stat">{artist.trackCount}</span>
 									</a>
 									{#if !collapsed && !artist.isViewer}
 										<FollowButton
