@@ -41,6 +41,23 @@
 	const needsAccount = $derived(!signedIn);
 
 	/**
+	 * Paid tier that can open Stripe checkout for this visitor right now.
+	 * @param {string | null} planId
+	 */
+	function canCheckoutPlan(planId) {
+		if (!planId) return false;
+		const tier = data.plans.find((row) => row.id === planId);
+		if (!tier) return false;
+		return (
+			tier.monthlyAmount > 0 &&
+			tier.purchasable &&
+			data.billingEnabled &&
+			data.account?.plan !== planId &&
+			!data.account?.hasSubscription
+		);
+	}
+
+	/**
 	 * @param {number} cents
 	 */
 	function money(cents) {
@@ -86,18 +103,17 @@
 		const id = data.preselectPlan;
 		if (!id) return;
 
-		const tier = data.plans.find((row) => row.id === id);
-		if (!tier) return;
+		if (!canCheckoutPlan(id)) {
+			selectedPlan = id;
+			return;
+		}
 
-		const canCheckout =
-			tier.monthlyAmount > 0 &&
-			tier.purchasable &&
-			data.billingEnabled &&
-			currentPlan !== id &&
-			!data.account?.hasSubscription;
+		choose(id);
 
-		if (canCheckout) choose(id);
-		else selectedPlan = id;
+		// Frontpage already chose the plan (?plan=). Signed-in users skip the
+		// redundant "Continue to payment" gate; startCheckout sets `starting`
+		// synchronously so the first paint shows "Preparing checkout…" instead.
+		if (signedIn) void startCheckout();
 	});
 
 	/**
@@ -377,15 +393,15 @@
 					{/if}
 
 					{#if !paymentReady}
-						<form
-							class="account-form"
-							aria-busy={starting}
-							onsubmit={(event) => {
-								event.preventDefault();
-								startCheckout();
-							}}
-						>
-							{#if needsAccount}
+						{#if needsAccount}
+							<form
+								class="account-form"
+								aria-busy={starting}
+								onsubmit={(event) => {
+									event.preventDefault();
+									startCheckout();
+								}}
+							>
 								<p class="form-intro">
 									Your account is created before payment, so a declined card still leaves you a
 									working Free profile.
@@ -431,17 +447,32 @@
 									bind:value={password}
 									required
 								/>
-							{:else}
+
+								<button class="submit pressable" type="submit" disabled={starting}>
+									{starting ? 'Preparing checkout…' : 'Continue to payment'}
+								</button>
+							</form>
+						{:else if starting}
+							<p class="form-intro" aria-live="polite" aria-busy="true">Preparing checkout…</p>
+						{:else}
+							<form
+								class="account-form"
+								aria-busy={starting}
+								onsubmit={(event) => {
+									event.preventDefault();
+									startCheckout();
+								}}
+							>
 								<p class="form-intro">
 									Signed in as <strong>{data.account?.username}</strong>. Continue to enter payment
 									details.
 								</p>
-							{/if}
 
-							<button class="submit pressable" type="submit" disabled={starting}>
-								{starting ? 'Preparing checkout…' : 'Continue to payment'}
-							</button>
-						</form>
+								<button class="submit pressable" type="submit" disabled={starting}>
+									{starting ? 'Preparing checkout…' : 'Continue to payment'}
+								</button>
+							</form>
+						{/if}
 					{/if}
 
 					<div class="payment" hidden={!paymentReady}>
