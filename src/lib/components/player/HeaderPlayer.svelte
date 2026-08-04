@@ -756,7 +756,8 @@
 		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);
 	}
 
-	.bar-cover {
+	.bar-cover-btn :global(img.bar-cover),
+	.bar-cover-btn :global(span.bar-cover.placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -767,7 +768,7 @@
 		pointer-events: none;
 	}
 
-	.bar-cover.placeholder {
+	.bar-cover-btn :global(span.bar-cover.placeholder) {
 		background:
 			linear-gradient(
 				135deg,
@@ -1141,7 +1142,8 @@
 			border-top-left-radius: var(--player-radius);
 		}
 
-		.bar-cover {
+		.bar-cover-btn :global(img.bar-cover),
+		.bar-cover-btn :global(span.bar-cover.placeholder) {
 			border-top-left-radius: var(--player-radius);
 		}
 

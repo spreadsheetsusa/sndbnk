@@ -179,7 +179,7 @@
 		gap: clamp(1rem, 2.5vw, 1.5rem);
 	}
 
-	.cover-bleed {
+	.sound-card :global(img.cover-bleed) {
 		position: absolute;
 		z-index: -1;
 		inset: 0;
@@ -260,7 +260,8 @@
 		align-self: center;
 	}
 
-	.cover {
+	.stage :global(img.cover),
+	.stage :global(span.cover.placeholder) {
 		display: block;
 		width: min(100%, 16rem);
 		aspect-ratio: 1;
@@ -269,7 +270,7 @@
 		object-fit: cover;
 	}
 
-	.cover.placeholder {
+	.stage :global(span.cover.placeholder) {
 		background:
 			linear-gradient(
 				135deg,
@@ -379,7 +380,8 @@
 			box-shadow: 0.65rem 0.65rem 0 color-mix(in srgb, var(--accent) 60%, black);
 		}
 
-		.cover {
+		.stage :global(img.cover),
+		.stage :global(span.cover.placeholder) {
 			width: min(100%, 12rem);
 		}
 

@@ -651,7 +651,7 @@
 		background: color-mix(in srgb, var(--ink) 3%, transparent);
 	}
 
-	.current-cover img {
+	.current-cover :global(img) {
 		display: block;
 		width: 10rem;
 		height: 10rem;
@@ -876,7 +876,7 @@
 			grid-template-columns: 1fr;
 		}
 
-		.current-cover img,
+		.current-cover :global(img),
 		.cover-preview img {
 			width: min(100%, 14rem);
 			height: auto;

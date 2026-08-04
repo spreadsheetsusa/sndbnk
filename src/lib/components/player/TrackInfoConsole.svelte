@@ -300,7 +300,7 @@
 		grid-template-columns: minmax(0, 1fr) 3.5rem;
 	}
 
-	.cover {
+	.signal-row :global(img.cover) {
 		display: block;
 		width: 3.5rem;
 		height: 3.5rem;

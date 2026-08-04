@@ -336,7 +336,8 @@
 		background: var(--accent);
 	}
 
-	.cover {
+	.row :global(img.cover),
+	.row :global(span.cover.placeholder) {
 		display: block;
 		width: 1.75rem;
 		height: 1.75rem;
@@ -345,7 +346,7 @@
 		object-fit: cover;
 	}
 
-	.cover.placeholder {
+	.row :global(span.cover.placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			var(--paper);
@@ -637,7 +638,8 @@
 			margin-top: 0.2rem;
 		}
 
-		.cover,
+		.row :global(img.cover),
+		.row :global(span.cover.placeholder),
 		.genre,
 		.added {
 			display: none;
@@ -653,7 +655,7 @@
 			height: 100%;
 		}
 
-		.more-cover img {
+		.more-cover :global(img) {
 			display: block;
 			width: 100%;
 			height: 100%;

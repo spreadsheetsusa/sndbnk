@@ -712,15 +712,16 @@
 		padding: 1rem;
 	}
 
-	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list. */
-	.cover {
+	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list.
+	   CoverArt owns the .cover node, so pierce with :global. */
+	.track-card :global(> .cover) {
 		width: var(--track-card-cover-size, 10rem);
 		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
 	}
 
-	.cover img,
-	.cover-placeholder {
+	.track-card :global(> .cover img),
+	.track-card :global(> .cover .cover-placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -730,7 +731,7 @@
 		object-fit: cover;
 	}
 
-	.cover-placeholder {
+	.track-card :global(> .cover .cover-placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
@@ -1177,7 +1178,7 @@
 			grid-template-columns: 1fr;
 		}
 
-		.cover {
+		.track-card :global(> .cover) {
 			display: var(--track-card-cover-mobile, none);
 			width: var(--track-card-cover-size, 100%);
 			height: auto;
@@ -1207,7 +1208,7 @@
 			height: 100%;
 		}
 
-		.more-cover img {
+		.more-cover :global(img) {
 			display: block;
 			width: 100%;
 			height: 100%;

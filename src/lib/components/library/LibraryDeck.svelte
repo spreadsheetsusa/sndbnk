@@ -188,7 +188,8 @@
 		display: block;
 	}
 
-	.cover {
+	.deck :global(img.cover),
+	.deck :global(span.cover.placeholder) {
 		display: block;
 		width: 2.75rem;
 		height: 2.75rem;
@@ -199,7 +200,7 @@
 		flex-shrink: 0;
 	}
 
-	.cover.placeholder {
+	.deck :global(span.cover.placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			var(--paper);

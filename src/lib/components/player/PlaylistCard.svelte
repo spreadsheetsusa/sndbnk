@@ -661,14 +661,14 @@
 		padding: 1rem;
 	}
 
-	.cover {
+	.playlist-card :global(> .cover) {
 		width: var(--track-card-cover-size, 10rem);
 		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
 	}
 
-	.cover img,
-	.cover-placeholder {
+	.playlist-card :global(> .cover img),
+	.playlist-card :global(> .cover .cover-placeholder) {
 		display: flex;
 		width: 100%;
 		height: 100%;
@@ -681,11 +681,11 @@
 		color: var(--muted);
 	}
 
-	.cover img {
+	.playlist-card :global(> .cover img) {
 		display: block;
 	}
 
-	.cover-placeholder {
+	.playlist-card :global(> .cover .cover-placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
@@ -1092,7 +1092,7 @@
 			position: relative;
 		}
 
-		.cover {
+		.playlist-card :global(> .cover) {
 			display: none;
 		}
 
