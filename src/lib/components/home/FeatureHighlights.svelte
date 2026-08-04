@@ -158,7 +158,7 @@
 
 	.num {
 		min-width: 1.75rem;
-		color: var(--accent);
+		color: var(--ink);
 		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: 0.8125rem;
 		font-weight: 700;
