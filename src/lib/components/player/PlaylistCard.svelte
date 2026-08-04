@@ -4,10 +4,7 @@
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
-	import { onDestroy } from 'svelte';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
-	import { fade, slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
@@ -119,7 +116,6 @@
 	/** @type {HTMLTextAreaElement | null} */
 	let commentField = $state(null);
 
-	const COMMENT_LINE_PX = 22;
 	const COMMENT_FIELD_MAX_LINES = 4;
 
 	function resizeCommentField() {
@@ -128,8 +124,9 @@
 		el.style.height = 'auto';
 		const styles = getComputedStyle(el);
 		const padY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
-		const min = padY + COMMENT_LINE_PX;
-		const max = padY + COMMENT_LINE_PX * COMMENT_FIELD_MAX_LINES;
+		const line = parseFloat(styles.lineHeight) || 18;
+		const min = parseFloat(styles.minHeight) || padY + line;
+		const max = padY + line * COMMENT_FIELD_MAX_LINES;
 		const content = el.scrollHeight;
 		el.style.height = `${Math.min(Math.max(content, min), max)}px`;
 		el.style.overflowY = content > max ? 'auto' : 'hidden';
@@ -141,42 +138,6 @@
 		event.preventDefault();
 		/** @type {HTMLTextAreaElement} */ (event.currentTarget).form?.requestSubmit();
 	}
-
-	let waveHovered = $state(false);
-	let commentHovered = $state(false);
-	let focusWithin = $state(false);
-	/** @type {ReturnType<typeof setTimeout> | null} */
-	let waveLeaveTimer = null;
-	const canHover = new MediaQuery('hover: hover', true);
-
-	/** @param {boolean} hovering */
-	function handleWaveHover(hovering) {
-		if (waveLeaveTimer != null) {
-			clearTimeout(waveLeaveTimer);
-			waveLeaveTimer = null;
-		}
-		if (hovering) {
-			waveHovered = true;
-			return;
-		}
-		waveLeaveTimer = setTimeout(() => {
-			waveHovered = false;
-			waveLeaveTimer = null;
-		}, 120);
-	}
-
-	onDestroy(() => {
-		if (waveLeaveTimer != null) clearTimeout(waveLeaveTimer);
-	});
-
-	const commentBarOpen = $derived(
-		!canHover.current ||
-			waveHovered ||
-			commentHovered ||
-			focusWithin ||
-			Boolean(commentBody.trim()) ||
-			Boolean(commentNote)
-	);
 
 	/** Track id that `postedComments` markers belong to; reset when the target changes. */
 	let commentTrackId = $state(/** @type {string | null} */ (null));
@@ -402,22 +363,6 @@
 			moreBtn?.focus();
 		}
 	}
-
-	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
-	function handleFocusOut(event) {
-		const next = /** @type {Node | null} */ (event.relatedTarget);
-		if (!next || !event.currentTarget.contains(next)) focusWithin = false;
-	}
-
-	/**
-	 * @param {Element} node
-	 * @param {import('svelte/transition').SlideParams} [params]
-	 * @returns {import('svelte/transition').TransitionConfig}
-	 */
-	function slideFade(node, params) {
-		const config = slide(node, params);
-		return { ...config, css: (t, u) => `${config.css?.(t, u) ?? ''};opacity:${t}` };
-	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -425,8 +370,6 @@
 <article
 	class="playlist-card"
 	style:--cover-url={coverSrc ? `url(${coverSrc})` : 'none'}
-	onfocusin={() => (focusWithin = true)}
-	onfocusout={handleFocusOut}
 	{@attach whileNearViewport((visible) => (nearViewport = visible))}
 >
 	<div class="cover">
@@ -547,7 +490,6 @@
 						label="Seek within {activeTrack.title}"
 						onseek={handleSeek}
 						onscrub={(seconds) => (scrubSeconds = seconds)}
-						onhover={handleWaveHover}
 					/>
 				{:else}
 					<div class="wave-placeholder" aria-hidden="true"></div>
@@ -591,16 +533,8 @@
 				{/if}
 			</div>
 
-			{#if signedIn && showCommentForm && commentBarOpen}
-				<form
-					class="comment-row"
-					transition:slideFade={{
-						duration: prefersReducedMotion.current || !canHover.current ? 0 : 200
-					}}
-					onsubmit={submitComment}
-					onmouseenter={() => (commentHovered = true)}
-					onmouseleave={() => (commentHovered = false)}
-				>
+			{#if signedIn && showCommentForm}
+				<form class="comment-row" onsubmit={submitComment}>
 					<Avatar src={viewerImage} name={viewerName} />
 					<div class="comment-field">
 						<textarea
@@ -625,7 +559,7 @@
 							aria-label="Post comment"
 							disabled={commentBusy || !commentBody.trim()}
 						>
-							<IconArrowUp size={16} stroke={1.75} aria-hidden="true" />
+							<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
 						</button>
 					</div>
 					{#if commentNote}
@@ -962,59 +896,92 @@
 	}
 
 	.comment-row {
+		position: relative;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.6rem;
-		align-items: flex-start;
+		gap: 0.5rem;
+		align-items: flex-end;
 	}
 
 	.comment-field {
-		display: flex;
+		position: relative;
 		flex: 1;
-		gap: 0.35rem;
-		align-items: flex-end;
 		min-width: 0;
 	}
 
 	.comment-field textarea {
-		flex: 1;
-		min-width: 0;
-		min-height: 2.4rem;
-		padding: 0.45rem 0.6rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		display: block;
+		width: 100%;
+		min-height: 2rem;
+		max-height: calc(2rem + 1.125rem * 3);
+		padding: 0.3rem 1.85rem 0.3rem 0.55rem;
+		border: 1px solid var(--comment-field-border);
 		border-radius: 0.125rem;
-		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		background: var(--comment-field-surface);
+		box-shadow: var(--comment-field-inner-shadow);
 		color: var(--ink);
 		font: inherit;
-		font-size: 0.85rem;
-		line-height: 1.375;
+		font-size: 0.82rem;
+		line-height: 1.125rem;
 		resize: none;
+		overflow-y: hidden;
+		transition:
+			height 160ms ease,
+			border-color 120ms ease,
+			background-color 120ms ease;
+	}
+
+	.comment-field textarea:focus {
+		border-color: var(--comment-field-border-focus);
+		background: var(--comment-field-surface-focus);
+		box-shadow: var(--comment-field-inner-shadow);
+		outline: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.comment-field textarea {
+			transition: none;
+		}
 	}
 
 	.send-btn {
+		position: absolute;
+		right: 0.28rem;
+		bottom: 0.28rem;
 		display: inline-flex;
-		width: 2.4rem;
-		height: 2.4rem;
+		width: 1.25rem;
+		height: 1.25rem;
 		align-items: center;
 		justify-content: center;
 		padding: 0;
-		border: 1px solid var(--ink);
-		background: var(--accent);
+		border: none;
+		border-radius: 50%;
 		color: var(--on-accent);
+		background: var(--accent);
 		cursor: pointer;
-		flex-shrink: 0;
+	}
+
+	.send-btn :global(svg) {
+		display: block;
+	}
+
+	.send-btn:not(:disabled):hover {
+		filter: brightness(1.08);
 	}
 
 	.send-btn:disabled {
-		opacity: 0.45;
-		cursor: not-allowed;
+		opacity: 0.4;
+		cursor: default;
 	}
 
 	.comment-note {
-		width: 100%;
-		color: var(--muted);
-		font-size: 0.72rem;
-		font-weight: 600;
+		position: absolute;
+		right: 0;
+		bottom: calc(100% + 0.25rem);
+		padding: 0.15rem 0.4rem;
+		background: var(--inverse);
+		color: var(--accent);
+		font-size: 0.68rem;
+		font-weight: 800;
 	}
 
 	.member-list {
@@ -1120,6 +1087,17 @@
 		.body {
 			position: relative;
 			z-index: 1;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.comment-field textarea {
+			padding-right: 2.1rem;
+		}
+
+		.send-btn {
+			width: 1.45rem;
+			height: 1.45rem;
 		}
 	}
 </style>
