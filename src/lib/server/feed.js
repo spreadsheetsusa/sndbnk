@@ -271,6 +271,7 @@ export async function listMostLikedTracks(limit = 5) {
 			id: track.id,
 			title: track.title,
 			uploaderName: user.name,
+			uploaderImage: user.image,
 			username: profile.username,
 			likeCount
 		})
@@ -279,7 +280,7 @@ export async function listMostLikedTracks(limit = 5) {
 		.leftJoin(profile, eq(profile.userId, track.userId))
 		.leftJoin(user, eq(user.id, track.userId))
 		.where(eq(track.published, true))
-		.groupBy(track.id, track.title, user.name, profile.username, track.createdAt)
+		.groupBy(track.id, track.title, user.name, user.image, profile.username, track.createdAt)
 		.orderBy(desc(likeCount), desc(track.createdAt))
 		.limit(limit);
 
@@ -287,31 +288,27 @@ export async function listMostLikedTracks(limit = 5) {
 		id: row.id,
 		title: row.title,
 		uploaderName: row.uploaderName ?? row.username ?? 'Unknown',
+		uploaderImage: row.uploaderImage ?? null,
 		username: row.username ?? null,
 		likeCount: row.likeCount
 	}));
 }
 
 /**
- * Most recently created profiles, with track counts and the viewer's follow state.
+ * Most recently created profiles, with the viewer's follow state.
  * @param {{ limit?: number, viewerId?: string | null }} [opts]
  */
 export async function listNewArtists({ limit = 5, viewerId = null } = {}) {
-	const trackCount = count(track.id);
-
 	const rows = await db
 		.select({
 			userId: profile.userId,
 			username: profile.username,
 			name: user.name,
 			image: user.image,
-			trackCount,
 			createdAt: profile.createdAt
 		})
 		.from(profile)
 		.innerJoin(user, eq(profile.userId, user.id))
-		.leftJoin(track, and(eq(track.userId, profile.userId), eq(track.published, true)))
-		.groupBy(profile.userId, profile.username, user.name, user.image, profile.createdAt)
 		.orderBy(desc(profile.createdAt))
 		.limit(limit);
 
@@ -329,7 +326,6 @@ export async function listNewArtists({ limit = 5, viewerId = null } = {}) {
 		username: row.username,
 		name: row.name,
 		image: row.image ?? null,
-		trackCount: row.trackCount,
 		isViewer: row.userId === viewerId,
 		followedByViewer: followed.has(row.userId)
 	}));
