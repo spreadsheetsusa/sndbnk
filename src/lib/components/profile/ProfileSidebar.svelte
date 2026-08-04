@@ -569,7 +569,7 @@
 
 		.rail-row:has(.panel-pager) {
 			/* Room for the absolutely positioned pager on the left. */
-			padding-left: 0.85rem;
+			padding-left: 0.9rem;
 		}
 
 		.panel-rail {
@@ -640,16 +640,17 @@
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			gap: 0.12rem;
-			width: 0.7rem;
+			gap: 0.1rem;
+			width: 0.75rem;
+			overflow: hidden;
 		}
 
 		.pager-dot {
 			display: grid;
 			flex: 0 0 auto;
 			place-items: center;
-			width: 0.7rem;
-			height: 0.45rem;
+			width: 0.75rem;
+			height: 0.5rem;
 			padding: 0;
 			border: 0;
 			border-radius: 0;
@@ -659,8 +660,8 @@
 
 		.pager-dot-mark {
 			display: block;
-			width: 0.32rem;
-			height: 0.32rem;
+			width: 0.4rem;
+			height: 0.4rem;
 			border: 1px solid var(--hard-border);
 			background: color-mix(in srgb, var(--paper) 88%, var(--ink));
 			box-shadow: 1px 1px 0 var(--hard-shadow);
