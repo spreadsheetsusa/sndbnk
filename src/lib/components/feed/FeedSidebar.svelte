@@ -13,7 +13,7 @@
 	/**
 	 * @typedef {{ id: string, title: string, uploaderName: string, uploaderImage: string | null, username: string | null, likeCount: number }} LikedTrack
 	 * @typedef {{ username: string, name: string, image: string | null, isViewer?: boolean, followedByViewer?: boolean }} Artist
-	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, trackId: string, trackTitle: string }} RecentComment
+	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string }} RecentComment
 	 * @typedef {{ genre: string, count: number }} GenreCount
 	 */
 
@@ -56,16 +56,14 @@
 	/** @type {HTMLElement | null} */
 	let panelRail = null;
 
-	/**
-	 * @param {number} n
-	 */
-	function padRank(n) {
-		return String(n).padStart(2, '0');
-	}
-
 	/** @param {string} value */
 	function vtName(value) {
 		return value.replace(/[^a-zA-Z0-9_-]+/g, '-');
+	}
+
+	/** @param {RecentComment} comment */
+	function commentHref(comment) {
+		return `/tracks/${comment.trackId}#comment-${comment.id}`;
 	}
 
 	/**
@@ -163,11 +161,10 @@
 					<p class="empty-line">No likes yet.</p>
 				{:else}
 					<SnapMarquee enabled={collapsed} resetKey="feed-popular">
-						<ol class="item-list">
-							{#each mostLiked as item, index (item.id)}
+						<ul class="item-list">
+							{#each mostLiked as item (item.id)}
 								<li style:view-transition-name="feed-pop-{vtName(item.id)}">
 									<a class="item avatar-row" href="/tracks/{item.id}">
-										<span class="rank">{padRank(index + 1)}</span>
 										<Avatar src={item.uploaderImage} name={item.uploaderName} size="1.85rem" />
 										<span class="item-copy">
 											<span class="item-title">{item.title}</span>
@@ -180,7 +177,7 @@
 									</a>
 								</li>
 							{/each}
-						</ol>
+						</ul>
 					</SnapMarquee>
 				{/if}
 			</section>
@@ -233,16 +230,28 @@
 						<ul class="item-list">
 							{#each recentComments as comment (comment.id)}
 								<li style:view-transition-name="feed-act-{vtName(comment.id)}">
-									<a class="item activity" href="/tracks/{comment.trackId}">
+									<div class="item activity">
 										<span class="activity-head">
-											<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
-											<span class="item-topline">
-												<span class="item-title">{comment.userName}</span>
-												<span class="item-meta">on {comment.trackTitle}</span>
+											{#if comment.username}
+												<a class="activity-user" href="/users/{comment.username}">
+													<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+													<span class="item-title">{comment.userName}</span>
+												</a>
+											{:else}
+												<span class="activity-user">
+													<Avatar src={comment.userImage} name={comment.userName} size="1.5rem" />
+													<span class="item-title">{comment.userName}</span>
+												</span>
+											{/if}
+											<span class="item-meta">
+												on
+												<a class="activity-track" href={commentHref(comment)}
+													>{comment.trackTitle}</a
+												>
 											</span>
 										</span>
-										<span class="item-body">“{comment.body}”</span>
-									</a>
+										<a class="item-body" href={commentHref(comment)}>“{comment.body}”</a>
+									</div>
 								</li>
 							{/each}
 						</ul>
@@ -399,30 +408,11 @@
 		flex: 1;
 	}
 
-	.rank {
-		flex-shrink: 0;
-		width: 1.35rem;
-		color: var(--muted);
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.06em;
-		line-height: 1;
-		font-variant-numeric: tabular-nums;
-	}
-
 	.item-copy {
 		display: grid;
 		gap: 0.12rem;
 		min-width: 0;
 		flex: 1;
-	}
-
-	.item-topline {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.5rem;
-		min-width: 0;
 	}
 
 	.item.activity {
@@ -438,8 +428,18 @@
 		min-width: 0;
 	}
 
-	.activity-head .item-topline {
+	.activity-user {
+		display: inline-flex;
+		gap: 0.45rem;
+		align-items: center;
+		min-width: 0;
 		flex: 1;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.activity-user:hover .item-title {
+		text-decoration: underline;
 	}
 
 	.item-title {
@@ -454,17 +454,24 @@
 
 	.item-meta {
 		overflow: hidden;
+		flex-shrink: 1;
 		color: var(--muted);
 		font-size: 0.7rem;
 		letter-spacing: 0.02em;
 		line-height: 1.3;
+		text-align: right;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.item-topline .item-meta {
-		flex-shrink: 1;
-		text-align: right;
+	.activity-track {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.activity-track:hover {
+		color: var(--ink);
+		text-decoration: underline;
 	}
 
 	.item-body {
@@ -475,6 +482,11 @@
 		color: var(--ink);
 		font-size: 0.76rem;
 		line-height: 1.4;
+		text-decoration: none;
+	}
+
+	.item-body:hover {
+		color: color-mix(in srgb, var(--ink) 78%, var(--muted));
 	}
 
 	.item-stat {
@@ -768,11 +780,6 @@
 		.feed-sidebar.collapsed .item-title,
 		.feed-sidebar.collapsed .item-meta {
 			font-size: 0.72rem;
-		}
-
-		.feed-sidebar.collapsed .rank {
-			width: 1.1rem;
-			font-size: 0.62rem;
 		}
 
 		.feed-sidebar.collapsed .item-stat {

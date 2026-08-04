@@ -147,7 +147,7 @@
 				{:else}
 					<ul class="comment-list">
 						{#each data.comments as comment (comment.id)}
-							<li>
+							<li id="comment-{comment.id}">
 								<Avatar src={comment.userImage} name={comment.userName} />
 								<div class="comment-body">
 									<div class="comment-head">
@@ -325,6 +325,7 @@
 		display: flex;
 		gap: 0.65rem;
 		align-items: flex-start;
+		scroll-margin-top: calc(var(--site-header-height) + 1rem);
 		--avatar-bg: color-mix(in srgb, var(--ink) 10%, transparent);
 		--avatar-color: var(--ink);
 	}
