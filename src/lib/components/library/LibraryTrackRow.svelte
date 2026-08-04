@@ -5,6 +5,7 @@
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -187,18 +188,7 @@
 		{/if}
 	</button>
 
-	{#if track.hasCover}
-		<img
-			class="cover"
-			src="/api/media/{track.id}/cover"
-			alt=""
-			loading="lazy"
-			width="28"
-			height="28"
-		/>
-	{:else}
-		<span class="cover placeholder" aria-hidden="true"></span>
-	{/if}
+	<CoverArt trackId={track.id} hasCover={track.hasCover} class="cover" width="28" height="28" />
 
 	<button
 		type="button"
@@ -259,11 +249,7 @@
 				<IconDots size={15} stroke={1.75} />
 			</span>
 			<span class="more-cover" aria-hidden="true">
-				{#if track.hasCover}
-					<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-				{:else}
-					<span class="cover-thumb-placeholder"></span>
-				{/if}
+				<CoverArt trackId={track.id} hasCover={track.hasCover} />
 			</span>
 		</button>
 
@@ -525,7 +511,7 @@
 		display: none;
 	}
 
-	.cover-thumb-placeholder {
+	.more-cover :global(.cover-placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;

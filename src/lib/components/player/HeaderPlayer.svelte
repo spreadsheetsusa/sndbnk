@@ -13,6 +13,7 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import Avatar from '#lib/components/Avatar.svelte';
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -286,17 +287,15 @@
 						aria-haspopup="true"
 						onclick={() => (queueOpen = !queueOpen)}
 					>
-						{#if track.hasCover}
-							<img
-								class="bar-cover"
-								src="/api/media/{track.id}/cover"
-								alt=""
-								width="32"
-								height="32"
-							/>
-						{:else}
-							<span class="bar-cover placeholder" aria-hidden="true"></span>
-						{/if}
+						<CoverArt
+							trackId={track.id}
+							hasCover={track.hasCover}
+							class="bar-cover"
+							loading="eager"
+							fetchpriority="high"
+							width="32"
+							height="32"
+						/>
 						{#if player.queue.length > 0}
 							<span class="queue-count">{player.queue.length}</span>
 						{/if}

@@ -314,6 +314,8 @@ export async function createTrackFromForm(userId, formData) {
 
 	const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
 
+	// Insert before put (folderKey = id). Leave cover columns null until bytes
+	// land so listings do not advertise hasCover during the upload window.
 	await db.insert(track).values({
 		id,
 		userId,
@@ -321,9 +323,9 @@ export async function createTrackFromForm(userId, formData) {
 		audioFilename: audioResult.filename,
 		audioMime: audioResult.mime,
 		audioBytes: audioResult.bytes,
-		coverFilename: coverResult?.filename ?? null,
-		coverMime: coverResult?.mime ?? null,
-		coverBytes: coverResult?.bytes ?? null,
+		coverFilename: null,
+		coverMime: null,
+		coverBytes: null,
 		waveform: null,
 		published: true,
 		storageAdapter: adapterId,
@@ -338,6 +340,15 @@ export async function createTrackFromForm(userId, formData) {
 		if (coverResult && isFile(coverEntry)) {
 			const coverBytes = new Uint8Array(await coverEntry.arrayBuffer());
 			await storage.put(folderKey, coverResult.filename, coverBytes, coverResult.mime);
+			await db
+				.update(track)
+				.set({
+					coverFilename: coverResult.filename,
+					coverMime: coverResult.mime,
+					coverBytes: coverResult.bytes,
+					updatedAt: new Date()
+				})
+				.where(eq(track.id, id));
 		}
 	} catch (err) {
 		try {

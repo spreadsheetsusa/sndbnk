@@ -2,6 +2,7 @@
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -88,11 +89,14 @@
 				{/if}
 			</button>
 
-			{#if track.hasCover}
-				<img class="cover" src="/api/media/{track.id}/cover" alt="" width="44" height="44" />
-			{:else}
-				<span class="cover placeholder" aria-hidden="true"></span>
-			{/if}
+			<CoverArt
+				trackId={track.id}
+				hasCover={track.hasCover}
+				class="cover"
+				loading="eager"
+				width="44"
+				height="44"
+			/>
 
 			<div class="titles">
 				<span class="artist">{track.artist || track.uploaderName}</span>

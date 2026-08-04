@@ -3,6 +3,7 @@
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 
@@ -132,14 +133,7 @@
 				{/if}
 			</div>
 			{#if hasCover}
-				<img
-					class="cover"
-					src="/api/media/{trackId}/cover"
-					alt=""
-					width="56"
-					height="56"
-					loading="lazy"
-				/>
+				<CoverArt {trackId} hasCover class="cover" width="56" height="56" placeholder={false} />
 			{/if}
 		</div>
 

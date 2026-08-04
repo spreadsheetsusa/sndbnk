@@ -12,6 +12,7 @@
 	import { fade, slide } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
+	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
@@ -443,18 +444,11 @@
 
 <article
 	class="track-card"
-	style:--cover-url={track.hasCover ? `url(/api/media/${track.id}/cover)` : 'none'}
 	onfocusin={() => (focusWithin = true)}
 	onfocusout={handleFocusOut}
 	{@attach whileNearViewport((visible) => (nearViewport = visible))}
 >
-	<div class="cover">
-		{#if track.hasCover}
-			<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-		{:else}
-			<span class="cover-placeholder" aria-hidden="true"></span>
-		{/if}
-	</div>
+	<CoverArt trackId={track.id} hasCover={track.hasCover} wash wrapperClass="cover" />
 
 	<div class="body">
 		<div class="head">
@@ -537,11 +531,7 @@
 						<IconDots size={16} stroke={1.75} />
 					</span>
 					<span class="more-cover" aria-hidden="true">
-						{#if track.hasCover}
-							<img src="/api/media/{track.id}/cover" alt="" loading="lazy" />
-						{:else}
-							<span class="cover-thumb-placeholder"></span>
-						{/if}
+						<CoverArt trackId={track.id} hasCover={track.hasCover} />
 					</span>
 				</button>
 
@@ -711,6 +701,11 @@
 
 <style>
 	.track-card {
+		--cover-art-wash-scrim: linear-gradient(
+			to bottom,
+			color-mix(in srgb, var(--paper) 62%, transparent),
+			var(--paper)
+		);
 		display: grid;
 		grid-template-columns: auto 1fr;
 		gap: 1rem;
@@ -1096,7 +1091,7 @@
 		display: none;
 	}
 
-	.cover-thumb-placeholder {
+	.more-cover :global(.cover-placeholder) {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -1180,21 +1175,6 @@
 			position: relative;
 			isolation: isolate;
 			grid-template-columns: 1fr;
-		}
-
-		/* Blurred cover behind the whole row; the paper scrim keeps text legible. */
-		.track-card::before {
-			content: '';
-			position: absolute;
-			z-index: -1;
-			inset: 0;
-			background:
-				linear-gradient(to bottom, color-mix(in srgb, var(--paper) 62%, transparent), var(--paper)),
-				var(--cover-url, none) center / cover no-repeat;
-			filter: blur(14px) saturate(1.15);
-			opacity: var(--track-card-wash, 0.5);
-			transform: scale(1.08);
-			pointer-events: none;
 		}
 
 		.cover {
