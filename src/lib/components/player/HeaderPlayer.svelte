@@ -469,7 +469,6 @@
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 3px 3px 0 var(--hard-shadow);
-		container-type: inline-size;
 	}
 
 	.transport,
@@ -632,6 +631,8 @@
 		padding: 0;
 		flex-shrink: 1;
 		font-family: 'Share Tech Mono', ui-monospace, monospace;
+		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
+		container-type: inline-size;
 		/* Dimmer LCD wash: accent muted into ink, then lightly into paper. */
 		--lcd-tint: color-mix(in srgb, var(--accent) 42%, var(--ink));
 		background:
@@ -1031,8 +1032,8 @@
 		}
 	}
 
-	/* Drop KBPS / STEREO / KHZ when the strip itself is tight (desktop squeeze or narrow). */
-	@container (max-width: 36rem) {
+	/* Drop KBPS / STEREO / KHZ when the meta column is squeezed (maxes at 20rem). */
+	@container (max-width: 13rem) {
 		.now-tech {
 			display: none;
 		}
