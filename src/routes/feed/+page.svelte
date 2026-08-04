@@ -80,94 +80,110 @@
 
 	<main>
 		<div class="feed-grid">
-			<header class="feed-head">
-				<div class="feed-titles">
-					<p class="eyebrow eyebrow-chip accent-text">Feed</p>
-					<h1 id="feed-heading" class="display-face">
-						{data.following ? 'Your Follows' : 'The Feed'}
-					</h1>
-				</div>
-
-				<p class="intro">
-					{#if data.following}
-						Tracks and reposts from the {data.followingCount ?? 0} creator{data.followingCount === 1
-							? ''
-							: 's'} you follow — newest first.
-					{:else}
-						An aggregation of everything people are posting — newest first.
-					{/if}
-				</p>
-
-				<div class="scope-row">
-					<nav class="scope-strip" aria-label="Feed scope">
-						<a
-							class="scope-btn"
-							href={feedHref({ genre: data.genre, q: data.q })}
-							aria-current={data.following ? undefined : 'page'}
-						>
-							All
-						</a>
-						<a
-							class="scope-btn"
-							href={feedHref({ genre: data.genre, following: true, q: data.q })}
-							aria-current={data.following ? 'page' : undefined}
-						>
-							Following
-						</a>
-					</nav>
-
-					<form
-						class="feed-search"
-						class:is-open={searchOpen}
-						method="get"
-						action="/feed"
-						role="search"
-						onfocusout={onSearchFocusOut}
-					>
-						{#if data.following}
-							<input type="hidden" name="following" value="1" />
-						{/if}
-						{#if data.genre}
-							<input type="hidden" name="genre" value={data.genre} />
-						{/if}
-						<label class="visually-hidden" for="feed-q">Search the feed</label>
-						<div class="feed-search-field">
-							<input
-								id="feed-q"
-								bind:this={searchInput}
-								name="q"
-								type="search"
-								value={data.q ?? ''}
-								placeholder="Title, artist, @user, genre"
-								autocomplete="off"
-								maxlength="80"
-								class:has-clear={Boolean(data.q)}
-							/>
-							{#if data.q}
-								<a
-									class="feed-search-clear"
-									href={feedHref({ genre: data.genre, following: data.following })}
-									aria-label="Clear search"
-								>
-									<IconX size={14} stroke={2} aria-hidden="true" />
-								</a>
-							{/if}
-						</div>
-						<button type="button" aria-label="Search" onclick={onSearchButtonClick}>
-							<IconSearch size={16} stroke={2} aria-hidden="true" />
-						</button>
-					</form>
-				</div>
-
-				{#if data.genre}
-					<div class="filter-chips" aria-live="polite">
-						<p class="filter-chip">
-							<span>Genre: <strong>{data.genre}</strong></span>
-							<a href={feedHref({ following: data.following, q: data.q })}>Clear</a>
-						</p>
+			<!-- Main column wraps head + list so the tall sidebar cannot stretch a
+			     spanning list row (CSS grid was inventing a large gap above few tracks). -->
+			<div class="feed-main">
+				<header class="feed-head">
+					<div class="feed-titles">
+						<p class="eyebrow eyebrow-chip accent-text">Feed</p>
+						<h1 id="feed-heading" class="display-face">
+							{data.following ? 'Your Follows' : 'The Feed'}
+						</h1>
 					</div>
-				{/if}
-			</header>
+
+					<p class="intro">
+						{#if data.following}
+							Tracks and reposts from the {data.followingCount ?? 0} creator{data.followingCount ===
+							1
+								? ''
+								: 's'} you follow — newest first.
+						{:else}
+							An aggregation of everything people are posting — newest first.
+						{/if}
+					</p>
+
+					<div class="scope-row">
+						<nav class="scope-strip" aria-label="Feed scope">
+							<a
+								class="scope-btn"
+								href={feedHref({ genre: data.genre, q: data.q })}
+								aria-current={data.following ? undefined : 'page'}
+							>
+								All
+							</a>
+							<a
+								class="scope-btn"
+								href={feedHref({ genre: data.genre, following: true, q: data.q })}
+								aria-current={data.following ? 'page' : undefined}
+							>
+								Following
+							</a>
+						</nav>
+
+						<form
+							class="feed-search"
+							class:is-open={searchOpen}
+							method="get"
+							action="/feed"
+							role="search"
+							onfocusout={onSearchFocusOut}
+						>
+							{#if data.following}
+								<input type="hidden" name="following" value="1" />
+							{/if}
+							{#if data.genre}
+								<input type="hidden" name="genre" value={data.genre} />
+							{/if}
+							<label class="visually-hidden" for="feed-q">Search the feed</label>
+							<div class="feed-search-field">
+								<input
+									id="feed-q"
+									bind:this={searchInput}
+									name="q"
+									type="search"
+									value={data.q ?? ''}
+									placeholder="Title, artist, @user, genre"
+									autocomplete="off"
+									maxlength="80"
+									class:has-clear={Boolean(data.q)}
+								/>
+								{#if data.q}
+									<a
+										class="feed-search-clear"
+										href={feedHref({ genre: data.genre, following: data.following })}
+										aria-label="Clear search"
+									>
+										<IconX size={14} stroke={2} aria-hidden="true" />
+									</a>
+								{/if}
+							</div>
+							<button type="button" aria-label="Search" onclick={onSearchButtonClick}>
+								<IconSearch size={16} stroke={2} aria-hidden="true" />
+							</button>
+						</form>
+					</div>
+
+					{#if data.genre}
+						<div class="filter-chips" aria-live="polite">
+							<p class="filter-chip">
+								<span>Genre: <strong>{data.genre}</strong></span>
+								<a href={feedHref({ following: data.following, q: data.q })}>Clear</a>
+							</p>
+						</div>
+					{/if}
+				</header>
+
+				<section class="feed-list" aria-labelledby="feed-heading" bind:this={container}>
+					<FeedTrackList
+						list={paged.current}
+						genre={data.genre}
+						q={data.q}
+						following={data.following}
+						viewerName={data.user.name}
+						viewerImage={data.user.image}
+					/>
+				</section>
+			</div>
 
 			<FeedSidebar
 				mostLiked={data.sidebar.mostLiked}
@@ -179,17 +195,6 @@
 				q={data.q}
 				signedIn={true}
 			/>
-
-			<section class="feed-list" aria-labelledby="feed-heading" bind:this={container}>
-				<FeedTrackList
-					list={paged.current}
-					genre={data.genre}
-					q={data.q}
-					following={data.following}
-					viewerName={data.user.name}
-					viewerImage={data.user.image}
-				/>
-			</section>
 		</div>
 	</main>
 </div>
@@ -211,16 +216,19 @@
 	.feed-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) var(--site-sidebar-width);
-		grid-template-areas:
-			'head side'
-			'list side';
 		gap: clamp(2rem, 5vw, 3rem);
 		align-items: start;
 		animation: rise 0.8s ease both;
 	}
 
+	.feed-main {
+		display: flex;
+		flex-direction: column;
+		gap: clamp(2rem, 5vw, 3rem);
+		min-width: 0;
+	}
+
 	.feed-head {
-		grid-area: head;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		grid-template-areas:
@@ -233,12 +241,7 @@
 		margin-bottom: 0;
 	}
 
-	.feed-grid :global(.feed-sidebar) {
-		grid-area: side;
-	}
-
 	.feed-list {
-		grid-area: list;
 		min-width: 0;
 	}
 
@@ -484,21 +487,32 @@
 
 	@media (max-width: 960px) {
 		.feed-grid {
-			grid-template-columns: 1fr;
-			grid-template-areas:
-				'head'
-				'side'
-				'list';
+			display: flex;
+			flex-direction: column;
 			gap: 1.25rem;
 		}
 
+		/* Flatten so sidebar can sit between head and list (mobile snap rail). */
+		.feed-main {
+			display: contents;
+		}
+
 		.feed-head {
+			order: 1;
 			grid-template-columns: minmax(0, 1fr) auto;
 			grid-template-areas:
 				'titles scope'
 				'intro intro'
 				'filter filter';
 			column-gap: 0.65rem;
+		}
+
+		.feed-grid :global(.feed-sidebar) {
+			order: 2;
+		}
+
+		.feed-list {
+			order: 3;
 		}
 
 		.scope-row {
