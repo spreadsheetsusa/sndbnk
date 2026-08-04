@@ -5,7 +5,8 @@ const COVER_EXT_BY_MIME = {
 	'image/jpeg': 'jpg',
 	'image/jpg': 'jpg',
 	'image/png': 'png',
-	'image/webp': 'webp'
+	'image/webp': 'webp',
+	'image/gif': 'gif'
 };
 
 /**
@@ -99,7 +100,7 @@ function pictureToCoverFile(picture) {
 	const ext = COVER_EXT_BY_MIME[mime];
 	if (!ext) {
 		return {
-			warning: 'Embedded cover art uses an unsupported format (use jpg, png, or webp).'
+			warning: 'Embedded cover art uses an unsupported format (use jpg, png, webp, or gif).'
 		};
 	}
 

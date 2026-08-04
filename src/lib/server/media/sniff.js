@@ -47,6 +47,9 @@ export function sniffImage(head) {
 	if (startsWithAscii(head, 'RIFF') && asciiAt(head, 8, 'WEBP')) {
 		return { ext: 'webp', mime: 'image/webp' };
 	}
+	if (startsWithAscii(head, 'GIF87a') || startsWithAscii(head, 'GIF89a')) {
+		return { ext: 'gif', mime: 'image/gif' };
+	}
 	return null;
 }
 
