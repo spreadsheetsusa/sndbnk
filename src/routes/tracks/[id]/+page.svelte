@@ -1,6 +1,7 @@
 <script>
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
@@ -11,6 +12,9 @@
 	import { absoluteUrl, musicRecordingJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
+
+	/** @type {string | null} */
+	let deletingCommentId = $state(null);
 
 	const artistName = $derived(data.track.artist || data.track.uploaderName);
 	const tenantSiteName = $derived(page.data.tenantSite?.name ?? null);
@@ -67,6 +71,24 @@
 
 	async function handleDeleted() {
 		await goto(data.track.isOwner ? '/library' : '/');
+	}
+
+	/**
+	 * @param {string} commentId
+	 */
+	async function deleteOwnComment(commentId) {
+		if (deletingCommentId) return;
+		if (!confirm('Delete this comment? This cannot be undone.')) return;
+
+		deletingCommentId = commentId;
+		try {
+			const res = await fetch(`/api/tracks/${data.track.id}/comments/${commentId}`, {
+				method: 'DELETE'
+			});
+			if (res.ok) await invalidateAll();
+		} finally {
+			deletingCommentId = null;
+		}
 	}
 </script>
 
@@ -125,20 +147,34 @@
 						<li>
 							<Avatar src={comment.userImage} name={comment.userName} />
 							<div class="comment-body">
-								<p class="comment-meta">
-									<span class="comment-author">{comment.userName}</span>
-									{#if comment.atMs != null}
+								<div class="comment-head">
+									<p class="comment-meta">
+										<span class="comment-author">{comment.userName}</span>
+										{#if comment.atMs != null}
+											<button
+												type="button"
+												class="comment-at"
+												title="Play from this moment"
+												onclick={() => seekToComment(comment.atMs ?? 0)}
+											>
+												at {formatDuration(comment.atMs)}
+											</button>
+										{/if}
+										<span class="comment-when">{relativeTime(comment.createdAt)}</span>
+									</p>
+									{#if data.viewer?.id === comment.userId}
 										<button
 											type="button"
-											class="comment-at"
-											title="Play from this moment"
-											onclick={() => seekToComment(comment.atMs ?? 0)}
+											class="comment-delete"
+											title="Delete comment"
+											aria-label="Delete comment"
+											disabled={deletingCommentId === comment.id}
+											onclick={() => deleteOwnComment(comment.id)}
 										>
-											at {formatDuration(comment.atMs)}
+											<IconTrash size={14} stroke={1.75} aria-hidden="true" />
 										</button>
 									{/if}
-									<span class="comment-when">{relativeTime(comment.createdAt)}</span>
-								</p>
+								</div>
 								<p class="comment-text">{comment.body}</p>
 							</div>
 						</li>
@@ -243,7 +279,16 @@
 	}
 
 	.comment-body {
+		flex: 1;
 		min-width: 0;
+	}
+
+	.comment-head {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin: 0 0 0.2rem;
 	}
 
 	.comment-meta {
@@ -251,7 +296,8 @@
 		flex-wrap: wrap;
 		gap: 0.5rem;
 		align-items: baseline;
-		margin: 0 0 0.2rem;
+		margin: 0;
+		min-width: 0;
 	}
 
 	.comment-author {
@@ -276,6 +322,32 @@
 	.comment-when {
 		color: var(--muted);
 		font-size: 0.7rem;
+	}
+
+	.comment-delete {
+		display: inline-flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: var(--tap-min);
+		height: var(--tap-min);
+		margin: -0.35rem -0.35rem 0 0;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+		color: var(--muted);
+		cursor: pointer;
+	}
+
+	.comment-delete:hover:not(:disabled),
+	.comment-delete:focus-visible {
+		color: var(--ink);
+	}
+
+	.comment-delete:disabled {
+		opacity: 0.45;
+		cursor: wait;
 	}
 
 	.comment-text {
