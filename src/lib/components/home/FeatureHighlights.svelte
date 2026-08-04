@@ -1,0 +1,224 @@
+<script>
+	import IconFileMusic from '@tabler/icons-svelte-runes/icons/file-music';
+	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
+	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
+	import IconServer from '@tabler/icons-svelte-runes/icons/server';
+	import IconWorld from '@tabler/icons-svelte-runes/icons/world';
+
+	const FEATURES = [
+		{
+			id: 'domains',
+			icon: IconWorld,
+			title: 'Your own address',
+			description: 'Subdomain out of the box, custom domain when you are ready.'
+		},
+		{
+			id: 'storage',
+			icon: IconServer,
+			title: 'Bring your own disks',
+			description: 'Point storage adapters at the kit you already run.'
+		},
+		{
+			id: 'viz',
+			icon: IconPlanet,
+			title: 'Milkdrop in the mix',
+			description: 'Butterchurn viz rides the waveform while you listen.'
+		},
+		{
+			id: 'tags',
+			icon: IconFileMusic,
+			title: 'Tags that stick',
+			description: 'Write metadata back into the file — not just the database.'
+		},
+		{
+			id: 'any-sound',
+			icon: IconHeadphones,
+			title: 'Any sound, posted',
+			description: 'Tracks, mixes, loops, samples, podcasts — drop it in.'
+		}
+	];
+</script>
+
+<section class="features" aria-labelledby="features-title">
+	<header class="head">
+		<div class="head-row">
+			<p class="eyebrow">In the toolkit</p>
+			<span class="mark" aria-hidden="true">///</span>
+		</div>
+		<h2 id="features-title">Built for the whole signal chain</h2>
+		<p class="lede">Host it, store it, tag it, see it — then post whatever sound you've got.</p>
+	</header>
+
+	<ol class="index">
+		{#each FEATURES as feature, i (feature.id)}
+			{@const Icon = feature.icon}
+			<li class="item" style="--i: {i}">
+				<span class="num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+				<span class="icon" aria-hidden="true">
+					<Icon size={22} stroke={1.75} />
+				</span>
+				<div class="copy">
+					<h3>{feature.title}</h3>
+					<p>{feature.description}</p>
+				</div>
+			</li>
+		{/each}
+	</ol>
+</section>
+
+<style>
+	.features {
+		display: grid;
+		gap: clamp(2rem, 4vw, 3rem);
+		width: 100%;
+		padding: clamp(2.5rem, 5vw, 4.5rem) 0;
+	}
+
+	.head {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.head-row {
+		display: flex;
+		align-items: start;
+		justify-content: space-between;
+		gap: 2rem;
+	}
+
+	.head > :not(.head-row) {
+		max-width: 36rem;
+	}
+
+	.eyebrow {
+		margin: 0.65rem 0 0;
+	}
+
+	.mark {
+		padding: 0.45rem 0.7rem;
+		color: var(--on-accent);
+		background: var(--accent);
+		font-weight: 900;
+		letter-spacing: 0.15em;
+	}
+
+	h2 {
+		margin: 0;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: clamp(1.85rem, 3.6vw, 3rem);
+		font-weight: 700;
+		line-height: 1.05;
+		letter-spacing: -0.02em;
+	}
+
+	.lede {
+		margin: 0;
+		max-width: 34rem;
+		color: color-mix(in srgb, var(--muted) 88%, var(--ink));
+		font-size: clamp(1rem, 1.35vw, 1.125rem);
+		line-height: 1.55;
+	}
+
+	.index {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0;
+		margin: 0;
+		padding: 0;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		list-style: none;
+	}
+
+	.item {
+		display: grid;
+		grid-template-columns: auto auto minmax(0, 1fr);
+		gap: 0.85rem 1rem;
+		align-items: start;
+		padding: 1.35rem 1.25rem 1.35rem 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		animation: rise 0.7s ease both;
+		animation-delay: calc(var(--i) * 70ms);
+	}
+
+	.item:nth-child(odd) {
+		padding-right: 1.75rem;
+		border-right: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+	}
+
+	.item:nth-child(even) {
+		padding-left: 1.75rem;
+	}
+
+	/* Odd last item alone on the final row spans full width. */
+	.item:last-child:nth-child(odd) {
+		grid-column: 1 / -1;
+		padding-right: 0;
+		border-right: none;
+	}
+
+	.num {
+		min-width: 1.75rem;
+		color: var(--accent);
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: 0.8125rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		line-height: 1.4;
+	}
+
+	.icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		color: var(--ink);
+	}
+
+	.copy {
+		display: grid;
+		gap: 0.35rem;
+		min-width: 0;
+	}
+
+	h3 {
+		margin: 0;
+		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: 1.0625rem;
+		font-weight: 700;
+		line-height: 1.25;
+	}
+
+	.copy p {
+		margin: 0;
+		color: color-mix(in srgb, var(--muted) 82%, var(--ink));
+		font-size: 0.9375rem;
+		line-height: 1.45;
+	}
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(0.6rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (max-width: 720px) {
+		.index {
+			grid-template-columns: 1fr;
+		}
+
+		.item,
+		.item:nth-child(odd),
+		.item:nth-child(even),
+		.item:last-child:nth-child(odd) {
+			grid-column: auto;
+			padding: 1.2rem 0;
+			border-right: none;
+		}
+	}
+</style>
