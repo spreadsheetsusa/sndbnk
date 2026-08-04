@@ -764,12 +764,12 @@
 					</thead>
 					<tbody>
 						<tr>
-							<td><code>.env</code> still tracked with live secrets</td>
-							<td class="risk-danger">High</td>
+							<td>Former secrets still in old git history</td>
+							<td class="risk-careful">Medium</td>
 							<td>
-								Untrack, provision env outside the repo, rotate
-								<code>BETTER_AUTH_SECRET</code> / <code>STORAGE_SECRET</code> (logs everyone out;
-								invalidates stored SSH creds) before advertising hard
+								<code>.env</code> is untracked; rotate <code>BETTER_AUTH_SECRET</code> /
+								<code>STORAGE_SECRET</code> (logs everyone out; invalidates stored SSH creds) before
+								advertising hard
 							</td>
 						</tr>
 						<tr>

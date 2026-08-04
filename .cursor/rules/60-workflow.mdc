@@ -48,8 +48,8 @@ Do not call `playground-link` for code written into this repo.
 
 ## Environment notes
 
-- `.env` and the SQLite file persist across sessions via the VM snapshot; `.env` is currently
-  tracked in git, so do not add secrets to it.
+- `.env` and the SQLite file persist across sessions via the VM snapshot; `.env` is gitignored
+  and instance-local (not in the index).
 - `bun run db:migrate` is non-interactive (Bun migrator). `bun run db:push:kit` / `db:studio` run
   drizzle-kit under Node because of `better-sqlite3`. `db:push` is retired.
 - `ffmpeg` is optional; without it uploads get placeholder waveforms instead of real peaks.

@@ -22,18 +22,14 @@ existing local file.
 So when you add an env var: update `.env.example`, update the deploy workflow's managed list, and
 either give it a validator marking it optional or expect everyone to edit their `.env`.
 
-## `.env` is still tracked with live secrets
+## Secrets once lived in tracked `.env` history
 
-`.gitignore` lists `.env` (and ignores `.env.*` except `.env.example` / `.env.test`), but the file
-remains in the git index from an earlier deploy expedient. `BETTER_AUTH_SECRET`, `STORAGE_SECRET`,
-and mail credentials are therefore in git history.
+`.env` is gitignored and no longer in the index. Deploy and local instances keep their own file;
+git pull does not manage it. Older commits still contain former secret values — rotate
+`BETTER_AUTH_SECRET` and `STORAGE_SECRET` (and any mail/Stripe keys that were ever committed)
+before a major advertising push. Rotation logs everyone out and invalidates stored SSH credentials.
 
-Unwinding requires `git rm --cached .env`, provisioning env outside the repo (the deploy script
-already merges and generates secrets server-side), and **rotating** both app secrets — which logs
-every user out and invalidates every stored SSH credential. Do this before a major advertising push.
-
-Do not add new secrets to `.env` while it is tracked. Prefer `.env.local` (gitignored) for machine-
-specific overrides.
+Prefer `.env.local` (gitignored) for machine-specific overrides on top of `.env`.
 
 ## Content-Security-Policy is Report-Only
 
