@@ -306,7 +306,8 @@
 		height: var(--feed-search-h);
 		min-width: 0;
 		margin: 0;
-		padding: 0 0.65rem;
+		/* Slight top padding offsets Inter's high optical center in this tall field. */
+		padding: 0.12rem 0.65rem 0;
 		border: 0;
 		border-radius: 0.125rem 0 0 0.125rem;
 		color: var(--ink);
@@ -314,8 +315,7 @@
 		font: inherit;
 		font-size: 0.82rem;
 		font-weight: 500;
-		/* Same used size as height so single-line text/placeholder centers. */
-		line-height: var(--feed-search-h);
+		line-height: calc(var(--feed-search-h) - 0.12rem);
 		outline: none;
 		appearance: none;
 	}
