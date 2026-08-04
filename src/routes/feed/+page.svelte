@@ -279,6 +279,7 @@
 	}
 
 	.feed-search {
+		--feed-search-h: 2.25rem;
 		display: flex;
 		flex: 1 1 12rem;
 		align-items: stretch;
@@ -292,15 +293,21 @@
 
 	.feed-search-field {
 		position: relative;
+		display: flex;
 		flex: 1 1 auto;
+		align-items: stretch;
 		min-width: 0;
 	}
 
 	.feed-search input[type='search'] {
 		display: block;
+		box-sizing: border-box;
 		width: 100%;
+		height: var(--feed-search-h);
 		min-width: 0;
-		padding: 0.4rem 0.65rem;
+		margin: 0;
+		/* Slight top padding offsets Inter's high optical center in this tall field. */
+		padding: 0.12rem 0.65rem 0;
 		border: 0;
 		border-radius: 0.125rem 0 0 0.125rem;
 		color: var(--ink);
@@ -308,7 +315,9 @@
 		font: inherit;
 		font-size: 0.82rem;
 		font-weight: 500;
+		line-height: calc(var(--feed-search-h) - 0.12rem);
 		outline: none;
+		appearance: none;
 	}
 
 	.feed-search input[type='search'].has-clear {
@@ -352,6 +361,7 @@
 		align-items: center;
 		justify-content: center;
 		min-width: 2.25rem;
+		min-height: var(--feed-search-h);
 		padding: 0 0.55rem;
 		border: 0;
 		border-left: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
@@ -482,7 +492,12 @@
 	}
 
 	@media (pointer: coarse) {
+		.feed-search {
+			--feed-search-h: var(--tap-min);
+		}
+
 		.scope-btn,
+		.feed-search,
 		.feed-search button {
 			min-height: var(--tap-min);
 		}
