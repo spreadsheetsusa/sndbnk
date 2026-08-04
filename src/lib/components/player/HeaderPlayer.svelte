@@ -532,6 +532,7 @@
 		gap: 0.5rem;
 		flex: 1 1 16rem;
 		min-width: 11rem;
+		max-width: 100%;
 		padding: 0 0.6rem;
 	}
 
@@ -541,7 +542,9 @@
 		flex: 1;
 		align-items: center;
 		min-width: 0;
+		max-width: 100%;
 		min-height: var(--waveform-height);
+		overflow: hidden;
 	}
 
 	.marker {

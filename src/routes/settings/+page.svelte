@@ -3,6 +3,8 @@
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { slide } from 'svelte/transition';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import ProfileLinksEditor from '#lib/components/settings/ProfileLinksEditor.svelte';
@@ -87,6 +89,23 @@
 	const locationValue = $derived(form?.location ?? data.profile.location);
 	const newEmailValue = $derived(form?.newEmail ?? '');
 	const emailJustUpdated = $derived(page.url.searchParams.get('emailUpdated') === '1');
+	const emailBannerActive = $derived(
+		emailJustUpdated || Boolean(form?.emailMessage) || Boolean(form?.emailSuccess)
+	);
+	let emailUserOpen = $state(false);
+	let emailUserClosed = $state(false);
+	const emailOpen = $derived(emailUserOpen || (emailBannerActive && !emailUserClosed));
+
+	function toggleEmailOpen() {
+		if (emailOpen) {
+			emailUserOpen = false;
+			emailUserClosed = true;
+		} else {
+			emailUserOpen = true;
+			emailUserClosed = false;
+		}
+	}
+
 	const linkRows = $derived(form?.links ?? data.links);
 	// Remount the editor whenever the server-side set changes, so its row state reseeds.
 	const linksKey = $derived(JSON.stringify(linkRows));
@@ -193,7 +212,11 @@
 					await update({ reset: false });
 				} finally {
 					if (which === 'profile') profileBusy = false;
-					if (which === 'email') emailBusy = false;
+					if (which === 'email') {
+						emailBusy = false;
+						emailUserOpen = true;
+						emailUserClosed = false;
+					}
 					if (which === 'billing') billingBusy = false;
 					if (which === 'domain') domainBusy = false;
 					if (which === 'site') siteBusy = false;
@@ -317,7 +340,7 @@
 			<div class="block" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
 				<div class="block-head">
 					<h2>Profile</h2>
-					<p>How you appear across SNDBNK. Email stays your sign-in.</p>
+					<p>How you appear across SNDBNK.</p>
 				</div>
 
 				{#if form?.avatarMessage && !avatarBusy}
@@ -326,15 +349,16 @@
 				{#if form?.avatarSuccess && !avatarBusy}
 					<div class="banner ok" role="status">{form.avatarSuccess}</div>
 				{/if}
+				{#if form?.profileMessage && !profileBusy}
+					<div class="banner error" role="alert">{form.profileMessage}</div>
+				{/if}
+				{#if form?.profileSuccess && !profileBusy}
+					<div class="banner ok" role="status">{form.profileSuccess}</div>
+				{/if}
 
-				<div class="avatar-block">
-					<Avatar src={data.user.image} name={data.user.name} size="5rem" />
-					<div class="avatar-copy">
-						<p class="avatar-title">Avatar</p>
-						<p class="hint">
-							Square works best. JPG, PNG, or WebP up to 2MB. Shown in the header, on your profile,
-							and next to your comments.
-						</p>
+				<div class="profile-layout">
+					<div class="profile-avatar">
+						<Avatar src={data.user.image} name={data.user.name} size="5rem" />
 						<div class="avatar-actions">
 							<form
 								class="inline-form"
@@ -368,145 +392,162 @@
 								</form>
 							{/if}
 						</div>
+						<p class="hint">JPG, PNG, or WebP · 2MB</p>
+					</div>
+
+					<div class="profile-fields">
+						<form
+							method="POST"
+							action="?/updateProfile&tab=profile"
+							use:enhance={busyHandler('profile')}
+						>
+							<label for="name">Display name</label>
+							<input
+								id="name"
+								class="field-md"
+								name="name"
+								type="text"
+								value={nameValue}
+								autocomplete="name"
+								required
+							/>
+
+							<label for="username">Username</label>
+							<input
+								id="username"
+								class="field-md"
+								name="username"
+								type="text"
+								value={usernameValue}
+								autocomplete="username"
+								autocapitalize="none"
+								spellcheck="false"
+								minlength="3"
+								maxlength="30"
+								required
+							/>
+							<p class="hint">
+								Path URL: {PUBLIC_BASE_DOMAIN}/users/<strong>{usernameValue || 'you'}</strong>
+							</p>
+
+							<label for="bio">Bio</label>
+							<textarea
+								id="bio"
+								class="bio field-full"
+								name="bio"
+								rows="4"
+								maxlength={data.limits.bio}
+								placeholder="What you make, where you're headed."
+								value={bioValue}
+								oninput={(event) => (bioTyped = event.currentTarget.value.length)}></textarea>
+							<p class="hint" aria-live="polite">{bioLength} / {data.limits.bio} characters</p>
+
+							<label for="location">Location</label>
+							<input
+								id="location"
+								class="field-sm"
+								name="location"
+								type="text"
+								value={locationValue}
+								maxlength={data.limits.location}
+								placeholder="Berlin, DE"
+								autocomplete="address-level2"
+							/>
+							<p class="hint">Optional. Shown under your name on your public profile.</p>
+
+							{#key linksKey}
+								<ProfileLinksEditor initialLinks={linkRows} />
+							{/key}
+
+							<button class="pressable" type="submit" disabled={profileBusy}>
+								{profileBusy ? 'Saving…' : 'Save profile'}
+							</button>
+						</form>
 					</div>
 				</div>
 
-				{#if form?.profileMessage && !profileBusy}
-					<div class="banner error" role="alert">{form.profileMessage}</div>
-				{/if}
-				{#if form?.profileSuccess && !profileBusy}
-					<div class="banner ok" role="status">{form.profileSuccess}</div>
-				{/if}
-
-				<form
-					method="POST"
-					action="?/updateProfile&tab=profile"
-					use:enhance={busyHandler('profile')}
-				>
-					<label for="name">Display name</label>
-					<input
-						id="name"
-						class="field-md"
-						name="name"
-						type="text"
-						value={nameValue}
-						autocomplete="name"
-						required
-					/>
-
-					<label for="username">Username</label>
-					<input
-						id="username"
-						class="field-md"
-						name="username"
-						type="text"
-						value={usernameValue}
-						autocomplete="username"
-						autocapitalize="none"
-						spellcheck="false"
-						minlength="3"
-						maxlength="30"
-						required
-					/>
-					<p class="hint">
-						Path URL: {PUBLIC_BASE_DOMAIN}/users/<strong>{usernameValue || 'you'}</strong>
-					</p>
-
-					<label for="bio">Bio</label>
-					<textarea
-						id="bio"
-						class="bio field-full"
-						name="bio"
-						rows="4"
-						maxlength={data.limits.bio}
-						placeholder="What you make, where you're headed."
-						value={bioValue}
-						oninput={(event) => (bioTyped = event.currentTarget.value.length)}></textarea>
-					<p class="hint" aria-live="polite">{bioLength} / {data.limits.bio} characters</p>
-
-					<label for="location">Location</label>
-					<input
-						id="location"
-						class="field-sm"
-						name="location"
-						type="text"
-						value={locationValue}
-						maxlength={data.limits.location}
-						placeholder="Berlin, DE"
-						autocomplete="address-level2"
-					/>
-					<p class="hint">Optional. Shown under your name on your public profile.</p>
-
-					{#key linksKey}
-						<ProfileLinksEditor initialLinks={linkRows} />
-					{/key}
-
-					<button class="pressable" type="submit" disabled={profileBusy}>
-						{profileBusy ? 'Saving…' : 'Save profile'}
-					</button>
-				</form>
-
-				<div class="email-section" aria-labelledby="email-heading">
-					<h3 id="email-heading">Sign-in email</h3>
-					<p class="hint">
-						Current address: <strong>{data.user.email}</strong>. We send a link to the new address;
-						it becomes your sign-in email only after you confirm.
-					</p>
-
-					{#if emailJustUpdated && !form?.emailMessage && !form?.emailSuccess && !emailBusy}
-						<div class="banner ok" role="status">Your sign-in email is updated.</div>
-					{/if}
-					{#if form?.emailMessage && !emailBusy}
-						<div class="banner error" role="alert" id="email-error">{form.emailMessage}</div>
-					{/if}
-					{#if form?.emailSuccess && !emailBusy}
-						<div class="banner ok" role="status">{form.emailSuccess}</div>
-					{/if}
-
-					<form
-						method="POST"
-						action="?/changeEmail&tab=profile"
-						use:enhance={busyHandler('email')}
-						aria-busy={emailBusy}
-						aria-describedby={form?.emailMessage && !emailBusy ? 'email-error' : undefined}
-					>
-						<label for="newEmail">New email</label>
-						<input
-							id="newEmail"
-							class="field-lg"
-							name="newEmail"
-							type="email"
-							value={newEmailValue}
-							autocomplete="email"
-							required
-							aria-invalid={form?.emailMessage && !emailBusy ? 'true' : undefined}
-						/>
-
-						<label for="confirmEmail">Confirm new email</label>
-						<input
-							id="confirmEmail"
-							class="field-lg"
-							name="confirmEmail"
-							type="email"
-							value={newEmailValue}
-							autocomplete="email"
-							required
-						/>
-
-						<label for="emailPassword">Current password</label>
-						<input
-							id="emailPassword"
-							class="field-md"
-							name="password"
-							type="password"
-							autocomplete="current-password"
-							required
-						/>
-
-						<button class="pressable" type="submit" disabled={emailBusy}>
-							{emailBusy ? 'Sending…' : 'Send confirmation'}
+				<div class="email-disclosure">
+					<div class="email-disclosure-row">
+						<p class="hint email-current">
+							Sign-in: <strong>{data.user.email}</strong>
+						</p>
+						<button
+							type="button"
+							class="text-btn"
+							aria-expanded={emailOpen}
+							aria-controls="email-change-panel"
+							onclick={toggleEmailOpen}
+						>
+							{emailOpen ? 'Cancel' : 'Change email'}
 						</button>
-					</form>
+					</div>
+
+					{#if emailOpen}
+						<div
+							id="email-change-panel"
+							class="email-panel"
+							transition:slide={{ duration: prefersReducedMotion.current ? 0 : 200 }}
+						>
+							<p class="hint">
+								We send a link to the new address; it becomes your sign-in only after you confirm.
+							</p>
+
+							{#if emailJustUpdated && !form?.emailMessage && !form?.emailSuccess && !emailBusy}
+								<div class="banner ok" role="status">Your sign-in email is updated.</div>
+							{/if}
+							{#if form?.emailMessage && !emailBusy}
+								<div class="banner error" role="alert" id="email-error">{form.emailMessage}</div>
+							{/if}
+							{#if form?.emailSuccess && !emailBusy}
+								<div class="banner ok" role="status">{form.emailSuccess}</div>
+							{/if}
+
+							<form
+								method="POST"
+								action="?/changeEmail&tab=profile"
+								use:enhance={busyHandler('email')}
+								aria-busy={emailBusy}
+								aria-describedby={form?.emailMessage && !emailBusy ? 'email-error' : undefined}
+							>
+								<label for="newEmail">New email</label>
+								<input
+									id="newEmail"
+									class="field-lg"
+									name="newEmail"
+									type="email"
+									value={newEmailValue}
+									autocomplete="email"
+									required
+									aria-invalid={form?.emailMessage && !emailBusy ? 'true' : undefined}
+								/>
+
+								<label for="confirmEmail">Confirm new email</label>
+								<input
+									id="confirmEmail"
+									class="field-lg"
+									name="confirmEmail"
+									type="email"
+									value={newEmailValue}
+									autocomplete="email"
+									required
+								/>
+
+								<label for="emailPassword">Current password</label>
+								<input
+									id="emailPassword"
+									class="field-md"
+									name="password"
+									type="password"
+									autocomplete="current-password"
+									required
+								/>
+
+								<button class="pressable" type="submit" disabled={emailBusy}>
+									{emailBusy ? 'Sending…' : 'Send confirmation'}
+								</button>
+							</form>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -1320,25 +1361,25 @@
 	}
 
 	.page-head {
-		margin-bottom: 2.5rem;
+		margin-bottom: 1.75rem;
 	}
 
 	.page-head > .eyebrow {
-		margin: 0 0 0.35rem;
+		margin: 0 0 0.25rem;
 	}
 
 	h1 {
 		margin: 0;
-		font-size: clamp(2.4rem, 6vw, 3.75rem);
+		font-size: clamp(2.1rem, 5.5vw, 3.25rem);
 		line-height: 0.95;
 		animation: rise 0.65s ease both;
 	}
 
 	.intro {
 		max-width: 34rem;
-		margin: 0.4rem 0 0;
+		margin: 0.3rem 0 0;
 		color: var(--muted);
-		line-height: 1.4;
+		line-height: 1.35;
 		animation: rise 0.75s ease 0.05s both;
 	}
 
@@ -1396,9 +1437,9 @@
 	}
 
 	.block-head h2 {
-		margin: 0.35rem 0 0.5rem;
+		margin: 0.25rem 0 0.35rem;
 		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-		font-size: clamp(2rem, 5vw, 2.75rem);
+		font-size: clamp(1.75rem, 4.5vw, 2.35rem);
 		font-weight: 400;
 		letter-spacing: -0.03em;
 	}
@@ -1406,12 +1447,47 @@
 	.block-head p:last-child {
 		margin: 0;
 		color: var(--muted);
-		line-height: 1.5;
+		line-height: 1.4;
 	}
 
 	form {
 		display: grid;
 		margin-top: 1.5rem;
+	}
+
+	.profile-layout {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 1.15rem 1.5rem;
+		align-items: start;
+		margin-top: 1.25rem;
+	}
+
+	.profile-avatar {
+		display: grid;
+		gap: 0.55rem;
+		justify-items: start;
+	}
+
+	.profile-avatar .avatar-actions {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.35rem;
+	}
+
+	.profile-avatar .file-btn {
+		padding: 0.4rem 0.65rem;
+		font-size: 0.65rem;
+	}
+
+	.profile-avatar .hint {
+		max-width: 7.5rem;
+		margin: 0;
+		line-height: 1.35;
+	}
+
+	.profile-fields form {
+		margin-top: 0;
 	}
 
 	label {
@@ -1800,22 +1876,30 @@
 		margin-top: 0.75rem;
 	}
 
-	.email-section {
-		margin-top: 2rem;
-		padding-top: 1.5rem;
+	.email-disclosure {
+		margin-top: 1.5rem;
+		padding-top: 1.25rem;
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
-	.email-section h3 {
-		margin: 0 0 0.5rem;
-		font-size: 0.95rem;
-		font-weight: 800;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+	.email-disclosure-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem 1rem;
+		align-items: baseline;
+		justify-content: space-between;
 	}
 
-	.email-section form {
-		margin-top: 1rem;
+	.email-current {
+		margin: 0;
+	}
+
+	.email-panel {
+		margin-top: 0.85rem;
+	}
+
+	.email-panel form {
+		margin-top: 0.75rem;
 	}
 
 	.hint {
@@ -2221,11 +2305,15 @@
 
 	@media (max-width: 640px) {
 		.page-head {
-			margin-bottom: 1.5rem;
+			margin-bottom: 1.25rem;
 		}
 
 		.intro {
 			display: none;
+		}
+
+		.profile-layout {
+			grid-template-columns: 1fr;
 		}
 
 		.current-meta {

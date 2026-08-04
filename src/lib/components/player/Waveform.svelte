@@ -333,6 +333,24 @@
 		let destroyed = false;
 		/** @type {(() => void) | undefined} */
 		let unsubRendered;
+		/** Last container width we forced a redraw for. */
+		let lastDrawnWidth = 0;
+
+		/**
+		 * Wavesurfer observes its internal scroll host, which can keep a stale
+		 * intrinsic width in flex/grid layouts so window shrinks clip the canvas
+		 * instead of reflowing. Watch our outer container (min-width: 0) and
+		 * force a full redraw when the available width changes.
+		 */
+		const resizeObserver = new ResizeObserver(() => {
+			const ws = wavesurfer;
+			if (!ws || destroyed) return;
+			const width = Math.round(container.clientWidth);
+			if (width <= 0 || width === lastDrawnWidth) return;
+			lastDrawnWidth = width;
+			ws.setOptions({});
+		});
+		resizeObserver.observe(container);
 
 		(async () => {
 			const { default: WaveSurfer } = await import('wavesurfer.js');
@@ -356,6 +374,7 @@
 				peaks: [normalizedPeaks()],
 				duration: durationSec
 			});
+			lastDrawnWidth = Math.round(container.clientWidth);
 
 			ensureHoverLayer();
 			// Wavesurfer re-emits the renderer's `rendered` as `redrawcomplete`.
@@ -366,6 +385,7 @@
 
 		return () => {
 			destroyed = true;
+			resizeObserver.disconnect();
 			unsubRendered?.();
 			hoverLayer = null;
 			wavesurfer?.destroy();
@@ -443,11 +463,25 @@
 
 <style>
 	.waveform {
+		display: block;
 		width: 100%;
+		/* Flex/grid default min-width:auto uses canvas min-content and blocks shrink. */
+		min-width: 0;
+		max-width: 100%;
+		/* Clip stale canvases until ResizeObserver redraws to the new width. */
+		overflow: hidden;
 		cursor: pointer;
 		/* Horizontal drags scrub; vertical ones still scroll the page. */
 		touch-action: pan-y;
 		user-select: none;
+	}
+
+	/* Wavesurfer's host node must shrink with us, not prop open the flex item. */
+	.waveform > :global(div) {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		overflow: hidden;
 	}
 
 	.waveform.scrubbing {

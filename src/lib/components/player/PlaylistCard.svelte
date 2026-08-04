@@ -886,6 +886,8 @@
 
 	.wave-row {
 		position: relative;
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	.wave-placeholder {

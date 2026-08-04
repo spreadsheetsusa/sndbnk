@@ -846,6 +846,8 @@
 
 	.wave-row {
 		position: relative;
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	/* Matches Waveform's --waveform-height (taller under pointer: coarse). */
