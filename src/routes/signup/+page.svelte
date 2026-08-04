@@ -84,7 +84,7 @@
 					spellcheck="false"
 					minlength="3"
 					maxlength="30"
-					pattern="[a-zA-Z0-9](?:[a-zA-Z0-9-]{(1, 28)}[a-zA-Z0-9])?"
+					pattern={'[a-zA-Z0-9](?:(?:[a-zA-Z0-9]|-){1,28}[a-zA-Z0-9])?'}
 					required
 					aria-invalid={form?.message && !submitting ? 'true' : undefined}
 					aria-describedby={form?.message && !submitting

@@ -72,6 +72,7 @@
 	 *   viewerImage?: string | null,
 	 *   showCommentForm?: boolean,
 	 *   linkBase?: string,
+	 *   titleAsHeading?: boolean,
 	 *   ondeleted?: () => void
 	 * }}
 	 */
@@ -82,6 +83,7 @@
 		viewerImage = null,
 		showCommentForm = true,
 		linkBase = '',
+		titleAsHeading = false,
 		ondeleted
 	} = $props();
 
@@ -183,6 +185,8 @@
 	let postedComments = $state([]);
 
 	let menuOpen = $state(false);
+	/** @type {HTMLButtonElement | null} */
+	let moreBtn = $state(null);
 	let copied = $state(false);
 	let likeBusy = $state(false);
 	let deleteBusy = $state(false);
@@ -393,7 +397,10 @@
 
 	/** @param {KeyboardEvent} event */
 	function handleKeydown(event) {
-		if (event.key === 'Escape' && menuOpen) menuOpen = false;
+		if (event.key === 'Escape' && menuOpen) {
+			menuOpen = false;
+			moreBtn?.focus();
+		}
 	}
 
 	/** @param {FocusEvent & { currentTarget: HTMLElement }} event */
@@ -456,7 +463,11 @@
 				{:else}
 					<span class="artist">{playlist.uploaderName}</span>
 				{/if}
-				<a class="title" href="/playlists/{playlist.id}">{playlist.title}</a>
+				{#if titleAsHeading}
+					<h1 class="title">{playlist.title}</h1>
+				{:else}
+					<a class="title" href="/playlists/{playlist.id}">{playlist.title}</a>
+				{/if}
 				<span class="playlist-meta">
 					Playlist · {playlist.trackCount}
 					{playlist.trackCount === 1 ? 'track' : 'tracks'}
@@ -479,9 +490,11 @@
 				<button
 					type="button"
 					class="more-btn"
+					bind:this={moreBtn}
 					aria-label="More actions for {playlist.title}"
 					aria-expanded={menuOpen}
 					aria-haspopup="menu"
+					aria-controls="playlist-menu-{playlist.id}"
 					onclick={() => (menuOpen = !menuOpen)}
 				>
 					<span class="more-icon" aria-hidden="true">
@@ -490,7 +503,7 @@
 				</button>
 
 				{#if menuOpen}
-					<div class="menu" role="menu">
+					<div class="menu" id="playlist-menu-{playlist.id}" role="menu">
 						<button type="button" role="menuitem" onclick={copyLink}>
 							{copied ? 'Copied!' : 'Copy link'}
 						</button>
@@ -595,6 +608,9 @@
 							name="comment"
 							rows="1"
 							placeholder={isActive
+								? `Comment on ${activeTrack.title} at the current time`
+								: `Comment on ${activeTrack.title}`}
+							aria-label={isActive
 								? `Comment on ${activeTrack.title} at the current time`
 								: `Comment on ${activeTrack.title}`}
 							maxlength="1000"
@@ -750,6 +766,7 @@
 
 	.title {
 		overflow: hidden;
+		margin: 0;
 		color: var(--ink);
 		font-size: 1.02rem;
 		font-weight: 800;
@@ -759,7 +776,7 @@
 		white-space: nowrap;
 	}
 
-	.title:hover {
+	a.title:hover {
 		text-decoration: underline;
 		text-underline-offset: 0.2rem;
 	}

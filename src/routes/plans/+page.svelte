@@ -236,7 +236,7 @@
 <div class="page">
 	<SiteHeader />
 
-	<main>
+	<main id="main">
 		<div class="signal-bg" aria-hidden="true">
 			<img src="/W120y.webp" alt="" width="1152" height="864" decoding="async" />
 		</div>

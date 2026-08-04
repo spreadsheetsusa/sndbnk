@@ -99,7 +99,7 @@
 	<div class="landing">
 		<SiteHeader --site-header-gap="0" />
 
-		<main>
+		<main id="main">
 			<section class="hero" aria-labelledby="hero-title">
 				<HeroVisualizer />
 				<div class="hero-copy">

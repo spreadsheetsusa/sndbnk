@@ -35,6 +35,8 @@
 	const signedIn = $derived(Boolean(page.data.nav?.name));
 
 	let queueOpen = $state(false);
+	/** @type {HTMLButtonElement | null} */
+	let queueBtn = $state(null);
 	let likeBusy = $state(false);
 	/** Waveform scrub preview in seconds. @type {number | null} */
 	let scrubSeconds = $state(null);
@@ -223,12 +225,21 @@
 		if (index < 0) return;
 		player.removeFromQueue(index);
 	}
+
+	/** @param {KeyboardEvent} event */
+	function handleQueueKeydown(event) {
+		if (event.key !== 'Escape' || !queueOpen) return;
+		queueOpen = false;
+		queueBtn?.focus();
+	}
 </script>
+
+<svelte:window onkeydown={handleQueueKeydown} />
 
 {#if player.current}
 	{@const track = player.current}
 	{@const artistLabel = track.artist || track.uploaderName}
-	<div class="header-player">
+	<div class="header-player" role="region" aria-label="Now playing">
 		<div class="strip">
 			<div class="transport">
 				<button
@@ -311,9 +322,12 @@
 					<button
 						type="button"
 						class="bar-cover-btn"
+						bind:this={queueBtn}
 						class:active={queueOpen}
 						aria-label="Next Up queue"
 						aria-expanded={queueOpen}
+						aria-controls="header-queue-panel"
+						aria-haspopup="true"
 						onclick={() => (queueOpen = !queueOpen)}
 					>
 						{#if track.hasCover}
@@ -333,7 +347,7 @@
 					</button>
 
 					{#if queueOpen}
-						<aside class="queue-panel" aria-label="Next Up">
+						<aside class="queue-panel" id="header-queue-panel" aria-label="Next Up">
 							<header>
 								<span class="eyebrow">Next Up</span>
 								{#if player.queue.length > 0}

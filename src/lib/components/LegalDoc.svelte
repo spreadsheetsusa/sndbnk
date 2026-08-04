@@ -21,7 +21,7 @@
 <div class="page">
 	<SiteHeader />
 
-	<main>
+	<main id="main">
 		<header class="intro">
 			<p class="eyebrow accent-text eyebrow-chip">Legal</p>
 			<h1 class="display-face">{heading}</h1>

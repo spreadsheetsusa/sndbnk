@@ -21,7 +21,7 @@
 	const siteLabel = $derived(tenantSiteName || 'SNDBNK');
 	const pageTitle = $derived(`${data.track.title} by ${artistName} | ${siteLabel}`);
 	const pageDescription = $derived(
-		`Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
+		data.description?.trim() || `Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
 	);
 	const seoCanonical = $derived(`${data.siteOrigin}/tracks/${data.track.id}`);
 	const seoImage = $derived(data.track.hasCover ? `/api/media/${data.track.id}/cover` : null);
@@ -108,13 +108,14 @@
 		<SiteHeader />
 	{/if}
 
-	<main>
+	<main id="main">
 		<div class="player-wrap">
 			<TrackCard
 				track={data.track}
 				signedIn={Boolean(data.viewer)}
 				viewerName={data.viewer?.name ?? null}
 				viewerImage={data.viewer?.image ?? null}
+				titleAsHeading
 				oncommented={() => invalidateAll()}
 				ondeleted={handleDeleted}
 			/>

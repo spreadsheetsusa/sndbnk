@@ -103,9 +103,14 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 		// (Milkdrop). Only first-party origins (apex + tenant hosts).
 		const allowOrigin = mediaCorsOrigin(request, url);
 
+		// Published covers are share/OG assets — allow shared caches. Audio and
+		// unpublished owner previews stay private.
+		const cacheControl =
+			kind === 'cover' && row.published ? 'public, max-age=3600' : 'private, max-age=3600';
+
 		setHeaders({
 			'accept-ranges': 'bytes',
-			'cache-control': 'private, max-age=3600',
+			'cache-control': cacheControl,
 			'x-content-type-options': 'nosniff',
 			...(allowOrigin ? { 'access-control-allow-origin': allowOrigin, vary: 'Origin' } : {})
 		});

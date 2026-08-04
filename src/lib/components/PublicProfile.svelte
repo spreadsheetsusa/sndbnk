@@ -164,7 +164,7 @@
 		<SiteHeader />
 	{/if}
 
-	<main>
+	<main id="main">
 		<div class="profile-grid" class:no-sidebar={!showSidebar}>
 			<section class="hero" aria-labelledby="profile-name">
 				<p class="eyebrow eyebrow-chip accent-text">
@@ -606,18 +606,6 @@
 		color: var(--on-accent);
 		background: var(--accent);
 		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		margin: -1px;
-		padding: 0;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
-		border: 0;
 	}
 
 	.profile-track-list {
