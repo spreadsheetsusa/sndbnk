@@ -301,9 +301,11 @@
 
 	.feed-search input[type='search'] {
 		display: block;
+		box-sizing: border-box;
 		width: 100%;
 		height: 100%;
 		min-width: 0;
+		margin: 0;
 		padding: 0 0.65rem;
 		border: 0;
 		border-radius: 0.125rem 0 0 0.125rem;
@@ -312,7 +314,7 @@
 		font: inherit;
 		font-size: 0.82rem;
 		font-weight: 500;
-		line-height: 1;
+		line-height: normal;
 		outline: none;
 		appearance: none;
 	}
