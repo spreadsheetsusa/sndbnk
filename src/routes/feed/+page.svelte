@@ -284,6 +284,7 @@
 		align-items: stretch;
 		min-width: min(100%, 12rem);
 		max-width: 22rem;
+		min-height: 2.25rem;
 		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--ink));
 		border-radius: 0.125rem;
 		background: color-mix(in srgb, var(--accent) 8%, var(--paper));
@@ -292,15 +293,18 @@
 
 	.feed-search-field {
 		position: relative;
+		display: flex;
 		flex: 1 1 auto;
+		align-items: stretch;
 		min-width: 0;
 	}
 
 	.feed-search input[type='search'] {
 		display: block;
 		width: 100%;
+		height: 100%;
 		min-width: 0;
-		padding: 0.4rem 0.65rem;
+		padding: 0 0.65rem;
 		border: 0;
 		border-radius: 0.125rem 0 0 0.125rem;
 		color: var(--ink);
@@ -308,7 +312,9 @@
 		font: inherit;
 		font-size: 0.82rem;
 		font-weight: 500;
+		line-height: 1;
 		outline: none;
+		appearance: none;
 	}
 
 	.feed-search input[type='search'].has-clear {
@@ -483,6 +489,7 @@
 
 	@media (pointer: coarse) {
 		.scope-btn,
+		.feed-search,
 		.feed-search button {
 			min-height: var(--tap-min);
 		}
