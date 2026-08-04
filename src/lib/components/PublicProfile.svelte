@@ -380,7 +380,8 @@
 		grid-template-areas:
 			'head side'
 			'list side';
-		gap: clamp(2rem, 5vw, 3rem);
+		column-gap: clamp(2rem, 5vw, 3rem);
+		row-gap: 0.75rem;
 		align-items: start;
 	}
 
@@ -557,8 +558,8 @@
 	.tracks {
 		grid-area: list;
 		min-width: 0;
-		margin-top: 2.5rem;
-		padding-top: clamp(1.5rem, 4vw, 2rem);
+		margin-top: 0;
+		padding-top: clamp(1rem, 2.5vw, 1.25rem);
 		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		animation: rise 0.85s ease 0.2s both;
 	}
@@ -694,17 +695,14 @@
 				'head'
 				'side'
 				'list';
-			gap: 1.25rem;
+			column-gap: 1.25rem;
+			row-gap: 1rem;
 		}
 
 		.profile-grid.no-sidebar {
 			grid-template-areas:
 				'head'
 				'list';
-		}
-
-		.tracks {
-			margin-top: 0;
 		}
 	}
 
@@ -722,7 +720,7 @@
 		}
 
 		.tracks {
-			padding-top: 1.25rem;
+			padding-top: 1rem;
 		}
 	}
 
