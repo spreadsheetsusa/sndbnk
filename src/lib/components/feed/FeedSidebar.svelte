@@ -485,8 +485,11 @@
 		text-decoration: none;
 	}
 
-	.item-body:hover {
-		color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+	.item-body:hover,
+	.item-body:focus-visible {
+		color: var(--ink);
+		text-decoration: none;
+		opacity: 0.78;
 	}
 
 	.item-stat {
