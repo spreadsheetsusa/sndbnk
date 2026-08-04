@@ -3,7 +3,10 @@ import { eq } from 'drizzle-orm';
 import { db } from '#lib/server/db';
 import { platformSettings } from '#lib/server/db/schema';
 
-/** @typedef {{ trackPlayPercent: number, mixPlayContinualMs: number }} PlayThresholds */
+/**
+ * Both thresholds mean accumulated playing time (pauses OK; seeking does not count).
+ * @typedef {{ trackPlayPercent: number, mixPlayContinualMs: number }} PlayThresholds
+ */
 
 export const DEFAULT_TRACK_PLAY_PERCENT = 60;
 export const DEFAULT_MIX_PLAY_CONTINUAL_MS = 600_000;

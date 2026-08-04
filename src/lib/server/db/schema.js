@@ -537,7 +537,7 @@ export const listenHistoryRelations = relations(listenHistory, ({ one }) => ({
  */
 export const platformSettings = sqliteTable('platform_settings', {
 	id: text('id').primaryKey().default('default'),
-	/** Percent of duration (1–100) that counts as a play for non-mix media. */
+	/** Accumulated playing time as percent of duration (1–100) for non-mix media. */
 	trackPlayPercent: integer('track_play_percent').notNull().default(60),
 	/** Accumulated playing ms that counts as a play for mixes. */
 	mixPlayContinualMs: integer('mix_play_continual_ms').notNull().default(600_000),
