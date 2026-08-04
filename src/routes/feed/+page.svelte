@@ -279,12 +279,14 @@
 	}
 
 	.feed-search {
+		--feed-search-h: 2.25rem;
 		display: flex;
 		flex: 1 1 12rem;
 		align-items: stretch;
 		min-width: min(100%, 12rem);
 		max-width: 22rem;
-		min-height: 2.25rem;
+		height: var(--feed-search-h);
+		min-height: var(--feed-search-h);
 		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--ink));
 		border-radius: 0.125rem;
 		background: color-mix(in srgb, var(--accent) 8%, var(--paper));
@@ -314,7 +316,8 @@
 		font: inherit;
 		font-size: 0.82rem;
 		font-weight: 500;
-		line-height: normal;
+		/* Match control height so single-line text/placeholder centers in the bar. */
+		line-height: var(--feed-search-h);
 		outline: none;
 		appearance: none;
 	}
@@ -490,6 +493,10 @@
 	}
 
 	@media (pointer: coarse) {
+		.feed-search {
+			--feed-search-h: var(--tap-min);
+		}
+
 		.scope-btn,
 		.feed-search,
 		.feed-search button {
