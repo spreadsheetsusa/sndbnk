@@ -8,6 +8,7 @@
 	import HeroSoundCard from '#lib/components/home/HeroSoundCard.svelte';
 	import HeroVisualizer from '#lib/components/home/HeroVisualizer.svelte';
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
+	import PlansShowcase from '#lib/components/home/PlansShowcase.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 	import { webSiteJsonLd } from '#lib/seo.js';
@@ -139,6 +140,12 @@
 			<div class="features">
 				<FeatureHighlights />
 			</div>
+
+			<PlansShowcase
+				plans={data.plans}
+				currentPlanId={data.currentPlanId}
+				signedIn={Boolean(data.user)}
+			/>
 
 			<section class="manifesto" aria-label="Our intention">
 				<div class="manifesto-bg" aria-hidden="true">

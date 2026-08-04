@@ -1,9 +1,11 @@
 import { error } from '@sveltejs/kit';
 
 import { auth } from '#lib/server/auth';
+import { getPlans } from '#lib/server/billing/plans';
 import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { getSiteStats, listLatestMembers, pickHeroTrack } from '#lib/server/showcase';
+import { getProfileByUserId } from '#lib/server/tenant';
 
 export const load = async ({ cookies, locals, url }) => {
 	if (locals.tenant) {
@@ -37,10 +39,11 @@ export const load = async ({ cookies, locals, url }) => {
 					: null;
 	}
 
-	const [stats, heroTrack, latestMembers] = await Promise.all([
+	const [stats, heroTrack, latestMembers, profile] = await Promise.all([
 		getSiteStats(),
 		pickHeroTrack(locals.user),
-		listLatestMembers()
+		listLatestMembers(),
+		locals.user ? getProfileByUserId(locals.user.id) : null
 	]);
 
 	return {
@@ -49,7 +52,16 @@ export const load = async ({ cookies, locals, url }) => {
 		authNotice,
 		stats,
 		heroTrack,
-		latestMembers
+		latestMembers,
+		plans: getPlans().map((tier) => ({
+			id: tier.id,
+			label: tier.label,
+			blurb: tier.blurb,
+			features: tier.features,
+			monthlyAmount: tier.monthlyAmount,
+			sortOrder: tier.sortOrder
+		})),
+		currentPlanId: profile?.plan ?? null
 	};
 };
 

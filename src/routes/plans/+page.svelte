@@ -3,6 +3,7 @@
 	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
 	import { PUBLIC_STRIPE_PUBLISHABLE_KEY } from '$app/env/public';
 	import { invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
 	import SeoHead from '#lib/components/SeoHead.svelte';
@@ -80,6 +81,24 @@
 		paymentReady = false;
 		message = null;
 	}
+
+	onMount(() => {
+		const id = data.preselectPlan;
+		if (!id) return;
+
+		const tier = data.plans.find((row) => row.id === id);
+		if (!tier) return;
+
+		const canCheckout =
+			tier.monthlyAmount > 0 &&
+			tier.purchasable &&
+			data.billingEnabled &&
+			currentPlan !== id &&
+			!data.account?.hasSubscription;
+
+		if (canCheckout) choose(id);
+		else selectedPlan = id;
+	});
 
 	/**
 	 * Match the Payment Element to the brutalist tokens: square corners, ink
