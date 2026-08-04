@@ -659,6 +659,42 @@ export async function listCommentsForTrack(trackId) {
 }
 
 /**
+ * Delete a comment owned by the viewer. Ownership is enforced in the query.
+ * @param {string} userId
+ * @param {string} trackId
+ * @param {string} commentId
+ * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
+ */
+export async function deleteCommentForUser(userId, trackId, commentId) {
+	const owned = await db
+		.select({ id: trackComment.id })
+		.from(trackComment)
+		.where(
+			and(
+				eq(trackComment.id, commentId),
+				eq(trackComment.trackId, trackId),
+				eq(trackComment.userId, userId)
+			)
+		)
+		.limit(1);
+
+	if (!owned[0]) {
+		return { ok: false, message: 'Comment not found.' };
+	}
+
+	await db
+		.delete(trackComment)
+		.where(
+			and(
+				eq(trackComment.id, commentId),
+				eq(trackComment.trackId, trackId),
+				eq(trackComment.userId, userId)
+			)
+		);
+	return { ok: true };
+}
+
+/**
  * @typedef {Object} TimedComment
  * @property {string} id
  * @property {string} body
