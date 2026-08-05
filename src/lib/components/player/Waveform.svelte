@@ -53,6 +53,8 @@
 	/** Imperative handle into Wavesurfer's shadow DOM; not read from the template. */
 	/** @type {HTMLDivElement | null} */
 	let hoverLayer = null;
+	/** True after Wavesurfer finishes load/decode so zoom() is safe. */
+	let audioReady = $state(false);
 
 	const durationSec = $derived(Math.max((durationMs ?? 0) / 1000, 0.001));
 	const displayTime = $derived(scrubRatio == null ? currentTime : scrubRatio * durationSec);
@@ -350,6 +352,8 @@
 		let destroyed = false;
 		/** @type {(() => void) | undefined} */
 		let unsubRendered;
+		/** @type {(() => void) | undefined} */
+		let unsubReady;
 		/** Last container width we forced a redraw for. */
 		let lastDrawnWidth = 0;
 
@@ -376,6 +380,7 @@
 			const resolvedHeight = resolveHeight();
 			const colors = resolveColors($accentColor);
 			const useBars = variant === 'bars';
+			audioReady = false;
 			wavesurfer = WaveSurfer.create({
 				container,
 				height: resolvedHeight,
@@ -393,11 +398,11 @@
 				duration: durationSec
 			});
 			lastDrawnWidth = Math.round(container.clientWidth);
-			if (zoomed && minPxPerSec != null) {
-				wavesurfer.zoom(minPxPerSec);
-			}
 
-			ensureHoverLayer();
+			// zoom() throws until decode finishes; create's load is async.
+			unsubReady = wavesurfer.on('ready', () => {
+				if (!destroyed) audioReady = true;
+			});
 			// Wavesurfer re-emits the renderer's `rendered` as `redrawcomplete`.
 			unsubRendered = wavesurfer.on('redrawcomplete', () => {
 				if (!destroyed) rebuildHoverCanvases();
@@ -407,10 +412,12 @@
 		return () => {
 			destroyed = true;
 			resizeObserver.disconnect();
+			unsubReady?.();
 			unsubRendered?.();
 			hoverLayer = null;
 			wavesurfer?.destroy();
 			wavesurfer = null;
+			audioReady = false;
 			if (hoverRatio != null) onhover?.(false);
 		};
 	});
@@ -433,6 +440,7 @@
 		if (!ws) return;
 		scrubRatio = null;
 		hoverRatio = null;
+		audioReady = false;
 		void ws.load(
 			'',
 			[nextPeaks && nextPeaks.length > 0 ? nextPeaks.map((v) => v / 100) : normalizedPeaks()],
@@ -460,16 +468,13 @@
 		syncHoverLayer(ratio);
 	});
 
-	// Zoom / fit: null minPxPerSec restores fillParent; a value widens the canvas.
+	// Zoom after decode; parent remounts bars↔wave so fit reset is a new instance.
 	$effect(() => {
 		const ws = wavesurfer;
 		const px = minPxPerSec;
-		if (!ws) return;
-		if (px == null || px <= 0) {
-			ws.setOptions({ fillParent: true, autoCenter: false });
-			ws.zoom(1);
-			return;
-		}
+		const ready = audioReady;
+		if (!ws || !ready || px == null || px <= 0) return;
+		if (!ws.getDecodedData()) return;
 		ws.setOptions({ fillParent: false, autoCenter: true });
 		ws.zoom(px);
 	});
