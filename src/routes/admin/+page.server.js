@@ -10,7 +10,8 @@ import {
 	requireAdmin,
 	searchUsers,
 	syncPlanToStripe,
-	updatePlan
+	updatePlan,
+	updateUserEmailForAdmin
 } from '#lib/server/admin';
 import { auth } from '#lib/server/auth';
 import { isPlan, planOrDefault } from '#lib/server/billing/plans';
@@ -183,6 +184,19 @@ export const actions = {
 		}
 
 		return { userSuccess: banned ? 'Account banned.' : 'Ban lifted.' };
+	},
+
+	setUserEmail: async ({ locals, request }) => {
+		requireAdmin(locals);
+
+		const formData = await request.formData();
+		const userId = formData.get('userId')?.toString() ?? '';
+		const email = formData.get('email')?.toString() ?? '';
+
+		const result = await updateUserEmailForAdmin(userId, email);
+		if (!result.ok) return fail(400, { userMessage: result.message, emailDraft: email });
+
+		return { userSuccess: `Sign-in email updated to ${result.email}.` };
 	},
 
 	deleteUser: async ({ locals, request }) => {

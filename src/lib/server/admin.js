@@ -3,12 +3,15 @@ import { desc, eq, like, or, sql } from 'drizzle-orm';
 
 import { auth } from '#lib/server/auth';
 import { priceLookupKey, productPayload, STRIPE_APP_TAG } from '#lib/server/billing/catalog';
+import { syncStripeCustomerEmail } from '#lib/server/billing/customer';
 import { invalidatePlanCache, planOrDefault } from '#lib/server/billing/plans';
 import { billingEnabled, getStripe } from '#lib/server/billing/stripe';
 import { db } from '#lib/server/db';
 import { plan, profile, track, user } from '#lib/server/db/schema';
 import { getStorageAdapter } from '#lib/server/storage';
 import { wipeUserLocalMedia } from '#lib/server/storage/local.js';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * The better-auth admin plugin puts the role on the user row, so authorization is
@@ -363,6 +366,46 @@ export async function searchUsers(query) {
 			maxLocalBytes: tier.maxLocalBytes
 		};
 	});
+}
+
+/**
+ * Force-update a user's sign-in email (staff correction). Immediate — no verify link.
+ * Keeps Stripe customer email in sync when billing is configured.
+ *
+ * @param {string} userId
+ * @param {string} newEmailRaw
+ * @returns {Promise<{ ok: true, email: string } | { ok: false, message: string }>}
+ */
+export async function updateUserEmailForAdmin(userId, newEmailRaw) {
+	if (!userId) return { ok: false, message: 'Pick a user.' };
+
+	const email = newEmailRaw.trim().toLowerCase();
+	if (!email) return { ok: false, message: 'Enter an email address.' };
+	if (!EMAIL_PATTERN.test(email)) return { ok: false, message: 'Enter a valid email address.' };
+
+	const found = await db
+		.select({ id: user.id, email: user.email })
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1);
+	const current = found[0];
+	if (!current) return { ok: false, message: 'No such account.' };
+
+	if (email === current.email.trim().toLowerCase()) {
+		return { ok: false, message: 'That is already their sign-in email.' };
+	}
+
+	const taken = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
+	if (taken[0]) return { ok: false, message: 'Another account already uses that email.' };
+
+	await db
+		.update(user)
+		.set({ email, emailVerified: true, updatedAt: new Date() })
+		.where(eq(user.id, userId));
+
+	await syncStripeCustomerEmail(userId, email);
+
+	return { ok: true, email };
 }
 
 /**
