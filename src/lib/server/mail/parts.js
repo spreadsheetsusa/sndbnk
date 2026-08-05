@@ -40,8 +40,8 @@ export function mailLink(href, label) {
 export function mailCta(href, label) {
 	return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
   <tr>
-    <td class="mail-cta" style="background-color:${L.accent};border:1px solid ${L.ink};">
-      <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 18px;font-family:${FONT};font-size:14px;font-weight:600;line-height:1;color:${L.onAccent};text-decoration:none;">${escapeHtml(label)}</a>
+    <td class="mail-cta" style="background-color:${L.accent};border:1px solid ${L.ink};border-radius:0;">
+      <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 18px;font-family:${FONT};font-size:14px;font-weight:600;line-height:1;color:${L.onAccent};text-decoration:none;border-radius:0;">${escapeHtml(label)}</a>
     </td>
   </tr>
 </table>`;
