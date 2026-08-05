@@ -6,6 +6,7 @@
 	import IconUpload from '@tabler/icons-svelte-runes/icons/upload';
 	import { MediaQuery } from 'svelte/reactivity';
 
+	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
 	import HostedQuotaMeter from '#lib/components/library/HostedQuotaMeter.svelte';
@@ -655,6 +656,8 @@
 			</div>
 		</section>
 	</main>
+
+	<SiteFooter bordered />
 </div>
 
 <style>
