@@ -1,10 +1,10 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { fade } from 'svelte/transition';
+	import { fade, slide } from 'svelte/transition';
 	import IconCamera from '@tabler/icons-svelte-runes/icons/camera';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
@@ -303,6 +303,36 @@
 	const progressPct = $derived(
 		durationSec > 0 ? Math.min((displayTime / durationSec) * 100, 100) : 0
 	);
+
+	/** Edit-mode continuous waveform zoom (px per second); null until measured. */
+	const ZOOM_MAX = 512;
+	/** @type {HTMLDivElement | null} */
+	let waveRowEl = $state.raw(null);
+	let zoomPx = $state(1);
+
+	const zoomMin = $derived.by(() => {
+		const width = waveRowEl?.clientWidth ?? 0;
+		if (width <= 0 || durationSec <= 0) return 1;
+		return Math.max(1, Math.floor(width / durationSec));
+	});
+
+	$effect(() => {
+		void track?.id;
+		void editing;
+		// Fit width only — do not re-run on resize or the user's zoom is wiped.
+		zoomPx = untrack(() => zoomMin);
+	});
+
+	// Keep the thumb above the live fit floor if the deck grows.
+	$effect(() => {
+		const min = zoomMin;
+		if (zoomPx < min) zoomPx = min;
+	});
+
+	/** @param {Event} event */
+	function onZoomInput(event) {
+		zoomPx = Number(/** @type {HTMLInputElement} */ (event.currentTarget).value);
+	}
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack | null} */
 	function asPlayerTrack() {
@@ -647,31 +677,56 @@
 						</div>
 					</div>
 
-					{#key track.id}
-						<div class="wave-row">
-							<Waveform
-								peaks={track.waveform}
-								durationMs={track.durationMs}
-								currentTime={isActive ? player.currentTime : 0}
-								height={72}
-								label="Seek within {track.title}"
-								onseek={handleSeek}
-								onscrub={(seconds) => {
-									scrubTrackId = track.id;
-									scrubSecondsRaw = seconds;
-								}}
-							/>
-							{#if isActive || scrubSeconds != null}
-								<span
-									class="time-chip current"
-									style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
-								>
-									{formatDuration(displayTime * 1000)}
-								</span>
-							{/if}
-							<span class="time-chip total">{formatDuration(track.durationMs)}</span>
+					<div class="wave-stack" bind:this={waveRowEl}>
+						{#key `${track.id}:${editing}`}
+							<div class="wave-row">
+								<Waveform
+									peaks={track.waveform}
+									durationMs={track.durationMs}
+									currentTime={isActive ? player.currentTime : 0}
+									height={72}
+									label="Seek within {track.title}"
+									variant={editing ? 'wave' : 'bars'}
+									minPxPerSec={editing ? zoomPx : null}
+									onseek={handleSeek}
+									onscrub={(seconds) => {
+										scrubTrackId = track.id;
+										scrubSecondsRaw = seconds;
+									}}
+								/>
+								{#if isActive || scrubSeconds != null}
+									<span
+										class="time-chip current"
+										style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
+									>
+										{formatDuration(displayTime * 1000)}
+									</span>
+								{/if}
+								<span class="time-chip total">{formatDuration(track.durationMs)}</span>
+							</div>
+						{/key}
+					</div>
+
+					{#if editing}
+						<div
+							class="wave-zoom-bar"
+							transition:slide={{ duration: prefersReducedMotion.current ? 0 : 200 }}
+						>
+							<label class="zoom-label">
+								<span class="zoom-text">Zoom</span>
+								<input
+									class="zoom-range"
+									type="range"
+									min={zoomMin}
+									max={Math.max(zoomMin, ZOOM_MAX)}
+									step="1"
+									value={zoomPx}
+									aria-label="Waveform zoom"
+									oninput={onZoomInput}
+								/>
+							</label>
 						</div>
-					{/key}
+					{/if}
 
 					<div class="file-meta-bar">
 						<dl class="engagement" aria-label="Track stats">
@@ -1278,10 +1333,73 @@
 		background: color-mix(in srgb, var(--ink) 22%, transparent);
 	}
 
+	.wave-stack,
 	.wave-row {
 		position: relative;
 		min-width: 0;
 		max-width: 100%;
+	}
+
+	.wave-zoom-bar {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+		margin: 0.35rem 0 0.15rem 16px;
+		padding: 0.2rem 0;
+	}
+
+	.zoom-label {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		min-width: 0;
+		max-width: 16rem;
+		width: 100%;
+		color: var(--muted);
+		font-size: 0.66rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.zoom-text {
+		flex: none;
+	}
+
+	.zoom-range {
+		flex: 1;
+		min-width: 0;
+		height: 0.55rem;
+		margin: 0;
+		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--field-border));
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--accent) 10%, var(--field-surface));
+		appearance: none;
+		cursor: pointer;
+	}
+
+	.zoom-range::-webkit-slider-thumb {
+		width: 0.7rem;
+		height: 0.7rem;
+		border: 1px solid var(--ink);
+		border-radius: 0.125rem;
+		background: var(--accent);
+		appearance: none;
+		cursor: grab;
+	}
+
+	.zoom-range::-moz-range-thumb {
+		width: 0.7rem;
+		height: 0.7rem;
+		border: 1px solid var(--ink);
+		border-radius: 0.125rem;
+		background: var(--accent);
+		cursor: grab;
+	}
+
+	.zoom-range:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 3px;
 	}
 
 	.time-chip {
@@ -1713,9 +1831,15 @@
 			order: 3;
 		}
 
-		.wave-row {
+		.wave-stack {
 			order: 4;
 			flex: 1 1 100%;
+		}
+
+		.wave-zoom-bar {
+			order: 4;
+			flex: 1 1 100%;
+			margin-left: 0;
 		}
 
 		.file-meta-bar {

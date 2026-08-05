@@ -5,7 +5,9 @@
 	import { resolvedTheme } from '#lib/stores/theme.js';
 
 	/**
-	 * SoundCloud-style bar waveform rendered from pre-computed peaks.
+	 * SoundCloud-style waveform rendered from pre-computed peaks.
+	 * Default `bars` variant matches the feed/player scrubbers. Library edit
+	 * passes `wave` for a continuous path plus optional `minPxPerSec` zoom.
 	 * Never fetches or decodes audio: progress is driven externally via
 	 * `currentTime`, and seeks are reported through `onseek`. A press-drag
 	 * gesture previews its position through `onscrub` and only commits on
@@ -18,6 +20,8 @@
 	 *   currentTime?: number,
 	 *   height?: number,
 	 *   label?: string,
+	 *   variant?: 'bars' | 'wave',
+	 *   minPxPerSec?: number | null,
 	 *   onseek?: (seconds: number) => void,
 	 *   onscrub?: (seconds: number | null) => void,
 	 *   onhover?: (hovering: boolean) => void
@@ -29,6 +33,8 @@
 		currentTime = 0,
 		height,
 		label = 'Seek',
+		variant = 'bars',
+		minPxPerSec = null,
 		onseek,
 		onscrub,
 		onhover
@@ -50,6 +56,7 @@
 
 	const durationSec = $derived(Math.max((durationMs ?? 0) / 1000, 0.001));
 	const displayTime = $derived(scrubRatio == null ? currentTime : scrubRatio * durationSec);
+	const zoomed = $derived(minPxPerSec != null && minPxPerSec > 0);
 
 	function normalizedPeaks() {
 		if (peaks && peaks.length > 0) {
@@ -242,11 +249,21 @@
 		layer.style.opacity = '1';
 	}
 
+	/** Scroll host Wavesurfer uses when the canvas is wider than the container. */
+	function scrollHost() {
+		if (!wavesurfer) return container;
+		const wrapper = wavesurfer.getWrapper();
+		return /** @type {HTMLElement} */ (wrapper.parentElement ?? container);
+	}
+
 	/** @param {PointerEvent} event */
 	function ratioFromPointer(event) {
-		const rect = container.getBoundingClientRect();
+		const host = scrollHost();
+		const rect = host.getBoundingClientRect();
 		if (rect.width === 0) return 0;
-		return Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
+		const scrollWidth = Math.max(host.scrollWidth, rect.width);
+		const x = host.scrollLeft + (event.clientX - rect.left);
+		return Math.min(Math.max(x / scrollWidth, 0), 1);
 	}
 
 	/** @param {number | null} next */
@@ -358,23 +375,27 @@
 
 			const resolvedHeight = resolveHeight();
 			const colors = resolveColors($accentColor);
+			const useBars = variant === 'bars';
 			wavesurfer = WaveSurfer.create({
 				container,
 				height: resolvedHeight,
 				waveColor: colors.waveColor,
 				progressColor: colors.progressColor,
-				barWidth: 2,
-				barGap: 1,
-				barRadius: 0,
+				...(useBars ? { barWidth: 2, barGap: 1, barRadius: 0 } : {}),
 				cursorWidth: 0,
 				// Seeking is owned by this component so a drag can preview
 				// without committing until the pointer is released.
 				interact: false,
-				fillParent: true,
+				fillParent: !zoomed,
+				autoCenter: zoomed,
+				...(zoomed && minPxPerSec != null ? { minPxPerSec } : {}),
 				peaks: [normalizedPeaks()],
 				duration: durationSec
 			});
 			lastDrawnWidth = Math.round(container.clientWidth);
+			if (zoomed && minPxPerSec != null) {
+				wavesurfer.zoom(minPxPerSec);
+			}
 
 			ensureHoverLayer();
 			// Wavesurfer re-emits the renderer's `rendered` as `redrawcomplete`.
@@ -438,6 +459,20 @@
 		const ratio = hoverRatio;
 		syncHoverLayer(ratio);
 	});
+
+	// Zoom / fit: null minPxPerSec restores fillParent; a value widens the canvas.
+	$effect(() => {
+		const ws = wavesurfer;
+		const px = minPxPerSec;
+		if (!ws) return;
+		if (px == null || px <= 0) {
+			ws.setOptions({ fillParent: true, autoCenter: false });
+			ws.zoom(1);
+			return;
+		}
+		ws.setOptions({ fillParent: false, autoCenter: true });
+		ws.zoom(px);
+	});
 </script>
 
 <svelte:window onpointermove={moveScrub} onpointerup={endScrub} onpointercancel={cancelScrub} />
@@ -445,6 +480,7 @@
 <div
 	class="waveform"
 	class:scrubbing={scrubRatio != null}
+	class:zoomed
 	bind:this={container}
 	style:height={height != null ? `${height}px` : 'var(--waveform-height)'}
 	role="slider"
@@ -482,6 +518,13 @@
 		width: 100%;
 		max-width: 100%;
 		overflow: hidden;
+	}
+
+	/* Zoomed canvas is wider than the container; Wavesurfer scrolls this host. */
+	.waveform.zoomed,
+	.waveform.zoomed > :global(div) {
+		overflow-x: auto;
+		overflow-y: hidden;
 	}
 
 	.waveform.scrubbing {
