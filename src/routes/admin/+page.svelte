@@ -50,14 +50,17 @@
 	/** @type {string | null} */
 	let deleteConfirmUserId = $state(null);
 	let purgeChecked = $state(false);
+	/** @type {string | null} */
+	let emailEditUserId = $state(null);
+	let emailDraft = $state('');
 
 	/**
 	 * @param {string} id
 	 */
 	function selectSection(id) {
 		activeSection = id;
-		deleteConfirmUserId = null;
-		purgeChecked = false;
+		closeDeleteConfirm();
+		closeEmailEdit();
 
 		const url = new URL(page.url);
 		url.searchParams.set('section', id);
@@ -68,6 +71,7 @@
 	 * @param {string} userId
 	 */
 	function openDeleteConfirm(userId) {
+		closeEmailEdit();
 		if (deleteConfirmUserId === userId) {
 			deleteConfirmUserId = null;
 			purgeChecked = false;
@@ -80,6 +84,25 @@
 	function closeDeleteConfirm() {
 		deleteConfirmUserId = null;
 		purgeChecked = false;
+	}
+
+	/**
+	 * @param {string} userId
+	 * @param {string} currentEmail
+	 */
+	function openEmailEdit(userId, currentEmail) {
+		closeDeleteConfirm();
+		if (emailEditUserId === userId) {
+			closeEmailEdit();
+			return;
+		}
+		emailEditUserId = userId;
+		emailDraft = currentEmail;
+	}
+
+	function closeEmailEdit() {
+		emailEditUserId = null;
+		emailDraft = '';
 	}
 
 	/** @type {import('svelte/attachments').Attachment} */
@@ -104,12 +127,46 @@
 		};
 	}
 
+	/** @type {import('svelte/attachments').Attachment} */
+	function emailEditAttach(node) {
+		/** @param {PointerEvent} event */
+		function onPointerDown(event) {
+			if (!emailEditUserId) return;
+			const target = /** @type {Node | null} */ (event.target);
+			if (target && !node.contains(target)) closeEmailEdit();
+		}
+
+		/** @param {KeyboardEvent} event */
+		function onKeydown(event) {
+			if (event.key === 'Escape') closeEmailEdit();
+		}
+
+		document.addEventListener('pointerdown', onPointerDown);
+		window.addEventListener('keydown', onKeydown);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown);
+			window.removeEventListener('keydown', onKeydown);
+		};
+	}
+
 	function deleteBusyHandler() {
 		userBusy = true;
 		return async ({ update }) => {
 			try {
 				await update();
 				closeDeleteConfirm();
+			} finally {
+				userBusy = false;
+			}
+		};
+	}
+
+	function emailBusyHandler() {
+		userBusy = true;
+		return async ({ result, update }) => {
+			try {
+				await update({ reset: false });
+				if (result.type === 'success') closeEmailEdit();
 			} finally {
 				userBusy = false;
 			}
@@ -849,6 +906,68 @@
 												{account.banned ? 'Unban' : 'Ban'}
 											</button>
 										</form>
+										<div
+											class="delete-wrap"
+											{@attach emailEditUserId === account.userId && emailEditAttach}
+										>
+											<button
+												type="button"
+												class="pressable ghost small"
+												aria-expanded={emailEditUserId === account.userId}
+												aria-haspopup="dialog"
+												aria-controls="email-edit-{account.userId}"
+												disabled={userBusy}
+												onclick={() => openEmailEdit(account.userId, account.email)}
+											>
+												Change email
+											</button>
+											{#if emailEditUserId === account.userId}
+												<form
+													id="email-edit-{account.userId}"
+													class="delete-panel email-panel"
+													method="POST"
+													action="?/setUserEmail&section=users"
+													aria-label="Change email for {accountLabel(account)}"
+													aria-busy={userBusy}
+													use:enhance={emailBusyHandler}
+												>
+													<input type="hidden" name="userId" value={account.userId} />
+													<p class="delete-warn">
+														Update sign-in email for {accountLabel(account)}. Takes effect
+														immediately.
+													</p>
+													<label class="email-field">
+														<span class="visually-hidden">New email</span>
+														<input
+															type="email"
+															name="email"
+															bind:value={emailDraft}
+															autocomplete="off"
+															required
+															disabled={userBusy}
+															placeholder="name@example.com"
+														/>
+													</label>
+													<div class="delete-actions">
+														<button
+															type="button"
+															class="pressable ghost small"
+															disabled={userBusy}
+															onclick={closeEmailEdit}
+														>
+															Cancel
+														</button>
+														<button
+															class="pressable small"
+															type="submit"
+															disabled={userBusy || !emailDraft.trim()}
+														>
+															{userBusy ? 'Saving…' : 'Save'}
+														</button>
+													</div>
+												</form>
+											{/if}
+										</div>
 										{#if account.userId !== data.viewerId}
 											<div
 												class="delete-wrap"
@@ -1385,6 +1504,29 @@
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.email-panel {
+		width: min(20rem, 75vw);
+	}
+
+	.email-field {
+		display: grid;
+		gap: 0.35rem;
+		margin: 0;
+		font-weight: 400;
+		letter-spacing: 0;
+		text-transform: none;
+	}
+
+	.email-field input {
+		width: 100%;
+		padding: 0.45rem 0.55rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--ink));
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+		color: var(--ink);
+		font-size: 0.8rem;
 	}
 
 	.delete-warn {
