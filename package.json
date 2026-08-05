@@ -24,6 +24,7 @@
 		"db:studio": "node ./node_modules/drizzle-kit/bin.cjs studio",
 		"stripe:bootstrap": "bun ./scripts/stripe-bootstrap.js",
 		"createsuperuser": "bun ./scripts/createsuperuser.js",
+		"mail:preview": "bun ./scripts/preview-mail.js",
 		"worker:waveform": "bun ./scripts/waveform-worker.js",
 		"auth:schema": "bun x --bun better-auth generate --config src/lib/server/auth.js --output src/lib/server/db/auth.schema.js --yes"
 	},
