@@ -69,14 +69,18 @@ export function renderBioHtml(source) {
  * @returns {string}
  */
 export function bioPlainText(source) {
-	const text = source?.trim();
-	if (!text) return '';
+	const html = renderBioHtml(source);
+	if (!html) return '';
 
-	return text
-		.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-		.replace(/(\*\*|__)(.*?)\1/g, '$2')
-		.replace(/(\*|_)(.*?)\1/g, '$2')
-		.replace(/^\s{0,3}([-*+]|\d+\.)\s+/gm, '')
+	return html
+		.replace(/<br\s*\/?>/gi, ' ')
+		.replace(/<\/(p|li|ul|ol)>/gi, ' ')
+		.replace(/<[^>]+>/g, '')
+		.replace(/&amp;/g, '&')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
 		.replace(/\s+/g, ' ')
 		.trim();
 }
