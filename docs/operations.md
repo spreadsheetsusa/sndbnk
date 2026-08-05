@@ -262,6 +262,8 @@ Creator custom domains (after Studio+ verification):
 | Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K (need ≥ `520M`)                                                        |
 | A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate`                   |
 | `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                                      |
+| Build prints `[UNRESOLVED_IMPORT] bun:sqlite` then ✔ done | cosmetic: `svelte-adapter-bun`’s Rolldown pass externalizes it for the Bun runtime; not a deploy failure                              |
+| Deploy fails with worker `activating` / exit code 3      | `sndbnk-waveform-worker` crash-loop — check `journalctl -u sndbnk-waveform-worker` (often Bun `#lib/…` import resolution)             |
 
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
 permissions, systemd, the build, and both the API and public HTTPS surfaces. It is marked temporary

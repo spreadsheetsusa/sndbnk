@@ -63,6 +63,13 @@ is also the classic stale-`.env` example above.
 Caddy the app sees `http://localhost:3000` as its origin and better-auth rejects sign-ins. Local
 works; prod fails. Full troubleshooting: [operations.md](operations.md).
 
+### `bun:sqlite` UNRESOLVED_IMPORT during `bun run build`
+
+Keep using Bun’s native driver. During the `svelte-adapter-bun` Rolldown pass you will see
+`[UNRESOLVED_IMPORT] Could not resolve 'bun:sqlite' … treating it as an external dependency`
+followed by `✔ done`. That is expected: the adapter leaves `bun:*` for the Bun runtime. It is not
+a build failure and does not mean you should switch to `better-sqlite3`.
+
 ### Waveforms are async and fail-soft
 
 The request path only enqueues via
