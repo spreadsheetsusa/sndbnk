@@ -1,10 +1,15 @@
 <script>
+	import { fade } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 
 	import CoverArt from '#lib/components/CoverArt.svelte';
+	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { player } from '#lib/player/player.svelte.js';
+	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 
 	/**
@@ -21,8 +26,16 @@
 	 * @property {boolean} likedByViewer
 	 */
 
-	/** @type {{ track: DeckTrack | null }} */
-	let { track } = $props();
+	/**
+	 * @type {{
+	 *   track: DeckTrack | null,
+	 *   visualizerBackdrop?: boolean
+	 * }}
+	 */
+	let { track, visualizerBackdrop = false } = $props();
+
+	const showViz = $derived(visualizerBackdrop && visualizer.showInline);
+	const vizDuration = $derived(prefersReducedMotion.current ? 0 : 320);
 
 	/** Track the scrub belongs to; ignored once the deck selection moves on. */
 	let scrubTrackId = $state(/** @type {string | null} */ (null));
@@ -73,91 +86,144 @@
 	}
 </script>
 
-{#if track}
-	<section class="deck" aria-label="Track deck">
-		<div class="deck-head">
-			<button
-				type="button"
-				class="play-btn"
-				aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
-				onclick={togglePlay}
-			>
-				{#if isPlaying}
-					<IconPlayerPauseFilled size={20} aria-hidden="true" />
-				{:else}
-					<IconPlayerPlayFilled size={20} aria-hidden="true" />
-				{/if}
-			</button>
+<section class="deck" class:empty={!track} class:viz-on={showViz} aria-label="Track deck">
+	{#if visualizerBackdrop}
+		{#if showViz}
+			<div class="deck-viz" transition:fade={{ duration: vizDuration, easing: cubicOut }}>
+				<InlineMilkdrop variant="backdrop" />
+			</div>
+		{/if}
+		<div class="viz-spacer" class:open={showViz} aria-hidden="true"></div>
+	{/if}
 
-			<CoverArt
-				trackId={track.id}
-				hasCover={track.hasCover}
-				class="cover"
-				loading="eager"
-				width="44"
-				height="44"
-			/>
+	<div class="deck-chrome">
+		{#if track}
+			<div class="deck-head">
+				<button
+					type="button"
+					class="play-btn"
+					aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+					onclick={togglePlay}
+				>
+					{#if isPlaying}
+						<IconPlayerPauseFilled size={20} aria-hidden="true" />
+					{:else}
+						<IconPlayerPlayFilled size={20} aria-hidden="true" />
+					{/if}
+				</button>
 
-			<div class="titles">
-				<span class="artist">{track.artist || track.uploaderName}</span>
-				<a class="title" href="/tracks/{track.id}">{track.title}</a>
+				<CoverArt
+					trackId={track.id}
+					hasCover={track.hasCover}
+					class="cover"
+					loading="eager"
+					width="44"
+					height="44"
+				/>
+
+				<div class="titles">
+					<span class="artist">{track.artist || track.uploaderName}</span>
+					<a class="title" href="/tracks/{track.id}">{track.title}</a>
+				</div>
+
+				<div class="meta">
+					{#if track.genre}
+						<span class="genre"># {track.genre}</span>
+					{/if}
+
+					<span class="clock">
+						<span class="elapsed">{formatDuration(displayTime * 1000)}</span>
+						<span class="total">{formatDuration(track.durationMs)}</span>
+					</span>
+				</div>
 			</div>
 
-			<div class="meta">
-				{#if track.genre}
-					<span class="genre"># {track.genre}</span>
-				{/if}
-
-				<span class="clock">
-					<span class="elapsed">{formatDuration(displayTime * 1000)}</span>
-					<span class="total">{formatDuration(track.durationMs)}</span>
-				</span>
-			</div>
-		</div>
-
-		{#key track.id}
-			<Waveform
-				peaks={track.waveform}
-				durationMs={track.durationMs}
-				currentTime={isActive ? player.currentTime : 0}
-				height={72}
-				label="Seek within {track.title}"
-				onseek={handleSeek}
-				onscrub={(seconds) => {
-					scrubTrackId = track.id;
-					scrubSecondsRaw = seconds;
-				}}
-			/>
-		{/key}
-	</section>
-{:else}
-	<section class="deck empty" aria-label="Track deck">
-		<p>Select a track below to load its waveform here.</p>
-	</section>
-{/if}
+			{#key track.id}
+				<Waveform
+					peaks={track.waveform}
+					durationMs={track.durationMs}
+					currentTime={isActive ? player.currentTime : 0}
+					height={72}
+					label="Seek within {track.title}"
+					onseek={handleSeek}
+					onscrub={(seconds) => {
+						scrubTrackId = track.id;
+						scrubSecondsRaw = seconds;
+					}}
+				/>
+			{/key}
+		{:else}
+			<p class="empty-copy">Select a track below to load its waveform here.</p>
+		{/if}
+	</div>
+</section>
 
 <style>
 	.deck {
+		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		justify-content: flex-end;
 		min-width: 0;
 		min-height: 9.5rem;
-		padding: 0.9rem 1rem;
+		overflow: hidden;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
-	.deck.empty {
-		align-items: center;
-		justify-content: center;
+	.deck.viz-on {
+		/* Expanded headroom shows the canvas; chrome sits on paper at the bottom. */
+		background: #000;
+	}
+
+	.deck.empty:not(.viz-on) {
 		border-style: dashed;
 		border-color: color-mix(in srgb, var(--ink) 30%, transparent);
 		box-shadow: none;
 	}
 
-	.deck.empty p {
+	.deck-viz {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+	}
+
+	.viz-spacer {
+		flex: 0 0 auto;
+		height: 0;
+		transition: height 320ms cubic-bezier(0.33, 1, 0.68, 1);
+		pointer-events: none;
+	}
+
+	.viz-spacer.open {
+		height: 11.5rem;
+	}
+
+	.deck-chrome {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 0.9rem 1rem;
+		background: var(--paper);
+	}
+
+	.deck.viz-on .deck-chrome {
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		background: color-mix(in srgb, var(--paper) 92%, transparent);
+		backdrop-filter: blur(8px);
+	}
+
+	.deck.empty .deck-chrome {
+		flex: 1 1 auto;
+		align-items: center;
+		justify-content: center;
+		min-height: 9.5rem;
+	}
+
+	.empty-copy {
 		margin: 0;
 		color: var(--muted);
 		font-size: 0.85rem;
@@ -288,6 +354,12 @@
 		.play-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.viz-spacer {
+			transition: none;
 		}
 	}
 </style>

@@ -5,9 +5,11 @@
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import TrackInfoConsole from '#lib/components/player/TrackInfoConsole.svelte';
 	import { player } from '#lib/player/player.svelte.js';
+	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 	import { absoluteUrl, musicRecordingJsonLd } from '#lib/seo.js';
@@ -111,6 +113,9 @@
 
 	<main id="main">
 		<div class="player-wrap">
+			{#if visualizer.showInline}
+				<InlineMilkdrop variant="deck" />
+			{/if}
 			<TrackCard
 				track={data.track}
 				signedIn={Boolean(data.viewer)}
@@ -227,6 +232,8 @@
 	}
 
 	.player-wrap {
+		display: grid;
+		gap: 1rem;
 		animation: rise 0.65s ease both;
 	}
 

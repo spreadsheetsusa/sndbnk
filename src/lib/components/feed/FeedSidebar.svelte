@@ -9,6 +9,8 @@
 	import Avatar from '#lib/components/Avatar.svelte';
 	import FollowButton from '#lib/components/FollowButton.svelte';
 	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
+	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
+	import { visualizer } from '#lib/player/visualizer.svelte.js';
 
 	/**
 	 * @typedef {{ id: string, title: string, uploaderName: string, uploaderImage: string | null, username: string | null, likeCount: number }} LikedTrack
@@ -40,12 +42,16 @@
 		signedIn = false
 	} = $props();
 
-	const PANELS = /** @type {const} */ ([
+	const BASE_PANELS = /** @type {const} */ ([
 		{ key: 'popular', label: 'Popular' },
 		{ key: 'artists', label: 'New Artists' },
 		{ key: 'activity', label: 'Activity' },
 		{ key: 'browse', label: 'Browse' }
 	]);
+
+	const panels = $derived(
+		visualizer.showInline ? [{ key: 'viz', label: 'Milkdrop' }, ...BASE_PANELS] : [...BASE_PANELS]
+	);
 
 	let activePanel = $state(0);
 	/** Mobile-only: panels start as a single-row strip. */
@@ -55,6 +61,37 @@
 
 	/** @type {HTMLElement | null} */
 	let panelRail = null;
+
+	/** Re-bind snap observer when the viz panel mounts/unmounts. */
+	const snapAttach = $derived.by(() => {
+		const panelCount = panels.length;
+		/**
+		 * @param {HTMLElement} node
+		 */
+		return (node) => {
+			void panelCount;
+			panelRail = node;
+			const panelEls = [...node.querySelectorAll(':scope > .panel')];
+			const io = new IntersectionObserver(
+				(entries) => {
+					let best = -1;
+					let bestRatio = 0;
+					for (const entry of entries) {
+						if (!entry.isIntersecting) continue;
+						const i = panelEls.indexOf(/** @type {HTMLElement} */ (entry.target));
+						if (i >= 0 && entry.intersectionRatio >= bestRatio) {
+							best = i;
+							bestRatio = entry.intersectionRatio;
+						}
+					}
+					if (best >= 0) activePanel = best;
+				},
+				{ root: node, threshold: [0.5, 0.75, 1] }
+			);
+			for (const p of panelEls) io.observe(p);
+			return () => io.disconnect();
+		};
+	});
 
 	/** @param {string} value */
 	function vtName(value) {
@@ -76,31 +113,6 @@
 		if (query) params.set('q', query);
 		const qs = params.toString();
 		return qs ? `/feed?${qs}` : '/feed';
-	}
-
-	/**
-	 * @param {HTMLElement} node
-	 */
-	function watchSnap(node) {
-		const panels = [...node.querySelectorAll(':scope > .panel')];
-		const io = new IntersectionObserver(
-			(entries) => {
-				let best = -1;
-				let bestRatio = 0;
-				for (const entry of entries) {
-					if (!entry.isIntersecting) continue;
-					const i = panels.indexOf(/** @type {HTMLElement} */ (entry.target));
-					if (i >= 0 && entry.intersectionRatio >= bestRatio) {
-						best = i;
-						bestRatio = entry.intersectionRatio;
-					}
-				}
-				if (best >= 0) activePanel = best;
-			},
-			{ root: node, threshold: [0.5, 0.75, 1] }
-		);
-		for (const p of panels) io.observe(p);
-		return () => io.disconnect();
 	}
 
 	/**
@@ -142,7 +154,7 @@
 <aside class="feed-sidebar" class:collapsed aria-label="Discover">
 	<div class="rail-row">
 		<nav class="panel-pager" aria-label="Discover panels">
-			{#each PANELS as panel, index (panel.key)}
+			{#each panels as panel, index (panel.key)}
 				<button
 					type="button"
 					class="pager-dot"
@@ -152,8 +164,12 @@
 				></button>
 			{/each}
 		</nav>
-		<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
-			<section class="panel" aria-labelledby="most-liked-heading" data-panel={PANELS[0].key}>
+		<div class="panel-rail" bind:this={panelRail} {@attach snapAttach}>
+			{#if visualizer.showInline}
+				<InlineMilkdrop variant="panel" />
+			{/if}
+
+			<section class="panel" aria-labelledby="most-liked-heading" data-panel={BASE_PANELS[0].key}>
 				<header class="panel-head">
 					<p id="most-liked-heading" class="eyebrow">Popular</p>
 				</header>
@@ -182,7 +198,7 @@
 				{/if}
 			</section>
 
-			<section class="panel" aria-labelledby="new-artists-heading" data-panel={PANELS[1].key}>
+			<section class="panel" aria-labelledby="new-artists-heading" data-panel={BASE_PANELS[1].key}>
 				<header class="panel-head">
 					<p id="new-artists-heading" class="eyebrow">New Artists</p>
 				</header>
@@ -219,7 +235,11 @@
 				{/if}
 			</section>
 
-			<section class="panel" aria-labelledby="recent-activity-heading" data-panel={PANELS[2].key}>
+			<section
+				class="panel"
+				aria-labelledby="recent-activity-heading"
+				data-panel={BASE_PANELS[2].key}
+			>
 				<header class="panel-head">
 					<p id="recent-activity-heading" class="eyebrow">Activity</p>
 				</header>
@@ -259,7 +279,7 @@
 				{/if}
 			</section>
 
-			<section class="panel" aria-labelledby="genres-heading" data-panel={PANELS[3].key}>
+			<section class="panel" aria-labelledby="genres-heading" data-panel={BASE_PANELS[3].key}>
 				<header class="panel-head">
 					<p id="genres-heading" class="eyebrow">Browse</p>
 				</header>
@@ -637,7 +657,8 @@
 			display: none;
 		}
 
-		.panel {
+		.panel,
+		.panel-rail > :global(section.panel) {
 			flex: 0 0 100%;
 			min-width: 0;
 			scroll-snap-align: start;
@@ -736,7 +757,8 @@
 			outline-offset: 2px;
 		}
 
-		.feed-sidebar.collapsed .panel {
+		.feed-sidebar.collapsed .panel,
+		.feed-sidebar.collapsed .panel-rail > :global(section.panel) {
 			display: flex;
 			align-items: center;
 			min-height: var(--header-chrome-height, 2.25rem);
@@ -748,6 +770,16 @@
 
 		.feed-sidebar.collapsed .panel-head {
 			display: none;
+		}
+
+		.feed-sidebar.collapsed .panel-rail > :global(section.panel[data-panel='viz'] .stage) {
+			display: none;
+		}
+
+		.feed-sidebar.collapsed
+			.panel-rail
+			> :global(section.panel[data-panel='viz'] .collapsed-label) {
+			display: block;
 		}
 
 		.feed-sidebar.collapsed .empty-line {

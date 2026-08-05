@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import IconArrowsMinimize from '@tabler/icons-svelte-runes/icons/arrows-minimize';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import IconPlayerTrackNext from '@tabler/icons-svelte-runes/icons/player-track-next';
 	import { MILKDROP_TITLE_H, visualizer } from '#lib/player/visualizer.svelte.js';
@@ -8,7 +9,7 @@
 	let canvas = $state(null);
 
 	/** @type {'drag' | 'resize' | null} */
-	let mode = $state(null);
+	let dragMode = $state(null);
 	let pointerId = $state(/** @type {number | null} */ (null));
 	let originX = 0;
 	let originY = 0;
@@ -18,9 +19,10 @@
 	let startH = 0;
 
 	onMount(() => {
-		if (!canvas) return;
-		void visualizer.attach(canvas);
-		return () => visualizer.detach();
+		const el = canvas;
+		if (!el) return;
+		void visualizer.attach(el);
+		return () => visualizer.detach(el);
 	});
 
 	/**
@@ -28,7 +30,7 @@
 	 */
 	function startDrag(event) {
 		if (event.button !== 0) return;
-		mode = 'drag';
+		dragMode = 'drag';
 		pointerId = event.pointerId;
 		originX = event.clientX;
 		originY = event.clientY;
@@ -42,7 +44,7 @@
 	 */
 	function startResize(event) {
 		if (event.button !== 0) return;
-		mode = 'resize';
+		dragMode = 'resize';
 		pointerId = event.pointerId;
 		originX = event.clientX;
 		originY = event.clientY;
@@ -56,10 +58,10 @@
 	 * @param {PointerEvent} event
 	 */
 	function onPointerMove(event) {
-		if (pointerId == null || event.pointerId !== pointerId || !mode) return;
+		if (pointerId == null || event.pointerId !== pointerId || !dragMode) return;
 		const dx = event.clientX - originX;
 		const dy = event.clientY - originY;
-		if (mode === 'drag') {
+		if (dragMode === 'drag') {
 			visualizer.setBounds({ x: startX + dx, y: startY + dy });
 		} else {
 			visualizer.setBounds({ w: startW + dx, h: startH + dy });
@@ -76,15 +78,15 @@
 		} catch {
 			// Already released.
 		}
-		mode = null;
+		dragMode = null;
 		pointerId = null;
 	}
 </script>
 
 <section
 	class="milkdrop-window"
-	class:dragging={mode === 'drag'}
-	class:resizing={mode === 'resize'}
+	class:dragging={dragMode === 'drag'}
+	class:resizing={dragMode === 'resize'}
 	style:left="{visualizer.x}px"
 	style:top="{visualizer.y}px"
 	style:width="{visualizer.w}px"
@@ -104,6 +106,18 @@
 	>
 		<span class="title">Milkdrop</span>
 		<div class="title-actions">
+			<button
+				type="button"
+				class="chrome-btn"
+				aria-label="Dock visualizer"
+				onclick={(e) => {
+					e.stopPropagation();
+					visualizer.dock();
+				}}
+				onpointerdown={(e) => e.stopPropagation()}
+			>
+				<IconArrowsMinimize size={14} stroke={1.75} aria-hidden="true" />
+			</button>
 			<button
 				type="button"
 				class="chrome-btn"

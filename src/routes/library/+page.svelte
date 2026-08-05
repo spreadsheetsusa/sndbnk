@@ -73,7 +73,7 @@
 			</div>
 		</header>
 
-		<LibraryDeck track={selected} />
+		<LibraryDeck track={selected} visualizerBackdrop />
 
 		<section class="block" aria-labelledby="tracks-heading" bind:this={container}>
 			{#if list.items.length === 0}
@@ -126,6 +126,8 @@
 	}
 
 	main {
+		display: grid;
+		gap: 1rem;
 		width: min(100%, var(--site-content-max));
 		margin: 0 auto;
 		padding-top: clamp(0.75rem, 2vw, 1.25rem);
@@ -137,7 +139,7 @@
 		gap: 1rem 1.5rem;
 		align-items: flex-start;
 		justify-content: space-between;
-		margin-bottom: 1.5rem;
+		margin-bottom: 0.5rem;
 	}
 
 	.page-head-copy {
@@ -192,7 +194,7 @@
 	}
 
 	.block {
-		margin-top: 1.5rem;
+		margin-top: 0.5rem;
 		background: var(--paper);
 		animation: rise 0.8s ease both;
 	}

@@ -44,6 +44,7 @@ const MELLOW_PRESET_KEYS = [
 
 /**
  * @typedef {{ x: number, y: number, w: number, h: number }} VizBounds
+ * @typedef {'inline' | 'window'} VizMode
  */
 
 /**
@@ -93,17 +94,30 @@ function isBounds(value) {
 
 /**
  * Global Milkdrop visualizer. Owns the one-shot Web Audio graph and up to two
- * butterchurn instances: floating window (planet toggle) and hero backdrop.
+ * butterchurn instances: primary surface (inline panel or floating window) and
+ * hero backdrop.
  */
 class Visualizer {
 	enabled = $state(false);
 	supported = $state(false);
 	ready = $state(false);
 	backdropReady = $state(false);
+	/** @type {VizMode} */
+	mode = $state('inline');
 	x = $state(40);
 	y = $state(80);
 	w = $state(DEFAULT_W);
 	h = $state(DEFAULT_H);
+
+	/** Inline hosts (feed/library/profile/track) when planet is on and mode is inline. */
+	get showInline() {
+		return this.enabled && this.mode === 'inline' && this.supported;
+	}
+
+	/** Floating window when planet is on and mode is window. */
+	get showWindow() {
+		return this.enabled && this.mode === 'window' && this.supported;
+	}
 
 	/** @type {AudioContext | null} */
 	#ctx = null;
@@ -177,6 +191,30 @@ class Visualizer {
 		this.ready = false;
 	}
 
+	/**
+	 * @param {VizMode} next
+	 */
+	setMode(next) {
+		if (!browser || !this.supported) return;
+		if (next !== 'inline' && next !== 'window') return;
+		if (next === this.mode) return;
+		this.mode = next;
+		this.#persistPrefs();
+	}
+
+	popOut() {
+		this.setMode('window');
+	}
+
+	dock() {
+		this.setMode('inline');
+	}
+
+	/** Re-measure the primary canvas after the host layout changes. */
+	resize() {
+		this.#resizeWindow();
+	}
+
 	/** Synchronously wire the media-element source and kick off ctx.resume(). */
 	#primeAudio() {
 		const audioEl = player.getAudioElement();
@@ -213,19 +251,22 @@ class Visualizer {
 	}
 
 	/**
-	 * Bind a canvas and start rendering. Called from MilkdropWindow onMount.
+	 * Bind a canvas and start rendering. Called from MilkdropWindow / InlineMilkdrop.
+	 * Drops any previous primary renderer first so popout/dock can race outros safely.
 	 * @param {HTMLCanvasElement} canvas
 	 */
 	async attach(canvas) {
 		if (!browser || !this.supported || !this.enabled) return;
 		const gen = ++this.#attachGen;
+		this.#teardownWindowButter();
 		this.#canvas = canvas;
+		this.ready = false;
 
 		try {
 			await this.#ensureGraph();
-			if (gen !== this.#attachGen || !this.enabled) return;
+			if (gen !== this.#attachGen || !this.enabled || this.#canvas !== canvas) return;
 			await this.#ensureWindowButter();
-			if (gen !== this.#attachGen || !this.enabled) return;
+			if (gen !== this.#attachGen || !this.enabled || this.#canvas !== canvas) return;
 			if (!this.#butter) throw new Error('butterchurn instance missing');
 			this.#resizeWindow();
 			this.#startLoop();
@@ -238,7 +279,11 @@ class Visualizer {
 		}
 	}
 
-	detach() {
+	/**
+	 * @param {HTMLCanvasElement} [canvas] Only tear down if still bound to this canvas.
+	 */
+	detach(canvas) {
+		if (canvas && this.#canvas !== canvas) return;
 		this.#attachGen += 1;
 		this.#teardownWindowButter();
 		this.#canvas = null;
@@ -294,7 +339,7 @@ class Visualizer {
 		this.y = next.y;
 		this.w = next.w;
 		this.h = next.h;
-		this.#persistBounds();
+		this.#persistPrefs();
 		this.#resizeWindow();
 	}
 
@@ -403,31 +448,31 @@ class Visualizer {
 
 	#resizeWindow() {
 		if (!this.#butter || !this.#canvas) return;
-		const width = Math.max(1, this.#canvas.clientWidth);
-		const height = Math.max(1, this.#canvas.clientHeight);
+		const { width, height } = this.#syncCanvasBuffer(this.#canvas, WINDOW_PIXEL_RATIO);
 		this.#butter.setRendererSize(width, height);
 	}
 
 	#resizeBackdrop() {
 		if (!this.#backdropButter || !this.#backdropCanvas) return;
-		const width = Math.max(1, this.#backdropCanvas.clientWidth);
-		const height = Math.max(1, this.#backdropCanvas.clientHeight);
+		const { width, height } = this.#syncCanvasBuffer(this.#backdropCanvas, BACKDROP_PIXEL_RATIO);
 		this.#backdropButter.setRendererSize(width, height);
 	}
 
 	/**
-	 * Size the drawing buffer before `getContext`. Changing canvas.width after
-	 * butterchurn owns the context loses WebGL — only call this pre-create.
+	 * Match the drawing buffer to CSS client size. Butterchurn's screen blit
+	 * uses logical width×height as the WebGL viewport; pixelRatio only sizes
+	 * internal FBOs. Setting attrs after create clears the default framebuffer
+	 * but keeps the context — pair with setRendererSize.
 	 * @param {HTMLCanvasElement} canvas
 	 * @param {number} maxPixelRatio
 	 * @returns {{ width: number, height: number, pixelRatio: number }}
 	 */
 	#syncCanvasBuffer(canvas, maxPixelRatio) {
-		const width = Math.max(1, canvas.clientWidth);
-		const height = Math.max(1, canvas.clientHeight);
+		const width = Math.max(1, Math.floor(canvas.clientWidth));
+		const height = Math.max(1, Math.floor(canvas.clientHeight));
 		const pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
-		canvas.width = Math.max(1, Math.floor(width * pixelRatio));
-		canvas.height = Math.max(1, Math.floor(height * pixelRatio));
+		if (canvas.width !== width) canvas.width = width;
+		if (canvas.height !== height) canvas.height = height;
 		return { width, height, pixelRatio };
 	}
 
@@ -515,14 +560,14 @@ class Visualizer {
 		return { x, y, w, h };
 	}
 
-	#persistBounds() {
+	#persistPrefs() {
 		try {
 			localStorage.setItem(
 				STORAGE_KEY,
-				JSON.stringify({ x: this.x, y: this.y, w: this.w, h: this.h })
+				JSON.stringify({ x: this.x, y: this.y, w: this.w, h: this.h, mode: this.mode })
 			);
 		} catch {
-			// Storage full/unavailable: geometry just won't persist.
+			// Storage full/unavailable: prefs just won't persist.
 		}
 	}
 
@@ -535,6 +580,7 @@ class Visualizer {
 				this.y = fallback.y;
 				this.w = fallback.w;
 				this.h = fallback.h;
+				this.mode = 'inline';
 				return;
 			}
 			const parsed = JSON.parse(raw);
@@ -543,11 +589,17 @@ class Visualizer {
 			this.y = next.y;
 			this.w = next.w;
 			this.h = next.h;
+			const savedMode =
+				parsed && typeof parsed === 'object' && 'mode' in parsed
+					? /** @type {{ mode?: unknown }} */ (parsed).mode
+					: null;
+			this.mode = savedMode === 'window' ? 'window' : 'inline';
 		} catch {
 			this.x = fallback.x;
 			this.y = fallback.y;
 			this.w = fallback.w;
 			this.h = fallback.h;
+			this.mode = 'inline';
 		}
 	}
 }

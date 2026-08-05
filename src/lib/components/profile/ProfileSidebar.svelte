@@ -14,7 +14,9 @@
 	import FollowButton from '#lib/components/FollowButton.svelte';
 	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
 	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
+	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import ArtistRow from '#lib/components/profile/ArtistRow.svelte';
+	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { displayUrl } from '#lib/profile-links.js';
 
 	/**
@@ -74,6 +76,7 @@
 	const panels = $derived.by(() => {
 		/** @type {{ key: string, label: string }[]} */
 		const list = [];
+		if (visualizer.showInline) list.push({ key: 'viz', label: 'Milkdrop' });
 		if (showStats) list.push({ key: 'stats', label: 'Stats' });
 		if (links.length > 0) list.push({ key: 'links', label: 'Links' });
 		if (showFansAlsoLike) list.push({ key: 'fans', label: 'Fans Also Like' });
@@ -91,6 +94,37 @@
 	/** @type {HTMLElement | null} */
 	let panelRail = null;
 
+	/** Re-bind snap observer when the viz panel mounts/unmounts. */
+	const snapAttach = $derived.by(() => {
+		const panelCount = panels.length;
+		/**
+		 * @param {HTMLElement} node
+		 */
+		return (node) => {
+			void panelCount;
+			panelRail = node;
+			const panelEls = [...node.querySelectorAll(':scope > .panel')];
+			const io = new IntersectionObserver(
+				(entries) => {
+					let best = -1;
+					let bestRatio = 0;
+					for (const entry of entries) {
+						if (!entry.isIntersecting) continue;
+						const i = panelEls.indexOf(/** @type {HTMLElement} */ (entry.target));
+						if (i >= 0 && entry.intersectionRatio >= bestRatio) {
+							best = i;
+							bestRatio = entry.intersectionRatio;
+						}
+					}
+					if (best >= 0) activePanel = best;
+				},
+				{ root: node, threshold: [0.5, 0.75, 1] }
+			);
+			for (const p of panelEls) io.observe(p);
+			return () => io.disconnect();
+		};
+	});
+
 	/** @param {string} value */
 	function vtName(value) {
 		return value.replace(/[^a-zA-Z0-9_-]+/g, '-');
@@ -99,32 +133,6 @@
 	/** @param {RecentComment} comment */
 	function commentHref(comment) {
 		return `/tracks/${comment.trackId}#comment-${comment.id}`;
-	}
-
-	/**
-	 * @param {HTMLElement} node
-	 */
-	function watchSnap(node) {
-		panelRail = node;
-		const panelEls = [...node.querySelectorAll(':scope > .panel')];
-		const io = new IntersectionObserver(
-			(entries) => {
-				let best = -1;
-				let bestRatio = 0;
-				for (const entry of entries) {
-					if (!entry.isIntersecting) continue;
-					const i = panelEls.indexOf(/** @type {HTMLElement} */ (entry.target));
-					if (i >= 0 && entry.intersectionRatio >= bestRatio) {
-						best = i;
-						bestRatio = entry.intersectionRatio;
-					}
-				}
-				if (best >= 0) activePanel = best;
-			},
-			{ root: node, threshold: [0.5, 0.75, 1] }
-		);
-		for (const p of panelEls) io.observe(p);
-		return () => io.disconnect();
 	}
 
 	/**
@@ -180,7 +188,11 @@
 				{/each}
 			</nav>
 		{/if}
-		<div class="panel-rail" bind:this={panelRail} {@attach watchSnap}>
+		<div class="panel-rail" bind:this={panelRail} {@attach snapAttach}>
+			{#if visualizer.showInline}
+				<InlineMilkdrop variant="panel" />
+			{/if}
+
 			{#if showStats}
 				<section class="panel" aria-label="Stats" data-panel="stats">
 					<SnapMarquee enabled={collapsed} resetKey="profile-stats">
@@ -711,7 +723,8 @@
 			display: none;
 		}
 
-		.panel {
+		.panel,
+		.panel-rail > :global(section.panel) {
 			flex: 0 0 100%;
 			min-width: 0;
 			scroll-snap-align: start;
@@ -810,7 +823,8 @@
 			outline-offset: 2px;
 		}
 
-		.profile-sidebar.collapsed .panel {
+		.profile-sidebar.collapsed .panel,
+		.profile-sidebar.collapsed .panel-rail > :global(section.panel) {
 			display: flex;
 			align-items: center;
 			min-height: var(--header-chrome-height, 2.25rem);
@@ -822,6 +836,16 @@
 
 		.profile-sidebar.collapsed .panel-head {
 			display: none;
+		}
+
+		.profile-sidebar.collapsed .panel-rail > :global(section.panel[data-panel='viz'] .stage) {
+			display: none;
+		}
+
+		.profile-sidebar.collapsed
+			.panel-rail
+			> :global(section.panel[data-panel='viz'] .collapsed-label) {
+			display: block;
 		}
 
 		.profile-sidebar.collapsed .empty-line {

@@ -204,14 +204,16 @@ flowchart TD
   player -->|"reactive fields"| bar["HeaderPlayer"]
   player -->|"currentTime prop"| wave["Waveform"]
   bar -->|"toggle"| viz["visualizer singleton"]
-  viz -->|"enabled"| milk["MilkdropWindow in root layout"]
+  viz -->|"mode window"| milk["MilkdropWindow in root layout"]
+  viz -->|"mode inline"| inline["InlineMilkdrop on feed library profile track"]
   player -->|"getAudioElement"| viz
   card -->|"fetch /api/*"| api["API route"]
   api -->|"authoritative JSON"| card
 ```
 
-Server data flows down as props. Playback state flows out of the singleton. The Milkdrop window is
-toggled from the header player but mounted in the root layout so it survives per-page `SiteHeader`
-remounts; it taps the player's singleton `HTMLAudioElement` through a one-shot Web Audio graph.
-Mutations go to an API route and come back as an override. Nothing reaches sideways into another
-component's state.
+Server data flows down as props. Playback state flows out of the singleton. Milkdrop is toggled from
+the header player; default `mode` is inline (feed sidebar, library deck, profile sidebar, track
+detail) with Pop out / Dock to the floating window mounted in the root layout so it survives
+per-page `SiteHeader` remounts. Both surfaces share one primary butterchurn instance and tap the
+player's singleton `HTMLAudioElement` through a one-shot Web Audio graph. Mutations go to an API
+route and come back as an override. Nothing reaches sideways into another component's state.

@@ -62,7 +62,7 @@
 <div class="app-shell">
 	{@render children()}
 </div>
-{#if visualizer.enabled}
+{#if visualizer.showWindow}
 	<MilkdropWindow />
 {/if}
 
