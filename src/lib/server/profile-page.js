@@ -1,5 +1,6 @@
 import { ORIGIN } from '$app/env/private';
 
+import { renderBioHtml } from '#lib/markdown/bio';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { listRecentComments } from '#lib/server/feed';
 import { listLikedItemsWithUploader, listListeningHistory } from '#lib/server/listens';
@@ -81,6 +82,7 @@ export async function loadPublicProfilePage({ username, locals, url }) {
 			name: row.name,
 			plan: row.plan,
 			bio: row.bio ?? null,
+			bioHtml: row.bio ? renderBioHtml(row.bio) : null,
 			location: row.location ?? null,
 			avatarUrl: row.image ?? null,
 			customDomain: row.customDomain,

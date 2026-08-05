@@ -20,6 +20,7 @@
 	 *     name: string,
 	 *     plan: string,
 	 *     bio: string | null,
+	 *     bioHtml: string | null,
 	 *     location: string | null,
 	 *     avatarUrl: string | null,
 	 *     customDomain: string | null,
@@ -202,8 +203,8 @@
 						{/if}
 					</div>
 
-					{#if data.profile.bio}
-						<p class="bio">{data.profile.bio}</p>
+					{#if data.profile.bioHtml}
+						<div class="bio">{@html data.profile.bioHtml}</div>
 					{/if}
 
 					{#if data.links.length > 0}
@@ -487,8 +488,35 @@
 		margin: 0.85rem 0 0;
 		font-size: 1rem;
 		line-height: 1.5;
-		white-space: pre-line;
 		animation: rise 0.8s ease 0.06s both;
+	}
+
+	.bio :global(p) {
+		margin: 0 0 0.55em;
+	}
+
+	.bio :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.bio :global(ul),
+	.bio :global(ol) {
+		margin: 0.35em 0 0.55em;
+		padding-left: 1.25rem;
+	}
+
+	.bio :global(li) {
+		margin: 0.15em 0;
+	}
+
+	.bio :global(a) {
+		color: var(--ink);
+		text-decoration: underline;
+		text-underline-offset: 0.12em;
+	}
+
+	.bio :global(a:hover) {
+		color: color-mix(in srgb, var(--accent) 55%, var(--ink));
 	}
 
 	.link-list {
