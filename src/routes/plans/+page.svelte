@@ -133,7 +133,7 @@
 				colorText: read('--ink') || '#11110f',
 				colorTextSecondary: read('--muted') || '#696861',
 				borderRadius: '0px',
-				fontFamily: 'Inter, system-ui, sans-serif',
+				fontFamily: read('--font-body') || 'Narnoor, Helvetica Neue, Helvetica, Arial, sans-serif',
 				fontSizeBase: '15px',
 				spacingUnit: '4px'
 			},
@@ -699,7 +699,7 @@
 	}
 
 	.amount {
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 2.4rem;
 		letter-spacing: -0.04em;
 		line-height: 1;
@@ -827,7 +827,7 @@
 
 	.checkout-head h2 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 1.5rem;
 		font-weight: 400;
 		letter-spacing: -0.03em;

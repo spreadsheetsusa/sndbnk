@@ -981,7 +981,7 @@
 
 	.block-head h2 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 1.8rem;
 		font-weight: 400;
 		letter-spacing: -0.03em;

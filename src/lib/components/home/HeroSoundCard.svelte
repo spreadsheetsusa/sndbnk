@@ -321,7 +321,7 @@
 	.card-note {
 		overflow: hidden;
 		color: var(--accent);
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(1.1rem, 2.1vw, 2rem);
 		font-style: italic;
 		font-weight: 400;

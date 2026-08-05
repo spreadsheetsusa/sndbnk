@@ -176,7 +176,7 @@
 
 	h2 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(1.85rem, 3.6vw, 3rem);
 		font-weight: 700;
 		line-height: 1.05;
@@ -253,7 +253,7 @@
 	}
 
 	.amount {
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 1.65rem;
 		font-weight: 700;
 		letter-spacing: -0.03em;

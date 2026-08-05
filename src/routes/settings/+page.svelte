@@ -1429,7 +1429,7 @@
 
 	.block-head h2 {
 		margin: 0.25rem 0 0.35rem;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(1.75rem, 4.5vw, 2.35rem);
 		font-weight: 400;
 		letter-spacing: -0.03em;
@@ -2138,7 +2138,7 @@
 
 	.dns-head h3 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 1.35rem;
 		font-weight: 400;
 		letter-spacing: -0.02em;
