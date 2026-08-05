@@ -252,7 +252,7 @@
 	}
 
 	.chrome-mark {
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 0.72rem;
 		font-weight: 700;
 		letter-spacing: 0.16em;
@@ -274,7 +274,7 @@
 		border-radius: 0;
 		background: var(--accent);
 		color: var(--on-accent);
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 0.58rem;
 		font-weight: 700;
 		letter-spacing: 0.12em;
@@ -367,7 +367,7 @@
 		margin: 0;
 		padding-right: 1.6rem;
 		overflow: hidden;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 0.62rem;
 		font-weight: 600;
 		letter-spacing: 0.04em;
@@ -415,7 +415,7 @@
 		gap: 0.45rem;
 		align-items: baseline;
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 0.68rem;
 		font-weight: 700;
 		letter-spacing: 0.12em;

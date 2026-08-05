@@ -114,7 +114,7 @@
 
 	h2 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(1.85rem, 3.6vw, 3rem);
 		font-weight: 700;
 		line-height: 1.05;
@@ -222,7 +222,7 @@
 	.num {
 		min-width: 1.75rem;
 		color: var(--ink);
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 0.8125rem;
 		font-weight: 700;
 		letter-spacing: 0.08em;
@@ -246,7 +246,7 @@
 
 	h3 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: 1.0625rem;
 		font-weight: 700;
 		line-height: 1.25;

@@ -696,7 +696,7 @@
 		border: 1px solid var(--ink);
 		background: var(--paper);
 		box-shadow: 4px 4px 0 var(--hard-shadow);
-		font-family: 'Jersey 10', monospace;
+		font-family: var(--font-lcd);
 		font-size: 1.35rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;

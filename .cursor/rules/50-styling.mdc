@@ -42,7 +42,8 @@ blur, one acid-lime accent, paper-grid background, chromatic aberration on displ
 
 ## Reuse the utilities
 
-`.display-face` (Audiowide), `.eyebrow`, `.eyebrow-chip`, `.accent-fill` / `.accent-text` /
+`.display-face` (Audiowide / `--font-display`), `.lcd-face` (Jersey 20 / `--font-lcd`), `.eyebrow`,
+`.eyebrow-chip`, `.accent-fill` / `.accent-text` /
 `.accent-border`, `.pressable`, `.glitch-mark` (needs a matching `data-text` attribute).
 
 An `h1.display-face` gets chromatic fringes automatically — do not re-implement it.

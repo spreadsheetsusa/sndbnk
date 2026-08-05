@@ -240,7 +240,7 @@
 
 	h2 {
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(2.8rem, 5vw, 4.75rem);
 		font-weight: 400;
 		letter-spacing: -0.045em;

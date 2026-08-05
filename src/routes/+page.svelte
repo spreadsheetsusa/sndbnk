@@ -359,7 +359,7 @@
 	.manifesto-copy {
 		max-width: 24ch;
 		margin: 0;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(2rem, 4vw, 4.5rem);
 		line-height: 1.06;
 	}

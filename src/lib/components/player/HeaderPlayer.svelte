@@ -696,7 +696,7 @@
 		padding: 0;
 		/* Visible so the queue badge can escape; clip spill inside .now-body. */
 		overflow: visible;
-		font-family: 'Bitcount Prop Double', ui-monospace, monospace;
+		font-family: var(--font-lcd);
 		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
 		container-type: inline-size;
 		/* Soft glass LCD: top catch-light, mid wash, bottom shade — no scanlines. */

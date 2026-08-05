@@ -303,7 +303,7 @@
 
 	.comments h2 {
 		margin: 0 0 1rem;
-		font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-family: var(--font-editorial);
 		font-size: clamp(1.4rem, 3.5vw, 1.9rem);
 		font-weight: 400;
 		letter-spacing: -0.02em;

@@ -107,17 +107,20 @@ value.
 
 ## Typography
 
-Three tiers, deliberately different voices:
+Four roles, tokenized on `:root` so a rebrand is one swap in `layout.css` (+ the Google Fonts
+`@import`):
 
-| Tier        | Font          | Class / selector           | Where                        |
-| ----------- | ------------- | -------------------------- | ---------------------------- |
-| Display     | Audiowide     | `.display-face`            | wordmark, hero `h1`          |
-| Editorial   | Space Grotesk | `h2` in forms and settings | section titles               |
-| Body        | Inter         | `:root` default            | everything else              |
-| Micro-label | Inter 800     | `.eyebrow`                 | uppercase, `0.15em` tracking |
+| Tier        | Font          | Token / selector                    | Where                        |
+| ----------- | ------------- | ----------------------------------- | ---------------------------- |
+| Display     | Audiowide     | `--font-display` / `.display-face`  | wordmark, hero `h1`          |
+| Editorial   | Space Grotesk | `--font-editorial`                  | section titles, form heads   |
+| Body        | Narnoor       | `--font-body` / `:root` default     | paragraphs, lists, chrome    |
+| LCD         | Jersey 20     | `--font-lcd` / `.lcd-face`          | global player now-playing    |
+| Micro-label | body @ 800    | `.eyebrow` (inherits `--font-body`) | uppercase, `0.15em` tracking |
 
-Audiowide and Space Grotesk are loaded via `@import url(…fonts.googleapis.com…)` at the top of
-`layout.css`; `:root` sets `font-synthesis: none` so no faux bold appears.
+Fonts load via `@import url(…fonts.googleapis.com…)` at the top of `layout.css`; `:root` sets
+`font-synthesis: none` so no faux bold appears. Components should use the tokens (or utilities),
+not hardcode family names.
 
 ## Utilities
 
@@ -125,7 +128,8 @@ Global, defined in `layout.css`:
 
 | Class                                              | Effect                                                                           |
 | -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `.display-face`                                    | Audiowide, uppercase, tight tracking                                             |
+| `.display-face`                                    | Audiowide (`--font-display`), uppercase, tight tracking                          |
+| `.lcd-face`                                        | Jersey 20 (`--font-lcd`) for Winamp-style LCD readouts                           |
 | `.eyebrow`                                         | uppercase micro-label                                                            |
 | `.eyebrow-chip`                                    | in light mode only, wraps accent text in an inverse chip via `box-shadow` spread |
 | `.accent-fill` / `.accent-text` / `.accent-border` | apply the accent to background / color / border                                  |
