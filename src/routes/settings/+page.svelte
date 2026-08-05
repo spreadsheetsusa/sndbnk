@@ -7,6 +7,7 @@
 	import { slide } from 'svelte/transition';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import BioEditor from '#lib/components/settings/BioEditor.svelte';
 	import ProfileLinksEditor from '#lib/components/settings/ProfileLinksEditor.svelte';
 
 	let { data, form } = $props();
@@ -441,15 +442,12 @@
 							</p>
 
 							<label for="bio">Bio</label>
-							<textarea
-								id="bio"
-								class="bio field-full"
-								name="bio"
-								rows="4"
+							<BioEditor
+								value={bioValue}
 								maxlength={data.limits.bio}
 								placeholder="What you make, where you're headed."
-								value={bioValue}
-								oninput={(event) => (bioTyped = event.currentTarget.value.length)}></textarea>
+								oninput={(event) => (bioTyped = event.currentTarget.value.length)}
+							/>
 							<p class="hint" aria-live="polite">{bioLength} / {data.limits.bio} characters</p>
 
 							<label for="location">Location</label>
@@ -1541,12 +1539,6 @@
 
 	textarea:focus {
 		box-shadow: 4px 4px 0 var(--accent);
-	}
-
-	textarea.bio {
-		min-height: 6rem;
-		font-family: inherit;
-		font-size: 0.95rem;
 	}
 
 	.field-xs {

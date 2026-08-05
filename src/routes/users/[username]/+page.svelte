@@ -2,6 +2,7 @@
 	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
+	import { bioPlainText } from '#lib/markdown/bio';
 	import { absoluteUrl, personJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
@@ -22,7 +23,7 @@
 
 	const pageTitle = $derived(`${data.profile.name} (@${data.profile.username}) | SNDBNK`);
 	const pageDescription = $derived(
-		data.profile.bio?.trim() || `${data.profile.name} on SNDBNK — a public profile for sound.`
+		bioPlainText(data.profile.bio) || `${data.profile.name} on SNDBNK — a public profile for sound.`
 	);
 	const seoCanonical = $derived(`${data.siteOrigin}/users/${data.profile.username}`);
 	const seoJsonLd = $derived(
