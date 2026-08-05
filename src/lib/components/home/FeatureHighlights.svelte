@@ -3,6 +3,7 @@
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
 	import IconServer from '@tabler/icons-svelte-runes/icons/server';
+	import IconWaveSine from '@tabler/icons-svelte-runes/icons/wave-sine';
 	import IconWorld from '@tabler/icons-svelte-runes/icons/world';
 
 	const FEATURES = [
@@ -35,6 +36,12 @@
 			icon: IconHeadphones,
 			title: 'Any sound, posted',
 			description: 'Tracks, mixes, loops, samples, podcasts — drop it in.'
+		},
+		{
+			id: 'player',
+			icon: IconWaveSine,
+			title: 'Player that sticks',
+			description: 'Header transport and waveform scrub ride every route with you.'
 		}
 	];
 </script>
@@ -46,7 +53,9 @@
 			<span class="mark" aria-hidden="true">///</span>
 		</div>
 		<h2 id="features-title">Built for the whole signal chain</h2>
-		<p class="lede">Host it, store it, tag it, see it — then post whatever sound you've got.</p>
+		<p class="lede">
+			Host it, store it, tag it, see it, keep playing — then post whatever sound you've got.
+		</p>
 	</header>
 
 	<ol class="index">
@@ -139,7 +148,7 @@
 		grid-template-columns: auto auto minmax(0, 1fr);
 		gap: 0.85rem 1rem;
 		align-items: start;
-		padding: 1.35rem 1.25rem 1.35rem 0;
+		padding: 1.35rem 1.25rem 1.35rem 1.25rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		background-color: color-mix(
 			in srgb,
@@ -185,6 +194,13 @@
 		--bank-lo: 8%;
 		--bank-hi: 24%;
 		--bank-dur: 7.8s;
+	}
+
+	.item:nth-child(6) {
+		--bank-tone: 62%;
+		--bank-lo: 10%;
+		--bank-hi: 22%;
+		--bank-dur: 6.7s;
 	}
 
 	.item:nth-child(odd) {
@@ -282,7 +298,7 @@
 		.item:nth-child(even),
 		.item:last-child:nth-child(odd) {
 			grid-column: auto;
-			padding: 1.2rem 0;
+			padding: 1.2rem 0.25rem 1.2rem 1.25rem;
 			border-right: none;
 		}
 	}

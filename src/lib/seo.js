@@ -1,5 +1,5 @@
 /** Default Open Graph share image (served from `static/`). */
-export const DEFAULT_OG_IMAGE = '/7eCo0.webp';
+export const DEFAULT_OG_IMAGE = '/sndbnk-og-image.webp';
 export const DEFAULT_OG_IMAGE_WIDTH = 1168;
 export const DEFAULT_OG_IMAGE_HEIGHT = 784;
 

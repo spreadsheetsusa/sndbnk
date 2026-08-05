@@ -254,7 +254,7 @@
 
 	<main id="main">
 		<div class="signal-bg" aria-hidden="true">
-			<img src="/W120y.webp" alt="" width="1152" height="864" decoding="async" />
+			<img src="/jjj-decks.webp" alt="" width="1152" height="864" decoding="async" />
 		</div>
 
 		<header class="intro">
@@ -369,7 +369,7 @@
 				}}
 			>
 				<div class="checkout-bg" aria-hidden="true">
-					<img src="/k004I.webp" alt="" width="1360" height="752" decoding="async" />
+					<img src="/startakult.webp" alt="" width="1360" height="752" decoding="async" />
 				</div>
 
 				<section class="checkout" aria-labelledby="checkout-title">

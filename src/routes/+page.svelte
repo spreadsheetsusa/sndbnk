@@ -16,7 +16,7 @@
 	let { data } = $props();
 
 	/** @type {HTMLElement | undefined} */
-	let container;
+	let container = $state.raw();
 
 	// Tenant hosts serve one profile from `/`; the marketing home has no paged
 	// list, so this stays empty and inert there.
@@ -149,7 +149,7 @@
 
 			<section class="manifesto" aria-label="Our intention">
 				<div class="manifesto-bg" aria-hidden="true">
-					<img src="/sf79Q.webp" alt="" width="1536" height="1024" decoding="async" />
+					<img src="/big-show.webp" alt="" width="1536" height="1024" decoding="async" />
 				</div>
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">

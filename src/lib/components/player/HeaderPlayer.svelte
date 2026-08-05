@@ -9,6 +9,7 @@
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { flip } from 'svelte/animate';
+	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
@@ -32,6 +33,26 @@
 	 */
 
 	const DRAG_THRESHOLD_PX = 6;
+	const TUCK_Y = -12;
+	const TUCK_SCALE = 0.96;
+	const TUCK_DURATION_MS = 280;
+
+	/**
+	 * Slide + fade + scale from the top of the header.
+	 * @param {HTMLElement} _node
+	 * @param {{ duration?: number, y?: number, start?: number }} [params]
+	 */
+	function tuck(_node, { duration = TUCK_DURATION_MS, y = TUCK_Y, start = TUCK_SCALE } = {}) {
+		return {
+			duration: prefersReducedMotion.current ? 0 : duration,
+			easing: cubicOut,
+			css: (t) => {
+				const ty = (1 - t) * y;
+				const scale = start + (1 - start) * t;
+				return `transform-origin: top center; transform: translateY(${ty}px) scale(${scale}); opacity: ${t}`;
+			}
+		};
+	}
 
 	const signedIn = $derived(Boolean(page.data.nav?.name));
 
@@ -240,7 +261,7 @@
 {#if player.current}
 	{@const track = player.current}
 	{@const artistLabel = track.artist || track.uploaderName}
-	<div class="header-player" role="region" aria-label="Now playing">
+	<div class="header-player" role="region" aria-label="Now playing" transition:tuck>
 		<div class="strip">
 			<div class="transport">
 				<button

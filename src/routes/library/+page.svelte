@@ -241,8 +241,6 @@
 	/* Shared by the header strip and every row so the columns cannot drift apart. */
 	.track-table {
 		--library-grid: 1.7rem 1.75rem minmax(0, 1fr) minmax(0, 8rem) 4rem 5.5rem 6rem 4.8rem 1.7rem;
-
-		border-top: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
 	}
 
 	.table-head {

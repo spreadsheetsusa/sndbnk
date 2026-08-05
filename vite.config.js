@@ -15,12 +15,7 @@ export default defineConfig({
 			},
 
 			adapter: adapter(),
-			experimental: { remoteFunctions: true },
-			typescript: {
-				config: (config) => {
-					config.include.push('../drizzle.config.js');
-				}
-			}
+			experimental: { remoteFunctions: true }
 		})
 	],
 	// Allow custom-domain Host headers when testing tenant routing locally.

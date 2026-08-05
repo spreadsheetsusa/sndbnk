@@ -12,13 +12,16 @@
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import FollowButton from '#lib/components/FollowButton.svelte';
+	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
 	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
 	import ArtistRow from '#lib/components/profile/ArtistRow.svelte';
+	import { displayUrl } from '#lib/profile-links.js';
 
 	/**
 	 * @typedef {import('#lib/components/profile/ArtistRow.svelte').Artist} Artist
 	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string }} RecentComment
 	 * @typedef {{ followerCount: number, followingCount: number, trackCount: number, likeCount: number, repostCount: number }} ProfileStats
+	 * @typedef {{ id: string, label: string, url: string }} ProfileLink
 	 */
 
 	/**
@@ -29,6 +32,7 @@
 	 *   fansAlsoLike: Artist[],
 	 *   followers: Artist[],
 	 *   recentComments: RecentComment[],
+	 *   links?: ProfileLink[],
 	 *   signedIn?: boolean,
 	 *   isOwner?: boolean,
 	 *   isFollowing?: boolean,
@@ -49,6 +53,7 @@
 		fansAlsoLike,
 		followers,
 		recentComments,
+		links = [],
 		signedIn = false,
 		isOwner = false,
 		isFollowing = false,
@@ -70,6 +75,7 @@
 		/** @type {{ key: string, label: string }[]} */
 		const list = [];
 		if (showStats) list.push({ key: 'stats', label: 'Stats' });
+		if (links.length > 0) list.push({ key: 'links', label: 'Links' });
 		if (showFansAlsoLike) list.push({ key: 'fans', label: 'Fans Also Like' });
 		if (showFollowers) list.push({ key: 'followers', label: 'Followers' });
 		if (showActivity) list.push({ key: 'activity', label: 'Last Comments' });
@@ -226,6 +232,31 @@
 							<span class="repost-count">{stats.repostCount}</span>
 						</button>
 					{/if}
+				</section>
+			{/if}
+
+			{#if links.length > 0}
+				<section class="panel" aria-labelledby="profile-links-heading" data-panel="links">
+					<header class="panel-head">
+						<p id="profile-links-heading" class="eyebrow">Links</p>
+					</header>
+					<SnapMarquee enabled={collapsed} resetKey="profile-links">
+						<ul class="link-list">
+							{#each links as link (link.id)}
+								<li>
+									<a href={link.url} target="_blank" rel="me noopener nofollow">
+										<span class="link-glyph" aria-hidden="true">
+											<ProfileLinkIcon label={link.label} />
+										</span>
+										<span class="link-copy">
+											<span class="link-label">{link.label}</span>
+											<span class="link-url">{displayUrl(link.url)}</span>
+										</span>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</SnapMarquee>
 				</section>
 			{/if}
 
@@ -488,6 +519,71 @@
 		padding: 0.1rem 0.25rem;
 		border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 		font-variant-numeric: tabular-nums;
+	}
+
+	.link-list {
+		display: grid;
+		gap: 0.4rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.link-list a {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		min-width: 0;
+		width: 100%;
+		padding: 0.45rem 0.5rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		border-radius: 0;
+		color: var(--ink);
+		background: color-mix(in srgb, var(--paper) 94%, var(--ink));
+		text-decoration: none;
+		transition:
+			border-color 120ms ease,
+			background 120ms ease,
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+	}
+
+	.link-list a:hover {
+		border-color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+
+	.link-list a:active {
+		transform: translate(1px, 1px);
+	}
+
+	.link-glyph {
+		display: inline-flex;
+		flex-shrink: 0;
+		align-items: center;
+	}
+
+	.link-copy {
+		display: grid;
+		gap: 0.15rem;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.link-label {
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.06em;
+		line-height: 1.2;
+		text-transform: uppercase;
+	}
+
+	.link-url {
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 0.72rem;
+		line-height: 1.2;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.row-list,
@@ -756,6 +852,27 @@
 		.profile-sidebar.collapsed .stat-label {
 			grid-column: auto;
 			font-size: 0.52rem;
+		}
+
+		.profile-sidebar.collapsed .link-list {
+			display: flex;
+			flex-direction: row;
+			gap: 0.35rem;
+			align-items: center;
+		}
+
+		.profile-sidebar.collapsed .link-list > li {
+			flex: 0 0 auto;
+			scroll-snap-align: start;
+			min-width: 11rem;
+		}
+
+		.profile-sidebar.collapsed .link-list a {
+			padding: 0.2rem 0.4rem;
+		}
+
+		.profile-sidebar.collapsed .link-url {
+			max-width: 8rem;
 		}
 
 		.profile-sidebar.collapsed .row-list,
