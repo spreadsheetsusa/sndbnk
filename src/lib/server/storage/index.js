@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 
-import { canUseStorageAdapters } from '#lib/server/billing/plans';
-import { db } from '#lib/server/db';
-import { profile, storageSetting } from '#lib/server/db/schema';
+import { canUseStorageAdapters } from '#lib/server/billing/plans.js';
+import { db } from '#lib/server/db/index.js';
+import { profile, storageSetting } from '#lib/server/db/schema.js';
 import { decryptSecret, encryptSecret } from './crypto.js';
 import { createLocalAdapter } from './local.js';
 import { assertPublicSshHost } from './ssh-host.js';

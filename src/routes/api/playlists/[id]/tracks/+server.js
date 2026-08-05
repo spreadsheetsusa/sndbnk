@@ -2,10 +2,25 @@ import { error, json } from '@sveltejs/kit';
 
 import {
 	addTrackToPlaylist,
+	getOwnedPlaylist,
+	listPlaylistTrackRows,
 	removeTrackFromPlaylist,
 	reorderPlaylistTracks
 } from '#lib/server/playlists';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
+import { serializeTrackRows } from '#lib/server/tracks';
+
+/** Owner library view: ordered published members as library track rows. */
+export async function GET({ locals, params }) {
+	if (!locals.user) error(401, 'Sign in to view playlist tracks.');
+
+	const owned = await getOwnedPlaylist(locals.user.id, params.id);
+	if (!owned) error(404, 'Playlist not found.');
+
+	const rows = await listPlaylistTrackRows(owned.id);
+	const items = await serializeTrackRows(rows, locals.user);
+	return json({ items });
+}
 
 export async function POST({ locals, params, request, url }) {
 	if (!locals.user) error(401, 'Sign in to edit playlists.');

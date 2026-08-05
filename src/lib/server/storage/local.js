@@ -1,7 +1,7 @@
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-import { MEDIA_ROOT } from '#lib/server/app-env';
+import { MEDIA_ROOT } from '#lib/server/app-env.js';
 
 import { assertSafeStoragePath, assertSafeStorageSegment } from './path-safety.js';
 

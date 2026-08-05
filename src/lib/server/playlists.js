@@ -197,22 +197,58 @@ export async function togglePlaylistLike(userId, playlistId) {
 
 /**
  * @param {string} userId
+ * @param {string} title
+ * @param {{ description?: string | null, published?: boolean }} [opts]
+ */
+export async function createPlaylistForUser(userId, title, opts = {}) {
+	const trimmed = title.trim();
+	if (!trimmed) return { ok: false, message: 'Title is required.' };
+	if (trimmed.length > TITLE_MAX) {
+		return { ok: false, message: `Title must be ${TITLE_MAX} characters or fewer.` };
+	}
+
+	const description = opts.description?.trim() || null;
+	if (description && description.length > DESCRIPTION_MAX) {
+		return { ok: false, message: `Description must be ${DESCRIPTION_MAX} characters or fewer.` };
+	}
+
+	const id = crypto.randomUUID();
+	const published = opts.published ?? true;
+	await db.insert(playlist).values({
+		id,
+		userId,
+		title: trimmed,
+		description,
+		published
+	});
+
+	return {
+		ok: true,
+		playlist: {
+			id,
+			title: trimmed,
+			published,
+			createdAt: Date.now(),
+			trackCount: 0
+		}
+	};
+}
+
+/**
+ * @param {string} userId
  * @param {FormData} formData
  */
 export async function createPlaylistFromForm(userId, formData) {
 	const meta = parsePlaylistMetadata(formData);
 	if (!meta.ok) return meta;
 
-	const id = crypto.randomUUID();
-	await db.insert(playlist).values({
-		id,
-		userId,
-		title: meta.title,
+	const result = await createPlaylistForUser(userId, meta.title, {
 		description: meta.description,
 		published: meta.published
 	});
+	if (!result.ok) return result;
 
-	return { ok: true, playlistId: id };
+	return { ok: true, playlistId: result.playlist.id };
 }
 
 /**

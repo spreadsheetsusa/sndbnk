@@ -4,8 +4,9 @@
  *   bun run worker:waveform
  *
  * Requires REDIS_URL, DATABASE_URL, MEDIA_ROOT (and STORAGE_SECRET for SSH tracks).
- * `$app/env/*` resolves via package.json `imports` → scripts/shims (Vite/Kit still
- * override these virtual modules during `bun run dev` / build).
+ * Runs under raw Bun (not Vite), so `#lib/…` imports in this dependency tree must
+ * include `.js` / `index.js` — Bun’s package `imports` map does not resolve
+ * extensionless specifiers the way Vite does.
  */
 import { Worker } from 'bullmq';
 

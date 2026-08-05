@@ -5,16 +5,16 @@ import path from 'node:path';
 import { Queue } from 'bullmq';
 import { eq } from 'drizzle-orm';
 
-import { db } from '#lib/server/db';
-import { track } from '#lib/server/db/schema';
+import { db } from '#lib/server/db/index.js';
+import { track } from '#lib/server/db/schema.js';
 import {
 	generateWaveformPeaksFromPath,
 	parseWaveform,
 	WAVEFORM_WORKER_TIMEOUT_MS
-} from '#lib/server/media/waveform';
-import { createRedisConnection, getRedisUrl } from '#lib/server/queue/redis';
-import { getStorageAdapter } from '#lib/server/storage';
-import { localTrackFilePath } from '#lib/server/storage/local-path';
+} from '#lib/server/media/waveform.js';
+import { createRedisConnection, getRedisUrl } from '#lib/server/queue/redis.js';
+import { getStorageAdapter } from '#lib/server/storage/index.js';
+import { localTrackFilePath } from '#lib/server/storage/local-path.js';
 
 export const WAVEFORM_QUEUE_NAME = 'waveform';
 

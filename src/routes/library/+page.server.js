@@ -1,3 +1,4 @@
+import { listPlaylistsForOwner } from '#lib/server/playlists';
 import { getUsage } from '#lib/server/quota';
 import { getProfileByUserId } from '#lib/server/tenant';
 import { listTracksWithUploader, serializeTrackRows } from '#lib/server/tracks';
@@ -13,9 +14,10 @@ export const load = async ({ locals }) => {
 		safeRedirect(302, '/signup');
 	}
 
-	const [{ rows, nextCursor }, usage] = await Promise.all([
+	const [{ rows, nextCursor }, usage, playlists] = await Promise.all([
 		listTracksWithUploader(locals.user.id),
-		getUsage(locals.user.id)
+		getUsage(locals.user.id),
+		listPlaylistsForOwner(locals.user.id)
 	]);
 
 	return {
@@ -29,6 +31,7 @@ export const load = async ({ locals }) => {
 		},
 		items: await serializeTrackRows(rows, locals.user),
 		nextCursor,
+		playlists,
 		usage
 	};
 };

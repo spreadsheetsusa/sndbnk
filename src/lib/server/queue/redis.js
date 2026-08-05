@@ -1,6 +1,6 @@
 import IORedis from 'ioredis';
 
-import { REDIS_URL } from '#lib/server/app-env';
+import { REDIS_URL } from '#lib/server/app-env.js';
 
 /**
  * @returns {string | undefined}

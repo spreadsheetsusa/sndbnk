@@ -72,6 +72,10 @@ Real peaks need `REDIS_URL`, a running worker (`bun run worker:waveform` locally
 placeholder bars; the upload itself still succeeded. Details:
 [media-and-storage.md](media-and-storage.md).
 
+The worker runs raw Bun (not Vite). Bun’s package `imports` map does not resolve
+extensionless `#lib/…` the way Vite does — imports in the worker dependency tree must use
+`.js` / `index.js` or the unit crash-loops with `Cannot find module '#lib/server/…'`.
+
 ### Stripe env keys alone leave paid tiers unavailable
 
 `/plans` marks a tier purchasable only when `stripe_price_*` IDs exist on the `plan` row. Env

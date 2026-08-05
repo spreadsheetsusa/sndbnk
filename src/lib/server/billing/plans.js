@@ -1,7 +1,7 @@
 import { asc } from 'drizzle-orm';
 
-import { db } from '#lib/server/db';
-import { plan } from '#lib/server/db/schema';
+import { db } from '#lib/server/db/index.js';
+import { plan } from '#lib/server/db/schema.js';
 
 /** @typedef {typeof plan.$inferSelect} PlanRow */
 /** @typedef {Omit<PlanRow, 'features'> & { features: string[] }} PlanDetail */

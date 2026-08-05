@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
-import { STORAGE_SECRET } from '#lib/server/app-env';
+import { STORAGE_SECRET } from '#lib/server/app-env.js';
 
 const ALGO = 'aes-256-gcm';
 const IV_BYTES = 12;
