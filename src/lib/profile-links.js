@@ -134,12 +134,3 @@ export function isPresetLabel(label) {
 	const normalized = label.trim().toLowerCase();
 	return LINK_PRESETS.some((entry) => entry.label.toLowerCase() === normalized);
 }
-
-/**
- * Trim a URL down to something readable for display next to its label.
- * @param {string} url
- * @returns {string}
- */
-export function displayUrl(url) {
-	return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-}

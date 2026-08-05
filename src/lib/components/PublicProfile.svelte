@@ -9,8 +9,6 @@
 	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import ProfileSidebar from '#lib/components/profile/ProfileSidebar.svelte';
-	import { displayUrl } from '#lib/profile-links.js';
-
 	/**
 	 * @typedef {{
 	 *   tab: 'tracks' | 'likes' | 'history',
@@ -216,7 +214,6 @@
 											<ProfileLinkIcon label={link.label} />
 										</span>
 										<span class="link-label">{link.label}</span>
-										<span class="link-url">{displayUrl(link.url)}</span>
 									</a>
 								</li>
 							{/each}
@@ -564,15 +561,6 @@
 		text-transform: uppercase;
 	}
 
-	.link-url {
-		max-width: 14rem;
-		overflow: hidden;
-		color: var(--muted);
-		font-size: 0.72rem;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
 	.lede {
 		max-width: 32rem;
 		margin: 1rem 0 0;
@@ -746,10 +734,6 @@
 
 	@media (max-width: 560px) {
 		.signal {
-			display: none;
-		}
-
-		.link-url {
 			display: none;
 		}
 	}
