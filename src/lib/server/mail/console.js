@@ -7,12 +7,14 @@ export const consoleAdapter = {
 
 	async send(message) {
 		const rule = '─'.repeat(72);
+		const htmlNote = message.html ? `html: ${message.html.length} bytes` : 'html: (none)';
 		console.log(
 			[
 				rule,
 				`MAIL  to: ${message.to}`,
 				`      from: ${message.from}`,
 				`      subject: ${message.subject}`,
+				`      ${htmlNote}`,
 				rule,
 				message.text.trim(),
 				rule

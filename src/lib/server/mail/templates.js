@@ -1,40 +1,47 @@
 import { ORIGIN } from '$app/env/private';
 
+import {
+	buildPaymentFailedMail,
+	buildPlanChangedMail,
+	buildResetPasswordMail,
+	buildSubscriptionCanceledMail,
+	buildVerifyEmailChangeMail,
+	buildWelcomeMail
+} from './compose.js';
+import { wrapMail } from './layout.js';
 import { sendMail } from './index.js';
 
 const origin = ORIGIN.replace(/\/$/, '');
 
 /**
- * @param {{ to: string, name: string, username: string }} input
+ * @param {{ to: string, subject: string, preheader: string, text: string, bodyHtml: string }} input
  */
-export function sendWelcomeMail({ to, name, username }) {
+function sendBrandedMail({ to, subject, preheader, text, bodyHtml }) {
 	return sendMail({
 		to,
-		subject: 'Welcome to SNDBNK',
-		text: `${name},
-
-Your account is live. Your profile is at ${origin}/users/${username}.
-
-Upload your first track: ${origin}/library
-
-— SNDBNK`
+		subject,
+		text,
+		html: wrapMail({ origin, preheader, bodyHtml })
 	});
 }
 
 /**
- * @param {{ to: string, name: string, planLabel: string, interval: string }} input
+ * @param {{ to: string, name: string, username: string, planId?: string | null }} input
  */
-export function sendPlanChangedMail({ to, name, planLabel, interval }) {
-	return sendMail({
+export function sendWelcomeMail({ to, name, username, planId = 'free' }) {
+	return sendBrandedMail({
 		to,
-		subject: `You're on SNDBNK ${planLabel}`,
-		text: `${name},
+		...buildWelcomeMail({ name, username, planId, origin })
+	});
+}
 
-You're now on ${planLabel}, billed ${interval === 'year' ? 'yearly' : 'monthly'}.
-
-Manage your plan and invoices any time at ${origin}/settings?tab=billing.
-
-— SNDBNK`
+/**
+ * @param {{ to: string, name: string, planLabel: string, interval: string, planId?: string | null }} input
+ */
+export function sendPlanChangedMail({ to, name, planLabel, interval, planId }) {
+	return sendBrandedMail({
+		to,
+		...buildPlanChangedMail({ name, planLabel, interval, planId, origin })
 	});
 }
 
@@ -42,16 +49,9 @@ Manage your plan and invoices any time at ${origin}/settings?tab=billing.
  * @param {{ to: string, name: string, planLabel: string }} input
  */
 export function sendPaymentFailedMail({ to, name, planLabel }) {
-	return sendMail({
+	return sendBrandedMail({
 		to,
-		subject: 'Your SNDBNK payment did not go through',
-		text: `${name},
-
-We could not charge your card for ${planLabel}. Your account keeps working for now, but we will retry over the next few days.
-
-Update your payment method at ${origin}/settings?tab=billing.
-
-— SNDBNK`
+		...buildPaymentFailedMail({ name, planLabel, origin })
 	});
 }
 
@@ -59,16 +59,9 @@ Update your payment method at ${origin}/settings?tab=billing.
  * @param {{ to: string, name: string }} input
  */
 export function sendSubscriptionCanceledMail({ to, name }) {
-	return sendMail({
+	return sendBrandedMail({
 		to,
-		subject: 'Your SNDBNK subscription has ended',
-		text: `${name},
-
-Your subscription has ended and your account is back on Free. Your tracks are safe — subdomain and custom domain hosting are paused.
-
-Resubscribe any time at ${origin}/plans.
-
-— SNDBNK`
+		...buildSubscriptionCanceledMail({ name, origin })
 	});
 }
 
@@ -76,18 +69,9 @@ Resubscribe any time at ${origin}/plans.
  * @param {{ to: string, name: string, url: string }} input
  */
 export function sendVerifyEmailChangeMail({ to, name, url }) {
-	return sendMail({
+	return sendBrandedMail({
 		to,
-		subject: 'Confirm your new SNDBNK email',
-		text: `${name},
-
-Confirm this address to use it for SNDBNK sign-in:
-
-${url}
-
-If you did not request this, you can ignore this message — your sign-in email stays the same.
-
-— SNDBNK`
+		...buildVerifyEmailChangeMail({ name, url })
 	});
 }
 
@@ -95,17 +79,17 @@ If you did not request this, you can ignore this message — your sign-in email 
  * @param {{ to: string, name: string, url: string }} input
  */
 export function sendResetPasswordMail({ to, name, url }) {
-	return sendMail({
+	return sendBrandedMail({
 		to,
-		subject: 'Reset your SNDBNK password',
-		text: `${name},
-
-Reset your SNDBNK password with this link:
-
-${url}
-
-If you did not request this, you can ignore this message — your password stays the same.
-
-— SNDBNK`
+		...buildResetPasswordMail({ name, url })
 	});
 }
+
+export {
+	buildPaymentFailedMail,
+	buildPlanChangedMail,
+	buildResetPasswordMail,
+	buildSubscriptionCanceledMail,
+	buildVerifyEmailChangeMail,
+	buildWelcomeMail
+} from './compose.js';

@@ -118,6 +118,7 @@ async function handleEvent(event) {
 				await sendPlanChangedMail({
 					to: account.email,
 					name: account.name,
+					planId: synced.plan,
 					planLabel: planOrDefault(synced.plan).label,
 					interval: account.planInterval ?? 'month'
 				});
