@@ -4,6 +4,7 @@
 
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
+	import { parseGenres } from '#lib/genres.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
 
@@ -33,7 +34,9 @@
 	const isPlaying = $derived(isActive && player.playing);
 	const displayTime = $derived(scrubSeconds ?? (isActive ? player.currentTime : 0));
 	const artistLabel = $derived(track ? track.artist || track.uploaderName : '');
-	const genreLabel = $derived(/** @type {HeroTrack | null} */ (track)?.genre?.trim() || 'SNDBNK');
+	const genreLabel = $derived(
+		parseGenres(/** @type {HeroTrack | null} */ (track)?.genre)[0] || 'SNDBNK'
+	);
 	const cardLabel = $derived(
 		track ? `${isActive ? 'Now playing' : 'Now featuring'} ${track.title} by ${artistLabel}` : ''
 	);

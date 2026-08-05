@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
 
 export const task = sqliteTable('task', {
@@ -235,6 +235,14 @@ export const track = sqliteTable(
 		sampleRate: integer('sample_rate'),
 		channels: integer('channels'),
 		codec: text('codec'),
+		/** Encoder brand/tool, e.g. LAME3.97. */
+		encoder: text('encoder'),
+		/** Tag formats found, e.g. ID3v2.3. */
+		tagTypes: text('tag_types'),
+		/** ReplayGain / track gain offset in dB. */
+		trackGainDb: real('track_gain_db'),
+		/** Container label from probe, e.g. MPEG. */
+		container: text('container'),
 		/** JSON array of ~1000 peak ints (0-100) for waveform rendering. */
 		waveform: text('waveform'),
 		/** Denormalized listen count; incremented by recordTrackPlay. */

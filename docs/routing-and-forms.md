@@ -4,36 +4,36 @@
 
 No nested layouts, no route groups, no `+error.svelte`. One root layout and a flat set of routes.
 
-| Route                              | Auth                   | What it does                                                            |
-| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------- |
-| `/`                                | optional               | Marketing landing on apex; the owner's public profile on a tenant host  |
-| `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                     |
-| `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                 |
-| `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1` |
-| `/settings`                        | required               | tabbed profile (incl. email change) / plan / domain / site / storage    |
-| `/library`                         | required               | the owner's track list                                                  |
-| `/library/new`                     | required               | upload form                                                             |
-| `/library/[id]`                    | owner only             | edit metadata, embed tags, delete                                       |
-| `/tracks/[id]`                     | public                 | track detail with waveform and comments                                 |
-| `/playlists/new`                   | required               | create a playlist                                                       |
-| `/playlists/[id]`                  | public                 | playlist detail (waveform + member list)                                |
-| `/playlists/[id]/edit`             | owner only             | edit metadata, reorder/remove members                                   |
-| `/users/[username]`                | public                 | public profile by path                                                  |
-| `/admin`                           | admin only (apex)      | Plans, discounts, users, site play thresholds, business-planning docs   |
-| `/admin/docs/[slug]`               | admin only (apex)      | Serves `docs/*.html` briefs (plan, finance, migrations)                 |
-| `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                      |
-| `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                |
-| `/api/tracks`                      | mixed                  | paged feed/library/profile/likes/history (`{ items, nextCursor }`)      |
-| `/api/tracks/[id]`                 | required               | `DELETE` a track                                                        |
-| `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                   |
-| `/api/tracks/[id]/play`            | public                 | `POST` records a play (`{ playCount }`); history when signed in         |
-| `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                   |
-| `/api/tracks/[id]/comments/[id]`   | required (author)      | `DELETE` removes own comment                                            |
-| `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                     |
-| `/api/playlists/[id]`              | required               | `DELETE` a playlist                                                     |
-| `/api/playlists/[id]/like`         | required               | `POST` toggles a playlist like                                          |
-| `/api/playlists/[id]/tracks`       | required               | `POST`/`DELETE`/`PATCH` membership                                      |
-| `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                |
+| Route                              | Auth                   | What it does                                                                                                |
+| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `/`                                | optional               | Marketing landing on apex; the owner's public profile on a tenant host                                      |
+| `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                                                         |
+| `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                                                     |
+| `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`                                     |
+| `/settings`                        | required               | tabbed profile (incl. email change) / plan / domain / site / storage                                        |
+| `/library`                         | required               | owner track list; drop/picker upload via `?/create`; `?mediaType=` filters; `?track=` + `?edit=1` deck edit |
+| `/library/new`                     | required               | redirects to `/library` (former LOAD console)                                                               |
+| `/library/[id]`                    | owner only             | redirects to `/library?track={id}&edit=1`                                                                   |
+| `/tracks/[id]`                     | public                 | track detail with waveform and comments                                                                     |
+| `/playlists/new`                   | required               | create a playlist                                                                                           |
+| `/playlists/[id]`                  | public                 | playlist detail (waveform + member list)                                                                    |
+| `/playlists/[id]/edit`             | owner only             | edit metadata, reorder/remove members                                                                       |
+| `/users/[username]`                | public                 | public profile by path                                                                                      |
+| `/admin`                           | admin only (apex)      | Plans, discounts, users, site play thresholds, business-planning docs                                       |
+| `/admin/docs/[slug]`               | admin only (apex)      | Serves `docs/*.html` briefs (plan, finance, migrations)                                                     |
+| `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                                                          |
+| `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                                                    |
+| `/api/tracks`                      | mixed                  | paged feed/library/profile/likes/history (`{ items, nextCursor }`)                                          |
+| `/api/tracks/[id]`                 | required               | `DELETE` a track                                                                                            |
+| `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                                                       |
+| `/api/tracks/[id]/play`            | public                 | `POST` records a play (`{ playCount }`); history when signed in                                             |
+| `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                                                       |
+| `/api/tracks/[id]/comments/[id]`   | required (author)      | `DELETE` removes own comment                                                                                |
+| `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                                                         |
+| `/api/playlists/[id]`              | required               | `DELETE` a playlist                                                                                         |
+| `/api/playlists/[id]/like`         | required               | `POST` toggles a playlist like                                                                              |
+| `/api/playlists/[id]/tracks`       | required               | `POST`/`DELETE`/`PATCH` membership                                                                          |
+| `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                                                    |
 
 `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, and
 `/api/domain-tls-check` 404 on tenant hosts. See [architecture.md](architecture.md).
@@ -167,9 +167,11 @@ Both exist, and the split is deliberate:
 | the page needs fresh `load` data afterwards          | invalidating the whole page would be wasteful                 |
 | examples: auth, settings, upload, track edit         | examples: like toggle, add comment, delete from the card menu |
 
-Track deletion exists on both paths — the form action on `/library/[id]` redirects to `/library`,
-the `DELETE` endpoint serves the inline card menu. Both call the same
-`deleteTrackForUser()`, which is what keeps them honest.
+Library upload is a named form action (`?/create`) posted from the page drop/picker (no separate
+upload route). Track edit is `?/update` on the same page and expands the library deck; an optional
+`writeTags=1` field embeds form metadata into the audio file after a successful save.
+Track deletion is `DELETE /api/tracks/[id]` from the library row / card menu (same
+`deleteTrackForUser()` service).
 
 ## API endpoints
 

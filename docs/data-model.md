@@ -137,12 +137,12 @@ so callers never handle a missing row. SSH credentials are stored in `sshPrivate
 
 Four groups of columns:
 
-| Group               | Columns                                                                                                                                                                                            |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Editable metadata   | `title` (required), `description`, `artist`, `album`, `genre`, `mediaType` (`track` \| `mix` \| `sample` \| `loop` \| `podcast`, default `track`), `year`, `trackNumber`, `bpm`, `isrc`, `comment` |
-| Files               | `audioFilename`, `audioMime`, `audioBytes`, `coverFilename`, `coverMime`, `coverBytes`                                                                                                             |
-| Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`                                                                                                                                         |
-| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `storageAdapter`, `folderKey`                                                                                                                 |
+| Group               | Columns                                                                                                                                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Editable metadata   | `title` (required), `description`, `artist`, `album`, `genre` (free text; comma-separated for multiple values), `mediaType` (`track` \| `mix` \| `sample` \| `loop` \| `podcast`, default `track`), `year`, `trackNumber`, `bpm`, `isrc`, `comment` |
+| Files               | `audioFilename`, `audioMime`, `audioBytes`, `coverFilename`, `coverMime`, `coverBytes`                                                                                                                                                              |
+| Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`, `encoder`, `tagTypes`, `trackGainDb`, `container`                                                                                                                                       |
+| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `storageAdapter`, `folderKey`                                                                                                                                                                  |
 
 `storageAdapter` is a **snapshot of the owner's adapter at upload time**, and `folderKey` equals the
 track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —

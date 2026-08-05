@@ -83,7 +83,7 @@ check('profile created on free', row?.plan === 'free', JSON.stringify(row));
 check('session cookie captured', cookie.length > 0);
 
 console.log('\n== signed-in surfaces ==');
-for (const path of ['/plans', '/settings?tab=billing', '/library/new', '/admin']) {
+for (const path of ['/plans', '/settings?tab=billing', '/library', '/admin']) {
 	const res = await call(path);
 	const body = await res.text();
 	console.log(`  ${String(res.status).padEnd(4)} ${path}`);
@@ -192,7 +192,7 @@ if (!(await audio.exists())) {
 	const form = new FormData();
 	form.set('title', 'Over the byte cap');
 	form.set('audio', audio, 'over-the-cap.mp3');
-	const capped = await call('/library/new', { method: 'POST', body: form });
+	const capped = await call('/library?/create', { method: 'POST', body: form });
 	const cappedBody = await capped.text();
 	check(
 		'upload past the byte cap is refused',

@@ -1,5 +1,6 @@
 import { and, count, countDistinct, desc, eq, isNotNull, ne, sql } from 'drizzle-orm';
 
+import { parseGenres } from '#lib/genres.js';
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
 import {
@@ -84,9 +85,8 @@ export async function pickHeroTrack(viewer = null) {
 export async function getSiteStats() {
 	const artistLikes = count(trackLike.userId);
 	const artistTracks = countDistinct(track.id);
-	const genreCount = count();
 
-	const [totals, likes, comments, topArtists, topGenres] = await Promise.all([
+	const [totals, likes, comments, topArtists, genreRows] = await Promise.all([
 		db
 			.select({
 				trackCount: count(),
@@ -121,16 +121,29 @@ export async function getSiteStats() {
 			.orderBy(desc(artistLikes), desc(artistTracks))
 			.limit(1),
 		db
-			.select({ genre: track.genre, n: genreCount })
+			.select({ genre: track.genre })
 			.from(track)
 			.where(and(eq(track.published, true), isNotNull(track.genre), ne(track.genre, '')))
-			.groupBy(track.genre)
-			.orderBy(desc(genreCount))
-			.limit(1)
 	]);
 
 	const top = topArtists[0];
-	const genre = topGenres[0];
+
+	/** @type {Map<string, { genre: string, count: number }>} */
+	const genreTallies = new Map();
+	for (const row of genreRows) {
+		for (const token of parseGenres(row.genre)) {
+			const key = token.toLowerCase();
+			const existing = genreTallies.get(key);
+			if (existing) {
+				existing.count += 1;
+			} else {
+				genreTallies.set(key, { genre: token, count: 1 });
+			}
+		}
+	}
+	const topGenreEntry = [...genreTallies.values()].sort(
+		(a, b) => b.count - a.count || a.genre.localeCompare(b.genre)
+	)[0];
 
 	return {
 		trackCount: totals[0]?.trackCount ?? 0,
@@ -145,7 +158,7 @@ export async function getSiteStats() {
 					likeCount: top.likeCount
 				}
 			: null,
-		topGenre: genre?.genre ? { genre: genre.genre, count: genre.n } : null
+		topGenre: topGenreEntry ?? null
 	};
 }
 

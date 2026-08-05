@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
+import { isTrackMediaType } from '#lib/media/track-media-type.js';
 import { listFeedTracks } from '#lib/server/feed';
 import { listLikedItemsWithUploader, listListeningHistory } from '#lib/server/listens';
 import { listFollowingIds } from '#lib/server/social';
@@ -8,6 +9,7 @@ import { serializeTimelineRows } from '#lib/server/timeline';
 import {
 	listProfileItemsWithUploader,
 	listTracksWithUploader,
+	serializeLibraryTrackRows,
 	serializeTrackRows,
 	TRACK_PAGE_SIZE
 } from '#lib/server/tracks';
@@ -49,8 +51,16 @@ export async function GET({ locals, url }) {
 	if (scope === 'library') {
 		if (!locals.user) error(401, 'Sign in to view your library.');
 
-		const { rows, nextCursor } = await listTracksWithUploader(locals.user.id, page);
-		const items = await serializeTrackRows(rows, locals.user);
+		const mediaTypeRaw = url.searchParams.get('mediaType')?.trim() || null;
+		if (mediaTypeRaw && !isTrackMediaType(mediaTypeRaw)) {
+			error(400, 'Unknown media type.');
+		}
+
+		const { rows, nextCursor } = await listTracksWithUploader(locals.user.id, {
+			...page,
+			mediaType: mediaTypeRaw
+		});
+		const items = await serializeLibraryTrackRows(rows, locals.user);
 		return json({ items, nextCursor });
 	}
 

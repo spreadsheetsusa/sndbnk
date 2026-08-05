@@ -1,3 +1,5 @@
+import { normalizeGenreField } from '#lib/genres.js';
+
 const COVER_MAX_BYTES = 5 * 1024 * 1024;
 
 /** @type {Record<string, string>} */
@@ -134,6 +136,50 @@ export function formatDuration(durationMs) {
 }
 
 /**
+ * Compact byte size for inspectors (matches hosted-storage meter style).
+ * @param {number | null | undefined} bytes
+ * @returns {string}
+ */
+export function formatBytes(bytes) {
+	if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return '—';
+	if (bytes < 1024) return `${bytes} B`;
+	const units = ['KB', 'MB', 'GB', 'TB'];
+	let value = bytes / 1024;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit += 1;
+	}
+	return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}
+
+/**
+ * @param {unknown} tagTypes
+ * @returns {string | null}
+ */
+function resolveTagTypes(tagTypes) {
+	if (!Array.isArray(tagTypes) || tagTypes.length === 0) return null;
+	const labels = tagTypes.map((t) => asTrimmedString(t)).filter(Boolean);
+	if (labels.length === 0) return null;
+	const id3 = labels.find((t) => /^ID3/i.test(/** @type {string} */ (t)));
+	return (id3 ?? labels.join(', ')).slice(0, 80);
+}
+
+/**
+ * @param {import('music-metadata').IFormat} format
+ * @param {import('music-metadata').ICommonTagsResult} common
+ * @returns {number | null}
+ */
+function resolveTrackGainDb(format, common) {
+	if (typeof format.trackGain === 'number' && Number.isFinite(format.trackGain)) {
+		return format.trackGain;
+	}
+	const rg = common.replaygain_track_gain;
+	if (rg && typeof rg.dB === 'number' && Number.isFinite(rg.dB)) return rg.dB;
+	return null;
+}
+
+/**
  * Extract tag + format metadata from an audio File in the browser.
  * Never throws — parse failures return a warning and empty fields.
  *
@@ -157,6 +203,10 @@ export function formatDuration(durationMs) {
  *     sampleRate: string | null;
  *     channels: string | null;
  *     codec: string | null;
+ *     encoder: string | null;
+ *     tagTypes: string | null;
+ *     trackGainDb: string | null;
+ *     container: string | null;
  *   };
  *   cover: File | null;
  *   warning: string | null;
@@ -183,7 +233,11 @@ export async function extractAudioMetadata(file) {
 			bitrate: null,
 			sampleRate: null,
 			channels: null,
-			codec: null
+			codec: null,
+			encoder: null,
+			tagTypes: null,
+			trackGainDb: null,
+			container: null
 		},
 		cover: null,
 		warning: null,
@@ -201,7 +255,9 @@ export async function extractAudioMetadata(file) {
 			asTrimmedString(common.artists?.[0]) ??
 			null;
 		const album = asTrimmedString(common.album);
-		const genre = asTrimmedString(common.genre?.[0]);
+		const genre = normalizeGenreField(
+			Array.isArray(common.genre) ? common.genre.join(', ') : common.genre
+		);
 		const year = resolveYear(common);
 		const trackNumber = clampInt(common.track?.no, 1, 9999);
 		const bpm = clampInt(common.bpm, 1, 999);
@@ -219,6 +275,13 @@ export async function extractAudioMetadata(file) {
 		const sampleRate = clampInt(format.sampleRate, 0, 768_000);
 		const channels = clampInt(format.numberOfChannels, 1, 32);
 		const codec = asTrimmedString(format.codec)?.slice(0, 40) ?? null;
+		const encoder =
+			asTrimmedString(format.tool)?.slice(0, 80) ??
+			asTrimmedString(common.encodedby)?.slice(0, 80) ??
+			null;
+		const tagTypes = resolveTagTypes(format.tagTypes);
+		const trackGainDb = resolveTrackGainDb(format, common);
+		const container = asTrimmedString(format.container)?.slice(0, 80) ?? null;
 
 		const pictureResult = pictureToCoverFile(common.picture?.[0]);
 		/** @type {string | null} */
@@ -260,7 +323,11 @@ export async function extractAudioMetadata(file) {
 				bitrate: bitrate != null ? String(bitrate) : null,
 				sampleRate: sampleRate != null ? String(sampleRate) : null,
 				channels: channels != null ? String(channels) : null,
-				codec
+				codec,
+				encoder,
+				tagTypes,
+				trackGainDb: trackGainDb != null ? String(trackGainDb) : null,
+				container
 			},
 			cover,
 			warning,

@@ -82,7 +82,7 @@ Two rules follow:
 
 ```mermaid
 flowchart TD
-  form["POST /library/new"] --> meta["parseTrackMetadata"]
+  form["POST /library?/create"] --> meta["parseTrackMetadata"]
   meta --> audio["validateAudioFile<br/>500MB, mime+ext allowlist"]
   audio --> cover["validateCoverFile<br/>5MB, jpg/png/webp/gif"]
   cover --> resolve["getStorageAdapter"]
@@ -90,10 +90,14 @@ flowchart TD
   insert --> put["storage.put audio + cover"]
   put -->|ok| coverCols["db.update cover columns"]
   coverCols --> enqueue["BullMQ enqueue waveform"]
-  enqueue --> done["303 → /library/:id"]
+  enqueue --> done["return trackId + serialized item<br/>client opens /library?track=&edit=1"]
   put -->|throws| rollback["storage.delete + db.delete<br/>return ok:false"]
   enqueue --> worker["sndbnk-waveform-worker<br/>ffmpeg → track.waveform"]
 ```
+
+Upload stays on `/library`: drop a file anywhere on the page (or use the Upload picker). The client
+runs `extractAudioMetadata`, posts to `?/create`, prepends the new row, selects it, opens deck edit,
+and plays it in the global player.
 
 The ordering is deliberate: the DB row is written **first** so the generated `id` can be the
 `folderKey`, and a storage failure rolls back both the files and the row. Cover columns stay null
@@ -113,7 +117,8 @@ var too — see [operations.md](operations.md). Use `520M` to cover 500MB audio 
 overhead.
 
 Client-side, [`audio-metadata.js`](../src/lib/media/audio-metadata.js) probes the file with
-`music-metadata` before submit and posts duration, bitrate, sample rate, channels, and codec as
+`music-metadata` before submit and posts duration, bitrate, sample rate, channels, codec, encoder,
+tag types, track gain, and container as
 hidden fields. Because that data is client-supplied it is treated as untrusted: `optionalBoundedInt`
 silently drops anything out of range instead of failing the upload.
 
@@ -154,19 +159,20 @@ sine pattern when peaks are `null`.
 
 ## Tag embedding
 
-`embedTrackTags(userId, trackId)` writes the track's saved metadata into the audio file itself with
-`taglib-wasm`, so a downloaded file carries its tags. It is the most defensive code in the repo, and
-intentionally so:
+`embedTrackTags(userId, trackId, { mode })` writes the track's saved metadata into the audio file
+itself with `taglib-wasm`, so a downloaded file carries its tags.
 
-- **Non-destructive.** A field is written only if the file's existing tag is blank
-  (`isBlankTag(before[readKey])`).
-- **Verified after save.** The updated bytes are reopened and compared against the pre-write property
-  map. If any previously non-blank tag went missing or got replaced, the whole operation aborts with
-  `{ ok: false }` and nothing is uploaded.
+- **`gapfill` (default).** A field is written only if the file's existing tag is blank
+  (`isBlankTag(before[readKey])`). After save, the bytes are reopened; if any previously non-blank
+  tag went missing or got replaced, the operation aborts with `{ ok: false }` and nothing is
+  uploaded.
+- **`overwrite`.** Every non-empty DB field is written into the file (blank DB fields are left
+  alone). Used when the library deck Save has **Write tags to file** checked; the `?/update` action
+  calls this after a successful DB update and fails soft (track save still succeeds; UI gets
+  `tagsMessage`).
 - **Format-aware.** `TAG_FIELDS` carries a separate `writeKey` and `readKey` per field because
   TagLib returns properties under different keys than it accepts. `DESCRIPTION` is not modelled
-  natively and aliases `COMMENT` on Vorbis formats, which is why it only lands when there is no
-  comment.
+  natively and aliases `COMMENT` on Vorbis formats.
 - **Single initialization.** `taglibPromise ??= TagLib.initialize()` — the WASM module is
   initialized once per process.
 - Files are always `dispose()`d in `finally`, and `track.audioBytes` is updated after a successful

@@ -4,6 +4,7 @@
 	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 
 	import CoverArt from '#lib/components/CoverArt.svelte';
+	import { parseGenres } from '#lib/genres.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 
@@ -78,21 +79,25 @@
 	);
 
 	const signalFields = $derived.by(() => {
-		/** @type {{ label: string, value: string }[]} */
+		/** @type {{ id: string, label: string, value: string }[]} */
 		const fields = [];
-		if (genre) fields.push({ label: 'Genre', value: String(genre) });
-		if (mediaType) fields.push({ label: 'Type', value: String(mediaType) });
+		for (const g of parseGenres(genre)) {
+			fields.push({ id: `genre-${g}`, label: 'Genre', value: g });
+		}
+		if (mediaType) fields.push({ id: 'type', label: 'Type', value: String(mediaType) });
 		return fields;
 	});
 
 	const tagFields = $derived.by(() => {
-		/** @type {{ label: string, value: string }[]} */
+		/** @type {{ id: string, label: string, value: string }[]} */
 		const fields = [];
-		if (album) fields.push({ label: 'Album', value: String(album) });
-		if (year != null) fields.push({ label: 'Year', value: String(year) });
-		if (trackNumber != null) fields.push({ label: 'Track', value: String(trackNumber) });
-		if (bpm != null) fields.push({ label: 'BPM', value: String(bpm) });
-		if (isrc) fields.push({ label: 'ISRC', value: String(isrc) });
+		if (album) fields.push({ id: 'album', label: 'Album', value: String(album) });
+		if (year != null) fields.push({ id: 'year', label: 'Year', value: String(year) });
+		if (trackNumber != null) {
+			fields.push({ id: 'track', label: 'Track', value: String(trackNumber) });
+		}
+		if (bpm != null) fields.push({ id: 'bpm', label: 'BPM', value: String(bpm) });
+		if (isrc) fields.push({ id: 'isrc', label: 'ISRC', value: String(isrc) });
 		return fields;
 	});
 </script>
@@ -156,7 +161,7 @@
 			<section class="section" aria-labelledby="{uid}-signal">
 				<p class="section-label" id="{uid}-signal"><span>01</span> Signal</p>
 				<dl class="kv">
-					{#each signalFields as field (field.label)}
+					{#each signalFields as field (field.id)}
 						<div class="kv-row">
 							<dt>{field.label}</dt>
 							<dd>{field.value}</dd>
@@ -170,7 +175,7 @@
 			<section class="section" aria-labelledby="{uid}-tags">
 				<p class="section-label" id="{uid}-tags"><span>02</span> Tags</p>
 				<dl class="kv">
-					{#each tagFields as field (field.label)}
+					{#each tagFields as field (field.id)}
 						<div class="kv-row">
 							<dt>{field.label}</dt>
 							<dd>{field.value}</dd>

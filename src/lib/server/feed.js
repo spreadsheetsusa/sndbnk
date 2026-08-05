@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, isNotNull, like, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
+import { parseGenres } from '#lib/genres.js';
 import {
 	decodeCursor,
 	encodeCursor,
@@ -35,6 +36,21 @@ function trackSearchCondition(term) {
 		like(track.artist, term),
 		like(track.genre, term),
 		like(profile.username, term)
+	);
+}
+
+/**
+ * Match a single genre token against the comma-separated `track.genre` field.
+ * @param {string} genre
+ */
+function genreTokenCondition(genre) {
+	const safe = genre.replace(/[%_]/g, '');
+	if (!safe) return eq(track.genre, genre);
+	return or(
+		eq(track.genre, genre),
+		like(track.genre, `${safe}, %`),
+		like(track.genre, `%, ${safe}`),
+		like(track.genre, `%, ${safe}, %`)
 	);
 }
 
@@ -87,7 +103,7 @@ export async function listFeedTracks({
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.published, true)];
-	if (genre) conditions.push(eq(track.genre, genre));
+	if (genre) conditions.push(genreTokenCondition(genre));
 	if (followingIds) conditions.push(inArray(track.userId, followingIds));
 	if (term) conditions.push(trackSearchCondition(term));
 	if (decoded) {
@@ -225,7 +241,7 @@ async function listRepostedFeedRows({
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.published, true), inArray(trackRepost.userId, followingIds)];
-	if (genre) conditions.push(eq(track.genre, genre));
+	if (genre) conditions.push(genreTokenCondition(genre));
 	if (term) conditions.push(trackSearchCondition(term));
 	if (decoded) {
 		conditions.push(
@@ -372,27 +388,30 @@ export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 }
 
 /**
- * Distinct genres with track counts, most used first.
+ * Distinct genre tokens with track counts, most used first.
  * @param {number} [limit]
  */
 export async function listGenres(limit = 12) {
-	const n = count();
-
 	const rows = await db
-		.select({
-			genre: track.genre,
-			n
-		})
+		.select({ genre: track.genre })
 		.from(track)
-		.where(and(eq(track.published, true), isNotNull(track.genre), ne(track.genre, '')))
-		.groupBy(track.genre)
-		.orderBy(desc(n))
-		.limit(limit);
+		.where(and(eq(track.published, true), isNotNull(track.genre), ne(track.genre, '')));
 
-	return rows
-		.filter((row) => row.genre)
-		.map((row) => ({
-			genre: /** @type {string} */ (row.genre),
-			count: row.n
-		}));
+	/** @type {Map<string, { genre: string, count: number }>} */
+	const tallies = new Map();
+	for (const row of rows) {
+		for (const token of parseGenres(row.genre)) {
+			const key = token.toLowerCase();
+			const existing = tallies.get(key);
+			if (existing) {
+				existing.count += 1;
+			} else {
+				tallies.set(key, { genre: token, count: 1 });
+			}
+		}
+	}
+
+	return [...tallies.values()]
+		.sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre))
+		.slice(0, limit);
 }

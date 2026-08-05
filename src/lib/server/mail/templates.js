@@ -15,7 +15,7 @@ export function sendWelcomeMail({ to, name, username }) {
 
 Your account is live. Your profile is at ${origin}/users/${username}.
 
-Upload your first track: ${origin}/library/new
+Upload your first track: ${origin}/library
 
 — SNDBNK`
 	});

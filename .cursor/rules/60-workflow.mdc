@@ -21,7 +21,7 @@ alwaysApply: true
 The end-to-end path that catches most regressions:
 
 1. `/signup` → creates a user, a profile, and redirects to `/` with a one-shot notice.
-2. `/library/new` → upload an audio file; lands on `/library/{id}` with metadata and a waveform.
+2. `/library` → drop or pick an audio file; lands on `/library?track=&edit=1` with metadata and a waveform.
 3. `/users/{username}` → the track appears, plays, and the global player bar persists across
    navigation.
 4. `/tracks/{id}` → like and comment both work and survive a reload.

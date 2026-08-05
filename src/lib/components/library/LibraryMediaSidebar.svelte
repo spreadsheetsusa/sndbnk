@@ -1,10 +1,16 @@
 <script>
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconFolder from '@tabler/icons-svelte-runes/icons/folder';
+	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
+	import IconMicrophone from '@tabler/icons-svelte-runes/icons/microphone';
+	import IconMusic from '@tabler/icons-svelte-runes/icons/music';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 	import IconPlus from '@tabler/icons-svelte-runes/icons/plus';
+	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
+	import IconWaveSine from '@tabler/icons-svelte-runes/icons/wave-sine';
 	import { tick } from 'svelte';
 
+	import { TRACK_MEDIA_TYPE_OPTIONS } from '#lib/media/track-media-type.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { claimRowMenu } from './library-row-menu.js';
 
@@ -16,18 +22,47 @@
 	 *   createdAt: number,
 	 *   trackCount: number
 	 * }} PlaylistSummary
+	 *
+	 * @typedef {{
+	 *   kind: 'all'
+	 * } | {
+	 *   kind: 'type',
+	 *   mediaType: import('#lib/media/track-media-type.js').TrackMediaType
+	 * } | {
+	 *   kind: 'playlist',
+	 *   playlistId: string
+	 * }} LibrarySource
 	 */
+
+	/** @type {Record<import('#lib/media/track-media-type.js').TrackMediaType, typeof IconMusic>} */
+	const MEDIA_TYPE_ICONS = {
+		track: IconMusic,
+		mix: IconHeadphones,
+		sample: IconWaveSine,
+		loop: IconRepeat,
+		podcast: IconMicrophone
+	};
 
 	/**
 	 * @type {{
 	 *   playlists: PlaylistSummary[],
 	 *   activePlaylistId: string | null,
-	 *   onselect: (playlistId: string | null) => void,
+	 *   activeMediaType?: string | null,
+	 *   onselect: (source: LibrarySource) => void,
 	 *   oncreated?: (playlist: PlaylistSummary) => void,
 	 *   ondeleted?: (playlistId: string) => void
 	 * }}
 	 */
-	let { playlists, activePlaylistId, onselect, oncreated, ondeleted } = $props();
+	let {
+		playlists,
+		activePlaylistId,
+		activeMediaType = null,
+		onselect,
+		oncreated,
+		ondeleted
+	} = $props();
+
+	const allMediaActive = $derived(activePlaylistId == null && activeMediaType == null);
 
 	let creating = $state(false);
 	let createTitle = $state('');
@@ -81,7 +116,7 @@
 			creating = false;
 			createTitle = '';
 			oncreated?.(data.playlist);
-			onselect(data.playlist.id);
+			onselect({ kind: 'playlist', playlistId: data.playlist.id });
 		} finally {
 			createBusy = false;
 		}
@@ -219,15 +254,36 @@
 	<button
 		type="button"
 		class="nav-row"
-		class:active={activePlaylistId == null}
-		aria-current={activePlaylistId == null ? 'page' : undefined}
-		onclick={() => onselect(null)}
+		class:active={allMediaActive}
+		aria-current={allMediaActive ? 'page' : undefined}
+		onclick={() => onselect({ kind: 'all' })}
 	>
 		<span class="nav-icon" aria-hidden="true">
 			<IconFolder size={16} stroke={1.75} />
 		</span>
 		<span class="nav-label">All Media</span>
 	</button>
+
+	<ul class="type-list" aria-label="Media types">
+		{#each TRACK_MEDIA_TYPE_OPTIONS as option (option.value)}
+			{@const Icon = MEDIA_TYPE_ICONS[option.value]}
+			{@const active = activePlaylistId == null && activeMediaType === option.value}
+			<li>
+				<button
+					type="button"
+					class="nav-row nested"
+					class:active
+					aria-current={active ? 'page' : undefined}
+					onclick={() => onselect({ kind: 'type', mediaType: option.value })}
+				>
+					<span class="nav-icon" aria-hidden="true">
+						<Icon size={15} stroke={1.75} />
+					</span>
+					<span class="nav-label">{option.plural}</span>
+				</button>
+			</li>
+		{/each}
+	</ul>
 
 	<div class="ruler" role="separator" aria-hidden="true"></div>
 
@@ -271,7 +327,11 @@
 		</div>
 	{/if}
 
-	<ul class="playlist-list" aria-labelledby="library-playlists-label">
+	<ul
+		class="playlist-list"
+		class:menu-open={menuPlaylistId != null}
+		aria-labelledby="library-playlists-label"
+	>
 		{#each playlists as pl (pl.id)}
 			<li class:menu-open={menuPlaylistId === pl.id}>
 				<button
@@ -279,7 +339,7 @@
 					class="nav-row playlist-row"
 					class:active={activePlaylistId === pl.id}
 					aria-current={activePlaylistId === pl.id ? 'page' : undefined}
-					onclick={() => onselect(pl.id)}
+					onclick={() => onselect({ kind: 'playlist', playlistId: pl.id })}
 				>
 					<span class="nav-icon" aria-hidden="true">
 						<IconPlaylist size={16} stroke={1.75} />
@@ -375,13 +435,9 @@
 	}
 
 	.nav-row.active {
-		border-color: color-mix(in srgb, var(--ink) 22%, transparent);
-		background: color-mix(in srgb, var(--accent) 12%, var(--paper));
-		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 28%, transparent);
-	}
-
-	:global(.dark) .nav-row.active {
-		background: color-mix(in srgb, var(--accent) 14%, #000);
+		border-color: var(--accent);
+		color: var(--on-accent);
+		background: var(--accent);
 	}
 
 	.nav-icon {
@@ -392,14 +448,22 @@
 		color: var(--muted);
 	}
 
-	.nav-row.active .nav-icon {
-		color: var(--accent);
+	.nav-row.active .nav-icon,
+	.nav-row.active .track-count {
+		color: var(--on-accent);
 	}
 
 	.nav-label {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.nav-row.nested {
+		min-height: 1.75rem;
+		padding-left: 1.15rem;
+		font-size: 0.72rem;
+		font-weight: 600;
 	}
 
 	.track-count {
@@ -410,10 +474,23 @@
 		letter-spacing: 0.04em;
 	}
 
+	.type-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.05rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.type-list li {
+		min-width: 0;
+	}
+
 	.ruler {
 		height: 1px;
 		margin: 0.35rem 0.25rem 0.15rem;
-		background: var(--hard-border);
+		background: color-mix(in srgb, var(--muted) 45%, transparent);
 	}
 
 	.playlists-head {
@@ -495,6 +572,11 @@
 		min-height: 0;
 	}
 
+	/* Absolute menus are clipped by overflow:auto; unlock while open. */
+	.playlist-list.menu-open {
+		overflow: visible;
+	}
+
 	.playlist-list li {
 		position: relative;
 		display: grid;
@@ -504,7 +586,7 @@
 	}
 
 	.playlist-list li.menu-open {
-		z-index: 4;
+		z-index: 40;
 	}
 
 	.playlist-row {

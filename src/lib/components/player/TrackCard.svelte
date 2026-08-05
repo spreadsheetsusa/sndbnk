@@ -12,6 +12,7 @@
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
+	import { parseGenres } from '#lib/genres.js';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -98,6 +99,7 @@
 			? (player.current?.playCount ?? track.playCount ?? 0)
 			: (track.playCount ?? 0)
 	);
+	const genres = $derived(parseGenres(track.genre));
 
 	let commentBody = $state('');
 	let commentBusy = $state(false);
@@ -436,8 +438,12 @@
 						</span>
 					{/if}
 				</span>
-				{#if track.genre}
-					<span class="tag"># {track.genre}</span>
+				{#if genres.length}
+					<span class="tags">
+						{#each genres as g (g)}
+							<span class="tag"># {g}</span>
+						{/each}
+					</span>
 				{/if}
 			</div>
 
@@ -469,7 +475,9 @@
 							{copied ? 'Copied!' : 'Copy link'}
 						</button>
 						{#if track.isOwner}
-							<a class="menu-item" role="menuitem" href="/library/{track.id}">Edit</a>
+							<a class="menu-item" role="menuitem" href="/library?track={track.id}&edit=1">
+								Edit
+							</a>
 						{/if}
 						<button
 							type="button"
@@ -790,6 +798,13 @@
 
 	.repost-badge :global(svg) {
 		display: block;
+	}
+
+	.tags {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+		justify-content: flex-end;
 	}
 
 	.tag {

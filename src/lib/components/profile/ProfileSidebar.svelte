@@ -416,6 +416,31 @@
 		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
+	/* Subtle depth ramp: top softest → bottom darkest (works in light + dark). */
+	.panel-rail > :global(.panel:nth-last-child(4 of .panel)) {
+		border-color: color-mix(in srgb, var(--hard-border) 48%, var(--paper));
+		background: color-mix(in srgb, var(--paper) 99%, black);
+		box-shadow: 5px 5px 0 color-mix(in srgb, var(--hard-shadow) 42%, var(--paper));
+	}
+
+	.panel-rail > :global(.panel:nth-last-child(3 of .panel)) {
+		border-color: color-mix(in srgb, var(--hard-border) 66%, var(--paper));
+		background: color-mix(in srgb, var(--paper) 97%, black);
+		box-shadow: 5px 5px 0 color-mix(in srgb, var(--hard-shadow) 58%, var(--paper));
+	}
+
+	.panel-rail > :global(.panel:nth-last-child(2 of .panel)) {
+		border-color: color-mix(in srgb, var(--hard-border) 84%, var(--paper));
+		background: color-mix(in srgb, var(--paper) 94%, black);
+		box-shadow: 5px 5px 0 color-mix(in srgb, var(--hard-shadow) 76%, var(--paper));
+	}
+
+	.panel-rail > :global(.panel:nth-last-child(1 of .panel)) {
+		border-color: color-mix(in srgb, var(--hard-border) 90%, black);
+		background: color-mix(in srgb, var(--paper) 91%, black);
+		box-shadow: 5px 5px 0 color-mix(in srgb, var(--hard-shadow) 88%, black);
+	}
+
 	.panel-head {
 		margin-bottom: 0.75rem;
 		padding-bottom: 0.65rem;

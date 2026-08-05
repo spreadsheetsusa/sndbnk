@@ -1,12 +1,19 @@
 <script>
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
+	import IconExternalLink from '@tabler/icons-svelte-runes/icons/external-link';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
+	import IconLink from '@tabler/icons-svelte-runes/icons/link';
+	import IconList from '@tabler/icons-svelte-runes/icons/list';
 	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
+	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
+	import IconPlaylistAdd from '@tabler/icons-svelte-runes/icons/playlist-add';
+	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
 
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
+	import { parseGenres } from '#lib/genres.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
@@ -35,10 +42,11 @@
 	 *   track: RowTrack,
 	 *   selected?: boolean,
 	 *   onselect?: () => void,
+	 *   onedit?: () => void,
 	 *   ondeleted?: () => void
 	 * }}
 	 */
-	let { track, selected = false, onselect, ondeleted } = $props();
+	let { track, selected = false, onselect, onedit, ondeleted } = $props();
 
 	let menuOpen = $state(false);
 	/** @type {HTMLButtonElement | null} */
@@ -46,14 +54,12 @@
 	let playlistPickerOpen = $state(false);
 	let copied = $state(false);
 	let deleteBusy = $state(false);
-	let publishBusy = $state(false);
-	/** @type {boolean | null} */
-	let publishOverride = $state(null);
 	/** @type {(() => void) | null} */
 	let releaseMenu = null;
 
 	const isPlaying = $derived(player.isCurrent(track.id) && player.playing);
-	const published = $derived(publishOverride ?? track.published);
+	const genres = $derived(parseGenres(track.genre));
+	const extraGenreCount = $derived(Math.max(0, genres.length - 1));
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
 	function asPlayerTrack() {
@@ -115,24 +121,6 @@
 	function addToNextUp() {
 		player.addToQueue(asPlayerTrack());
 		closeMenu();
-	}
-
-	async function togglePublished() {
-		if (publishBusy) return;
-		publishBusy = true;
-		try {
-			const res = await fetch(`/api/tracks/${track.id}/publish`, {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ published: !published })
-			});
-			if (res.ok) {
-				const data = await res.json();
-				publishOverride = data.published;
-			}
-		} finally {
-			publishBusy = false;
-		}
 	}
 
 	async function deleteTrack() {
@@ -201,7 +189,18 @@
 		<span class="artist">{track.artist || track.uploaderName}</span>
 	</button>
 
-	<span class="cell genre">{track.genre ?? '—'}</span>
+	<span class="cell genre" title={genres.length ? genres.join(', ') : undefined}>
+		{#if genres.length}
+			<span class="genre-chips">
+				<span class="genre-chip">{genres[0]}</span>
+				{#if extraGenreCount}
+					<span class="genre-more">+{extraGenreCount}</span>
+				{/if}
+			</span>
+		{:else}
+			—
+		{/if}
+	</span>
 
 	<span class="meta">
 		<span class="cell duration">{formatDuration(track.durationMs)}</span>
@@ -220,19 +219,6 @@
 	<span class="cell added" title={new Date(track.createdAt).toLocaleString()}>
 		{relativeTime(track.createdAt)}
 	</span>
-
-	<button
-		type="button"
-		class="publish-switch"
-		role="switch"
-		aria-checked={published}
-		aria-label={published ? `Unpublish ${track.title}` : `Publish ${track.title}`}
-		title={published ? 'Visible on your public profile' : 'Hidden from your public profile'}
-		disabled={publishBusy}
-		onclick={togglePublished}
-	>
-		<span class="knob"></span>
-	</button>
 
 	<div class="menu-wrap" {@attach menuClickOutside}>
 		<button
@@ -255,18 +241,49 @@
 
 		{#if menuOpen}
 			<div class="menu" id="library-menu-{track.id}" role="menu">
-				<a class="menu-item" role="menuitem" href="/tracks/{track.id}">Open page</a>
-				<a class="menu-item" role="menuitem" href="/library/{track.id}">Edit</a>
+				<a class="menu-item" role="menuitem" href="/tracks/{track.id}">
+					<span class="menu-icon" aria-hidden="true">
+						<IconExternalLink size={14} stroke={1.75} />
+					</span>
+					Open page
+				</a>
+				<button
+					type="button"
+					class="menu-item"
+					role="menuitem"
+					onclick={() => {
+						closeMenu();
+						onedit?.();
+					}}
+				>
+					<span class="menu-icon" aria-hidden="true">
+						<IconPencil size={14} stroke={1.75} />
+					</span>
+					Edit
+				</button>
 				<button type="button" role="menuitem" onclick={copyLink}>
+					<span class="menu-icon" aria-hidden="true">
+						<IconLink size={14} stroke={1.75} />
+					</span>
 					{copied ? 'Copied!' : 'Copy link'}
 				</button>
-				<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
+				<div class="menu-sep" role="separator"></div>
+				<button type="button" role="menuitem" onclick={addToNextUp}>
+					<span class="menu-icon" aria-hidden="true">
+						<IconList size={14} stroke={1.75} />
+					</span>
+					Add to Next Up
+				</button>
+				<div class="menu-sep" role="separator"></div>
 				<button
 					type="button"
 					role="menuitem"
 					onclick={() => (playlistPickerOpen = !playlistPickerOpen)}
 				>
-					Add to playlist
+					<span class="menu-icon" aria-hidden="true">
+						<IconPlaylistAdd size={14} stroke={1.75} />
+					</span>
+					Add to playlist…
 				</button>
 				{#if playlistPickerOpen}
 					<div class="playlist-picker">
@@ -279,6 +296,7 @@
 						/>
 					</div>
 				{/if}
+				<div class="menu-sep" role="separator"></div>
 				<button
 					type="button"
 					role="menuitem"
@@ -286,7 +304,10 @@
 					disabled={deleteBusy}
 					onclick={deleteTrack}
 				>
-					Delete track
+					<span class="menu-icon" aria-hidden="true">
+						<IconTrash size={14} stroke={1.75} />
+					</span>
+					Delete
 				</button>
 			</div>
 		{/if}
@@ -308,8 +329,12 @@
 	}
 
 	.row.selected {
-		background: color-mix(in srgb, var(--accent) 16%, transparent);
-		box-shadow: inset 2px 0 0 var(--accent);
+		/* Desaturated accent at 10% opacity — no edge accent bar. */
+		background: color-mix(
+			in srgb,
+			color-mix(in srgb, var(--accent) 58%, var(--ink)) 10%,
+			transparent
+		);
 	}
 
 	.play-btn {
@@ -397,6 +422,36 @@
 		white-space: nowrap;
 	}
 
+	.genre-chips {
+		display: inline-flex;
+		gap: 0.25rem;
+		align-items: center;
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.genre-chip {
+		overflow: hidden;
+		min-width: 0;
+		padding: 0.1rem 0.4rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+		color: var(--ink);
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.genre-more {
+		flex-shrink: 0;
+		color: var(--muted);
+		font-size: 0.68rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+
 	/* Children participate in the row grid so desktop columns stay aligned. */
 	.meta {
 		display: contents;
@@ -421,63 +476,6 @@
 
 	.stat :global(svg) {
 		display: block;
-	}
-
-	.publish-switch {
-		position: relative;
-		display: inline-flex;
-		flex-shrink: 0;
-		box-sizing: border-box;
-		width: 2.2rem;
-		height: 1.1rem;
-		align-items: center;
-		padding: 1px;
-		appearance: none;
-		-webkit-appearance: none;
-		border: 1px solid
-			color-mix(in srgb, var(--accent) 18%, color-mix(in srgb, var(--ink) 28%, transparent));
-		border-radius: 0.125rem;
-		background: color-mix(
-			in srgb,
-			var(--accent) 6%,
-			color-mix(in srgb, var(--ink) 8%, var(--paper))
-		);
-		box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 20%, transparent);
-		cursor: pointer;
-	}
-
-	.publish-switch[aria-checked='true'] {
-		border-color: color-mix(in srgb, var(--accent) 45%, var(--ink));
-		background: var(--accent);
-		box-shadow:
-			inset 0 1px 2px color-mix(in srgb, var(--ink) 32%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--on-accent) 16%, transparent);
-	}
-
-	.publish-switch:disabled {
-		opacity: 0.5;
-		cursor: default;
-	}
-
-	.publish-switch:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 3px;
-	}
-
-	.knob {
-		flex-shrink: 0;
-		width: 0.85rem;
-		height: 0.85rem;
-		border-radius: 0.125rem;
-		background: color-mix(in srgb, var(--ink) 42%, var(--paper));
-		box-shadow: 0 1px 1px color-mix(in srgb, var(--ink) 28%, transparent);
-		transition: transform 120ms ease;
-	}
-
-	.publish-switch[aria-checked='true'] .knob {
-		background: var(--on-accent);
-		box-shadow: 0 1px 1px color-mix(in srgb, var(--ink) 35%, transparent);
-		transform: translateX(1.05rem);
 	}
 
 	.menu-wrap {
@@ -528,11 +526,17 @@
 		top: calc(100% + 0.3rem);
 		right: 0;
 		display: grid;
-		min-width: 11rem;
+		min-width: 12.5rem;
 		padding: 0.3rem;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.menu-sep {
+		height: 1px;
+		margin: 0.2rem 0.35rem;
+		background: color-mix(in srgb, var(--ink) 16%, transparent);
 	}
 
 	.playlist-picker {
@@ -548,6 +552,7 @@
 	.menu button,
 	.menu .menu-item {
 		display: flex;
+		gap: 0.45rem;
 		width: 100%;
 		align-items: center;
 		padding: 0.5rem 0.6rem;
@@ -561,6 +566,18 @@
 		text-decoration: none;
 		text-transform: uppercase;
 		cursor: pointer;
+	}
+
+	.menu-icon {
+		display: inline-flex;
+		flex-shrink: 0;
+		width: 0.95rem;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.menu-icon :global(svg) {
+		display: block;
 	}
 
 	.menu button:not(:disabled):hover,
@@ -588,10 +605,10 @@
 
 	@media (max-width: 640px) {
 		.row {
-			grid-template-columns: auto auto minmax(0, 1fr) auto;
+			grid-template-columns: auto auto minmax(0, 1fr);
 			grid-template-areas:
-				'play menu name publish'
-				'. . meta .';
+				'play menu name'
+				'. . meta';
 			column-gap: 0.45rem;
 			row-gap: 0.15rem;
 			padding: 0.4rem 0.5rem;
@@ -629,13 +646,6 @@
 		.stats {
 			display: flex;
 			gap: 0.45rem;
-		}
-
-		.publish-switch {
-			grid-area: publish;
-			align-self: start;
-			justify-self: end;
-			margin-top: 0.2rem;
 		}
 
 		.row :global(img.cover),
@@ -704,17 +714,6 @@
 		.more-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
-		}
-
-		/* Expand tap target without stretching the switch track. */
-		.publish-switch::before {
-			content: '';
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			width: var(--tap-min);
-			height: var(--tap-min);
-			transform: translate(-50%, -50%);
 		}
 	}
 </style>

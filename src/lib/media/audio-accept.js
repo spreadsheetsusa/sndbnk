@@ -25,3 +25,10 @@ export const AUDIO_FILE_ACCEPT = [
 	'audio/mp4',
 	'audio/x-m4a'
 ].join(',');
+
+/**
+ * @param {File} file
+ */
+export function isAudioFile(file) {
+	return file.type.startsWith('audio/') || /\.(mp3|wav|flac|aac|ogg|m4a)$/i.test(file.name);
+}

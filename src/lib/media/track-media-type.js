@@ -12,13 +12,13 @@ export const TRACK_MEDIA_TYPES = /** @type {const} */ ([
 /** @type {TrackMediaType} */
 export const DEFAULT_TRACK_MEDIA_TYPE = 'track';
 
-/** @type {readonly { value: TrackMediaType, label: string }[]} */
+/** @type {readonly { value: TrackMediaType, label: string, plural: string }[]} */
 export const TRACK_MEDIA_TYPE_OPTIONS = [
-	{ value: 'track', label: 'Track' },
-	{ value: 'mix', label: 'Mix' },
-	{ value: 'sample', label: 'Sample' },
-	{ value: 'loop', label: 'Loop' },
-	{ value: 'podcast', label: 'Podcast' }
+	{ value: 'track', label: 'Track', plural: 'Tracks' },
+	{ value: 'mix', label: 'Mix', plural: 'Mixes' },
+	{ value: 'sample', label: 'Sample', plural: 'Samples' },
+	{ value: 'loop', label: 'Loop', plural: 'Loops' },
+	{ value: 'podcast', label: 'Podcast', plural: 'Podcasts' }
 ];
 
 /**

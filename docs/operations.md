@@ -248,22 +248,22 @@ Creator custom domains (after Studio+ verification):
 
 ## Troubleshooting
 
-| Symptom                                                  | Likely cause                                                                                                                            |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Every route 500s with `Invalid environment variables`    | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                                      |
-| Sign-in returns `403 INVALID_ORIGIN` in prod             | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`                                   |
-| `SQLITE_READONLY` / attempt to write a readonly database | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                                          |
-| Cookies do not persist across a subdomain                | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value                       |
-| Tenant host returns 404                                  | profile missing, plan lacks subdomain/custom-domain entitlement, or `customDomainStatus` is not `active`                                |
-| `{user}.sndbnk.com` does not resolve                     | missing `*.sndbnk.com` A record in Route 53 — add it pointing at the Lightsail IP                                                       |
-| Custom domain verify fails on apex                       | use A/AAAA (or ALIAS) to the platform IPs shown in Settings, not a CNAME                                                                |
-| Custom domain will not get TLS                           | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                                           |
-| Waveforms are flat placeholder bars                      | Redis/worker/ffmpeg — check `REDIS_URL`, `systemctl status sndbnk-waveform-worker redis-server`, `journalctl -u sndbnk-waveform-worker` |
-| Upload returns `413` before any validation message       | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K (need ≥ `520M`)                                                        |
-| A query fails on a column that exists in `schema.js`     | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate`                   |
-| `bun run build` fails on `bun:sqlite`                    | something is running under Node; every command must go through Bun                                                                      |
-| Build prints `[UNRESOLVED_IMPORT] bun:sqlite` then ✔ done | cosmetic: `svelte-adapter-bun`’s Rolldown pass externalizes it for the Bun runtime; not a deploy failure                              |
-| Deploy fails with worker `activating` / exit code 3      | `sndbnk-waveform-worker` crash-loop — check `journalctl -u sndbnk-waveform-worker` (often Bun `#lib/…` import resolution)             |
+| Symptom                                                   | Likely cause                                                                                                                            |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Every route 500s with `Invalid environment variables`     | your `.env` predates a variable added to `src/env.js`; copy it from `.env.example`                                                      |
+| Sign-in returns `403 INVALID_ORIGIN` in prod              | `ORIGIN` mismatch, or `PROTOCOL_HEADER`/`HOST_HEADER` missing so the adapter reports `localhost:3000`                                   |
+| `SQLITE_READONLY` / attempt to write a readonly database  | ownership or mode on the db file or its `-wal`/`-shm` sidecars                                                                          |
+| Cookies do not persist across a subdomain                 | `crossSubDomainCookies` is disabled when `PUBLIC_BASE_DOMAIN` is `localhost`, enabled otherwise — check the value                       |
+| Tenant host returns 404                                   | profile missing, plan lacks subdomain/custom-domain entitlement, or `customDomainStatus` is not `active`                                |
+| `{user}.sndbnk.com` does not resolve                      | missing `*.sndbnk.com` A record in Route 53 — add it pointing at the Lightsail IP                                                       |
+| Custom domain verify fails on apex                        | use A/AAAA (or ALIAS) to the platform IPs shown in Settings, not a CNAME                                                                |
+| Custom domain will not get TLS                            | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                                           |
+| Waveforms are flat placeholder bars                       | Redis/worker/ffmpeg — check `REDIS_URL`, `systemctl status sndbnk-waveform-worker redis-server`, `journalctl -u sndbnk-waveform-worker` |
+| Upload returns `413` before any validation message        | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K (need ≥ `520M`)                                                        |
+| A query fails on a column that exists in `schema.js`      | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate`                   |
+| `bun run build` fails on `bun:sqlite`                     | something is running under Node; every command must go through Bun                                                                      |
+| Build prints `[UNRESOLVED_IMPORT] bun:sqlite` then ✔ done | cosmetic: `svelte-adapter-bun`’s Rolldown pass externalizes it for the Bun runtime; not a deploy failure                                |
+| Deploy fails with worker `activating` / exit code 3       | `sndbnk-waveform-worker` crash-loop — check `journalctl -u sndbnk-waveform-worker` (often Bun `#lib/…` import resolution)               |
 
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
 permissions, systemd, the build, and both the API and public HTTPS surfaces. It is marked temporary

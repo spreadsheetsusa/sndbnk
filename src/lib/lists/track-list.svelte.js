@@ -16,6 +16,7 @@ import { tick } from 'svelte';
  *   scope: 'feed' | 'library' | 'profile' | 'likes' | 'history',
  *   username?: string | null,
  *   genre?: string | null,
+ *   mediaType?: string | null,
  *   q?: string | null,
  *   following?: boolean,
  *   owner?: string | null
@@ -76,6 +77,7 @@ export class TrackList {
 		this.#params = { scope: query.scope };
 		if (query.username) this.#params.username = query.username;
 		if (query.genre) this.#params.genre = query.genre;
+		if (query.mediaType) this.#params.mediaType = query.mediaType;
 		if (query.q) this.#params.q = query.q;
 		if (query.following) this.#params.following = '1';
 		this.#getContainer = getContainer;
@@ -240,6 +242,16 @@ export class TrackList {
 		} finally {
 			this.#restoring = false;
 		}
+	}
+
+	/**
+	 * Insert a just-created track at the top without discarding loaded pages.
+	 * @param {ListItem} item
+	 */
+	prependItem(item) {
+		if (this.#seen.has(item.id)) return;
+		this.#seen.add(item.id);
+		this.items = [item, ...this.items];
 	}
 
 	/**

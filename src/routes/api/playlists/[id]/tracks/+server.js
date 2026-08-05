@@ -8,7 +8,7 @@ import {
 	reorderPlaylistTracks
 } from '#lib/server/playlists';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
-import { serializeTrackRows } from '#lib/server/tracks';
+import { serializeLibraryTrackRows } from '#lib/server/tracks';
 
 /** Owner library view: ordered published members as library track rows. */
 export async function GET({ locals, params }) {
@@ -18,7 +18,7 @@ export async function GET({ locals, params }) {
 	if (!owned) error(404, 'Playlist not found.');
 
 	const rows = await listPlaylistTrackRows(owned.id);
-	const items = await serializeTrackRows(rows, locals.user);
+	const items = await serializeLibraryTrackRows(rows, locals.user);
 	return json({ items });
 }
 

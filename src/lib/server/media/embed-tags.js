@@ -70,14 +70,18 @@ function isBlankTag(values) {
 }
 
 /**
- * Write the track's saved metadata into its audio file, but only into tags the
- * file leaves empty. Values already present in the file are never replaced.
+ * Write the track's saved metadata into its audio file.
+ *
+ * - `gapfill` (default): only blank tags; aborts if a write would clobber existing tags.
+ * - `overwrite`: replace tags for every non-empty DB field; blank DB fields are left alone.
  *
  * @param {string} userId
  * @param {string} trackId
+ * @param {{ mode?: 'gapfill' | 'overwrite' }} [options]
  * @returns {Promise<{ ok: true, written: string[] } | { ok: false, message: string }>}
  */
-export async function embedTrackTags(userId, trackId) {
+export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {}) {
+	const overwrite = mode === 'overwrite';
 	const row = await getOwnedTrack(userId, trackId);
 	if (!row) {
 		return { ok: false, message: 'Track not found.' };
@@ -125,7 +129,7 @@ export async function embedTrackTags(userId, trackId) {
 		for (const { field, label, writeKey, readKey } of TAG_FIELDS) {
 			const raw = /** @type {Record<string, unknown>} */ (row)[field];
 			if (raw == null || raw === '') continue;
-			if (!isBlankTag(before[readKey])) continue;
+			if (!overwrite && !isBlankTag(before[readKey])) continue;
 
 			const value = String(raw);
 			file.setProperty(writeKey, value);
@@ -154,19 +158,21 @@ export async function embedTrackTags(userId, trackId) {
 	try {
 		const after = verify.properties();
 
-		for (const key of Object.keys(before)) {
-			if (isBlankTag(before[key])) continue;
-			// Only a value we destroyed or replaced counts as a clobber; TagLib
-			// normalising its own encoding of a tag on rewrite is fine.
-			const lost = isBlankTag(after[key]);
-			const overwritten = after[key]?.some(
-				(value) => plannedValues.has(value) && !before[key].includes(value)
-			);
-			if (lost || overwritten) {
-				return {
-					ok: false,
-					message: `Aborted: writing tags would have replaced the existing ${key} tag.`
-				};
+		if (!overwrite) {
+			for (const key of Object.keys(before)) {
+				if (isBlankTag(before[key])) continue;
+				// Only a value we destroyed or replaced counts as a clobber; TagLib
+				// normalising its own encoding of a tag on rewrite is fine.
+				const lost = isBlankTag(after[key]);
+				const clobbered = after[key]?.some(
+					(value) => plannedValues.has(value) && !before[key].includes(value)
+				);
+				if (lost || clobbered) {
+					return {
+						ok: false,
+						message: `Aborted: writing tags would have replaced the existing ${key} tag.`
+					};
+				}
 			}
 		}
 

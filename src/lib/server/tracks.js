@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
+import { normalizeGenreField } from '#lib/genres.js';
 import { DEFAULT_TRACK_MEDIA_TYPE, isTrackMediaType } from '#lib/media/track-media-type.js';
 import {
 	decodeCursor,
@@ -82,6 +83,26 @@ function optionalBoundedInt(value, min, max) {
 }
 
 /**
+ * @param {FormDataEntryValue | null} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number | null}
+ */
+function optionalBoundedFloat(value, min, max) {
+	const raw = value?.toString().trim() ?? '';
+	if (!raw) return null;
+	const n = Number.parseFloat(raw);
+	if (!Number.isFinite(n) || n < min || n > max) return null;
+	return n;
+}
+
+/** @param {FormData} formData @param {string} key */
+function formHas(formData, key) {
+	const entry = formData.get(key);
+	return entry != null && entry.toString().trim() !== '';
+}
+
+/**
  * @param {FormData} formData
  */
 export function parseTrackMetadata(formData) {
@@ -89,7 +110,7 @@ export function parseTrackMetadata(formData) {
 	const description = formData.get('description')?.toString().trim() || null;
 	const artist = formData.get('artist')?.toString().trim() || null;
 	const album = formData.get('album')?.toString().trim() || null;
-	const genre = formData.get('genre')?.toString().trim() || null;
+	const genre = normalizeGenreField(formData.get('genre')?.toString());
 	const mediaTypeRaw = formData.get('mediaType')?.toString().trim() || DEFAULT_TRACK_MEDIA_TYPE;
 	const isrc = formData.get('isrc')?.toString().trim() || null;
 	const comment = formData.get('comment')?.toString().trim() || null;
@@ -153,7 +174,7 @@ export function parseTrackMetadata(formData) {
 	if (!artistCap.ok) return artistCap;
 	const albumCap = capped(album, 200, 'Album');
 	if (!albumCap.ok) return albumCap;
-	const genreCap = capped(genre, 100, 'Genre');
+	const genreCap = capped(genre, 200, 'Genre');
 	if (!genreCap.ok) return genreCap;
 	const commentCap = capped(comment, 2000, 'Comment');
 	if (!commentCap.ok) return commentCap;
@@ -167,30 +188,62 @@ export function parseTrackMetadata(formData) {
 	const bitrate = optionalBoundedInt(formData.get('bitrate'), 0, 10_000_000);
 	const sampleRate = optionalBoundedInt(formData.get('sampleRate'), 0, 768_000);
 	const channels = optionalBoundedInt(formData.get('channels'), 1, 32);
+	const trackGainDb = optionalBoundedFloat(formData.get('trackGainDb'), -100, 100);
 
 	const codecRaw = formData.get('codec')?.toString().trim() ?? '';
 	const codec = codecRaw ? codecRaw.slice(0, 40) : null;
+	const encoderRaw = formData.get('encoder')?.toString().trim() ?? '';
+	const encoder = encoderRaw ? encoderRaw.slice(0, 80) : null;
+	const tagTypesRaw = formData.get('tagTypes')?.toString().trim() ?? '';
+	const tagTypes = tagTypesRaw ? tagTypesRaw.slice(0, 80) : null;
+	const containerRaw = formData.get('container')?.toString().trim() ?? '';
+	const container = containerRaw ? containerRaw.slice(0, 80) : null;
+
+	const hasTechnical = [
+		'durationMs',
+		'bitrate',
+		'sampleRate',
+		'channels',
+		'codec',
+		'encoder',
+		'tagTypes',
+		'trackGainDb',
+		'container'
+	].some((key) => formHas(formData, key));
+
+	const editorial = {
+		title,
+		description: descriptionCap.value,
+		artist: artistCap.value,
+		album: albumCap.value,
+		genre: genreCap.value,
+		mediaType,
+		year,
+		trackNumber,
+		bpm,
+		isrc: isrcCap.value,
+		comment: commentCap.value
+	};
+
+	const technical = {
+		durationMs,
+		bitrate,
+		sampleRate,
+		channels,
+		codec,
+		encoder,
+		tagTypes,
+		trackGainDb,
+		container
+	};
 
 	return {
 		ok: true,
-		metadata: {
-			title,
-			description: descriptionCap.value,
-			artist: artistCap.value,
-			album: albumCap.value,
-			genre: genreCap.value,
-			mediaType,
-			year,
-			trackNumber,
-			bpm,
-			isrc: isrcCap.value,
-			comment: commentCap.value,
-			durationMs,
-			bitrate,
-			sampleRate,
-			channels,
-			codec
-		}
+		editorial,
+		technical,
+		hasTechnical,
+		/** Combined for insert paths that always persist both. */
+		metadata: { ...editorial, ...technical }
 	};
 }
 
@@ -383,16 +436,20 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 	const metaResult = parseTrackMetadata(formData);
 	if (!metaResult.ok) return metaResult;
 
-	/** @type {Record<string, unknown>} */
-	const patch = {
-		...metaResult.metadata,
-		updatedAt: new Date()
-	};
-
 	const audioEntry = formData.get('audio');
 	const coverEntry = formData.get('cover');
 	const replaceAudio = isFile(audioEntry);
 	const replaceCover = isFile(coverEntry);
+
+	/** @type {Record<string, unknown>} */
+	const patch = {
+		...metaResult.editorial,
+		updatedAt: new Date()
+	};
+	// Deck Save posts editorial only; do not null probed technical columns.
+	if (replaceAudio || metaResult.hasTechnical) {
+		Object.assign(patch, metaResult.technical);
+	}
 
 	/** @type {{ filename: string, mime: string, bytes: number } | null} */
 	let audioResult = null;
@@ -473,7 +530,8 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 		await enqueueWaveformJob(trackId);
 	}
 
-	return { ok: true };
+	const hasCover = Boolean(coverResult?.filename ?? existing.coverFilename);
+	return { ok: true, hasCover };
 }
 
 /**
@@ -860,6 +918,34 @@ export async function serializeTrackRows(rows, viewer) {
 }
 
 /**
+ * Library list payload: player shape plus editable metadata fields.
+ *
+ * @param {Array<Parameters<typeof serializeTrackForPlayer>[1] & { track: typeof track.$inferSelect }>} rows
+ * @param {{ id: string } | null | undefined} viewer
+ */
+export async function serializeLibraryTrackRows(rows, viewer) {
+	const items = await serializeTrackRows(rows, viewer);
+	return items.map((item, i) => {
+		const row = rows[i].track;
+		return {
+			...item,
+			description: row.description ?? '',
+			album: row.album ?? '',
+			year: row.year != null ? String(row.year) : '',
+			trackNumber: row.trackNumber != null ? String(row.trackNumber) : '',
+			bpm: row.bpm != null ? String(row.bpm) : '',
+			isrc: row.isrc ?? '',
+			comment: row.comment ?? '',
+			audioBytes: row.audioBytes,
+			encoder: row.encoder ?? null,
+			tagTypes: row.tagTypes ?? null,
+			trackGainDb: row.trackGainDb ?? null,
+			container: row.container ?? null
+		};
+	});
+}
+
+/**
  * @typedef {{
  *   kind: 'track',
  *   track: typeof track.$inferSelect,
@@ -917,12 +1003,20 @@ function itemCursor(row) {
 /**
  * One keyset page of a user's own uploads.
  * @param {string} userId
- * @param {{ publishedOnly?: boolean, decoded: { ms: number, id: string } | null } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
+ * @param {{
+ *   publishedOnly?: boolean,
+ *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
+ *   decoded: { ms: number, id: string } | null
+ * } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
  */
-function selectOwnTracks(userId, { publishedOnly, decoded, limit, direction, inclusive }) {
+function selectOwnTracks(
+	userId,
+	{ publishedOnly, mediaType, decoded, limit, direction, inclusive }
+) {
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.userId, userId)];
 	if (publishedOnly) conditions.push(eq(track.published, true));
+	if (mediaType) conditions.push(eq(track.mediaType, mediaType));
 	if (decoded) {
 		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
 	}
@@ -944,13 +1038,17 @@ function selectOwnTracks(userId, { publishedOnly, decoded, limit, direction, inc
 /**
  * Track rows with uploader profile info for a user, newest first.
  * @param {string} userId
- * @param {{ publishedOnly?: boolean } & PageOptions} [options]
+ * @param {{
+ *   publishedOnly?: boolean,
+ *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null
+ * } & PageOptions} [options]
  * @returns {Promise<{ rows: ProfileItemRow[], nextCursor: string | null }>}
  */
 export async function listTracksWithUploader(
 	userId,
 	{
 		publishedOnly = false,
+		mediaType = null,
 		limit = TRACK_PAGE_SIZE,
 		cursor = null,
 		direction = 'older',
@@ -960,6 +1058,7 @@ export async function listTracksWithUploader(
 	const decoded = cursor ? decodeCursor(cursor) : null;
 	const own = await selectOwnTracks(userId, {
 		publishedOnly,
+		mediaType,
 		decoded,
 		limit,
 		direction,

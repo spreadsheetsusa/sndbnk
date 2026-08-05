@@ -32,7 +32,7 @@
 			{/if}
 		</p>
 		{#if !q}
-			<a class="pressable" href="/library/new">Upload track</a>
+			<a class="pressable" href="/library">Upload track</a>
 		{/if}
 	</div>
 {:else}

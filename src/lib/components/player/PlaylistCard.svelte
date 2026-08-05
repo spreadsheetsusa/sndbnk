@@ -569,6 +569,15 @@
 							onclick={() => playAt(index)}
 						>
 							<span class="member-index" aria-hidden="true">{index + 1}</span>
+							<span class="member-cover" aria-hidden="true">
+								<CoverArt
+									trackId={track.id}
+									hasCover={track.hasCover}
+									class="member-cover-art"
+									width="36"
+									height="36"
+								/>
+							</span>
 							<span class="member-titles">
 								<span class="member-title">{track.title}</span>
 								<span class="member-artist">{track.artist || track.uploaderName}</span>
@@ -987,7 +996,7 @@
 
 	.member-row {
 		display: grid;
-		grid-template-columns: 1.5rem 1fr auto;
+		grid-template-columns: 1.5rem 2.25rem minmax(0, 1fr) auto;
 		gap: 0.65rem;
 		align-items: center;
 		width: 100%;
@@ -1016,6 +1025,30 @@
 
 	.member-row.active .member-index {
 		color: var(--accent);
+	}
+
+	.member-cover {
+		display: block;
+		width: 2.25rem;
+		height: 2.25rem;
+		flex-shrink: 0;
+	}
+
+	.member-cover :global(.member-cover-art),
+	.member-cover :global(.member-cover-art.placeholder) {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
+		object-fit: cover;
+	}
+
+	.member-cover :global(.member-cover-art.placeholder) {
+		background:
+			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
+			var(--paper);
+		background-size: 8px 8px;
 	}
 
 	.member-titles {
