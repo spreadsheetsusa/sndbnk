@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Jersey+20&family=Narnoor:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Jersey+20&family=KoHo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -13,7 +13,7 @@
 
 :root {
 	/* Type stacks — swap names here (+ the Google Fonts @import) to rebrand type. */
-	--font-body: 'Narnoor', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	--font-body: 'KoHo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	--font-display: 'Audiowide', 'Helvetica Neue', sans-serif;
 	--font-editorial: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	--font-lcd: 'Jersey 20', ui-monospace, monospace;
