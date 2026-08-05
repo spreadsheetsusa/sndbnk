@@ -17,8 +17,6 @@
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import ArtistRow from '#lib/components/profile/ArtistRow.svelte';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
-	import { displayUrl } from '#lib/profile-links.js';
-
 	/**
 	 * @typedef {import('#lib/components/profile/ArtistRow.svelte').Artist} Artist
 	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string }} RecentComment
@@ -260,10 +258,7 @@
 										<span class="link-glyph" aria-hidden="true">
 											<ProfileLinkIcon label={link.label} />
 										</span>
-										<span class="link-copy">
-											<span class="link-label">{link.label}</span>
-											<span class="link-url">{displayUrl(link.url)}</span>
-										</span>
+										<span class="link-label">{link.label}</span>
 									</a>
 								</li>
 							{/each}
@@ -599,27 +594,15 @@
 		align-items: center;
 	}
 
-	.link-copy {
-		display: grid;
-		gap: 0.15rem;
-		min-width: 0;
-		flex: 1;
-	}
-
 	.link-label {
+		min-width: 0;
+		overflow: hidden;
 		font-size: 0.72rem;
 		font-weight: 900;
 		letter-spacing: 0.06em;
 		line-height: 1.2;
-		text-transform: uppercase;
-	}
-
-	.link-url {
-		overflow: hidden;
-		color: var(--muted);
-		font-size: 0.72rem;
-		line-height: 1.2;
 		text-overflow: ellipsis;
+		text-transform: uppercase;
 		white-space: nowrap;
 	}
 
@@ -913,15 +896,11 @@
 		.profile-sidebar.collapsed .link-list > li {
 			flex: 0 0 auto;
 			scroll-snap-align: start;
-			min-width: 11rem;
 		}
 
 		.profile-sidebar.collapsed .link-list a {
+			width: auto;
 			padding: 0.2rem 0.4rem;
-		}
-
-		.profile-sidebar.collapsed .link-url {
-			max-width: 8rem;
 		}
 
 		.profile-sidebar.collapsed .row-list,
