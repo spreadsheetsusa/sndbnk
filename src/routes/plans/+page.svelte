@@ -133,7 +133,7 @@
 				colorText: read('--ink') || '#11110f',
 				colorTextSecondary: read('--muted') || '#696861',
 				borderRadius: '0px',
-				fontFamily: read('--font-body') || 'Narnoor, Helvetica Neue, Helvetica, Arial, sans-serif',
+				fontFamily: read('--font-body') || 'KoHo, Helvetica Neue, Helvetica, Arial, sans-serif',
 				fontSizeBase: '15px',
 				spacingUnit: '4px'
 			},

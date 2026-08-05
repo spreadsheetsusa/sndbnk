@@ -114,7 +114,7 @@ Four roles, tokenized on `:root` so a rebrand is one swap in `layout.css` (+ the
 | ----------- | ------------- | ----------------------------------- | ---------------------------- |
 | Display     | Audiowide     | `--font-display` / `.display-face`  | wordmark, hero `h1`          |
 | Editorial   | Space Grotesk | `--font-editorial`                  | section titles, form heads   |
-| Body        | Narnoor       | `--font-body` / `:root` default     | paragraphs, lists, chrome    |
+| Body        | KoHo          | `--font-body` / `:root` default     | paragraphs, lists, chrome    |
 | LCD         | Jersey 20     | `--font-lcd` / `.lcd-face`          | global player now-playing    |
 | Micro-label | body @ 800    | `.eyebrow` (inherits `--font-body`) | uppercase, `0.15em` tracking |
 
