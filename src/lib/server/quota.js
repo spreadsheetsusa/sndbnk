@@ -84,7 +84,7 @@ export async function checkUploadAllowed(
 		if (projected > usage.maxLocalBytes) {
 			return {
 				ok: false,
-				message: `That upload would put you over the ${formatBytes(usage.maxLocalBytes)} of hosted storage in ${usage.planLabel}. You are using ${formatBytes(usage.localBytes)}.`
+				message: `That upload would put you over the ${formatBytes(usage.maxLocalBytes)} of hosted storage in ${usage.planLabel}. You are using ${formatBytes(usage.localBytes)}. Upgrade in Settings → Billing.`
 			};
 		}
 	}

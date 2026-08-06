@@ -1130,16 +1130,32 @@
 			max-width: 100%;
 		}
 
+		.head {
+			justify-content: space-between;
+		}
+
 		.menu-wrap {
 			order: 1;
 		}
 
 		.titles {
 			order: 2;
+			flex: 1;
+			min-width: 0;
 		}
 
 		.aside {
 			order: 3;
+			flex-direction: column;
+			align-items: flex-end;
+			justify-content: center;
+			margin-left: 0;
+			gap: 0.35rem;
+		}
+
+		.aside-stats,
+		.tags {
+			justify-content: flex-end;
 		}
 
 		.more-icon {

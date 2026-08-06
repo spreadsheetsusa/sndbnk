@@ -118,12 +118,12 @@ const seeds = [
 		'Fully usable forever — especially with your own storage.',
 		[
 			'Public profile at sndbnk.com/users/you',
-			'5 GB hosted storage',
+			'1 GB hosted storage',
 			'Bring your own storage (SSH now; S3 / R2 soon)',
 			'Unlimited tracks'
 		],
 		null,
-		5 * GIB,
+		1 * GIB,
 		true,
 		false,
 		false,

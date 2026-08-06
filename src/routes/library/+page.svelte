@@ -46,6 +46,13 @@
 	let dropActive = $state(false);
 	let dragDepth = 0;
 
+	const BILLING_HREF = '/settings?tab=billing';
+	const uploadBlockedByQuota = $derived(
+		data.storageAdapter === 'local' &&
+			data.usage.maxLocalBytes !== null &&
+			data.usage.localBytes >= data.usage.maxLocalBytes
+	);
+
 	/**
 	 * @typedef {{
 	 *   id: string,
@@ -324,11 +331,19 @@
 		event.preventDefault();
 		dragDepth = 0;
 		dropActive = false;
+		if (uploadBlockedByQuota) {
+			void goto(BILLING_HREF);
+			return;
+		}
 		const file = [...(event.dataTransfer?.files ?? [])].find(isAudioFile) ?? null;
 		if (file) void uploadAudioFile(file);
 	}
 
 	function openUploadPicker() {
+		if (uploadBlockedByQuota) {
+			void goto(BILLING_HREF);
+			return;
+		}
 		uploadInput?.click();
 	}
 
@@ -344,7 +359,7 @@
 	 * @param {File} file
 	 */
 	async function uploadAudioFile(file) {
-		if (uploading) return;
+		if (uploading || uploadBlockedByQuota) return;
 		uploading = true;
 		uploadError = null;
 		saveNotice = null;
@@ -469,10 +484,17 @@
 						/>
 					</div>
 				{/if}
-				<button class="pressable" type="button" disabled={uploading} onclick={openUploadPicker}>
-					<IconUpload size={16} stroke={1.75} aria-hidden="true" />
-					{uploading ? 'Uploading…' : 'Upload'}
-				</button>
+				{#if uploadBlockedByQuota}
+					<a class="pressable" href={BILLING_HREF}>
+						<IconUpload size={16} stroke={1.75} aria-hidden="true" />
+						Upload
+					</a>
+				{:else}
+					<button class="pressable" type="button" disabled={uploading} onclick={openUploadPicker}>
+						<IconUpload size={16} stroke={1.75} aria-hidden="true" />
+						{uploading ? 'Uploading…' : 'Upload'}
+					</button>
+				{/if}
 			</div>
 		</header>
 
@@ -545,15 +567,22 @@
 						{#if libraryList.items.length === 0}
 							<div class="empty" aria-live="polite">
 								<p>{emptyLibraryCopy}</p>
-								<button
-									class="pressable"
-									type="button"
-									disabled={uploading}
-									onclick={openUploadPicker}
-								>
-									<IconUpload size={16} stroke={1.75} aria-hidden="true" />
-									{uploading ? 'Uploading…' : 'Upload'}
-								</button>
+								{#if uploadBlockedByQuota}
+									<a class="pressable" href={BILLING_HREF}>
+										<IconUpload size={16} stroke={1.75} aria-hidden="true" />
+										Upload
+									</a>
+								{:else}
+									<button
+										class="pressable"
+										type="button"
+										disabled={uploading}
+										onclick={openUploadPicker}
+									>
+										<IconUpload size={16} stroke={1.75} aria-hidden="true" />
+										{uploading ? 'Uploading…' : 'Upload'}
+									</button>
+								{/if}
 							</div>
 						{:else}
 							<InfiniteList list={libraryList}>

@@ -78,6 +78,10 @@
 
 	const displayTime = $derived(scrubSeconds ?? player.currentTime);
 	const durationMs = $derived(player.current?.durationMs ?? Math.round(player.duration * 1000));
+	const durationSec = $derived(Math.max(durationMs / 1000, 0));
+	const progressPct = $derived(
+		durationSec > 0 ? Math.min((displayTime / durationSec) * 100, 100) : 0
+	);
 	const flipDuration = $derived(prefersReducedMotion.current ? 0 : 180);
 
 	const bitrateLabel = $derived.by(() => {
@@ -413,8 +417,6 @@
 			</div>
 
 			<div class="cell scrub">
-				<span class="time elapsed">{formatDuration(displayTime * 1000)}</span>
-
 				<div class="wave-wrap">
 					<Waveform
 						peaks={track.waveform}
@@ -424,6 +426,13 @@
 						onseek={handleWaveSeek}
 						onscrub={(seconds) => (scrubSeconds = seconds)}
 					/>
+					<span
+						class="time-chip current"
+						style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
+					>
+						{formatDuration(displayTime * 1000)}
+					</span>
+					<span class="time-chip total">{formatDuration(durationMs)}</span>
 					{#each markers as marker (marker.id)}
 						<button
 							type="button"
@@ -452,8 +461,6 @@
 						</div>
 					{/if}
 				</div>
-
-				<span class="time total">{formatDuration(player.duration * 1000)}</span>
 			</div>
 
 			{#if signedIn || visualizer.supported}
@@ -600,11 +607,12 @@
 	}
 
 	.scrub {
-		gap: 0.5rem;
 		flex: 1 1 12rem;
 		min-width: 8rem;
 		max-width: 100%;
 		padding: 0 0.6rem;
+		/* Chips / marker tips must escape the cell clip. */
+		overflow: visible;
 	}
 
 	.wave-wrap {
@@ -612,10 +620,36 @@
 		display: grid;
 		flex: 1;
 		align-items: center;
+		width: 100%;
 		min-width: 0;
 		max-width: 100%;
 		min-height: var(--waveform-height);
-		overflow: hidden;
+	}
+
+	.time-chip {
+		position: absolute;
+		top: 50%;
+		z-index: 2;
+		padding: 0.1rem 0.3rem;
+		background: var(--inverse);
+		color: var(--on-inverse);
+		font-size: 0.66rem;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		line-height: 1.3;
+		transform: translateY(-50%);
+		pointer-events: none;
+	}
+
+	.time-chip.current {
+		transform: translate(-50%, -50%);
+		color: var(--accent);
+	}
+
+	.time-chip.total {
+		right: 0;
+		background: var(--accent);
+		color: var(--on-accent);
 	}
 
 	.marker {
@@ -668,23 +702,6 @@
 		color: color-mix(in srgb, var(--on-inverse) 80%, transparent);
 		white-space: nowrap;
 		text-overflow: ellipsis;
-	}
-
-	.time {
-		flex-shrink: 0;
-		font-size: 0.66rem;
-		font-weight: 800;
-		font-variant-numeric: tabular-nums;
-		letter-spacing: 0.03em;
-	}
-
-	.time.elapsed {
-		color: var(--accent);
-		filter: contrast(1.2);
-	}
-
-	.time.total {
-		color: var(--muted);
 	}
 
 	.now-playing {

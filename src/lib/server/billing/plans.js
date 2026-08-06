@@ -22,7 +22,7 @@ const UNKNOWN_PLAN = {
 	blurb: '',
 	features: [],
 	maxTracks: null,
-	maxLocalBytes: 5 * 1024 * 1024 * 1024,
+	maxLocalBytes: 1 * 1024 * 1024 * 1024,
 	allowStorageAdapters: true,
 	allowSubdomain: false,
 	allowCustomDomain: false,

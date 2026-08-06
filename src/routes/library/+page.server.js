@@ -4,6 +4,7 @@ import { isTrackMediaType } from '#lib/media/track-media-type.js';
 import { embedTrackTags } from '#lib/server/media/embed-tags';
 import { listPlaylistsForOwner } from '#lib/server/playlists';
 import { getUsage } from '#lib/server/quota';
+import { getStorageSettingPublic } from '#lib/server/storage';
 import { getProfileByUserId } from '#lib/server/tenant';
 import {
 	createTrackFromForm,
@@ -48,10 +49,11 @@ export const load = async ({ locals, url }) => {
 	const mediaTypeRaw = url.searchParams.get('mediaType')?.trim() || null;
 	const mediaType = isTrackMediaType(mediaTypeRaw) ? mediaTypeRaw : null;
 
-	const [{ rows, nextCursor }, usage, playlists] = await Promise.all([
+	const [{ rows, nextCursor }, usage, playlists, storage] = await Promise.all([
 		listTracksWithUploader(locals.user.id, { mediaType }),
 		getUsage(locals.user.id),
-		listPlaylistsForOwner(locals.user.id)
+		listPlaylistsForOwner(locals.user.id),
+		getStorageSettingPublic(locals.user.id)
 	]);
 
 	return {
@@ -67,7 +69,8 @@ export const load = async ({ locals, url }) => {
 		items: await serializeLibraryTrackRows(rows, locals.user),
 		nextCursor,
 		playlists,
-		usage
+		usage,
+		storageAdapter: storage.adapter === 'ssh' ? 'ssh' : 'local'
 	};
 };
 

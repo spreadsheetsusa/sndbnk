@@ -6,9 +6,6 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, slide } from 'svelte/transition';
 	import IconCamera from '@tabler/icons-svelte-runes/icons/camera';
-	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
-	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
-	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte-runes/icons/plus';
 	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
@@ -49,9 +46,6 @@
 	 * @property {string} uploaderName
 	 * @property {number[] | null} waveform
 	 * @property {boolean} likedByViewer
-	 * @property {number} [playCount]
-	 * @property {number} [likeCount]
-	 * @property {number} [commentCount]
 	 * @property {number | null} [bitrate]
 	 * @property {number | null} [sampleRate]
 	 * @property {number | null} [channels]
@@ -291,13 +285,6 @@
 
 	const isActive = $derived(track != null && player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
-	const playCount = $derived(
-		track && isActive
-			? (player.current?.playCount ?? track.playCount ?? 0)
-			: (track?.playCount ?? 0)
-	);
-	const likeCount = $derived(track?.likeCount ?? 0);
-	const commentCount = $derived(track?.commentCount ?? 0);
 	const displayTime = $derived(scrubSeconds ?? (isActive ? player.currentTime : 0));
 	const durationSec = $derived((track?.durationMs ?? 0) / 1000);
 	const progressPct = $derived(
@@ -726,34 +713,6 @@
 									oninput={onZoomInput}
 								/>
 							</label>
-						</div>
-					{/if}
-
-					{#if editing}
-						<div class="file-meta-bar">
-							<dl class="engagement" aria-label="Track stats">
-								<div class="stat">
-									<dt>
-										<IconHeadphones size={12} stroke={2} aria-hidden="true" />
-										Listens
-									</dt>
-									<dd>{playCount}</dd>
-								</div>
-								<div class="stat">
-									<dt>
-										<IconHeart size={12} stroke={2} aria-hidden="true" />
-										Likes
-									</dt>
-									<dd>{likeCount}</dd>
-								</div>
-								<div class="stat">
-									<dt>
-										<IconMessageCircle size={12} stroke={2} aria-hidden="true" />
-										Comments
-									</dt>
-									<dd>{commentCount}</dd>
-								</div>
-							</dl>
 						</div>
 					{/if}
 				</div>
@@ -1450,72 +1409,6 @@
 		padding: 0.75rem 0 0 calc(var(--deck-cover-size) + 0.9rem);
 	}
 
-	.file-meta-bar {
-		display: grid;
-		grid-template-columns: minmax(7.5rem, 10rem);
-		gap: 0.75rem 1.25rem;
-		align-items: start;
-		min-width: 0;
-		margin: 0 0 0 16px;
-	}
-
-	.engagement {
-		display: flex;
-		flex-direction: column;
-		gap: 0.22rem;
-		min-width: 0;
-		margin: 0 0.85rem 0 0;
-		padding: 0 0.85rem 0 0;
-	}
-
-	.engagement .stat {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 0.4rem;
-		align-items: center;
-		min-width: 0;
-		padding: 0.15rem 0.35rem;
-		border-radius: 0.125rem;
-	}
-
-	.engagement .stat:nth-child(2) {
-		background: color-mix(in srgb, var(--ink) 5%, var(--paper));
-	}
-
-	:global(.dark) .engagement .stat:nth-child(2) {
-		background: color-mix(in srgb, var(--ink) 8%, var(--paper));
-	}
-
-	.engagement .stat dt {
-		display: inline-flex;
-		gap: 0.3rem;
-		align-items: center;
-		min-width: 0;
-		margin: 0;
-		overflow: hidden;
-		color: var(--ink);
-		font-size: 0.58rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.engagement .stat dt :global(svg) {
-		flex-shrink: 0;
-	}
-
-	.engagement .stat dd {
-		margin: 0;
-		color: var(--ink);
-		font-size: 0.68rem;
-		font-weight: 600;
-		font-variant-numeric: tabular-nums;
-		line-height: 1.2;
-		text-align: right;
-	}
-
 	.file-meta {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1801,11 +1694,6 @@
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 
-		.file-meta-bar {
-			grid-template-columns: 1fr;
-			margin-left: 0;
-		}
-
 		.file-meta {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
@@ -1857,11 +1745,6 @@
 			order: 4;
 			flex: 1 1 100%;
 			margin-left: 0;
-		}
-
-		.file-meta-bar {
-			order: 5;
-			flex: 1 1 100%;
 		}
 
 		.edit-console {

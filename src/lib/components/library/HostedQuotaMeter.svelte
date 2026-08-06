@@ -33,7 +33,7 @@
 	{#if atStorageCap}
 		<p class="quota-upsell">
 			You've used the {bytes(maxLocalBytes)} of hosted storage on {planLabel}.
-			<a href="/plans">Upgrade plan</a>
+			<a href="/settings?tab=billing">Upgrade plan</a>
 		</p>
 	{:else}
 		<div class="quota-meter" aria-label="Hosted storage quota">

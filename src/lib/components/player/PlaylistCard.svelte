@@ -1102,6 +1102,19 @@
 			position: relative;
 			z-index: 1;
 		}
+
+		.head {
+			justify-content: space-between;
+		}
+
+		.titles {
+			flex: 1;
+			min-width: 0;
+		}
+
+		.aside {
+			margin-left: 0;
+		}
 	}
 
 	@media (pointer: coarse) {
