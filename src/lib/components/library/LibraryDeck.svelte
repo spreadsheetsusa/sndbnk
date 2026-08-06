@@ -684,6 +684,7 @@
 									peaks={track.waveform}
 									durationMs={track.durationMs}
 									currentTime={isActive ? player.currentTime : 0}
+									playing={isPlaying}
 									height={72}
 									label="Seek within {track.title}"
 									variant={editing ? 'wave' : 'bars'}
@@ -728,41 +729,33 @@
 						</div>
 					{/if}
 
-					<div class="file-meta-bar">
-						<dl class="engagement" aria-label="Track stats">
-							<div class="stat">
-								<dt>
-									<IconHeadphones size={12} stroke={2} aria-hidden="true" />
-									Listens
-								</dt>
-								<dd>{playCount}</dd>
-							</div>
-							<div class="stat">
-								<dt>
-									<IconHeart size={12} stroke={2} aria-hidden="true" />
-									Likes
-								</dt>
-								<dd>{likeCount}</dd>
-							</div>
-							<div class="stat">
-								<dt>
-									<IconMessageCircle size={12} stroke={2} aria-hidden="true" />
-									Comments
-								</dt>
-								<dd>{commentCount}</dd>
-							</div>
-						</dl>
-						{#if fileMetaRows.length > 0}
-							<dl class="file-meta" aria-label="File metadata">
-								{#each fileMetaRows as row (row.key)}
-									<div class="meta-row">
-										<dt>{row.label}</dt>
-										<dd>{row.value}</dd>
-									</div>
-								{/each}
+					{#if editing}
+						<div class="file-meta-bar">
+							<dl class="engagement" aria-label="Track stats">
+								<div class="stat">
+									<dt>
+										<IconHeadphones size={12} stroke={2} aria-hidden="true" />
+										Listens
+									</dt>
+									<dd>{playCount}</dd>
+								</div>
+								<div class="stat">
+									<dt>
+										<IconHeart size={12} stroke={2} aria-hidden="true" />
+										Likes
+									</dt>
+									<dd>{likeCount}</dd>
+								</div>
+								<div class="stat">
+									<dt>
+										<IconMessageCircle size={12} stroke={2} aria-hidden="true" />
+										Comments
+									</dt>
+									<dd>{commentCount}</dd>
+								</div>
 							</dl>
-						{/if}
-					</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -883,6 +876,17 @@
 									</div>
 								</div>
 
+								{#if fileMetaRows.length > 0}
+									<dl class="file-meta" aria-label="File metadata">
+										{#each fileMetaRows as row (row.key)}
+											<div class="meta-row">
+												<dt>{row.label}</dt>
+												<dd>{row.value}</dd>
+											</div>
+										{/each}
+									</dl>
+								{/if}
+
 								<div class="console-foot">
 									<div class="foot-meta">
 										<div class="publish-field">
@@ -944,8 +948,11 @@
 	.deck {
 		/* flex-start: viz spacer pushes chrome down; edit form grows chrome downward
 		   so the player row stays pinned (flex-end left a gap above the chrome). */
-		/* Near the library media-shell aside (`15rem`), slightly tighter. */
-		--deck-cover-size: calc(15rem - 18px);
+		/* Compact cover matches deck-head + gap + waveform; edit expands to sidebar width. */
+		--deck-main-gap: 0.75rem;
+		--deck-wave-height: 72px;
+		--deck-cover-size-edit: calc(15rem - 18px);
+		--deck-cover-size: calc(2.6rem + var(--deck-main-gap) + var(--deck-wave-height) + 10px);
 		--deck-expand-ms: 320ms;
 		--deck-expand-ease: cubic-bezier(0.33, 1, 0.68, 1);
 		position: relative;
@@ -958,6 +965,10 @@
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.deck.editing {
+		--deck-cover-size: var(--deck-cover-size-edit);
 	}
 
 	.deck.viz-on {
@@ -1042,17 +1053,22 @@
 	.cover-wrap {
 		position: relative;
 		flex-shrink: 0;
-		align-self: center;
+		align-self: start;
 		width: var(--deck-cover-size);
 		height: var(--deck-cover-size);
+		overflow: hidden;
+		border-radius: 0.125rem;
+		transition:
+			width var(--deck-expand-ms) var(--deck-expand-ease),
+			height var(--deck-expand-ms) var(--deck-expand-ease);
 	}
 
 	.cover-wrap :global(img.cover),
 	.cover-wrap :global(span.cover.placeholder),
 	.cover-wrap img.preview {
 		display: block;
-		width: var(--deck-cover-size);
-		height: var(--deck-cover-size);
+		width: 100%;
+		height: 100%;
 		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
 		border-radius: 0.125rem;
 		object-fit: cover;
@@ -1108,7 +1124,7 @@
 		display: flex;
 		flex: 1 1 auto;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: var(--deck-main-gap);
 		min-width: 0;
 	}
 
@@ -1436,7 +1452,7 @@
 
 	.file-meta-bar {
 		display: grid;
-		grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
+		grid-template-columns: minmax(7.5rem, 10rem);
 		gap: 0.75rem 1.25rem;
 		align-items: start;
 		min-width: 0;
@@ -1800,7 +1816,8 @@
 			display: none;
 		}
 
-		.deck {
+		.deck,
+		.deck.editing {
 			--deck-cover-size: 2.6rem;
 		}
 
@@ -1862,7 +1879,8 @@
 	}
 
 	@media (max-width: 640px) and (pointer: coarse) {
-		.deck {
+		.deck,
+		.deck.editing {
 			--deck-cover-size: var(--tap-min);
 		}
 	}
@@ -1882,6 +1900,7 @@
 		.viz-spacer,
 		.edit-slot,
 		.genre,
+		.cover-wrap,
 		.cover-camera {
 			transition: none;
 		}

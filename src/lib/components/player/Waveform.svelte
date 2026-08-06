@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { accentColor } from '#lib/stores/brand.js';
 	import { resolvedTheme } from '#lib/stores/theme.js';
@@ -12,12 +12,14 @@
 	 * `currentTime`, and seeks are reported through `onseek`. A press-drag
 	 * gesture previews its position through `onscrub` and only commits on
 	 * release. Hover shows a lighter fill to the cursor without moving the
-	 * playhead.
+	 * playhead. When zoomed, pass `playing` so the scroll host can auto-center
+	 * — Wavesurfer's own autoCenter only runs while it is playing media.
 	 *
 	 * @type {{
 	 *   peaks: number[] | null,
 	 *   durationMs: number | null,
 	 *   currentTime?: number,
+	 *   playing?: boolean,
 	 *   height?: number,
 	 *   label?: string,
 	 *   variant?: 'bars' | 'wave',
@@ -31,6 +33,7 @@
 		peaks,
 		durationMs,
 		currentTime = 0,
+		playing = false,
 		height,
 		label = 'Seek',
 		variant = 'bars',
@@ -258,6 +261,38 @@
 		return /** @type {HTMLElement} */ (wrapper.parentElement ?? container);
 	}
 
+	/**
+	 * Mirror Wavesurfer's scrollIntoView (zoom example autoCenter): snap when
+	 * the playhead leaves the viewport, and while playing keep it centered
+	 * once it reaches mid-view. We own scroll because setTime() always calls
+	 * renderProgress with isPlaying=false (media lives on the global player).
+	 * @param {number} time
+	 * @param {boolean} follow
+	 */
+	function syncScroll(time, follow) {
+		if (!zoomed || !wavesurfer || scrubRatio != null) return;
+		const host = scrollHost();
+		const { scrollWidth, clientWidth } = host;
+		if (scrollWidth <= clientWidth || durationSec <= 0) return;
+
+		const progressWidth = (time / durationSec) * scrollWidth;
+		const middle = clientWidth / 2;
+		const startEdge = host.scrollLeft;
+		const endEdge = startEdge + clientWidth;
+
+		if (progressWidth < startEdge || progressWidth > endEdge) {
+			host.scrollLeft = Math.max(0, progressWidth - middle);
+			return;
+		}
+		if (!follow) return;
+
+		// Same lock as Wavesurfer: only scroll forward once past mid-view.
+		const center = progressWidth - host.scrollLeft - middle;
+		if (center <= 0) return;
+		const pxPerSec = scrollWidth / durationSec;
+		host.scrollLeft += pxPerSec <= 600 ? Math.min(center, 10) : center;
+	}
+
 	/** @param {PointerEvent} event */
 	function ratioFromPointer(event) {
 		const host = scrollHost();
@@ -392,6 +427,8 @@
 				// without committing until the pointer is released.
 				interact: false,
 				fillParent: !zoomed,
+				// External setTime() never reports isPlaying; we scroll in syncScroll.
+				autoScroll: false,
 				autoCenter: zoomed,
 				...(zoomed && minPxPerSec != null ? { minPxPerSec } : {}),
 				peaks: [normalizedPeaks()],
@@ -425,8 +462,10 @@
 	// Drive the rendered progress: an in-flight scrub wins over the player clock.
 	$effect(() => {
 		const time = displayTime;
+		const follow = playing;
 		if (wavesurfer) {
 			wavesurfer.setTime(time);
+			syncScroll(time, follow);
 		}
 	});
 
@@ -475,8 +514,10 @@
 		const ready = audioReady;
 		if (!ws || !ready || px == null || px <= 0) return;
 		if (!ws.getDecodedData()) return;
-		ws.setOptions({ fillParent: false, autoCenter: true });
+		ws.setOptions({ fillParent: false, autoScroll: false, autoCenter: true });
 		ws.zoom(px);
+		// Re-center on the current playhead without re-running this on every tick.
+		untrack(() => syncScroll(displayTime, playing));
 	});
 </script>
 
