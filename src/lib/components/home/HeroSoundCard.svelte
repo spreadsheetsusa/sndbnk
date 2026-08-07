@@ -33,6 +33,10 @@
 	const isActive = $derived(track != null && player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
 	const displayTime = $derived(scrubSeconds ?? (isActive ? player.currentTime : 0));
+	const durationSec = $derived((track?.durationMs ?? 0) / 1000);
+	const progressPct = $derived(
+		durationSec > 0 ? Math.min((displayTime / durationSec) * 100, 100) : 0
+	);
 	const artistLabel = $derived(track ? track.artist || track.uploaderName : '');
 	const genreLabel = $derived(
 		parseGenres(/** @type {HeroTrack | null} */ (track)?.genre)[0] || 'SNDBNK'
@@ -127,12 +131,19 @@
 				onseek={handleSeek}
 				onscrub={(seconds) => (scrubSeconds = seconds)}
 			/>
+			{#if isActive || scrubSeconds != null}
+				<span
+					class="time-chip current"
+					style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
+				>
+					{formatDuration(displayTime * 1000)}
+				</span>
+			{/if}
+			<span class="time-chip total">{formatDuration(track.durationMs)}</span>
 		</div>
 
 		<div class="card-footer">
-			<span class="elapsed">{formatDuration(displayTime * 1000)}</span>
 			<a class="card-note" href="/tracks/{track.id}">{track.title}</a>
-			<span class="total">{formatDuration(track.durationMs)}</span>
 		</div>
 
 		<div class="stamp" aria-hidden="true">Independent<br />frequency</div>
@@ -314,11 +325,42 @@
 		min-width: 0;
 	}
 
+	.time-chip {
+		position: absolute;
+		top: 50%;
+		z-index: 2;
+		padding: 0.1rem 0.3rem;
+		background: var(--inverse);
+		color: var(--on-inverse);
+		font-size: 0.66rem;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		line-height: 1.3;
+		letter-spacing: 0;
+		text-transform: none;
+		transform: translateY(-50%);
+		pointer-events: none;
+	}
+
+	.time-chip.current {
+		transform: translate(-50%, -50%);
+		color: var(--accent);
+	}
+
+	.time-chip.total {
+		right: 0;
+		background: var(--accent);
+		color: var(--on-accent);
+	}
+
 	.card-footer {
-		align-items: end;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.card-note {
+		min-width: 0;
+		max-width: 100%;
 		overflow: hidden;
 		color: var(--accent);
 		font-family: var(--font-editorial);
@@ -337,16 +379,6 @@
 	a.card-note:hover {
 		text-decoration: underline;
 		text-underline-offset: 0.2rem;
-	}
-
-	.elapsed,
-	.total {
-		flex-shrink: 0;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.elapsed {
-		color: var(--accent);
 	}
 
 	.stamp {
@@ -391,10 +423,6 @@
 		.play-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
-		}
-
-		.card-note {
-			max-width: 12ch;
 		}
 
 		.stamp {
