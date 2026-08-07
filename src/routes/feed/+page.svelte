@@ -489,6 +489,9 @@
 		.feed-grid {
 			display: flex;
 			flex-direction: column;
+			/* Desktop grid uses start so the sidebar does not stretch; as a column
+			   flex that left lists content-sized and left-hugging. Stretch the rail. */
+			align-items: stretch;
 			gap: 1.25rem;
 		}
 
@@ -538,6 +541,9 @@
 		/* Break out of the page shell so listings use the phone viewport; a
 		   tight pad keeps titles/waveforms off the glass. Head stays guttered. */
 		.feed-list {
+			box-sizing: border-box;
+			width: auto;
+			max-width: none;
 			margin-inline: calc(-1 * var(--site-shell-pad-x));
 			padding-inline: 0.5rem;
 		}
