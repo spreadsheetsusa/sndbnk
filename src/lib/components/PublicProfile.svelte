@@ -699,6 +699,9 @@
 		.profile-grid {
 			display: flex;
 			flex-direction: column;
+			/* Same as feed: stretch column children so track players span the rail
+			   instead of staying content-width and hugging the left. */
+			align-items: stretch;
 			gap: 1rem;
 		}
 
@@ -740,6 +743,9 @@
 		/* Same full-bleed rail as the feed list: cancel shell pad, keep a
 		   tight inset so waveforms nearly span the phone viewport. */
 		.list-rail {
+			box-sizing: border-box;
+			width: auto;
+			max-width: none;
 			margin-inline: calc(-1 * var(--site-shell-pad-x));
 			padding-inline: 0.5rem;
 		}
