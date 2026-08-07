@@ -78,9 +78,10 @@
 	background-color: var(--paper);
 }
 
-@media (max-width: 560px) {
+/* Phone: tighten the shared rail so page content matches the header gutter. */
+@media (max-width: 640px) {
 	:root {
-		--site-shell-pad-x: 1rem;
+		--site-shell-pad-x: 0.5rem;
 	}
 }
 

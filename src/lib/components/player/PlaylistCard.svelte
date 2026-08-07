@@ -1092,7 +1092,7 @@
 		.playlist-card {
 			grid-template-columns: 1fr;
 			position: relative;
-			/* Match TrackCard: shell pad is the gutter; don't inset again. */
+			/* Match TrackCard: shell gutter is the mobile inset. */
 			padding-inline: 0;
 		}
 

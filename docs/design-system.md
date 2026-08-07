@@ -34,18 +34,18 @@ Defined on `:root`, overridden on `.dark`.
 
 Layout rail:
 
-| Token                     | Value                                          | Use                                                            |
-| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
-| `--site-shell-max`        | `1600px`                                       | outer page width, shared by header and pages so nothing shifts |
-| `--site-shell-pad-x`      | `clamp(1rem, 3.5vw, 4rem)`, `1rem` under 620px | horizontal gutter                                              |
-| `--site-content-max`      | `920px`                                        | main reading column                                            |
-| `--site-content-max-wide` | `1100px`                                       | profile pages                                                  |
-| `--site-header-height`    | `5rem`                                         | sticky header min-height                                       |
-| `--site-header-gap`       | `clamp(0.75rem, 2vw, 1.25rem)`                 | space below the header before page content                     |
-| `--site-sidebar-width`    | `20rem`                                        | card sidebar rail on feed/list pages                           |
-| `--tap-min`               | `2.75rem` (44px)                               | minimum comfortable touch target under `pointer: coarse`       |
-| `--waveform-height`       | `66px` / `88px` on coarse                      | scrub band height for Waveform and its placeholders            |
-| `--track-card-wash`       | `0.5` light / `0.38` dark                      | opacity of the blurred cover behind TrackCard on phones        |
+| Token                     | Value                                            | Use                                                            |
+| ------------------------- | ------------------------------------------------ | -------------------------------------------------------------- |
+| `--site-shell-max`        | `1600px`                                         | outer page width, shared by header and pages so nothing shifts |
+| `--site-shell-pad-x`      | `clamp(1rem, 3.5vw, 4rem)`, `0.5rem` under 640px | horizontal gutter (header + pages share it)                    |
+| `--site-content-max`      | `920px`                                          | main reading column                                            |
+| `--site-content-max-wide` | `1100px`                                         | profile pages                                                  |
+| `--site-header-height`    | `5rem`                                           | sticky header min-height                                       |
+| `--site-header-gap`       | `clamp(0.75rem, 2vw, 1.25rem)`                   | space below the header before page content                     |
+| `--site-sidebar-width`    | `20rem`                                          | card sidebar rail on feed/list pages                           |
+| `--tap-min`               | `2.75rem` (44px)                                 | minimum comfortable touch target under `pointer: coarse`       |
+| `--waveform-height`       | `66px` / `88px` on coarse                        | scrub band height for Waveform and its placeholders            |
+| `--track-card-wash`       | `0.5` light / `0.38` dark                        | opacity of the blurred cover behind TrackCard on phones        |
 
 ## Breakpoints
 
