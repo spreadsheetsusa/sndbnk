@@ -189,6 +189,9 @@
 
 	.sound-card.live {
 		display: grid;
+		/* minmax(0, 1fr) so the waveform canvas cannot blow past the card width
+		   (overflow:hidden would clip the trailing time chip / title). */
+		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto 1fr auto auto;
 		gap: clamp(1rem, 2.5vw, 1.5rem);
 	}
@@ -322,6 +325,8 @@
 	.wave {
 		position: relative;
 		z-index: 1;
+		width: 100%;
+		max-width: 100%;
 		min-width: 0;
 	}
 
@@ -354,11 +359,13 @@
 	}
 
 	.card-footer {
+		min-width: 0;
 		align-items: center;
 		justify-content: center;
 	}
 
 	.card-note {
+		flex: 1 1 auto;
 		min-width: 0;
 		max-width: 100%;
 		overflow: hidden;
