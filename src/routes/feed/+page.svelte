@@ -535,6 +535,13 @@
 			padding-top: 0.5rem;
 		}
 
+		/* Break out of the page shell so listings use the phone viewport; a
+		   tight pad keeps titles/waveforms off the glass. Head stays guttered. */
+		.feed-list {
+			margin-inline: calc(-1 * var(--site-shell-pad-x));
+			padding-inline: 0.5rem;
+		}
+
 		h1 {
 			font-size: clamp(2rem, 8vw, 3.75rem);
 		}

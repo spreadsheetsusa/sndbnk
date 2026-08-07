@@ -239,33 +239,35 @@
 					{:else if items.length === 0}
 						<p class="lede">Reposts are hidden. Turn them back on to see this profile's picks.</p>
 					{:else}
-						<InfiniteList {list} moreLabel="Load more">
-							<ul class="profile-track-list">
-								{#each items as item (item.id)}
-									<li data-cursor={item.cursor}>
-										{#if item.kind === 'playlist'}
-											<PlaylistCard
-												playlist={item}
-												{linkBase}
-												signedIn={Boolean(data.viewer)}
-												viewerName={data.viewer?.name ?? null}
-												viewerImage={data.viewer?.image ?? null}
-												ondeleted={() => list.remove(item.id)}
-											/>
-										{:else}
-											<TrackCard
-												track={item}
-												{linkBase}
-												signedIn={Boolean(data.viewer)}
-												viewerName={data.viewer?.name ?? null}
-												viewerImage={data.viewer?.image ?? null}
-												ondeleted={() => list.remove(item.id)}
-											/>
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</InfiniteList>
+						<div class="list-rail">
+							<InfiniteList {list} moreLabel="Load more">
+								<ul class="profile-track-list">
+									{#each items as item (item.id)}
+										<li data-cursor={item.cursor}>
+											{#if item.kind === 'playlist'}
+												<PlaylistCard
+													playlist={item}
+													{linkBase}
+													signedIn={Boolean(data.viewer)}
+													viewerName={data.viewer?.name ?? null}
+													viewerImage={data.viewer?.image ?? null}
+													ondeleted={() => list.remove(item.id)}
+												/>
+											{:else}
+												<TrackCard
+													track={item}
+													{linkBase}
+													signedIn={Boolean(data.viewer)}
+													viewerName={data.viewer?.name ?? null}
+													viewerImage={data.viewer?.image ?? null}
+													ondeleted={() => list.remove(item.id)}
+												/>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</InfiniteList>
+						</div>
 					{/if}
 				</section>
 			</div>
@@ -622,6 +624,10 @@
 		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
 	}
 
+	.list-rail {
+		min-width: 0;
+	}
+
 	.profile-track-list {
 		display: grid;
 		gap: 1rem;
@@ -729,6 +735,13 @@
 
 		.tracks {
 			padding-top: 1rem;
+		}
+
+		/* Same full-bleed rail as the feed list: cancel shell pad, keep a
+		   tight inset so waveforms nearly span the phone viewport. */
+		.list-rail {
+			margin-inline: calc(-1 * var(--site-shell-pad-x));
+			padding-inline: 0.5rem;
 		}
 	}
 

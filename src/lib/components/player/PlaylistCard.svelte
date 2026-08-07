@@ -1092,6 +1092,8 @@
 		.playlist-card {
 			grid-template-columns: 1fr;
 			position: relative;
+			/* Match TrackCard: shell pad is the gutter; don't inset again. */
+			padding-inline: 0;
 		}
 
 		.playlist-card :global(> .cover) {
