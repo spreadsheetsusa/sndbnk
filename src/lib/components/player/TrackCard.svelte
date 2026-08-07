@@ -1120,8 +1120,7 @@
 			position: relative;
 			isolation: isolate;
 			grid-template-columns: 1fr;
-			/* Page shell already gutters the rail; drop the card's side pad so
-			   feed/profile waveforms use the full mobile content width. */
+			/* Shell gutter is the mobile inset; don't pad the card again. */
 			padding-inline: 0;
 		}
 

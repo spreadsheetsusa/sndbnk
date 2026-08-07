@@ -739,16 +739,6 @@
 		.tracks {
 			padding-top: 1rem;
 		}
-
-		/* Same full-bleed rail as the feed list: cancel shell pad, keep a
-		   tight inset so waveforms nearly span the phone viewport. */
-		.list-rail {
-			box-sizing: border-box;
-			width: auto;
-			max-width: none;
-			margin-inline: calc(-1 * var(--site-shell-pad-x));
-			padding-inline: 0.5rem;
-		}
 	}
 
 	@media (max-width: 560px) {

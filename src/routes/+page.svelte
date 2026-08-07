@@ -397,7 +397,8 @@
 	@media (max-width: 640px) {
 		.hero {
 			gap: 3rem;
-			padding: 3.5rem 1.25rem 4.5rem;
+			/* Shell already gutters the landing; don't double-inset the hero. */
+			padding: 3.5rem 0 4.5rem;
 		}
 
 		h1 {
