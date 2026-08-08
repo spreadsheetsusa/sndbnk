@@ -1,6 +1,7 @@
 import { ORIGIN } from '$app/env/private';
 
 import {
+	buildAccountLinkRequestMail,
 	buildPaymentFailedMail,
 	buildPlanChangedMail,
 	buildResetPasswordMail,
@@ -85,7 +86,18 @@ export function sendResetPasswordMail({ to, name, url }) {
 	});
 }
 
+/**
+ * @param {{ to: string, name: string, fromName: string, fromUsername: string, url: string }} input
+ */
+export function sendAccountLinkRequestMail({ to, name, fromName, fromUsername, url }) {
+	return sendBrandedMail({
+		to,
+		...buildAccountLinkRequestMail({ name, fromName, fromUsername, url })
+	});
+}
+
 export {
+	buildAccountLinkRequestMail,
 	buildPaymentFailedMail,
 	buildPlanChangedMail,
 	buildResetPasswordMail,

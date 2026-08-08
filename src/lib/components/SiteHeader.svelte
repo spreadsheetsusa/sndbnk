@@ -24,9 +24,16 @@
 	import { resolvedTheme, setThemePreference, themePreference } from '#lib/stores/theme.js';
 
 	const nav = $derived(
-		page.data.nav ?? { name: null, username: null, image: null, isAdmin: false }
+		page.data.nav ?? {
+			name: null,
+			username: null,
+			image: null,
+			isAdmin: false,
+			linkedAccounts: []
+		}
 	);
 	const signedIn = $derived(Boolean(nav.name));
+	const linkedAccounts = $derived(nav.linkedAccounts ?? []);
 	const appearanceValue = $derived(
 		$themePreference === 'light' || $themePreference === 'dark' ? $themePreference : $resolvedTheme
 	);
@@ -244,6 +251,21 @@
 								<option value="disco" disabled>Disco</option>
 							</select>
 						</label>
+
+						{#if linkedAccounts.length > 0}
+							<hr class="account-divider" />
+							<div class="linked-switch" role="group" aria-label="Switch account">
+								{#each linkedAccounts as peer (peer.userId)}
+									<form method="POST" action="/?/switchAccount" use:enhance>
+										<input type="hidden" name="userId" value={peer.userId} />
+										<button type="submit" class="account-item linked-item">
+											<Avatar src={peer.image} name={peer.name} size="1.35rem" alt="" />
+											<span class="linked-label">@{peer.username}</span>
+										</button>
+									</form>
+								{/each}
+							</div>
+						{/if}
 
 						<hr class="account-divider" />
 
@@ -546,6 +568,27 @@
 		margin: 0.25rem 0;
 		border: 0;
 		border-top: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+	}
+
+	.linked-switch {
+		display: grid;
+		gap: 0.1rem;
+	}
+
+	.linked-item {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		text-transform: none;
+		letter-spacing: 0.02em;
+		font-weight: 700;
+	}
+
+	.linked-label {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.account-panel form {

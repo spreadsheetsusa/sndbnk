@@ -147,7 +147,9 @@
 
 	<div class="stage">
 		<canvas bind:this={canvas} class="viz-canvas" aria-hidden="true"></canvas>
-		{#if !visualizer.ready}
+		{#if visualizer.error}
+			<p class="loading error" role="alert">{visualizer.error}</p>
+		{:else if !visualizer.ready}
 			<p class="loading" role="status">Loading visualizer…</p>
 		{/if}
 	</div>
@@ -260,12 +262,22 @@
 		display: grid;
 		place-items: center;
 		margin: 0;
+		padding: 0.75rem;
 		color: color-mix(in srgb, #fff 70%, transparent);
 		font-size: 0.75rem;
 		font-weight: 700;
 		letter-spacing: 0.06em;
+		text-align: center;
 		text-transform: uppercase;
 		pointer-events: none;
+	}
+
+	.loading.error {
+		color: color-mix(in srgb, #fff 88%, transparent);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: none;
+		line-height: 1.35;
 	}
 
 	.resize-handle {

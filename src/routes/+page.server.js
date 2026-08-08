@@ -69,5 +69,28 @@ export const actions = {
 	signOut: async ({ request }) => {
 		await auth.api.signOut({ headers: request.headers });
 		safeRedirect(303, '/');
+	},
+
+	switchAccount: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const form = await request.formData();
+		const userId = String(form.get('userId') ?? '').trim();
+		if (!userId) {
+			safeRedirect(303, '/');
+		}
+
+		try {
+			await auth.api.switchLinkedAccount({
+				body: { userId },
+				headers: request.headers
+			});
+		} catch {
+			safeRedirect(303, '/');
+		}
+
+		safeRedirect(303, '/');
 	}
 };

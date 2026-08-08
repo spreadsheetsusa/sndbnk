@@ -1,5 +1,13 @@
 import { relations } from 'drizzle-orm';
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+	index,
+	integer,
+	primaryKey,
+	real,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema';
 
 export const task = sqliteTable('task', {
@@ -13,6 +21,7 @@ export const task = sqliteTable('task', {
 /** @typedef {'free' | 'vault' | 'studio' | 'label'} Plan */
 /** @typedef {'none' | 'pending' | 'active'} CustomDomainStatus */
 /** @typedef {'month' | 'year'} BillingInterval */
+/** @typedef {'pending' | 'accepted'} AccountLinkStatus */
 
 /**
  * Entitlements per tier, editable from the admin panel. Stripe owns the money
@@ -402,6 +411,53 @@ export const followRelations = relations(follow, ({ one }) => ({
 		fields: [follow.followingId],
 		references: [user.id],
 		relationName: 'following'
+	})
+}));
+
+/**
+ * Mutual account linking for switching between moniker accounts.
+ * Pending until the recipient accepts; accepted edges are trusted switches.
+ */
+export const accountLink = sqliteTable(
+	'account_link',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		requesterId: text('requester_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		recipientId: text('recipient_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		/** @type {AccountLinkStatus} */
+		status: text('status').notNull().default('pending'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull(),
+		acceptedAt: integer('accepted_at', { mode: 'timestamp_ms' })
+	},
+	(table) => [
+		uniqueIndex('account_link_requester_recipient_uidx').on(table.requesterId, table.recipientId),
+		index('account_link_recipientId_idx').on(table.recipientId),
+		index('account_link_requesterId_idx').on(table.requesterId)
+	]
+);
+
+export const accountLinkRelations = relations(accountLink, ({ one }) => ({
+	requester: one(user, {
+		fields: [accountLink.requesterId],
+		references: [user.id],
+		relationName: 'accountLinkRequester'
+	}),
+	recipient: one(user, {
+		fields: [accountLink.recipientId],
+		references: [user.id],
+		relationName: 'accountLinkRecipient'
 	})
 }));
 

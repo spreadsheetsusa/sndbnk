@@ -1,8 +1,22 @@
 import { fail } from '@sveltejs/kit';
 import { and, eq, inArray, ne } from 'drizzle-orm';
+import { ORIGIN } from '$app/env/private';
+import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 
+import {
+	acceptLink,
+	cancelLink,
+	declineLink,
+	listLinksForUser as listAccountLinksForUser,
+	requestLink,
+	unlink
+} from '#lib/server/account-links';
 import { auth } from '#lib/server/auth';
 import { removeAvatar, saveAvatar } from '#lib/server/avatar';
+import { changeSubscription } from '#lib/server/billing/checkout';
+import { canUseCustomDomain, getPlans, planOrDefault } from '#lib/server/billing/plans';
+import { createPortalSession } from '#lib/server/billing/portal';
+import { billingEnabled } from '#lib/server/billing/stripe';
 import { requestEmailChange } from '#lib/server/change-email';
 import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
@@ -14,6 +28,7 @@ import {
 	validateDomain,
 	verifyCustomDomain
 } from '#lib/server/domain-verify';
+import { sendAccountLinkRequestMail } from '#lib/server/mail/templates';
 import {
 	MAX_BIO_LENGTH,
 	MAX_LOCATION_LENGTH,
@@ -22,11 +37,8 @@ import {
 	replaceLinksForUser,
 	validateProfileLinks
 } from '#lib/server/profile-links';
-import { changeSubscription } from '#lib/server/billing/checkout';
-import { canUseCustomDomain, getPlans, planOrDefault } from '#lib/server/billing/plans';
-import { createPortalSession } from '#lib/server/billing/portal';
-import { billingEnabled } from '#lib/server/billing/stripe';
 import { getUsage } from '#lib/server/quota';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import {
 	MAX_SITE_DESCRIPTION_LENGTH,
@@ -48,7 +60,6 @@ import {
 } from '#lib/server/storage';
 import { buildPublicUrls, getProfileByUserId } from '#lib/server/tenant';
 import { validateUsername } from '#lib/server/username';
-import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 
 export const load = async ({ locals }) => {
 	if (!locals.user) {
@@ -63,6 +74,7 @@ export const load = async ({ locals }) => {
 	const urls = buildPublicUrls(row);
 	const storage = await getStorageSettingPublic(locals.user.id);
 	const links = await listLinksForUser(locals.user.id);
+	const accountLinks = await listAccountLinksForUser(locals.user.id);
 	const siteSettings = await getSitePublic(locals.user.id);
 	const usage = await getUsage(locals.user.id);
 	const tier = planOrDefault(row.plan);
@@ -75,6 +87,7 @@ export const load = async ({ locals }) => {
 			email: locals.user.email,
 			image: locals.user.image ?? null
 		},
+		accountLinks,
 		profile: {
 			username: row.username,
 			plan: row.plan,
@@ -644,5 +657,102 @@ export const actions = {
 		}
 
 		return { ogSuccess: 'Social image removed.' };
+	},
+
+	requestLink: async (event) => {
+		const { locals, request } = event;
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const username = formData.get('username')?.toString() ?? '';
+
+		const limited = rateLimit(`account-link:${clientIp(event)}:${locals.user.id}`, {
+			windowMs: 15 * 60 * 1000,
+			max: 10
+		});
+		if (!limited.ok) {
+			return fail(429, {
+				linkedMessage: `Too many link requests. Try again in ${limited.retryAfterSec}s.`,
+				linkedUsername: username.trim()
+			});
+		}
+
+		const result = await requestLink(locals.user.id, username);
+		if (!result.ok) {
+			return fail(400, { linkedMessage: result.message, linkedUsername: username.trim() });
+		}
+
+		const fromProfile = await getProfileByUserId(locals.user.id);
+		void sendAccountLinkRequestMail({
+			to: result.recipient.email,
+			name: result.recipient.name,
+			fromName: locals.user.name ?? fromProfile?.username ?? 'Someone',
+			fromUsername: fromProfile?.username ?? '',
+			url: `${ORIGIN.replace(/\/$/, '')}/settings?tab=linked`
+		});
+
+		return { linkedSuccess: `Link request sent to @${result.recipient.username}.` };
+	},
+
+	cancelLink: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const linkId = formData.get('linkId')?.toString() ?? '';
+		const result = await cancelLink(locals.user.id, linkId);
+		if (!result.ok) {
+			return fail(400, { linkedMessage: result.message });
+		}
+
+		return { linkedSuccess: 'Link request cancelled.' };
+	},
+
+	acceptLink: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const linkId = formData.get('linkId')?.toString() ?? '';
+		const result = await acceptLink(locals.user.id, linkId);
+		if (!result.ok) {
+			return fail(400, { linkedMessage: result.message });
+		}
+
+		return { linkedSuccess: 'Accounts linked. Switch from the account menu.' };
+	},
+
+	declineLink: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const linkId = formData.get('linkId')?.toString() ?? '';
+		const result = await declineLink(locals.user.id, linkId);
+		if (!result.ok) {
+			return fail(400, { linkedMessage: result.message });
+		}
+
+		return { linkedSuccess: 'Link request declined.' };
+	},
+
+	unlinkAccount: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const formData = await request.formData();
+		const linkId = formData.get('linkId')?.toString() ?? '';
+		const result = await unlink(locals.user.id, linkId);
+		if (!result.ok) {
+			return fail(400, { linkedMessage: result.message });
+		}
+
+		return { linkedSuccess: 'Accounts unlinked.' };
 	}
 };

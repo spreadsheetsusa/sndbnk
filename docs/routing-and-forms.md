@@ -10,7 +10,7 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                                                         |
 | `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                                                     |
 | `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`                                     |
-| `/settings`                        | required               | tabbed profile (incl. email change) / plan / domain / site / storage                                        |
+| `/settings`                        | required               | tabbed profile (incl. email change) / linked accounts / plan / domain / site / storage                      |
 | `/library`                         | required               | owner track list; drop/picker upload via `?/create`; `?mediaType=` filters; `?track=` + `?edit=1` deck edit |
 | `/library/new`                     | required               | redirects to `/library` (former LOAD console)                                                               |
 | `/library/[id]`                    | owner only             | redirects to `/library?track={id}&edit=1`                                                                   |

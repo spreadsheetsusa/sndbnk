@@ -175,6 +175,14 @@ rejected in `toggleRepost()`, not by a constraint.
 Composite primary key `(followerId, followingId)` and an index on `followingId` for follower counts.
 Self-follow is rejected in `toggleFollow()` with a result object, per the no-exceptions rule.
 
+### `account_link`
+
+Mutual account linking so one person can switch between moniker accounts without signing out.
+`requesterId` / `recipientId` both FK to `user.id` (cascade). Status is `pending` until the recipient
+accepts, then `accepted`. Unique on `(requesterId, recipientId)`; the service also rejects a second
+row in the reverse direction. Cap of 4 accepted links per user (device multi-session budget). Trusted
+switch after accept — no password on hop. See `#lib/server/account-links`.
+
 ### `playlist`
 
 A named collection of published tracks owned by one user. `published` gates Feed, Profile, and
@@ -213,6 +221,7 @@ erDiagram
   user ||--o{ track_repost : makes
   user ||--o{ playlist_like : gives
   user ||--o{ follow : follows
+  user ||--o{ account_link : links
 ```
 
 Drizzle `relations()` are declared for every table but the code overwhelmingly uses explicit

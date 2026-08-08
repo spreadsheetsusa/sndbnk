@@ -64,6 +64,13 @@
       "when": 1786018277483,
       "tag": "0008_free-plan-1gb",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1786158337898,
+      "tag": "0009_bumpy_thanos",
+      "breakpoints": true
     }
   ]
 }

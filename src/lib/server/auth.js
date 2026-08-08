@@ -3,8 +3,10 @@ import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin } from 'better-auth/plugins';
+import { multiSession } from 'better-auth/plugins/multi-session';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
+import { linkedAccountSwitch } from '#lib/server/auth-linked-switch';
 import { syncStripeCustomerEmail } from '#lib/server/billing/customer';
 import { db } from '#lib/server/db';
 import { sendResetPasswordMail, sendVerifyEmailChangeMail } from '#lib/server/mail/templates';
@@ -65,6 +67,8 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		admin(),
+		multiSession({ maximumSessions: 5 }),
+		linkedAccountSwitch(),
 		sveltekitCookies(getRequestEvent) // make sure this is the last plugin in the array
 	]
 });

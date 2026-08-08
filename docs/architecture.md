@@ -135,7 +135,7 @@ src/
     signin/ signup/       auth forms
     forgot-password/      request password reset email
     reset-password/       set new password from emailed token
-    settings/             profile (incl. email change), plan, domain, site, storage (tabbed)
+    settings/             profile, linked accounts, plan, domain, site, storage (tabbed)
     library/              owner CRUD: list, new, [id] edit
     tracks/[id]/          public track detail
     users/[username]/     public profile by path
@@ -147,7 +147,9 @@ src/
     stores/               theme, brand (legacy writable stores)
     media/                client-side metadata probe
     server/
-      auth.js             better-auth instance
+      auth.js             better-auth instance (+ multi-session, linked-account switch)
+      auth-linked-switch.js  trusted switch between mutually linked accounts
+      account-links.js    request / approve / unlink moniker accounts
       db/                 schema.js, auth.schema.js (generated), index.js
       tenant.js billing/plans.js username.js domain-verify.js profile-page.js
       site.js             tenant branding (name, logo, accent, hide branding)

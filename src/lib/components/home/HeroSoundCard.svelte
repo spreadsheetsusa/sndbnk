@@ -20,6 +20,7 @@
 	 * @property {string} uploaderName
 	 * @property {number[] | null} waveform
 	 * @property {boolean} likedByViewer
+	 * @property {number} [playCount]
 	 */
 
 	/** @type {{ track: HeroTrack | null }} */
@@ -61,7 +62,8 @@
 			codec: track.codec ?? null,
 			hasCover: track.hasCover,
 			waveform: track.waveform,
-			likedByViewer: track.likedByViewer
+			likedByViewer: track.likedByViewer,
+			playCount: track.playCount ?? 0
 		};
 	}
 
@@ -93,7 +95,7 @@
 		/>
 
 		<div class="card-topline">
-			<span>{artistLabel}</span>
+			<a href="/feed">From the feed</a>
 			<span>{genreLabel}</span>
 		</div>
 
@@ -103,8 +105,8 @@
 				hasCover={track.hasCover}
 				class="cover"
 				loading="eager"
-				width="280"
-				height="280"
+				width="420"
+				height="420"
 			/>
 
 			<button
@@ -143,10 +145,9 @@
 		</div>
 
 		<div class="card-footer">
+			<span class="card-artist">{artistLabel}</span>
 			<a class="card-note" href="/tracks/{track.id}">{track.title}</a>
 		</div>
-
-		<div class="stamp" aria-hidden="true">Independent<br />frequency</div>
 	</div>
 {:else}
 	<div class="sound-card" aria-label="Abstract audio waveform">
@@ -166,7 +167,6 @@
 			<span class="card-note">Play it forward</span>
 			<span>03:42</span>
 		</div>
-		<div class="stamp" aria-hidden="true">Independent<br />frequency</div>
 	</div>
 {/if}
 
@@ -206,21 +206,6 @@
 		pointer-events: none;
 	}
 
-	.sound-card::before,
-	.sound-card::after {
-		position: absolute;
-		inset: 15% auto 15% 50%;
-		border-left: 1px solid color-mix(in srgb, var(--on-inverse) 18%, transparent);
-		content: '';
-		pointer-events: none;
-	}
-
-	.sound-card::after {
-		inset: 50% 10% auto;
-		border-top: 1px solid color-mix(in srgb, var(--on-inverse) 18%, transparent);
-		border-left: 0;
-	}
-
 	.card-topline,
 	.card-footer {
 		position: relative;
@@ -234,10 +219,15 @@
 		text-transform: uppercase;
 	}
 
-	.card-topline span {
+	.card-topline > * {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.card-topline a {
+		color: inherit;
+		text-decoration: none;
 	}
 
 	.sound-card:not(.live) svg {
@@ -263,6 +253,8 @@
 		right: clamp(1.25rem, 3vw, 2.5rem);
 		bottom: clamp(1.25rem, 3vw, 2.5rem);
 		left: clamp(1.25rem, 3vw, 2.5rem);
+		align-items: center;
+		justify-content: space-between;
 	}
 
 	.stage {
@@ -277,10 +269,9 @@
 	.stage :global(img.cover),
 	.stage :global(span.cover.placeholder) {
 		display: block;
-		width: min(100%, 16rem);
+		width: min(100%, 24rem);
 		aspect-ratio: 1;
-		border: 1px solid color-mix(in srgb, var(--on-inverse) 22%, transparent);
-		box-shadow: 6px 6px 0 var(--cover-shadow);
+		border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
 		object-fit: cover;
 	}
 
@@ -353,9 +344,24 @@
 		color: var(--on-accent);
 	}
 
-	.card-footer {
+	.sound-card.live .card-footer {
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
+		gap: 0.35rem;
+	}
+
+	.card-artist {
+		max-width: 100%;
+		overflow: hidden;
+		font-size: 0.625rem;
+		font-weight: 800;
+		letter-spacing: 0.12em;
+		line-height: 1.2;
+		text-align: center;
+		text-overflow: ellipsis;
+		text-transform: uppercase;
+		white-space: nowrap;
 	}
 
 	.card-note {
@@ -381,28 +387,6 @@
 		text-underline-offset: 0.2rem;
 	}
 
-	.stamp {
-		position: absolute;
-		z-index: 2;
-		top: 17%;
-		right: 9%;
-		display: grid;
-		width: 6.5rem;
-		aspect-ratio: 1;
-		place-items: center;
-		border: 1px solid var(--accent);
-		border-radius: 50%;
-		color: var(--accent);
-		font-size: 0.55rem;
-		font-weight: 800;
-		letter-spacing: 0.1em;
-		line-height: 1.5;
-		text-align: center;
-		text-transform: uppercase;
-		transform: rotate(8deg);
-		pointer-events: none;
-	}
-
 	@media (max-width: 960px) {
 		.sound-card {
 			min-height: clamp(16rem, 115vw, 42rem);
@@ -417,17 +401,12 @@
 
 		.stage :global(img.cover),
 		.stage :global(span.cover.placeholder) {
-			width: min(100%, 12rem);
+			width: min(100%, 18rem);
 		}
 
 		.play-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
-		}
-
-		.stamp {
-			top: 14%;
-			width: 5.5rem;
 		}
 	}
 </style>

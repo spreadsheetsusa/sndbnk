@@ -191,6 +191,39 @@ If you did not request this, you can ignore this message — your sign-in email 
 }
 
 /**
+ * @param {{ name: string, fromName: string, fromUsername: string, url: string }} input
+ * @returns {MailContent}
+ */
+export function buildAccountLinkRequestMail({ name, fromName, fromUsername, url }) {
+	const who = fromUsername ? `@${fromUsername}` : fromName;
+
+	return {
+		subject: `${who} wants to link accounts on SNDBNK`,
+		preheader: 'Approve the link to switch between moniker accounts.',
+		bodyHtml: [
+			mailGreeting(name),
+			mailP(
+				`${fromName} (${who}) asked to link accounts so you can switch between them without signing out.`
+			),
+			mailCta(url, 'Review link request'),
+			mailP(
+				'If you do not recognize this request, decline it in Settings — nothing is linked until you approve.'
+			),
+			mailSignoff()
+		].join(''),
+		text: `${name},
+
+${fromName} (${who}) asked to link accounts so you can switch between them without signing out.
+
+Review the request: ${url}
+
+If you do not recognize this request, decline it in Settings — nothing is linked until you approve.
+
+— SNDBNK`
+	};
+}
+
+/**
  * @param {{ name: string, url: string }} input
  * @returns {MailContent}
  */

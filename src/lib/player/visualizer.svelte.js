@@ -54,7 +54,8 @@ function detectSupport() {
 	if (!browser) return false;
 	try {
 		const canvas = document.createElement('canvas');
-		const gl = canvas.getContext('webgl2');
+		// Butterchurn uses WebGL1; accept either context.
+		const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
 		const hasAudio = Boolean(window.AudioContext || window.webkitAudioContext);
 		return Boolean(gl) && hasAudio;
 	} catch {
@@ -102,6 +103,8 @@ class Visualizer {
 	supported = $state(false);
 	ready = $state(false);
 	backdropReady = $state(false);
+	/** Last primary-surface attach failure (shown in the panel; does not auto-close). */
+	error = $state(/** @type {string | null} */ (null));
 	/** @type {VizMode} */
 	mode = $state('inline');
 	x = $state(40);
@@ -183,10 +186,12 @@ class Visualizer {
 		if (on) {
 			// Resume only — never rewire the speaker path on toggle.
 			this.#primeAudio();
+			this.error = null;
 			this.enabled = true;
 			return;
 		}
 		this.enabled = false;
+		this.error = null;
 		this.#teardownWindowButter();
 		this.ready = false;
 	}
@@ -261,9 +266,12 @@ class Visualizer {
 		this.#teardownWindowButter();
 		this.#canvas = canvas;
 		this.ready = false;
+		this.error = null;
 
 		try {
 			await this.#ensureGraph();
+			if (gen !== this.#attachGen || !this.enabled || this.#canvas !== canvas) return;
+			await this.#waitForCanvasLayout(canvas, gen);
 			if (gen !== this.#attachGen || !this.enabled || this.#canvas !== canvas) return;
 			await this.#ensureWindowButter();
 			if (gen !== this.#attachGen || !this.enabled || this.#canvas !== canvas) return;
@@ -271,11 +279,13 @@ class Visualizer {
 			this.#resizeWindow();
 			this.#startLoop();
 			this.ready = true;
+			this.error = null;
 		} catch (err) {
 			console.error('Milkdrop visualizer failed to start', err);
-			this.enabled = false;
+			// Keep the panel open with an error — auto-disabling looked like a flicker.
 			this.#teardownWindowButter();
 			this.ready = false;
+			this.error = err instanceof Error ? err.message : 'Visualizer failed to start';
 		}
 	}
 
@@ -370,17 +380,16 @@ class Visualizer {
 			import('butterchurn-presets/lib/butterchurnPresetsMD1.min.js')
 		]);
 
-		const butterchurn = unwrapModule(butterMod);
-		if (!butterchurn?.createVisualizer) {
+		const butterchurn = unwrapButterchurn(butterMod);
+		if (typeof butterchurn?.createVisualizer !== 'function') {
 			throw new Error('butterchurn.createVisualizer missing');
 		}
 
 		/** @type {Record<string, unknown>} */
 		const presets = {};
 		for (const mod of presetMods) {
-			const pack = unwrapModule(mod);
-			const next = typeof pack?.getPresets === 'function' ? pack.getPresets() : pack;
-			if (next && typeof next === 'object') Object.assign(presets, next);
+			const next = unwrapPresets(mod);
+			if (next) Object.assign(presets, next);
 		}
 
 		this.#butterchurn = butterchurn;
@@ -390,6 +399,34 @@ class Visualizer {
 
 		const mellow = MELLOW_PRESET_KEYS.filter((key) => key in this.#presets);
 		this.#backdropPresetKeys = mellow.length > 0 ? mellow : this.#presetKeys;
+	}
+
+	/**
+	 * Panel intros animate height from 0 — wait until the canvas has a real layout
+	 * box so WebGL init isn't racing the enter transition.
+	 * @param {HTMLCanvasElement} canvas
+	 * @param {number} gen
+	 */
+	async #waitForCanvasLayout(canvas, gen) {
+		if (canvas.clientWidth > 0 && canvas.clientHeight > 0) return;
+
+		await new Promise((resolve) => {
+			const done = () => {
+				ro.disconnect();
+				resolve(undefined);
+			};
+			const ro = new ResizeObserver(() => {
+				if (canvas.clientWidth > 0 && canvas.clientHeight > 0) done();
+			});
+			ro.observe(canvas);
+			// Cap wait so a permanently-hidden host still fails clearly.
+			window.setTimeout(done, 800);
+		});
+
+		if (gen !== this.#attachGen || this.#canvas !== canvas) return;
+		if (canvas.clientWidth <= 0 || canvas.clientHeight <= 0) {
+			throw new Error('Visualizer canvas has no layout size');
+		}
 	}
 
 	async #ensureWindowButter() {
@@ -605,19 +642,58 @@ class Visualizer {
 }
 
 /**
- * UMD builds sometimes nest `.default`.
+ * Rolldown/Vite wrap butterchurn's UMD as nested `{ default: … }` (sometimes
+ * more than once) and occasionally as a constructor with static methods.
  * @param {any} mod
+ * @returns {any}
  */
-function unwrapModule(mod) {
-	let cur = mod?.default ?? mod;
-	if (
-		cur?.default &&
-		typeof cur.createVisualizer !== 'function' &&
-		typeof cur.getPresets !== 'function'
-	) {
-		cur = cur.default;
+function unwrapButterchurn(mod) {
+	let cur = mod;
+	for (let i = 0; i < 6 && cur; i++) {
+		if (typeof cur.createVisualizer === 'function') return cur;
+		if (cur.butterchurn && typeof cur.butterchurn.createVisualizer === 'function') {
+			return cur.butterchurn;
+		}
+		if (cur.default) {
+			cur = cur.default;
+			continue;
+		}
+		break;
 	}
 	return cur;
+}
+
+/**
+ * @param {any} mod
+ * @returns {Record<string, unknown> | null}
+ */
+function unwrapPresets(mod) {
+	let cur = mod;
+	for (let i = 0; i < 6 && cur; i++) {
+		if (typeof cur.getPresets === 'function') {
+			const next = cur.getPresets();
+			return next && typeof next === 'object'
+				? /** @type {Record<string, unknown>} */ (next)
+				: null;
+		}
+		if (cur && typeof cur === 'object' && !cur.default && !cur.butterchurnPresets) {
+			// Already a preset map (keys → preset objects).
+			const keys = Object.keys(cur);
+			if (keys.length > 0 && typeof cur[keys[0]] === 'object') {
+				return /** @type {Record<string, unknown>} */ (cur);
+			}
+		}
+		if (cur.butterchurnPresets) {
+			cur = cur.butterchurnPresets;
+			continue;
+		}
+		if (cur.default) {
+			cur = cur.default;
+			continue;
+		}
+		break;
+	}
+	return null;
 }
 
 export const visualizer = new Visualizer();

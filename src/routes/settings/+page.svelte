@@ -14,6 +14,7 @@
 
 	const tabs = [
 		{ id: 'profile', label: 'Profile' },
+		{ id: 'linked', label: 'Linked Accounts' },
 		{ id: 'billing', label: 'Billing' },
 		{ id: 'domain', label: 'Domain' },
 		{ id: 'site', label: 'Site' },
@@ -66,6 +67,7 @@
 
 	let profileBusy = $state(false);
 	let emailBusy = $state(false);
+	let linkedBusy = $state(false);
 	let billingBusy = $state(false);
 	let domainBusy = $state(false);
 	let siteBusy = $state(false);
@@ -73,6 +75,9 @@
 	let ogBusy = $state(false);
 	let storageBusy = $state(false);
 	let avatarBusy = $state(false);
+
+	const accountLinks = $derived(data.accountLinks ?? { inbound: [], outbound: [], accepted: [] });
+	const linkedUsernameValue = $derived(form?.linkedUsername ?? '');
 
 	/** @type {string | null} */
 	let userAdapter = $state(null);
@@ -194,12 +199,13 @@
 	);
 
 	/**
-	 * @param {'profile' | 'email' | 'billing' | 'domain' | 'site' | 'logo' | 'og' | 'storage' | 'avatar'} which
+	 * @param {'profile' | 'email' | 'linked' | 'billing' | 'domain' | 'site' | 'logo' | 'og' | 'storage' | 'avatar'} which
 	 */
 	function busyHandler(which) {
 		return () => {
 			if (which === 'profile') profileBusy = true;
 			if (which === 'email') emailBusy = true;
+			if (which === 'linked') linkedBusy = true;
 			if (which === 'billing') billingBusy = true;
 			if (which === 'domain') domainBusy = true;
 			if (which === 'site') siteBusy = true;
@@ -218,6 +224,7 @@
 						emailUserOpen = true;
 						emailUserClosed = false;
 					}
+					if (which === 'linked') linkedBusy = false;
 					if (which === 'billing') billingBusy = false;
 					if (which === 'domain') domainBusy = false;
 					if (which === 'site') siteBusy = false;
@@ -1168,6 +1175,147 @@
 						</button>
 					</form>
 				{/if}
+			</div>
+		{/if}
+
+		{#if activeTab === 'linked'}
+			<div class="block" role="tabpanel" id="panel-linked" aria-labelledby="tab-linked">
+				<div class="block-head">
+					<h2>Linked Accounts</h2>
+					<p>
+						Link your other moniker accounts so you can switch between them from the account menu
+						without signing out. Both sides must approve.
+					</p>
+				</div>
+
+				{#if form?.linkedMessage && !linkedBusy}
+					<div class="banner error" role="alert">{form.linkedMessage}</div>
+				{/if}
+				{#if form?.linkedSuccess && !linkedBusy}
+					<div class="banner ok" role="status">{form.linkedSuccess}</div>
+				{/if}
+
+				<form
+					class="linked-request"
+					method="POST"
+					action="?/requestLink&tab=linked"
+					use:enhance={busyHandler('linked')}
+					aria-busy={linkedBusy}
+				>
+					<label for="linkedUsername">Request link by username</label>
+					<div class="linked-request-row">
+						<input
+							id="linkedUsername"
+							class="field-md"
+							name="username"
+							type="text"
+							value={linkedUsernameValue}
+							placeholder="username"
+							autocapitalize="none"
+							spellcheck="false"
+							autocomplete="off"
+							required
+							disabled={linkedBusy}
+							aria-invalid={form?.linkedMessage ? 'true' : undefined}
+						/>
+						<button class="pressable" type="submit" disabled={linkedBusy}>
+							{linkedBusy ? 'Sending…' : 'Send request'}
+						</button>
+					</div>
+				</form>
+
+				{#if accountLinks.inbound.length > 0}
+					<section class="linked-section" aria-labelledby="linked-inbound-heading">
+						<h3 id="linked-inbound-heading">Incoming requests</h3>
+						<ul class="linked-list">
+							{#each accountLinks.inbound as peer (peer.linkId)}
+								<li class="linked-row">
+									<Avatar src={peer.image} name={peer.name} size="2.25rem" alt="" />
+									<div class="linked-meta">
+										<span class="linked-name">{peer.name}</span>
+										<span class="linked-user">@{peer.username}</span>
+									</div>
+									<div class="linked-actions">
+										<form
+											method="POST"
+											action="?/acceptLink&tab=linked"
+											use:enhance={busyHandler('linked')}
+										>
+											<input type="hidden" name="linkId" value={peer.linkId} />
+											<button class="pressable" type="submit" disabled={linkedBusy}>Approve</button>
+										</form>
+										<form
+											method="POST"
+											action="?/declineLink&tab=linked"
+											use:enhance={busyHandler('linked')}
+										>
+											<input type="hidden" name="linkId" value={peer.linkId} />
+											<button class="pressable ghost" type="submit" disabled={linkedBusy}>
+												Decline
+											</button>
+										</form>
+									</div>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+
+				{#if accountLinks.outbound.length > 0}
+					<section class="linked-section" aria-labelledby="linked-outbound-heading">
+						<h3 id="linked-outbound-heading">Pending requests</h3>
+						<ul class="linked-list">
+							{#each accountLinks.outbound as peer (peer.linkId)}
+								<li class="linked-row">
+									<Avatar src={peer.image} name={peer.name} size="2.25rem" alt="" />
+									<div class="linked-meta">
+										<span class="linked-name">{peer.name}</span>
+										<span class="linked-user">@{peer.username}</span>
+									</div>
+									<form
+										method="POST"
+										action="?/cancelLink&tab=linked"
+										use:enhance={busyHandler('linked')}
+									>
+										<input type="hidden" name="linkId" value={peer.linkId} />
+										<button class="pressable ghost" type="submit" disabled={linkedBusy}>
+											Cancel
+										</button>
+									</form>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+
+				<section class="linked-section" aria-labelledby="linked-accepted-heading">
+					<h3 id="linked-accepted-heading">Linked</h3>
+					{#if accountLinks.accepted.length === 0}
+						<p class="linked-empty">No linked accounts yet.</p>
+					{:else}
+						<ul class="linked-list">
+							{#each accountLinks.accepted as peer (peer.linkId)}
+								<li class="linked-row">
+									<Avatar src={peer.image} name={peer.name} size="2.25rem" alt="" />
+									<div class="linked-meta">
+										<span class="linked-name">{peer.name}</span>
+										<span class="linked-user">@{peer.username}</span>
+									</div>
+									<form
+										method="POST"
+										action="?/unlinkAccount&tab=linked"
+										use:enhance={busyHandler('linked')}
+									>
+										<input type="hidden" name="linkId" value={peer.linkId} />
+										<button class="pressable ghost" type="submit" disabled={linkedBusy}>
+											Unlink
+										</button>
+									</form>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</section>
 			</div>
 		{/if}
 
@@ -2357,6 +2505,79 @@
 			flex-direction: column;
 			align-items: flex-start;
 		}
+	}
+
+	.linked-request {
+		display: grid;
+		gap: 0.45rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.linked-request-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		align-items: center;
+	}
+
+	.linked-section {
+		margin: 0 0 1.35rem;
+	}
+
+	.linked-section h3 {
+		margin: 0 0 0.65rem;
+		font-size: 0.72rem;
+		font-weight: 900;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	.linked-list {
+		display: grid;
+		gap: 0.55rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.linked-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		align-items: center;
+		padding: 0.65rem 0.75rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+		background: color-mix(in srgb, var(--ink) 3%, transparent);
+	}
+
+	.linked-meta {
+		display: grid;
+		gap: 0.1rem;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.linked-name {
+		font-weight: 700;
+		line-height: 1.2;
+	}
+
+	.linked-user {
+		color: var(--muted);
+		font-size: 0.85rem;
+	}
+
+	.linked-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+	}
+
+	.linked-empty {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.92rem;
 	}
 
 	@media (pointer: coarse) {

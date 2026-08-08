@@ -1,11 +1,21 @@
 import { ORIGIN } from '$app/env/private';
 
+import { listAcceptedPeers } from '#lib/server/account-links';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { getPlatformSettings } from '#lib/server/platform-settings';
 import { getSitePublic } from '#lib/server/site';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
+
+const emptyNav = {
+	name: null,
+	username: null,
+	image: null,
+	isAdmin: false,
+	linkedAccounts:
+		/** @type {Array<{ userId: string, username: string, name: string, image: string | null }>} */ ([])
+};
 
 export const load = async ({ locals }) => {
 	const playThresholds = await getPlatformSettings();
@@ -15,7 +25,7 @@ export const load = async ({ locals }) => {
 		return {
 			siteOrigin,
 			playThresholds,
-			nav: { name: null, username: null, image: null, isAdmin: false },
+			nav: emptyNav,
 			tenantSite: site
 				? {
 						...site,
@@ -38,12 +48,15 @@ export const load = async ({ locals }) => {
 		return {
 			siteOrigin,
 			playThresholds,
-			nav: { name: null, username: null, image: null, isAdmin: false },
+			nav: emptyNav,
 			tenantSite: null
 		};
 	}
 
-	const profile = await getProfileByUserId(locals.user.id);
+	const [profile, linkedAccounts] = await Promise.all([
+		getProfileByUserId(locals.user.id),
+		listAcceptedPeers(locals.user.id)
+	]);
 
 	return {
 		siteOrigin,
@@ -52,7 +65,8 @@ export const load = async ({ locals }) => {
 			name: locals.user.name ?? locals.user.email,
 			username: profile?.username ?? null,
 			image: locals.user.image ?? null,
-			isAdmin: locals.user.role === 'admin'
+			isAdmin: locals.user.role === 'admin',
+			linkedAccounts
 		},
 		tenantSite: null
 	};
