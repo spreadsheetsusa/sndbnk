@@ -238,6 +238,10 @@ export const track = sqliteTable(
 		audioFilename: text('audio_filename').notNull(),
 		audioMime: text('audio_mime').notNull(),
 		audioBytes: integer('audio_bytes').notNull(),
+		/** Preserved source when playback is a derivative (e.g. WAV kept after MP3 encode). */
+		originalFilename: text('original_filename'),
+		originalMime: text('original_mime'),
+		originalBytes: integer('original_bytes'),
 		coverFilename: text('cover_filename'),
 		coverMime: text('cover_mime'),
 		coverBytes: integer('cover_bytes'),

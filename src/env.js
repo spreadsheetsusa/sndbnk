@@ -24,7 +24,7 @@ export const variables = defineEnvVars({
 	REDIS_URL: {
 		schema: (value) => value || undefined,
 		description:
-			'Redis connection URL for BullMQ waveform jobs (e.g. `redis://127.0.0.1:6379`). Leave empty to skip async peak generation.'
+			'Redis connection URL for BullMQ waveform and WAV→MP3 jobs (e.g. `redis://127.0.0.1:6379`). Leave empty to skip async media jobs.'
 	},
 	STORAGE_SECRET: {
 		description:

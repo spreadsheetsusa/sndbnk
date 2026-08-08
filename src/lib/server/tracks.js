@@ -13,8 +13,10 @@ import {
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, trackRepost, user } from '#lib/server/db/schema';
 import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
+import { isWavMime, trackNeedsPlaybackMp3 } from '#lib/server/media/transcode';
 import { parseWaveform } from '#lib/server/media/waveform';
 import { checkUploadAllowed } from '#lib/server/quota';
+import { enqueueTranscodeJob } from '#lib/server/queue/transcode';
 import { enqueueWaveformJob } from '#lib/server/queue/waveform';
 import {
 	getOrCreateStorageSetting,
@@ -421,10 +423,29 @@ export async function createTrackFromForm(userId, formData) {
 		};
 	}
 
-	// Peaks are generated asynchronously by the waveform worker (BullMQ).
+	// Peaks + WAV→MP3 playback copy are generated off-request (BullMQ).
 	await enqueueWaveformJob(id);
+	if (isWavMime(audioResult.mime)) {
+		await enqueueTranscodeJob(id);
+	}
 
 	return { ok: true, trackId: id };
+}
+
+/**
+ * Best-effort single-file delete (orphans from extension changes / dual-file replace).
+ *
+ * @param {import('./storage/types.js').StorageAdapter} storage
+ * @param {string} folderKey
+ * @param {string | null | undefined} filename
+ */
+async function deleteStoredObject(storage, folderKey, filename) {
+	if (!filename) return;
+	try {
+		await storage.deleteObject(folderKey, filename);
+	} catch {
+		// Missing file or transient storage blip — folder delete on track delete is the backstop.
+	}
 }
 
 /**
@@ -468,6 +489,10 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 		patch.audioFilename = validated.filename;
 		patch.audioMime = validated.mime;
 		patch.audioBytes = validated.bytes;
+		// New upload replaces any prior playback/original pair.
+		patch.originalFilename = null;
+		patch.originalMime = null;
+		patch.originalBytes = null;
 	}
 
 	if (replaceCover) {
@@ -485,7 +510,8 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			addedBytes: (audioResult?.bytes ?? 0) + (coverResult?.bytes ?? 0),
 			adapter: existing.storageAdapter,
 			replacesBytes:
-				(audioResult ? existing.audioBytes : 0) + (coverResult ? (existing.coverBytes ?? 0) : 0)
+				(audioResult ? existing.audioBytes + (existing.originalBytes ?? 0) : 0) +
+				(coverResult ? (existing.coverBytes ?? 0) : 0)
 		});
 		if (!quota.ok) return quota;
 	}
@@ -510,13 +536,21 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 				await storage.put(existing.folderKey, audioResult.filename, bytes, audioResult.mime);
 				// Clear peaks until the worker regenerates them for the new audio.
 				patch.waveform = null;
-				if (existing.audioFilename !== audioResult.filename) {
-					// Best-effort: leave old file; folder delete on track delete cleans up.
+
+				const keep = new Set([audioResult.filename]);
+				if (existing.audioFilename && !keep.has(existing.audioFilename)) {
+					await deleteStoredObject(storage, existing.folderKey, existing.audioFilename);
+				}
+				if (existing.originalFilename && !keep.has(existing.originalFilename)) {
+					await deleteStoredObject(storage, existing.folderKey, existing.originalFilename);
 				}
 			}
 			if (coverResult && isFile(coverEntry)) {
 				const bytes = new Uint8Array(await coverEntry.arrayBuffer());
 				await storage.put(existing.folderKey, coverResult.filename, bytes, coverResult.mime);
+				if (existing.coverFilename && existing.coverFilename !== coverResult.filename) {
+					await deleteStoredObject(storage, existing.folderKey, existing.coverFilename);
+				}
 			}
 		} catch (err) {
 			return {
@@ -533,6 +567,9 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 
 	if (replaceAudio) {
 		await enqueueWaveformJob(trackId);
+		if (audioResult && isWavMime(audioResult.mime)) {
+			await enqueueTranscodeJob(trackId);
+		}
 	}
 
 	const hasCover = Boolean(coverResult?.filename ?? existing.coverFilename);
@@ -614,6 +651,16 @@ export async function ensureTrackWaveform(row) {
 	if (existing) return existing;
 	await enqueueWaveformJob(row.id);
 	return null;
+}
+
+/**
+ * Fail-soft backfill: enqueue WAV→MP3 when a track is still serving the original WAV.
+ *
+ * @param {typeof track.$inferSelect} row
+ */
+export async function ensureTrackPlaybackMp3(row) {
+	if (!trackNeedsPlaybackMp3(row)) return;
+	await enqueueTranscodeJob(row.id);
 }
 
 /**
@@ -938,6 +985,7 @@ export async function serializeTrackForPlayer(
 	publicBaseUrl
 ) {
 	const waveform = await ensureTrackWaveform(row);
+	await ensureTrackPlaybackMp3(row);
 
 	let base = publicBaseUrl;
 	if (base === undefined && row.storageAdapter === 'ssh' && row.published) {

@@ -22,6 +22,7 @@
  * @property {(folderKey: string, filename: string, data: Uint8Array | Blob, contentType: string) => Promise<void>} put
  * @property {(folderKey: string, filename: string, range?: StorageByteRange) => Promise<StorageObject>} get
  * @property {(folderKey: string) => Promise<void>} delete
+ * @property {(folderKey: string, filename: string) => Promise<void>} deleteObject
  * @property {() => Promise<{ ok: true } | { ok: false, message: string }>} testConnection
  */
 

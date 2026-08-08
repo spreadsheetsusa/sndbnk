@@ -25,7 +25,8 @@ Not golf — the shortest form that is still obvious.
   `rows[0] ?? null`.
 - **Do not write a helper used once** unless it names something non-obvious.
 - **Do not add options, flags, or abstraction layers for hypothetical future needs.** The storage
-  adapter interface has exactly four methods because that is what is used.
+ adapter interface has exactly the methods that are used (`put` / `get` / `delete` / `deleteObject` /
+ `testConnection`).
 - **Delete instead of commenting out.**
 
 ## Result objects, not exceptions

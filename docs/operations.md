@@ -9,8 +9,9 @@ bun run db:migrate
 bun run dev             # http://localhost:5173
 ```
 
-Install `ffmpeg` too. Uploads shell out to it for waveform peaks; without it, tracks get
-placeholder bars. Production deploy installs and verifies ffmpeg before restarting the service.
+Install `ffmpeg` with `libmp3lame` too. Uploads shell out to it for waveform peaks and WAV→MP3
+playback copies; without it, tracks get placeholder bars and WAV uploads keep streaming as WAV.
+Production deploy installs and verifies ffmpeg before restarting the service.
 
 ### Testing tenant hosts locally
 
