@@ -16,6 +16,8 @@
 	 * @property {string | null} genre
 	 * @property {number | null} durationMs
 	 * @property {boolean} hasCover
+	 * @property {string | null} [coverUrl]
+	 * @property {string | null} [audioUrl]
 	 * @property {string | null} username
 	 * @property {string} uploaderName
 	 * @property {number[] | null} waveform
@@ -89,6 +91,7 @@
 		<CoverArt
 			trackId={track.id}
 			hasCover={track.hasCover}
+			coverUrl={track.coverUrl}
 			class="cover-bleed"
 			loading="eager"
 			placeholder={false}
@@ -103,6 +106,7 @@
 			<CoverArt
 				trackId={track.id}
 				hasCover={track.hasCover}
+				coverUrl={track.coverUrl}
 				class="cover"
 				loading="eager"
 				width="420"

@@ -1,12 +1,15 @@
 /**
- * Stable cover URL for a track. `attempt > 0` appends a cache-bust query so a
- * retry bypasses any sticky 404 from a prior transient miss.
+ * Cover URL for a track. Prefers a serialized absolute `coverUrl` (SSH public
+ * base); otherwise the app proxy. `attempt > 0` appends a cache-bust query.
  *
  * @param {string} trackId
  * @param {number} [attempt=0]
+ * @param {string | null} [absoluteUrl]
  * @returns {string}
  */
-export function mediaCoverUrl(trackId, attempt = 0) {
-	const base = `/api/media/${trackId}/cover`;
-	return attempt > 0 ? `${base}?r=${attempt}` : base;
+export function mediaCoverUrl(trackId, attempt = 0, absoluteUrl = null) {
+	const base = absoluteUrl?.trim() || `/api/media/${trackId}/cover`;
+	if (attempt <= 0) return base;
+	const sep = base.includes('?') ? '&' : '?';
+	return `${base}${sep}r=${attempt}`;
 }

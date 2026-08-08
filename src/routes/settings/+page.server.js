@@ -471,6 +471,7 @@ export const actions = {
 		const sshPort = formData.get('sshPort')?.toString() ?? '22';
 		const sshUsername = formData.get('sshUsername')?.toString() ?? '';
 		const sshRemotePath = formData.get('sshRemotePath')?.toString() ?? '';
+		const sshPublicBaseUrl = formData.get('sshPublicBaseUrl')?.toString() ?? '';
 		const sshPrivateKey = formData.get('sshPrivateKey')?.toString() ?? '';
 		const sshPassphrase = formData.get('sshPassphrase')?.toString() ?? '';
 		const clearPassphrase = formData.get('clearPassphrase')?.toString() === 'on';
@@ -481,6 +482,7 @@ export const actions = {
 			sshPort,
 			sshUsername,
 			sshRemotePath,
+			sshPublicBaseUrl,
 			sshPrivateKey,
 			sshPassphrase,
 			clearPassphrase
@@ -493,7 +495,8 @@ export const actions = {
 				sshHost,
 				sshPort,
 				sshUsername,
-				sshRemotePath
+				sshRemotePath,
+				sshPublicBaseUrl
 			});
 		}
 

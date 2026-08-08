@@ -27,6 +27,8 @@
 	 * @property {string | null} genre
 	 * @property {number | null} durationMs
 	 * @property {boolean} hasCover
+	 * @property {string | null} [coverUrl]
+	 * @property {string | null} [audioUrl]
 	 * @property {boolean} published
 	 * @property {number} createdAt
 	 * @property {string | null} username
@@ -176,7 +178,14 @@
 		{/if}
 	</button>
 
-	<CoverArt trackId={track.id} hasCover={track.hasCover} class="cover" width="28" height="28" />
+	<CoverArt
+		trackId={track.id}
+		hasCover={track.hasCover}
+		coverUrl={track.coverUrl}
+		class="cover"
+		width="28"
+		height="28"
+	/>
 
 	<button
 		type="button"
@@ -235,7 +244,7 @@
 				<IconDots size={15} stroke={1.75} />
 			</span>
 			<span class="more-cover" aria-hidden="true">
-				<CoverArt trackId={track.id} hasCover={track.hasCover} />
+				<CoverArt trackId={track.id} hasCover={track.hasCover} coverUrl={track.coverUrl} />
 			</span>
 		</button>
 

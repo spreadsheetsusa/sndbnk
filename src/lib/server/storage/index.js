@@ -1,12 +1,15 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { canUseStorageAdapters } from '#lib/server/billing/plans.js';
 import { db } from '#lib/server/db/index.js';
 import { profile, storageSetting } from '#lib/server/db/schema.js';
 import { decryptSecret, encryptSecret } from './crypto.js';
 import { createLocalAdapter } from './local.js';
+import { normalizePublicBaseUrl, publicMediaUrl } from './public-url.js';
 import { assertPublicSshHost } from './ssh-host.js';
 import { createSshAdapter } from './ssh.js';
+
+export { publicMediaUrl } from './public-url.js';
 
 /** @type {import('./types.js').StorageAdapterMeta[]} */
 export const STORAGE_ADAPTERS = [
@@ -85,9 +88,70 @@ export async function getStorageSettingPublic(userId) {
 		sshPort: row.sshPort ?? 22,
 		sshUsername: row.sshUsername ?? '',
 		sshRemotePath: row.sshRemotePath ?? '',
+		sshPublicBaseUrl: row.sshPublicBaseUrl ?? '',
 		hasPrivateKey: Boolean(row.sshPrivateKeyEnc),
 		hasPassphrase: Boolean(row.sshPassphraseEnc)
 	};
+}
+
+/**
+ * Batch-load optional public base URLs for SSH owners.
+ * @param {string[]} userIds
+ * @returns {Promise<Map<string, string>>}
+ */
+export async function getSshPublicBaseUrls(userIds) {
+	const unique = [...new Set(userIds.filter(Boolean))];
+	/** @type {Map<string, string>} */
+	const map = new Map();
+	if (unique.length === 0) return map;
+
+	const rows = await db
+		.select({
+			userId: storageSetting.userId,
+			sshPublicBaseUrl: storageSetting.sshPublicBaseUrl
+		})
+		.from(storageSetting)
+		.where(inArray(storageSetting.userId, unique));
+
+	for (const row of rows) {
+		const normalized = normalizePublicBaseUrl(row.sshPublicBaseUrl);
+		if (normalized.ok && normalized.url) map.set(row.userId, normalized.url);
+	}
+	return map;
+}
+
+/**
+ * Direct public audio/cover URLs when SSH + public base + published; else nulls.
+ *
+ * @param {{
+ *   storageAdapter?: string | null,
+ *   published?: boolean | null,
+ *   userId?: string | null,
+ *   folderKey?: string | null,
+ *   audioFilename?: string | null,
+ *   coverFilename?: string | null
+ * }} row
+ * @param {string | null | undefined} publicBaseUrl
+ * @returns {{ audioUrl: string | null, coverUrl: string | null }}
+ */
+export function resolvePublicTrackMediaUrls(row, publicBaseUrl) {
+	if (
+		row.storageAdapter !== 'ssh' ||
+		!row.published ||
+		!publicBaseUrl ||
+		!row.userId ||
+		!row.folderKey
+	) {
+		return { audioUrl: null, coverUrl: null };
+	}
+
+	const audioUrl = row.audioFilename
+		? publicMediaUrl(publicBaseUrl, row.userId, row.folderKey, row.audioFilename)
+		: null;
+	const coverUrl = row.coverFilename
+		? publicMediaUrl(publicBaseUrl, row.userId, row.folderKey, row.coverFilename)
+		: null;
+	return { audioUrl, coverUrl };
 }
 
 /**
@@ -98,6 +162,7 @@ export async function getStorageSettingPublic(userId) {
  *   sshPort?: string | number,
  *   sshUsername?: string,
  *   sshRemotePath?: string,
+ *   sshPublicBaseUrl?: string,
  *   sshPrivateKey?: string,
  *   sshPassphrase?: string,
  *   clearPassphrase?: boolean
@@ -140,6 +205,7 @@ export async function saveStorageSetting(userId, input) {
 		const port = Number.parseInt(portRaw, 10);
 		const privateKey = input.sshPrivateKey?.toString() ?? '';
 		const passphrase = input.sshPassphrase?.toString() ?? '';
+		const publicBase = normalizePublicBaseUrl(input.sshPublicBaseUrl);
 
 		if (!host) return { ok: false, message: 'SSH host is required.' };
 		if (!username) return { ok: false, message: 'SSH username is required.' };
@@ -150,6 +216,7 @@ export async function saveStorageSetting(userId, input) {
 		if (!privateKey.trim() && !existing.sshPrivateKeyEnc) {
 			return { ok: false, message: 'Paste an SSH private key.' };
 		}
+		if (!publicBase.ok) return publicBase;
 
 		const hostCheck = await assertPublicSshHost(host);
 		if (!hostCheck.ok) return hostCheck;
@@ -158,6 +225,7 @@ export async function saveStorageSetting(userId, input) {
 		patch.sshPort = port;
 		patch.sshUsername = username;
 		patch.sshRemotePath = remotePath;
+		patch.sshPublicBaseUrl = publicBase.url;
 
 		if (privateKey.trim()) {
 			patch.sshPrivateKeyEnc = encryptSecret(privateKey.trim());

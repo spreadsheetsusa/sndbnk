@@ -13,6 +13,7 @@
 	 * @type {{
 	 *   trackId: string,
 	 *   hasCover?: boolean,
+	 *   coverUrl?: string | null,
 	 *   loading?: 'lazy' | 'eager',
 	 *   fetchpriority?: 'high' | 'low' | 'auto',
 	 *   width?: number | string,
@@ -27,6 +28,7 @@
 	let {
 		trackId,
 		hasCover = false,
+		coverUrl = null,
 		loading = 'lazy',
 		fetchpriority = undefined,
 		width = undefined,
@@ -43,10 +45,12 @@
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	let retryTimer = null;
 
-	const loadKey = $derived(`${trackId}\0${hasCover}`);
+	const loadKey = $derived(`${trackId}\0${hasCover}\0${coverUrl ?? ''}`);
 	const attempt = $derived(retry.key === loadKey ? retry.attempt : 0);
 	const failed = $derived(retry.key === loadKey ? retry.failed : false);
-	const src = $derived(hasCover && !failed && trackId ? mediaCoverUrl(trackId, attempt) : null);
+	const src = $derived(
+		hasCover && !failed && trackId ? mediaCoverUrl(trackId, attempt, coverUrl) : null
+	);
 	const showPlaceholder = $derived(!src && placeholder !== false);
 	const placeholderClass = $derived(className ? `${className} placeholder` : 'cover-placeholder');
 

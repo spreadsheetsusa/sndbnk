@@ -38,11 +38,29 @@ route.
 Layout is identical across adapters, which is what makes them interchangeable:
 
 ```
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/{filename}
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/audio.{ext}
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/cover.{ext}   # optional
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/waveform.json # peaks dual-write
 ```
 
 `folderKey` is the track id, so a track's files are one directory and `delete(folderKey)` is a
-complete cleanup.
+complete cleanup (audio, cover, and `waveform.json` together).
+
+### SSH scenarios
+
+SSH always writes and manages files over SFTP. Browser reads have two modes, controlled by optional
+`storage_setting.sshPublicBaseUrl` (Settings → Storage → Public base URL):
+
+1. **SSH only (blank public base).** The browser always hits `/api/media/...`; the app pulls bytes
+   with `adapter.get` over SFTP. Use this when the remote host has no public web root.
+2. **SSH write + public HTTP read.** Set an absolute `http(s)` base that mirrors the same tree the
+   web server exposes under `sshRemotePath`. Serialized published tracks then get `audioUrl` /
+   `coverUrl` as `{base}/{userId}/{folderKey}/{filename}` (see
+   [`public-url.js`](../src/lib/server/storage/public-url.js)). Uploads, deletes, waveform jobs, tag
+   embed, unpublished previews, and fallback still use SFTP / `/api/media`.
+
+The public base is not a secret. Trim trailing slashes on save. For Milkdrop, the public host should
+send `Access-Control-Allow-Origin` because the player sets `crossOrigin = 'anonymous'`.
 
 ### Resolving an adapter
 
@@ -131,8 +149,13 @@ request. That keeps long DJ mixes from blocking the single HTTP process.
 PCM into a coarse ~1 peak/sec envelope, then downsampling to `WAVEFORM_BUCKETS` (1000)
 max-amplitude buckets (or fewer for very short files), normalizing against the loudest bucket, and
 quantizing to integers 0–100. The result is stored as a JSON string on `track.waveform` (~2–3 KB),
-so a profile page ships peaks inline with no extra request. Local-adapter jobs point ffmpeg at the
-file under `MEDIA_ROOT`; SSH tracks are staged to a temp file first.
+so a profile page ships peaks inline with no extra request. The worker also dual-writes the same
+array to `waveform.json` in the track folder via the storage adapter (local and SSH), so BYO media
+stays co-located with audio/cover. The DB column remains the serve path; `/api/media` does not
+expose the peaks file. A storage put failure is logged and never fails the job after DB peaks are
+saved. Re-running a job for a track that already has DB peaks skips ffmpeg and only refreshes the
+side file. Local-adapter jobs point ffmpeg at the file under `MEDIA_ROOT`; SSH tracks are staged to
+a temp file first.
 
 Redis + worker pieces:
 
@@ -180,7 +203,7 @@ itself with `taglib-wasm`, so a downloaded file carries its tags.
 
 ## Serving media
 
-`/api/media/[id]/[file]` where `file` is `audio` or `cover`:
+Default path: `/api/media/[id]/[file]` where `file` is `audio` or `cover`:
 
 - **Public, no session check.** Tracks must play from public profiles, and that is documented inline
   at the check site.
@@ -195,11 +218,15 @@ itself with `taglib-wasm`, so a downloaded file carries its tags.
   `cache-control: private, no-store` so intermediaries do not sticky-cache a transient miss. It
   deliberately does not distinguish "no such track" from "storage down" to the client.
 
+When a published SSH track has a configured `sshPublicBaseUrl`, `serializeTrackForPlayer` also emits
+absolute `audioUrl` / `coverUrl`. The player and `mediaCoverUrl()` prefer those; otherwise they keep
+using `/api/media/...`. Unpublished tracks never get public URLs so drafts stay on the proxy.
+
 Cover `<img>` tags go through `#lib/components/CoverArt.svelte`, which uses native `loading` /
 `decoding="async"`, retries failed loads with a `?r=` cache-bust (up to three attempts), then falls
 back to a placeholder. Upload inserts the track row before `storage.put` (folderKey = id) but leaves
 `coverFilename` null until the cover bytes are stored, so listings do not advertise `hasCover`
 during the put window.
 
-The player points an `HTMLAudioElement` at this URL and lets the browser do the ranged fetching:
-`el.src = /api/media/${track.id}/audio`.
+The player points an `HTMLAudioElement` at `track.audioUrl` when present, else
+`/api/media/${track.id}/audio`, and lets the browser do the ranged fetching.

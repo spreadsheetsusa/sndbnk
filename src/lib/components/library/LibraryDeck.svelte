@@ -534,6 +534,7 @@
 						<CoverArt
 							trackId={track.id}
 							hasCover={track.hasCover}
+							coverUrl={track.coverUrl}
 							class="cover"
 							loading="eager"
 							width="222"

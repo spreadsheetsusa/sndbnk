@@ -10,6 +10,7 @@ import {
 import { db } from '#lib/server/db';
 import { playlist, playlistLike, playlistTrack, profile, track, user } from '#lib/server/db/schema';
 import { likePattern, normalizeSearchQuery } from '#lib/server/search-query';
+import { getSshPublicBaseUrls } from '#lib/server/storage';
 import {
 	getSocialForTracks,
 	listTimedCommentsForTracks,
@@ -517,9 +518,13 @@ export async function listPlaylistRows({
 export async function serializePlaylistForCard(row, owner, social, viewer, createdAtOverride) {
 	const memberRows = await listPlaylistTrackRows(row.id);
 	const trackIds = memberRows.map((m) => m.track.id);
-	const [trackSocial, timedComments] = await Promise.all([
+	const sshOwnerIds = memberRows
+		.filter((m) => m.track.storageAdapter === 'ssh' && m.track.published)
+		.map((m) => m.track.userId);
+	const [trackSocial, timedComments, publicBases] = await Promise.all([
 		getSocialForTracks(trackIds, viewer?.id ?? null),
-		listTimedCommentsForTracks(trackIds)
+		listTimedCommentsForTracks(trackIds),
+		getSshPublicBaseUrls(sshOwnerIds)
 	]);
 
 	const tracks = await Promise.all(
@@ -529,7 +534,8 @@ export async function serializePlaylistForCard(row, owner, social, viewer, creat
 				m,
 				trackSocial.get(m.track.id),
 				viewer,
-				timedComments.get(m.track.id)
+				timedComments.get(m.track.id),
+				publicBases.get(m.track.userId) ?? null
 			)
 		)
 	);
@@ -547,6 +553,7 @@ export async function serializePlaylistForCard(row, owner, social, viewer, creat
 		hasCover: Boolean(row.coverFilename) || Boolean(firstCover),
 		/** Track id whose cover to show when the playlist has no own cover. */
 		coverTrackId: row.coverFilename ? null : (firstCover?.id ?? null),
+		coverUrl: firstCover?.coverUrl ?? null,
 		createdAt,
 		cursor: encodeCursor(createdAt, row.id),
 		username: owner.username,

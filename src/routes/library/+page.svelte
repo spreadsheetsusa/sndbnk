@@ -481,6 +481,7 @@
 							localBytes={data.usage.localBytes}
 							maxLocalBytes={data.usage.maxLocalBytes}
 							planLabel={data.usage.planLabel}
+							label={data.storageAdapter === 'ssh' && data.sshHost ? data.sshHost : 'Hosted'}
 						/>
 					</div>
 				{/if}

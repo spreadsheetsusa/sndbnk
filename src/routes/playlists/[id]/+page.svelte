@@ -13,8 +13,10 @@
 	);
 	const seoCanonical = $derived(`${data.siteOrigin}/playlists/${data.playlist.id}`);
 	const seoImage = $derived.by(() => {
-		if (data.playlist.coverTrackId) return `/api/media/${data.playlist.coverTrackId}/cover`;
+		if (data.playlist.coverUrl) return data.playlist.coverUrl;
 		const covered = data.playlist.tracks.find((t) => t.hasCover);
+		if (covered?.coverUrl) return covered.coverUrl;
+		if (data.playlist.coverTrackId) return `/api/media/${data.playlist.coverTrackId}/cover`;
 		return covered ? `/api/media/${covered.id}/cover` : null;
 	});
 	const seoJsonLd = $derived(

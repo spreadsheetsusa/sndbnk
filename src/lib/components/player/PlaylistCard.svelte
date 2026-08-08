@@ -34,6 +34,8 @@
 	 * @property {string} uploaderName
 	 * @property {number | null} durationMs
 	 * @property {boolean} hasCover
+	 * @property {string | null} [coverUrl]
+	 * @property {string | null} [audioUrl]
 	 * @property {number[] | null} waveform
 	 * @property {number} likeCount
 	 * @property {number} commentCount
@@ -50,6 +52,7 @@
 	 * @property {boolean} published
 	 * @property {boolean} hasCover
 	 * @property {string | null} coverTrackId
+	 * @property {string | null} [coverUrl]
 	 * @property {number} createdAt
 	 * @property {string} [cursor]
 	 * @property {string | null} username
@@ -104,6 +107,12 @@
 
 	const coverTrackId = $derived(
 		playlist.coverTrackId ?? playlist.tracks.find((t) => t.hasCover)?.id ?? null
+	);
+	const coverUrl = $derived(
+		playlist.coverUrl ??
+			playlist.tracks.find((t) => t.id === coverTrackId)?.coverUrl ??
+			playlist.tracks.find((t) => t.hasCover)?.coverUrl ??
+			null
 	);
 
 	let commentBody = $state('');
@@ -365,7 +374,13 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <article class="playlist-card" {@attach whileNearViewport((visible) => (nearViewport = visible))}>
-	<CoverArt trackId={coverTrackId ?? ''} hasCover={Boolean(coverTrackId)} wash wrapperClass="cover">
+	<CoverArt
+		trackId={coverTrackId ?? ''}
+		hasCover={Boolean(coverTrackId)}
+		{coverUrl}
+		wash
+		wrapperClass="cover"
+	>
 		{#snippet placeholder()}
 			<IconPlaylist size={36} stroke={1.5} />
 		{/snippet}
@@ -573,6 +588,7 @@
 								<CoverArt
 									trackId={track.id}
 									hasCover={track.hasCover}
+									coverUrl={track.coverUrl}
 									class="member-cover-art"
 									width="36"
 									height="36"

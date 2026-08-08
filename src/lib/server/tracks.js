@@ -16,7 +16,12 @@ import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
 import { parseWaveform } from '#lib/server/media/waveform';
 import { checkUploadAllowed } from '#lib/server/quota';
 import { enqueueWaveformJob } from '#lib/server/queue/waveform';
-import { getOrCreateStorageSetting, getStorageAdapter } from '#lib/server/storage';
+import {
+	getOrCreateStorageSetting,
+	getSshPublicBaseUrls,
+	getStorageAdapter,
+	resolvePublicTrackMediaUrls
+} from '#lib/server/storage';
 
 const AUDIO_MAX_BYTES = 500 * 1024 * 1024;
 const COVER_MAX_BYTES = 5 * 1024 * 1024;
@@ -842,9 +847,24 @@ export async function listTimedCommentsForTracks(trackIds) {
  * @param {TrackSocial | undefined} social
  * @param {{ id: string } | null | undefined} viewer
  * @param {TimedComment[] | undefined} [timedComments]
+ * @param {string | null} [publicBaseUrl] pass from a batch map; omit to look up for SSH rows
  */
-export async function serializeTrackForPlayer(row, uploader, social, viewer, timedComments) {
+export async function serializeTrackForPlayer(
+	row,
+	uploader,
+	social,
+	viewer,
+	timedComments,
+	publicBaseUrl
+) {
 	const waveform = await ensureTrackWaveform(row);
+
+	let base = publicBaseUrl;
+	if (base === undefined && row.storageAdapter === 'ssh' && row.published) {
+		const map = await getSshPublicBaseUrls([row.userId]);
+		base = map.get(row.userId) ?? null;
+	}
+	const { audioUrl, coverUrl } = resolvePublicTrackMediaUrls(row, base ?? null);
 
 	return {
 		kind: /** @type {const} */ ('track'),
@@ -859,6 +879,8 @@ export async function serializeTrackForPlayer(row, uploader, social, viewer, tim
 		channels: row.channels ?? null,
 		codec: row.codec ?? null,
 		hasCover: Boolean(row.coverFilename),
+		audioUrl,
+		coverUrl,
 		published: Boolean(row.published),
 		playCount: row.playCount ?? 0,
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
@@ -899,9 +921,13 @@ function uploaderName(uploader) {
  */
 export async function serializeTrackRows(rows, viewer) {
 	const trackIds = rows.map((row) => row.track.id);
-	const [social, timedComments] = await Promise.all([
+	const sshOwnerIds = rows
+		.filter((row) => row.track.storageAdapter === 'ssh' && row.track.published)
+		.map((row) => row.track.userId);
+	const [social, timedComments, publicBases] = await Promise.all([
 		getSocialForTracks(trackIds, viewer?.id ?? null),
-		listTimedCommentsForTracks(trackIds)
+		listTimedCommentsForTracks(trackIds),
+		getSshPublicBaseUrls(sshOwnerIds)
 	]);
 
 	return Promise.all(
@@ -911,7 +937,8 @@ export async function serializeTrackRows(rows, viewer) {
 				row,
 				social.get(row.track.id),
 				viewer,
-				timedComments.get(row.track.id)
+				timedComments.get(row.track.id),
+				publicBases.get(row.track.userId) ?? null
 			)
 		)
 	);

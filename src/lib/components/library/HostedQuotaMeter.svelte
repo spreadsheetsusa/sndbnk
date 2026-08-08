@@ -3,11 +3,13 @@
 	 * @type {{
 	 *   localBytes: number,
 	 *   maxLocalBytes: number | null,
-	 *   planLabel: string
+	 *   planLabel: string,
+	 *   label?: string
 	 * }}
 	 */
-	let { localBytes, maxLocalBytes, planLabel } = $props();
+	let { localBytes, maxLocalBytes, planLabel, label = 'Hosted' } = $props();
 
+	const meterLabel = $derived(label.trim() || 'Hosted');
 	const atStorageCap = $derived(maxLocalBytes !== null && localBytes >= maxLocalBytes);
 	const storageFill = $derived(
 		maxLocalBytes ? Math.min(100, Math.round((localBytes / maxLocalBytes) * 100)) : 0
@@ -36,9 +38,9 @@
 			<a href="/settings?tab=billing">Upgrade plan</a>
 		</p>
 	{:else}
-		<div class="quota-meter" aria-label="Hosted storage quota">
+		<div class="quota-meter" aria-label="{meterLabel} storage quota">
 			<div class="meter-head">
-				<span class="meter-label">Hosted</span>
+				<span class="meter-label" title={meterLabel}>{meterLabel}</span>
 				<span class="meter-value">{bytes(localBytes)} / {bytes(maxLocalBytes)}</span>
 			</div>
 			<div
@@ -47,7 +49,7 @@
 				aria-valuenow={localBytes}
 				aria-valuemin="0"
 				aria-valuemax={maxLocalBytes}
-				aria-label="Hosted storage used"
+				aria-label="{meterLabel} storage used"
 			>
 				<span class="meter-fill" style="width: {storageFill}%"></span>
 			</div>
@@ -68,17 +70,23 @@
 		gap: 1rem;
 		align-items: baseline;
 		justify-content: space-between;
+		min-width: 0;
 		margin-bottom: 0.35rem;
 	}
 
 	.meter-label {
+		min-width: 0;
+		overflow: hidden;
 		font-size: 0.68rem;
 		font-weight: 900;
 		letter-spacing: 0.1em;
+		text-overflow: ellipsis;
 		text-transform: uppercase;
+		white-space: nowrap;
 	}
 
 	.meter-value {
+		flex-shrink: 0;
 		color: var(--muted);
 		font-size: 0.78rem;
 	}

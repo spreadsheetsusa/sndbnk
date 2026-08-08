@@ -12,6 +12,7 @@
 	 * @type {{
 	 *   trackId: string,
 	 *   hasCover?: boolean,
+	 *   coverUrl?: string | null,
 	 *   mediaType?: string | null,
 	 *   genre?: string | null,
 	 *   album?: string | null,
@@ -33,6 +34,7 @@
 	let {
 		trackId,
 		hasCover = false,
+		coverUrl = null,
 		mediaType = null,
 		genre = null,
 		album = null,
@@ -138,7 +140,15 @@
 				{/if}
 			</div>
 			{#if hasCover}
-				<CoverArt {trackId} hasCover class="cover" width="56" height="56" placeholder={false} />
+				<CoverArt
+					{trackId}
+					hasCover
+					{coverUrl}
+					class="cover"
+					width="56"
+					height="56"
+					placeholder={false}
+				/>
 			{/if}
 		</div>
 

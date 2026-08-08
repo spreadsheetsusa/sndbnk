@@ -315,6 +315,7 @@
 						<CoverArt
 							trackId={track.id}
 							hasCover={track.hasCover}
+							coverUrl={track.coverUrl}
 							class="bar-cover"
 							loading="eager"
 							fetchpriority="high"

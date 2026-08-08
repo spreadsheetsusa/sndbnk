@@ -167,6 +167,9 @@
 	const sshPortValue = $derived(form?.sshPort ?? String(data.storage.sshPort ?? 22));
 	const sshUsernameValue = $derived(form?.sshUsername ?? data.storage.sshUsername);
 	const sshRemotePathValue = $derived(form?.sshRemotePath ?? data.storage.sshRemotePath);
+	const sshPublicBaseUrlValue = $derived(
+		form?.sshPublicBaseUrl ?? data.storage.sshPublicBaseUrl ?? ''
+	);
 	const isSshAdapter = $derived(selectedAdapter === 'ssh');
 
 	const siteNameValue = $derived(form?.siteName ?? data.site.name);
@@ -1431,6 +1434,28 @@
 							required
 						/>
 						<p class="hint">Absolute directory on the server where files are written.</p>
+
+						<label for="sshPublicBaseUrl">Public base URL</label>
+						<input
+							id="sshPublicBaseUrl"
+							class="field-full"
+							name="sshPublicBaseUrl"
+							type="url"
+							value={sshPublicBaseUrlValue}
+							placeholder="https://example.com/uploads"
+							autocapitalize="none"
+							spellcheck="false"
+						/>
+						<p class="hint">
+							Optional. When set, published tracks load audio/cover from this URL instead of through
+							SNDBNK. Path under the base must mirror
+							<code>{'{userId}/{trackId}/…'}</code>
+							(same tree as the remote path). Leave blank to always proxy via SSH. For Milkdrop, the host
+							should send
+							<code>Access-Control-Allow-Origin</code>
+							(the player uses
+							<code>crossOrigin=anonymous</code>).
+						</p>
 
 						<label for="sshPrivateKey">SSH private key</label>
 						<textarea

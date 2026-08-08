@@ -19,6 +19,8 @@ import { getPlayThresholds } from '#lib/player/play-thresholds.js';
  * @property {number | null} [channels]
  * @property {string | null} [codec]
  * @property {boolean} hasCover
+ * @property {string | null} [audioUrl]
+ * @property {string | null} [coverUrl]
  * @property {number[] | null} waveform
  * @property {boolean} likedByViewer
  * @property {number} [playCount]
@@ -139,7 +141,7 @@ class Player {
 		this.#playedMs = 0;
 		this.#lastTickWall = 0;
 
-		el.src = `/api/media/${track.id}/audio`;
+		el.src = track.audioUrl?.trim() || `/api/media/${track.id}/audio`;
 		if (atSeconds != null && atSeconds > 0) {
 			const seconds = atSeconds;
 			el.addEventListener(

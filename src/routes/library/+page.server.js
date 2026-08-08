@@ -70,7 +70,8 @@ export const load = async ({ locals, url }) => {
 		nextCursor,
 		playlists,
 		usage,
-		storageAdapter: storage.adapter === 'ssh' ? 'ssh' : 'local'
+		storageAdapter: storage.adapter === 'ssh' ? 'ssh' : 'local',
+		sshHost: storage.adapter === 'ssh' ? (storage.sshHost ?? '') : ''
 	};
 };
 

@@ -1,0 +1,1 @@
+ALTER TABLE `storage_setting` ADD `ssh_public_base_url` text;

@@ -9,6 +9,9 @@ import path from 'node:path';
  */
 export const WAVEFORM_BUCKETS = 1000;
 
+/** Co-located peaks file beside audio/cover in the track storage folder. */
+export const WAVEFORM_FILENAME = 'waveform.json';
+
 /**
  * Decode sample rate for peak extraction. Peaks only need envelope
  * accuracy, so a low mono rate keeps ffmpeg fast and memory small.

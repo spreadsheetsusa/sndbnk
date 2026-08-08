@@ -131,7 +131,8 @@ Helpers: `canUseSubdomain`, `canUseCustomDomain`, `canUseStorageAdapters`, `canR
 
 Also keyed on `userId`. `getOrCreateStorageSetting()` inserts a default `local` row on first read,
 so callers never handle a missing row. SSH credentials are stored in `sshPrivateKeyEnc` /
-`sshPassphraseEnc` as AES-256-GCM blobs — see [media-and-storage.md](media-and-storage.md).
+`sshPassphraseEnc` as AES-256-GCM blobs; optional `sshPublicBaseUrl` is plain text (HTTPS base that
+mirrors `sshRemotePath` for direct browser reads) — see [media-and-storage.md](media-and-storage.md).
 
 ### `track`
 

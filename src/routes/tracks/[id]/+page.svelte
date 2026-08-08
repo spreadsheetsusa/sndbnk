@@ -27,7 +27,9 @@
 		data.description?.trim() || `Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
 	);
 	const seoCanonical = $derived(`${data.siteOrigin}/tracks/${data.track.id}`);
-	const seoImage = $derived(data.track.hasCover ? `/api/media/${data.track.id}/cover` : null);
+	const seoImage = $derived(
+		data.track.hasCover ? data.track.coverUrl || `/api/media/${data.track.id}/cover` : null
+	);
 	const seoJsonLd = $derived(
 		musicRecordingJsonLd({
 			name: data.track.title,
@@ -195,6 +197,7 @@
 				<TrackInfoConsole
 					trackId={data.track.id}
 					hasCover={data.track.hasCover}
+					coverUrl={data.track.coverUrl}
 					mediaType={data.track.mediaType}
 					genre={data.track.genre}
 					album={data.meta.album}

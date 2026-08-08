@@ -43,6 +43,8 @@
 	 * @property {number | null} [channels]
 	 * @property {string | null} [codec]
 	 * @property {boolean} hasCover
+	 * @property {string | null} [coverUrl]
+	 * @property {string | null} [audioUrl]
 	 * @property {number} createdAt
 	 * @property {string | null} username
 	 * @property {string} uploaderName
@@ -378,7 +380,13 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <article class="track-card" {@attach whileNearViewport((visible) => (nearViewport = visible))}>
-	<CoverArt trackId={track.id} hasCover={track.hasCover} wash wrapperClass="cover" />
+	<CoverArt
+		trackId={track.id}
+		hasCover={track.hasCover}
+		coverUrl={track.coverUrl}
+		wash
+		wrapperClass="cover"
+	/>
 
 	<div class="body">
 		<div class="head">
@@ -465,7 +473,7 @@
 						<IconDots size={16} stroke={1.75} />
 					</span>
 					<span class="more-cover" aria-hidden="true">
-						<CoverArt trackId={track.id} hasCover={track.hasCover} />
+						<CoverArt trackId={track.id} hasCover={track.hasCover} coverUrl={track.coverUrl} />
 					</span>
 				</button>
 

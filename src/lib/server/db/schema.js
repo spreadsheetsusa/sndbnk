@@ -204,6 +204,8 @@ export const storageSetting = sqliteTable('storage_setting', {
 	sshPort: integer('ssh_port').notNull().default(22),
 	sshUsername: text('ssh_username'),
 	sshRemotePath: text('ssh_remote_path'),
+	/** Optional HTTPS base that mirrors sshRemotePath for direct browser reads. */
+	sshPublicBaseUrl: text('ssh_public_base_url'),
 	sshPrivateKeyEnc: text('ssh_private_key_enc'),
 	sshPassphraseEnc: text('ssh_passphrase_enc'),
 	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })

@@ -10,6 +10,7 @@ import { track } from '#lib/server/db/schema.js';
 import {
 	generateWaveformPeaksFromPath,
 	parseWaveform,
+	WAVEFORM_FILENAME,
 	WAVEFORM_WORKER_TIMEOUT_MS
 } from '#lib/server/media/waveform.js';
 import { createRedisConnection, getRedisUrl } from '#lib/server/queue/redis.js';
@@ -85,7 +86,31 @@ export async function enqueueWaveformJob(trackId) {
 }
 
 /**
- * Worker processor: load audio from storage, write peaks onto the track row.
+ * Write peaks beside audio/cover. Fail-soft so a storage blip never fails the job
+ * after DB peaks are already saved.
+ *
+ * @param {typeof track.$inferSelect} row
+ * @param {number[]} peaks
+ */
+async function putWaveformFile(row, peaks) {
+	try {
+		const storage = await getStorageAdapter(
+			row.userId,
+			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
+		);
+		const body = new TextEncoder().encode(JSON.stringify(peaks));
+		await storage.put(row.folderKey, WAVEFORM_FILENAME, body, 'application/json');
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(
+			`[waveform-queue] storage put failed for ${row.id} (${WAVEFORM_FILENAME}): ${message}`
+		);
+	}
+}
+
+/**
+ * Worker processor: load audio from storage, write peaks onto the track row,
+ * and dual-write waveform.json into the track folder.
  *
  * @param {string} trackId
  */
@@ -97,7 +122,12 @@ export async function processWaveformJob(trackId) {
 		return;
 	}
 
-	if (parseWaveform(row.waveform)) return;
+	const existing = parseWaveform(row.waveform);
+	if (existing) {
+		// Backfill co-located file for tracks that already have DB peaks.
+		await putWaveformFile(row, existing);
+		return;
+	}
 
 	/** @type {string | null} */
 	let tempDir = null;
@@ -138,6 +168,8 @@ export async function processWaveformJob(trackId) {
 			.update(track)
 			.set({ waveform: JSON.stringify(peaks), updatedAt: new Date() })
 			.where(eq(track.id, trackId));
+
+		await putWaveformFile(row, peaks);
 
 		console.log(`[waveform-queue] peaks ready for ${trackId} (${peaks.length} buckets)`);
 	} finally {
