@@ -16,11 +16,14 @@ with no runtime class or base implementation:
  * @property {(folderKey, filename, data, contentType) => Promise<void>} put
  * @property {(folderKey, filename, range?) => Promise<StorageObject>} get
  * @property {(folderKey) => Promise<void>} delete
+ * @property {(folderKey, filename) => Promise<void>} deleteObject
  * @property {() => Promise<{ ok: true } | { ok: false, message: string }>} testConnection
  */
 ```
 
-Four methods. No `list`, no `exists`, no `copy` — add one only when a feature actually needs it.
+Five methods. `delete` wipes the whole track folder; `deleteObject` removes one filename (used when
+replacing audio/cover or clearing a superseded playback/original pair). No `list`, no `exists`, no
+`copy` — add one only when a feature actually needs it.
 
 `get()` returns `{ body, contentType, size }` where `body` is `Uint8Array | ReadableStream | Blob`
 and **`size` is always the full object length**. An optional third argument
@@ -41,13 +44,14 @@ copy).
 Layout is identical across adapters, which is what makes them interchangeable:
 
 ```
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/audio.{ext}
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/cover.{ext}   # optional
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/waveform.json # peaks dual-write
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/audio.{ext}     # playback (mp3 after WAV convert)
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/audio.wav       # preserved when WAV was uploaded
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/cover.{ext}     # optional
+{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/waveform.json   # peaks dual-write
 ```
 
 `folderKey` is the track id, so a track's files are one directory and `delete(folderKey)` is a
-complete cleanup (audio, cover, and `waveform.json` together).
+complete cleanup (playback audio, preserved original, cover, and `waveform.json` together).
 
 ### SSH scenarios
 
@@ -111,9 +115,12 @@ flowchart TD
   insert --> put["storage.put audio + cover"]
   put -->|ok| coverCols["db.update cover columns"]
   coverCols --> enqueue["BullMQ enqueue waveform"]
+  coverCols --> xcode["if WAV: enqueue transcode"]
   enqueue --> done["return trackId + serialized item<br/>client opens /library?track=&edit=1"]
   put -->|throws| rollback["storage.delete + db.delete<br/>return ok:false"]
   enqueue --> worker["sndbnk-waveform-worker<br/>ffmpeg → track.waveform"]
+  xcode --> worker
+  worker --> mp3["WAV→MP3: audio.mp3 + original* columns"]
 ```
 
 Upload stays on `/library`: drop a file anywhere on the page (or use the Upload picker). The client
@@ -126,7 +133,8 @@ until after a successful cover put so feed/library do not request `/cover` while
 landing. Preserve that shape if you add another storage step — the rollback is the only thing
 standing between a failed upload and an orphaned row. Waveform jobs are enqueued **after** a
 successful put; enqueue failure is fail-soft (upload still succeeds, peaks stay placeholders until a
-later backfill).
+later backfill). WAV uploads also enqueue a playback transcode (same worker process, separate
+BullMQ queue); until that finishes the player streams the WAV, then switches to `audio.mp3`.
 
 Validation limits live at the top of [`tracks.js`](../src/lib/server/tracks.js):
 `AUDIO_MAX_BYTES` 500MB, `COVER_MAX_BYTES` 5MB, with a MIME-plus-extension allowlist rather than
@@ -182,6 +190,26 @@ Things to know:
 
 `Waveform.svelte` divides the stored 0–100 ints by 100 for wavesurfer, and falls back to a synthetic
 sine pattern when peaks are `null`.
+
+## WAV → MP3 playback copies
+
+WAV uploads are accepted and playable immediately. For streaming efficiency the media worker also
+encodes a 320 kbps MP3 (`libmp3lame`) and points the player at that copy while keeping the WAV:
+
+| Role                                          | Columns                                               | On-disk                   |
+| --------------------------------------------- | ----------------------------------------------------- | ------------------------- |
+| Playback (`/api/media/.../audio`, `audioUrl`) | `audioFilename` / `audioMime` / `audioBytes`          | `audio.mp3` after convert |
+| Preserved source                              | `originalFilename` / `originalMime` / `originalBytes` | `audio.wav`               |
+
+Before convert (and for non-WAV uploads) `original*` is null and `audio*` is the uploaded file.
+Needs-convert is inferred: WAV mime and `originalFilename` null. Encode runs in
+[`queue/transcode.js`](../src/lib/server/queue/transcode.js) on the same
+`bun run worker:waveform` / `sndbnk-waveform-worker` process (second BullMQ worker, concurrency 1).
+`ensureTrackPlaybackMp3(row)` enqueues backfill from serialize, fail-soft like waveforms — missing
+Redis/worker/ffmpeg/`libmp3lame` leaves playback on the WAV. Hosted-storage quota counts
+`audioBytes + originalBytes + coverBytes`. Tag write-back still targets `audioFilename` (the MP3
+once ready) and leaves the WAV untouched. Replacing audio clears prior `original*` and deletes
+superseded playback/original filenames via `deleteObject`.
 
 ## Tag embedding
 

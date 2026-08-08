@@ -69,6 +69,12 @@ export function createLocalAdapter(userId) {
 			await rm(dir, { recursive: true, force: true });
 		},
 
+		async deleteObject(folderKey, filename) {
+			assertSafeStorageSegment(filename, 'filename');
+			const filePath = path.join(folderPath(userId, folderKey), filename);
+			await rm(filePath, { force: true });
+		},
+
 		async testConnection() {
 			try {
 				await mkdir(MEDIA_ROOT, { recursive: true });

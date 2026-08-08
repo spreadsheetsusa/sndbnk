@@ -70,14 +70,15 @@ Keep using Bun’s native driver. During the `svelte-adapter-bun` Rolldown pass 
 followed by `✔ done`. That is expected: the adapter leaves `bun:*` for the Bun runtime. It is not
 a build failure and does not mean you should switch to `better-sqlite3`.
 
-### Waveforms are async and fail-soft
+### Waveforms and WAV→MP3 are async and fail-soft
 
 The request path only enqueues via
-[`enqueueWaveformJob`](../src/lib/server/queue/waveform.js) — it never shells out to ffmpeg.
-Real peaks need `REDIS_URL`, a running worker (`bun run worker:waveform` locally;
-`sndbnk-waveform-worker` in prod), and ffmpeg. Missing any of those leaves SoundCloud-style
-placeholder bars; the upload itself still succeeded. Details:
-[media-and-storage.md](media-and-storage.md).
+[`enqueueWaveformJob`](../src/lib/server/queue/waveform.js) /
+[`enqueueTranscodeJob`](../src/lib/server/queue/transcode.js) — it never shells out to ffmpeg.
+Real peaks and MP3 playback copies need `REDIS_URL`, a running worker (`bun run worker:waveform`
+locally; `sndbnk-waveform-worker` in prod), and ffmpeg with `libmp3lame`. Missing any of those
+leaves SoundCloud-style placeholder bars and/or WAV streaming as WAV; the upload itself still
+succeeded. Details: [media-and-storage.md](media-and-storage.md).
 
 The worker runs raw Bun (not Vite). Bun’s package `imports` map does not resolve
 extensionless `#lib/…` the way Vite does — imports in the worker dependency tree must use

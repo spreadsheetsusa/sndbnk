@@ -1,5 +1,6 @@
 /**
- * BullMQ worker: generate track.waveform peaks off the HTTP process.
+ * BullMQ worker: generate track.waveform peaks and WAV→MP3 playback copies
+ * off the HTTP process.
  *
  *   bun run worker:waveform
  *
@@ -10,9 +11,11 @@
  */
 import { Worker } from 'bullmq';
 
-import { processWaveformJob, WAVEFORM_QUEUE_NAME } from '../src/lib/server/queue/waveform.js';
-import { createRedisConnection, getRedisUrl } from '../src/lib/server/queue/redis.js';
+import { TRANSCODE_WORKER_TIMEOUT_MS } from '../src/lib/server/media/transcode.js';
 import { WAVEFORM_WORKER_TIMEOUT_MS } from '../src/lib/server/media/waveform.js';
+import { createRedisConnection, getRedisUrl } from '../src/lib/server/queue/redis.js';
+import { processTranscodeJob, TRANSCODE_QUEUE_NAME } from '../src/lib/server/queue/transcode.js';
+import { processWaveformJob, WAVEFORM_QUEUE_NAME } from '../src/lib/server/queue/waveform.js';
 
 const redisUrl = getRedisUrl();
 if (!redisUrl) {
@@ -20,14 +23,45 @@ if (!redisUrl) {
 	process.exit(1);
 }
 
-const connection = createRedisConnection();
-if (!connection) {
+// Each Worker needs its own Redis connection (blocking commands).
+const waveformConnection = createRedisConnection();
+const transcodeConnection = createRedisConnection();
+if (!waveformConnection || !transcodeConnection) {
 	console.error('[waveform-worker] could not connect to Redis; exiting.');
 	process.exit(1);
 }
 
-const worker = new Worker(
-	WAVEFORM_QUEUE_NAME,
+/**
+ * @param {string} label
+ * @param {import('bullmq').Processor} processor
+ * @param {string} queueName
+ * @param {import('ioredis').default} connection
+ * @param {number} lockExtraMs
+ */
+function startWorker(label, processor, queueName, connection, lockExtraMs) {
+	const worker = new Worker(queueName, processor, {
+		connection,
+		concurrency: 1,
+		lockDuration: lockExtraMs + 60_000
+	});
+
+	worker.on('completed', (job) => {
+		console.log(`[${label}] completed ${job.id}`);
+	});
+
+	worker.on('failed', (job, err) => {
+		console.error(`[${label}] failed ${job?.id ?? '?'}: ${err.message}`);
+	});
+
+	worker.on('error', (err) => {
+		console.error(`[${label}] error: ${err.message}`);
+	});
+
+	return worker;
+}
+
+const waveformWorker = startWorker(
+	'waveform-worker',
 	async (job) => {
 		const trackId = job.data?.trackId;
 		if (typeof trackId !== 'string' || !trackId) {
@@ -36,31 +70,35 @@ const worker = new Worker(
 		console.log(`[waveform-worker] start ${trackId} (attempt ${job.attemptsMade + 1})`);
 		await processWaveformJob(trackId);
 	},
-	{
-		connection,
-		concurrency: 1,
-		lockDuration: WAVEFORM_WORKER_TIMEOUT_MS + 60_000
-	}
+	WAVEFORM_QUEUE_NAME,
+	waveformConnection,
+	WAVEFORM_WORKER_TIMEOUT_MS
 );
 
-worker.on('completed', (job) => {
-	console.log(`[waveform-worker] completed ${job.id}`);
-});
+const transcodeWorker = startWorker(
+	'transcode-worker',
+	async (job) => {
+		const trackId = job.data?.trackId;
+		if (typeof trackId !== 'string' || !trackId) {
+			throw new Error('Job missing trackId');
+		}
+		console.log(`[transcode-worker] start ${trackId} (attempt ${job.attemptsMade + 1})`);
+		await processTranscodeJob(trackId);
+	},
+	TRANSCODE_QUEUE_NAME,
+	transcodeConnection,
+	TRANSCODE_WORKER_TIMEOUT_MS
+);
 
-worker.on('failed', (job, err) => {
-	console.error(`[waveform-worker] failed ${job?.id ?? '?'}: ${err.message}`);
-});
-
-worker.on('error', (err) => {
-	console.error(`[waveform-worker] error: ${err.message}`);
-});
-
-console.log(`[waveform-worker] listening on queue "${WAVEFORM_QUEUE_NAME}" (${redisUrl})`);
+console.log(
+	`[waveform-worker] listening on queues "${WAVEFORM_QUEUE_NAME}" + "${TRANSCODE_QUEUE_NAME}" (${redisUrl})`
+);
 
 async function shutdown(signal) {
 	console.log(`[waveform-worker] ${signal}; closing…`);
-	await worker.close();
-	connection.disconnect();
+	await Promise.all([waveformWorker.close(), transcodeWorker.close()]);
+	waveformConnection.disconnect();
+	transcodeConnection.disconnect();
 	process.exit(0);
 }
 

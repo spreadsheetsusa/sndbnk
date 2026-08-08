@@ -213,6 +213,22 @@ export function createSshAdapter(userId, config) {
 			}
 		},
 
+		async deleteObject(folderKey, filename) {
+			assertSafeStorageSegment(filename, 'filename');
+			const { client, sftp } = await connect(config);
+			try {
+				const remotePath = path.posix.join(remoteFolder(userId, config, folderKey), filename);
+				await new Promise((resolve, reject) => {
+					sftp.unlink(remotePath, (err) => {
+						if (!err || /** @type {{ code?: number }} */ (err).code === 2) resolve(undefined);
+						else reject(err);
+					});
+				});
+			} finally {
+				close(client);
+			}
+		},
+
 		async testConnection() {
 			try {
 				const { client, sftp } = await connect(config);

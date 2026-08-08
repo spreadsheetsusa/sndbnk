@@ -27,7 +27,7 @@ export async function getUsage(userId) {
 		db.select({ tracks: count() }).from(track).where(eq(track.userId, userId)),
 		db
 			.select({
-				bytes: sql`coalesce(sum(${track.audioBytes} + coalesce(${track.coverBytes}, 0)), 0)`
+				bytes: sql`coalesce(sum(${track.audioBytes} + coalesce(${track.originalBytes}, 0) + coalesce(${track.coverBytes}, 0)), 0)`
 			})
 			.from(track)
 			.where(and(eq(track.userId, userId), eq(track.storageAdapter, 'local')))

@@ -342,7 +342,7 @@ export async function searchUsers(query) {
 				Number
 			),
 			localBytes: sql`(
-				select coalesce(sum(${track.audioBytes} + coalesce(${track.coverBytes}, 0)), 0)
+				select coalesce(sum(${track.audioBytes} + coalesce(${track.originalBytes}, 0) + coalesce(${track.coverBytes}, 0)), 0)
 				from ${track}
 				where ${track.userId} = ${user.id} and ${track.storageAdapter} = 'local'
 			)`.mapWith(Number)
