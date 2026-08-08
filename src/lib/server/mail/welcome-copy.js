@@ -65,8 +65,10 @@ export function welcomePlanCopy({ planId = 'free', origin }) {
 			? current.features
 			: [
 					'Public profile',
-					`${formatHosted(current.maxLocalBytes)} hosted storage`,
-					'Unlimited tracks'
+					...(current.maxTracks != null ? [`${current.maxTracks} tracks`] : ['Unlimited tracks']),
+					...(current.maxLocalBytes != null
+						? [`${formatHosted(current.maxLocalBytes)} hosted storage`]
+						: [])
 				],
 		nextTiers,
 		plansUrl: `${origin.replace(/\/$/, '')}/plans`

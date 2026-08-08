@@ -48,9 +48,10 @@
 
 	const BILLING_HREF = '/settings?tab=billing';
 	const uploadBlockedByQuota = $derived(
-		data.storageAdapter === 'local' &&
-			data.usage.maxLocalBytes !== null &&
-			data.usage.localBytes >= data.usage.maxLocalBytes
+		(data.usage.maxTracks !== null && data.usage.trackCount >= data.usage.maxTracks) ||
+			(data.storageAdapter === 'local' &&
+				data.usage.maxLocalBytes !== null &&
+				data.usage.localBytes >= data.usage.maxLocalBytes)
 	);
 
 	/**
@@ -475,9 +476,11 @@
 				</h1>
 			</div>
 			<div class="page-head-actions">
-				{#if data.usage.maxLocalBytes !== null}
+				{#if data.usage.maxTracks !== null || data.usage.maxLocalBytes !== null}
 					<div class="page-head-quota">
 						<HostedQuotaMeter
+							trackCount={data.usage.trackCount}
+							maxTracks={data.usage.maxTracks}
 							localBytes={data.usage.localBytes}
 							maxLocalBytes={data.usage.maxLocalBytes}
 							planLabel={data.usage.planLabel}

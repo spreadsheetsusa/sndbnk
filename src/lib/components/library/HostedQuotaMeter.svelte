@@ -1,16 +1,32 @@
 <script>
 	/**
 	 * @type {{
-	 *   localBytes: number,
-	 *   maxLocalBytes: number | null,
+	 *   localBytes?: number,
+	 *   maxLocalBytes?: number | null,
+	 *   trackCount?: number,
+	 *   maxTracks?: number | null,
 	 *   planLabel: string,
 	 *   label?: string
 	 * }}
 	 */
-	let { localBytes, maxLocalBytes, planLabel, label = 'Hosted' } = $props();
+	let {
+		localBytes = 0,
+		maxLocalBytes = null,
+		trackCount = 0,
+		maxTracks = null,
+		planLabel,
+		label = 'Hosted'
+	} = $props();
 
 	const meterLabel = $derived(label.trim() || 'Hosted');
+	const showTracks = $derived(maxTracks !== null);
+	const showBytes = $derived(maxLocalBytes !== null);
+	const atTrackCap = $derived(maxTracks !== null && trackCount >= maxTracks);
 	const atStorageCap = $derived(maxLocalBytes !== null && localBytes >= maxLocalBytes);
+	const atCap = $derived(atTrackCap || atStorageCap);
+	const trackFill = $derived(
+		maxTracks ? Math.min(100, Math.round((trackCount / maxTracks) * 100)) : 0
+	);
 	const storageFill = $derived(
 		maxLocalBytes ? Math.min(100, Math.round((localBytes / maxLocalBytes) * 100)) : 0
 	);
@@ -31,12 +47,33 @@
 	}
 </script>
 
-{#if maxLocalBytes !== null}
-	{#if atStorageCap}
+{#if showTracks || showBytes}
+	{#if atCap}
 		<p class="quota-upsell">
-			You've used the {bytes(maxLocalBytes)} of hosted storage on {planLabel}.
+			{#if atTrackCap}
+				You've used all {maxTracks} tracks on {planLabel}.
+			{:else}
+				You've used the {bytes(maxLocalBytes)} of hosted storage on {planLabel}.
+			{/if}
 			<a href="/settings?tab=billing">Upgrade plan</a>
 		</p>
+	{:else if showTracks}
+		<div class="quota-meter" aria-label="Track quota">
+			<div class="meter-head">
+				<span class="meter-label">Tracks</span>
+				<span class="meter-value">{trackCount} / {maxTracks}</span>
+			</div>
+			<div
+				class="meter-track"
+				role="progressbar"
+				aria-valuenow={trackCount}
+				aria-valuemin="0"
+				aria-valuemax={maxTracks}
+				aria-label="Tracks used"
+			>
+				<span class="meter-fill" style="width: {trackFill}%"></span>
+			</div>
+		</div>
 	{:else}
 		<div class="quota-meter" aria-label="{meterLabel} storage quota">
 			<div class="meter-head">

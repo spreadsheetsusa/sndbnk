@@ -118,12 +118,11 @@ const seeds = [
 		'Fully usable forever — especially with your own storage.',
 		[
 			'Public profile at sndbnk.com/users/you',
-			'1 GB hosted storage',
-			'Bring your own storage (SSH now; S3 / R2 soon)',
-			'Unlimited tracks'
+			'15 tracks',
+			'Bring your own storage (SSH now; S3 / R2 soon)'
 		],
+		15,
 		null,
-		1 * GIB,
 		true,
 		false,
 		false,
@@ -139,6 +138,7 @@ const seeds = [
 		'Your own subdomain on sndbnk.com.',
 		[
 			'Everything in Free',
+			'Unlimited tracks',
 			'30 GB hosted storage',
 			'Subdomain at you.sndbnk.com',
 			'Bring your own storage'

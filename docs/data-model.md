@@ -114,14 +114,14 @@ Seeded by [`scripts/migrate-sqlite.js`](../scripts/migrate-sqlite.js) as Free / 
 Label. Admin edits copy, prices, and flags; Stripe price ids are filled by
 `bun run stripe:bootstrap`.
 
-| Column                                      | Purpose                                                        |
-| ------------------------------------------- | -------------------------------------------------------------- |
-| `maxTracks` / `maxLocalBytes`               | Caps (`null` = unlimited). Bytes meter **local** adapter only. |
-| `allowStorageAdapters`                      | BYO (SSH today; S3/R2 later) — true on every seeded tier       |
-| `allowSubdomain`                            | Vault+                                                         |
-| `allowCustomDomain` / `allowRemoveBranding` | Studio+                                                        |
-| `maxTeamSeats`                              | Label team seats (UI not built yet)                            |
-| `monthlyAmount` / `yearlyAmount`            | Display cents; Stripe remains charging authority               |
+| Column                                      | Purpose                                                                                                                                                                            |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxTracks` / `maxLocalBytes`               | Caps (`null` = unlimited). Free seeds **15 tracks** / no byte cap; paid tiers seed unlimited tracks + hosted GiB. Bytes meter **local** adapter only; track count is all adapters. |
+| `allowStorageAdapters`                      | BYO (SSH today; S3/R2 later) — true on every seeded tier                                                                                                                           |
+| `allowSubdomain`                            | Vault+                                                                                                                                                                             |
+| `allowCustomDomain` / `allowRemoveBranding` | Studio+                                                                                                                                                                            |
+| `maxTeamSeats`                              | Label team seats (UI not built yet)                                                                                                                                                |
+| `monthlyAmount` / `yearlyAmount`            | Display cents; Stripe remains charging authority                                                                                                                                   |
 
 Helpers: `canUseSubdomain`, `canUseCustomDomain`, `canUseStorageAdapters`, `canRemoveBranding`,
 `hasTeamSeats` in [`billing/plans.js`](../src/lib/server/billing/plans.js). Site edit gate lives in
