@@ -11,12 +11,11 @@
 	import { flip } from 'svelte/animate';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
-	import Avatar from '#lib/components/Avatar.svelte';
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
+	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
@@ -65,8 +64,6 @@
 
 	/** @type {TimedComment[]} */
 	let timedComments = $state([]);
-	/** @type {string | null} */
-	let hoveredMarkerId = $state(null);
 
 	/** @type {string | null} */
 	let draggingId = $state(null);
@@ -130,7 +127,7 @@
 			}));
 	});
 
-	const activeMarker = $derived(markers.find((marker) => marker.id === hoveredMarkerId) ?? null);
+	const viewerId = $derived(page.data.nav?.id ?? null);
 
 	// Network fetch for avatar markers — not derivable from local state.
 	$effect(() => {
@@ -434,32 +431,15 @@
 						{formatDuration(displayTime * 1000)}
 					</span>
 					<span class="time-chip total">{formatDuration(durationMs)}</span>
-					{#each markers as marker (marker.id)}
-						<button
-							type="button"
-							class="marker"
-							class:active={activeMarker?.id === marker.id}
-							style:left="{marker.leftPct}%"
-							aria-label="{marker.userName} commented at {formatDuration(
-								marker.atMs
-							)}: {marker.body}"
-							onmouseenter={() => (hoveredMarkerId = marker.id)}
-							onmouseleave={() => (hoveredMarkerId = null)}
-							onfocus={() => (hoveredMarkerId = marker.id)}
-							onblur={() => (hoveredMarkerId = null)}
-						>
-							<Avatar src={marker.userImage} name={marker.userName} size="1rem" />
-						</button>
-					{/each}
-					{#if activeMarker}
-						<div
-							class="marker-tip"
-							style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
-							transition:fade={{ duration: 120 }}
-						>
-							<span class="tip-name">{activeMarker.userName}</span>
-							<span class="tip-body">{activeMarker.body}</span>
-						</div>
+					{#if track}
+						<WaveformCommentMarkers
+							trackId={track.id}
+							{markers}
+							{viewerId}
+							{durationMs}
+							avatarSize="1rem"
+							draggable={false}
+						/>
 					{/if}
 				</div>
 			</div>
@@ -651,58 +631,6 @@
 		right: 0;
 		background: var(--accent);
 		color: var(--on-accent);
-	}
-
-	.marker {
-		position: absolute;
-		top: 50%;
-		z-index: 3;
-		display: inline-flex;
-		padding: 0;
-		border: 0;
-		background: transparent;
-		transform: translate(-50%, -50%);
-		cursor: default;
-		--avatar-border: 1px solid var(--paper);
-		--avatar-font-size: 0.5rem;
-	}
-
-	.marker:hover,
-	.marker.active {
-		transform: translate(-50%, -50%) scale(1.15);
-		--avatar-border: 1px solid var(--ink);
-	}
-
-	.marker-tip {
-		position: absolute;
-		top: calc(50% + 1rem);
-		z-index: 4;
-		display: flex;
-		max-width: min(14rem, 90%);
-		gap: 0.3rem;
-		align-items: baseline;
-		padding: 0.18rem 0.45rem;
-		border-radius: 999px;
-		background: var(--inverse);
-		color: var(--on-inverse);
-		font-size: 0.62rem;
-		line-height: 1.35;
-		transform: translateX(-50%);
-		pointer-events: none;
-	}
-
-	.tip-name {
-		font-weight: 900;
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.tip-body {
-		overflow: hidden;
-		color: color-mix(in srgb, var(--on-inverse) 80%, transparent);
-		white-space: nowrap;
-		text-overflow: ellipsis;
 	}
 
 	.now-playing {

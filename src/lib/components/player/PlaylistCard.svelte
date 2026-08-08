@@ -4,11 +4,11 @@
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
-	import { fade } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
+	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -69,6 +69,7 @@
 	 * @type {{
 	 *   playlist: CardPlaylist,
 	 *   signedIn?: boolean,
+	 *   viewerId?: string | null,
 	 *   viewerName?: string | null,
 	 *   viewerImage?: string | null,
 	 *   showCommentForm?: boolean,
@@ -80,6 +81,7 @@
 	let {
 		playlist,
 		signedIn = false,
+		viewerId = null,
 		viewerName = null,
 		viewerImage = null,
 		showCommentForm = true,
@@ -151,6 +153,9 @@
 	/** @type {TimedComment[]} */
 	let postedComments = $state([]);
 
+	/** @type {Record<string, number>} */
+	let atMsOverrides = $state({});
+
 	let menuOpen = $state(false);
 	/** @type {HTMLButtonElement | null} */
 	let moreBtn = $state(null);
@@ -182,6 +187,10 @@
 			...postedComments
 		];
 		return all
+			.map((comment) => {
+				const atMs = atMsOverrides[comment.id] ?? comment.atMs;
+				return { ...comment, atMs };
+			})
 			.slice()
 			.sort((a, b) => a.atMs - b.atMs)
 			.map((comment) => ({
@@ -192,26 +201,28 @@
 
 	const tooltipWindowMs = $derived(Math.min(Math.max(durationMs * 0.01, 1000), 4000));
 
-	const playheadMarker = $derived.by(() => {
+	const playheadMarkerId = $derived.by(() => {
 		if (markers.length === 0 || (!isActive && scrubSeconds == null)) return null;
 		const nowMs = displayTime * 1000;
-		let closest = null;
+		let closestId = null;
 		let closestDelta = Infinity;
 		for (const marker of markers) {
 			const delta = Math.abs(nowMs - marker.atMs);
 			if (delta <= tooltipWindowMs && delta < closestDelta) {
-				closest = marker;
+				closestId = marker.id;
 				closestDelta = delta;
 			}
 		}
-		return closest;
+		return closestId;
 	});
 
-	/** @type {string | null} */
-	let hoveredMarkerId = $state(null);
-	const activeMarker = $derived(
-		markers.find((marker) => marker.id === hoveredMarkerId) ?? playheadMarker
-	);
+	/** @param {TimedComment & { leftPct?: number }} comment */
+	function handleCommentRepositioned(comment) {
+		atMsOverrides = { ...atMsOverrides, [comment.id]: comment.atMs };
+		postedComments = postedComments.map((c) =>
+			c.id === comment.id ? { ...c, atMs: comment.atMs } : c
+		);
+	}
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack[]} */
 	function asPlayerTracks() {
@@ -508,32 +519,17 @@
 				{/if}
 				<span class="time-chip total">{formatDuration(activeTrack.durationMs)}</span>
 
-				{#each markers as marker (marker.id)}
-					<button
-						type="button"
-						class="marker"
-						class:active={activeMarker?.id === marker.id}
-						style:left="{marker.leftPct}%"
-						aria-label="{marker.userName} commented at {formatDuration(marker.atMs)}: {marker.body}"
-						onclick={() => handleSeek(marker.atMs / 1000)}
-						onmouseenter={() => (hoveredMarkerId = marker.id)}
-						onmouseleave={() => (hoveredMarkerId = null)}
-						onfocus={() => (hoveredMarkerId = marker.id)}
-						onblur={() => (hoveredMarkerId = null)}
-					>
-						<Avatar src={marker.userImage} name={marker.userName} size="1.15rem" />
-					</button>
-				{/each}
-
-				{#if activeMarker}
-					<div
-						class="marker-tip"
-						style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
-						transition:fade={{ duration: 120 }}
-					>
-						<span class="tip-name">{activeMarker.userName}</span>
-						<span class="tip-body">{activeMarker.body}</span>
-					</div>
+				{#if activeTrack}
+					<WaveformCommentMarkers
+						trackId={activeTrack.id}
+						{markers}
+						{viewerId}
+						{durationMs}
+						{playheadMarkerId}
+						onseek={handleSeek}
+						onscrub={(seconds) => (scrubSeconds = seconds)}
+						onrepositioned={handleCommentRepositioned}
+					/>
 				{/if}
 			</div>
 
@@ -863,50 +859,6 @@
 		background: var(--accent);
 		color: var(--on-accent);
 		transform: translateY(-50%);
-	}
-
-	.marker {
-		position: absolute;
-		top: 50%;
-		z-index: 3;
-		padding: 0;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		background: var(--paper);
-		transform: translate(-50%, -50%);
-		cursor: pointer;
-	}
-
-	.marker.active {
-		outline: 2px solid var(--accent);
-		outline-offset: 1px;
-	}
-
-	.marker-tip {
-		position: absolute;
-		bottom: calc(100% + 0.35rem);
-		z-index: 4;
-		display: flex;
-		max-width: 14rem;
-		flex-direction: column;
-		gap: 0.15rem;
-		padding: 0.4rem 0.55rem;
-		border: 1px solid var(--ink);
-		background: var(--paper);
-		box-shadow: 3px 3px 0 var(--hard-shadow);
-		transform: translateX(-50%);
-		pointer-events: none;
-	}
-
-	.tip-name {
-		font-size: 0.65rem;
-		font-weight: 800;
-	}
-
-	.tip-body {
-		color: var(--muted);
-		font-size: 0.72rem;
-		line-height: 1.3;
 	}
 
 	.comment-row {

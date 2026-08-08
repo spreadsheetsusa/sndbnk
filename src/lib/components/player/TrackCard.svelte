@@ -6,12 +6,12 @@
 	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
-	import { fade } from 'svelte/transition';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
+	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { parseGenres } from '#lib/genres.js';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
@@ -66,24 +66,28 @@
 	 * @type {{
 	 *   track: CardTrack,
 	 *   signedIn?: boolean,
+	 *   viewerId?: string | null,
 	 *   viewerName?: string | null,
 	 *   viewerImage?: string | null,
 	 *   showCommentForm?: boolean,
 	 *   linkBase?: string,
 	 *   titleAsHeading?: boolean,
 	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
+	 *   onrepositioned?: (comment: TimedComment) => void,
 	 *   ondeleted?: () => void
 	 * }}
 	 */
 	let {
 		track,
 		signedIn = false,
+		viewerId = null,
 		viewerName = null,
 		viewerImage = null,
 		showCommentForm = true,
 		linkBase = '',
 		titleAsHeading = false,
 		oncommented,
+		onrepositioned,
 		ondeleted
 	} = $props();
 
@@ -139,6 +143,10 @@
 	 */
 	let postedComments = $state([]);
 
+	/** Local atMs overrides after a drag-reposition, keyed by comment id. */
+	/** @type {Record<string, number>} */
+	let atMsOverrides = $state({});
+
 	let menuOpen = $state(false);
 	/** @type {HTMLButtonElement | null} */
 	let moreBtn = $state(null);
@@ -177,6 +185,10 @@
 		const seen = new Set(postedComments.map((c) => c.id));
 		const all = [...(track.timedComments ?? []).filter((c) => !seen.has(c.id)), ...postedComments];
 		return all
+			.map((comment) => {
+				const atMs = atMsOverrides[comment.id] ?? comment.atMs;
+				return { ...comment, atMs };
+			})
 			.slice()
 			.sort((a, b) => a.atMs - b.atMs)
 			.map((comment) => ({
@@ -193,28 +205,29 @@
 	const tooltipWindowMs = $derived(Math.min(Math.max(durationMs * 0.01, 1000), 4000));
 
 	/** The single marker the playhead is currently sitting on, if any. */
-	const playheadMarker = $derived.by(() => {
+	const playheadMarkerId = $derived.by(() => {
 		if (markers.length === 0 || (!isActive && scrubSeconds == null)) return null;
 		const nowMs = displayTime * 1000;
-		let closest = null;
+		let closestId = null;
 		let closestDelta = Infinity;
 		for (const marker of markers) {
 			const delta = Math.abs(nowMs - marker.atMs);
 			if (delta <= tooltipWindowMs && delta < closestDelta) {
-				closest = marker;
+				closestId = marker.id;
 				closestDelta = delta;
 			}
 		}
-		return closest;
+		return closestId;
 	});
 
-	/** @type {string | null} */
-	let hoveredMarkerId = $state(null);
-
-	// Hovering wins over the playhead so a comment can be read on demand.
-	const activeMarker = $derived(
-		markers.find((marker) => marker.id === hoveredMarkerId) ?? playheadMarker
-	);
+	/** @param {TimedComment & { leftPct?: number }} comment */
+	function handleCommentRepositioned(comment) {
+		atMsOverrides = { ...atMsOverrides, [comment.id]: comment.atMs };
+		postedComments = postedComments.map((c) =>
+			c.id === comment.id ? { ...c, atMs: comment.atMs } : c
+		);
+		onrepositioned?.(comment);
+	}
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
 	function asPlayerTrack() {
@@ -572,33 +585,16 @@
 			{/if}
 			<span class="time-chip total">{formatDuration(track.durationMs)}</span>
 
-			{#each markers as marker (marker.id)}
-				<button
-					type="button"
-					class="marker"
-					class:active={activeMarker?.id === marker.id}
-					style:left="{marker.leftPct}%"
-					aria-label="{marker.userName} commented at {formatDuration(marker.atMs)}: {marker.body}"
-					onclick={() => handleSeek(marker.atMs / 1000)}
-					onmouseenter={() => (hoveredMarkerId = marker.id)}
-					onmouseleave={() => (hoveredMarkerId = null)}
-					onfocus={() => (hoveredMarkerId = marker.id)}
-					onblur={() => (hoveredMarkerId = null)}
-				>
-					<Avatar src={marker.userImage} name={marker.userName} size="1.15rem" />
-				</button>
-			{/each}
-
-			{#if activeMarker}
-				<div
-					class="marker-tip"
-					style:left="min(max({activeMarker.leftPct}%, 4rem), calc(100% - 4rem))"
-					transition:fade={{ duration: 120 }}
-				>
-					<span class="tip-name">{activeMarker.userName}</span>
-					<span class="tip-body">{activeMarker.body}</span>
-				</div>
-			{/if}
+			<WaveformCommentMarkers
+				trackId={track.id}
+				{markers}
+				{viewerId}
+				{durationMs}
+				{playheadMarkerId}
+				onseek={handleSeek}
+				onscrub={(seconds) => (scrubSeconds = seconds)}
+				onrepositioned={handleCommentRepositioned}
+			/>
 		</div>
 
 		{#if signedIn && showCommentForm}
@@ -862,58 +858,6 @@
 		right: 0;
 		background: var(--accent);
 		color: var(--on-accent);
-	}
-
-	.marker {
-		position: absolute;
-		top: 50%;
-		z-index: 3;
-		display: inline-flex;
-		padding: 0;
-		border: 0;
-		background: transparent;
-		transform: translate(-50%, -50%);
-		cursor: pointer;
-		--avatar-border: 1px solid var(--paper);
-		--avatar-font-size: 0.55rem;
-	}
-
-	.marker:hover,
-	.marker.active {
-		transform: translate(-50%, -50%) scale(1.15);
-		--avatar-border: 1px solid var(--ink);
-	}
-
-	.marker-tip {
-		position: absolute;
-		top: calc(50% + 1.1rem);
-		z-index: 4;
-		display: flex;
-		max-width: min(18rem, 90%);
-		gap: 0.35rem;
-		align-items: baseline;
-		padding: 0.22rem 0.5rem;
-		border-radius: 999px;
-		background: var(--inverse);
-		color: var(--on-inverse);
-		font-size: 0.68rem;
-		line-height: 1.35;
-		transform: translateX(-50%);
-		pointer-events: none;
-	}
-
-	.tip-name {
-		font-weight: 900;
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.tip-body {
-		overflow: hidden;
-		color: color-mix(in srgb, var(--on-inverse) 80%, transparent);
-		white-space: nowrap;
-		text-overflow: ellipsis;
 	}
 
 	.comment-row {
@@ -1240,11 +1184,6 @@
 		.send-btn {
 			width: 1.45rem;
 			height: 1.45rem;
-		}
-
-		.marker :global(.avatar) {
-			width: 1.5rem;
-			height: 1.5rem;
 		}
 	}
 </style>

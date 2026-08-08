@@ -780,6 +780,86 @@ export async function deleteCommentForUser(userId, trackId, commentId) {
  */
 
 /**
+ * Reposition a timed comment owned by the viewer. Ownership is enforced in the
+ * query; only comments that already have `atMs` can be moved.
+ *
+ * @param {string} userId
+ * @param {string} trackId
+ * @param {string} commentId
+ * @param {number} atMs
+ * @param {number | null} [durationMs]
+ * @returns {Promise<
+ *   | { ok: true, comment: TimedComment }
+ *   | { ok: false, message: string }
+ * >}
+ */
+export async function updateCommentAtMsForUser(
+	userId,
+	trackId,
+	commentId,
+	atMs,
+	durationMs = null
+) {
+	if (typeof atMs !== 'number' || !Number.isFinite(atMs)) {
+		return { ok: false, message: 'Invalid timestamp.' };
+	}
+
+	const maxMs = durationMs ?? DAY_MS;
+	const nextAtMs = Math.max(0, Math.min(Math.round(atMs), maxMs));
+
+	const owned = await db
+		.select({
+			id: trackComment.id,
+			body: trackComment.body,
+			atMs: trackComment.atMs,
+			createdAt: trackComment.createdAt,
+			userId: trackComment.userId,
+			userName: user.name,
+			userImage: user.image
+		})
+		.from(trackComment)
+		.leftJoin(user, eq(user.id, trackComment.userId))
+		.where(
+			and(
+				eq(trackComment.id, commentId),
+				eq(trackComment.trackId, trackId),
+				eq(trackComment.userId, userId),
+				isNotNull(trackComment.atMs)
+			)
+		)
+		.limit(1);
+
+	const row = owned[0];
+	if (!row) {
+		return { ok: false, message: 'Comment not found.' };
+	}
+
+	await db
+		.update(trackComment)
+		.set({ atMs: nextAtMs })
+		.where(
+			and(
+				eq(trackComment.id, commentId),
+				eq(trackComment.trackId, trackId),
+				eq(trackComment.userId, userId)
+			)
+		);
+
+	return {
+		ok: true,
+		comment: {
+			id: row.id,
+			body: row.body,
+			atMs: nextAtMs,
+			createdAt: row.createdAt?.getTime() ?? Date.now(),
+			userId: row.userId,
+			userName: row.userName ?? 'Unknown',
+			userImage: row.userImage ?? null
+		}
+	};
+}
+
+/**
  * Timestamped comments (`atMs` set) for a set of tracks, oldest position first.
  * Powers the avatar markers drawn on track waveforms.
  *

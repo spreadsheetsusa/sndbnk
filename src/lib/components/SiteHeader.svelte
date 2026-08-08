@@ -25,6 +25,7 @@
 
 	const nav = $derived(
 		page.data.nav ?? {
+			id: null,
 			name: null,
 			username: null,
 			image: null,
