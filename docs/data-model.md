@@ -156,7 +156,9 @@ carries the toggle.
 ### `track_comment`
 
 `atMs` optionally pins a comment to a playback position, which is what makes timeline comments
-work. Indexed on `trackId`.
+work. Indexed on `trackId`. Authors can drag their own timed-comment pins on the waveform to update
+`atMs` (`PATCH /api/tracks/[id]/comments/[commentId]`); there is no `updatedAt` — repositioning is
+treated as a position tweak, not an edit.
 
 ### `track_like`
 

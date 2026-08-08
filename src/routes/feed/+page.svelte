@@ -179,6 +179,7 @@
 						genre={data.genre}
 						q={data.q}
 						following={data.following}
+						viewerId={data.user.id}
 						viewerName={data.user.name}
 						viewerImage={data.user.image}
 					/>

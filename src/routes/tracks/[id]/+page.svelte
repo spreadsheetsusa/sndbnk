@@ -121,10 +121,12 @@
 			<TrackCard
 				track={data.track}
 				signedIn={Boolean(data.viewer)}
+				viewerId={data.viewer?.id ?? null}
 				viewerName={data.viewer?.name ?? null}
 				viewerImage={data.viewer?.image ?? null}
 				titleAsHeading
 				oncommented={() => invalidateAll()}
+				onrepositioned={() => invalidateAll()}
 				ondeleted={handleDeleted}
 			/>
 		</div>

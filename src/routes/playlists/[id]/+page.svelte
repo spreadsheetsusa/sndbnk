@@ -57,6 +57,7 @@
 		<PlaylistCard
 			playlist={data.playlist}
 			signedIn={Boolean(data.viewer)}
+			viewerId={data.viewer?.id ?? null}
 			viewerName={data.viewer?.name ?? null}
 			viewerImage={data.viewer?.image ?? null}
 			titleAsHeading

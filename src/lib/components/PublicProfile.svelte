@@ -249,6 +249,7 @@
 													playlist={item}
 													{linkBase}
 													signedIn={Boolean(data.viewer)}
+													viewerId={data.viewer?.id ?? null}
 													viewerName={data.viewer?.name ?? null}
 													viewerImage={data.viewer?.image ?? null}
 													ondeleted={() => list.remove(item.id)}
@@ -258,6 +259,7 @@
 													track={item}
 													{linkBase}
 													signedIn={Boolean(data.viewer)}
+													viewerId={data.viewer?.id ?? null}
 													viewerName={data.viewer?.name ?? null}
 													viewerImage={data.viewer?.image ?? null}
 													ondeleted={() => list.remove(item.id)}

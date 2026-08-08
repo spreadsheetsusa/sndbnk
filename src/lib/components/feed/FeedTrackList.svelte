@@ -9,11 +9,20 @@
 	 *   genre: string | null,
 	 *   q?: string | null,
 	 *   following?: boolean,
+	 *   viewerId?: string | null,
 	 *   viewerName: string | null,
 	 *   viewerImage?: string | null
 	 * }}
 	 */
-	let { list, genre, q = null, following = false, viewerName, viewerImage = null } = $props();
+	let {
+		list,
+		genre,
+		q = null,
+		following = false,
+		viewerId = null,
+		viewerName,
+		viewerImage = null
+	} = $props();
 </script>
 
 {#if list.items.length === 0}
@@ -44,6 +53,7 @@
 						<PlaylistCard
 							playlist={item}
 							signedIn={true}
+							{viewerId}
 							{viewerName}
 							{viewerImage}
 							ondeleted={() => list.remove(item.id)}
@@ -52,6 +62,7 @@
 						<TrackCard
 							track={item}
 							signedIn={true}
+							{viewerId}
 							{viewerName}
 							{viewerImage}
 							ondeleted={() => list.remove(item.id)}

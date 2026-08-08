@@ -9,6 +9,7 @@ import { getProfileByUserId } from '#lib/server/tenant';
 const siteOrigin = ORIGIN.replace(/\/$/, '');
 
 const emptyNav = {
+	id: null,
 	name: null,
 	username: null,
 	image: null,
@@ -62,6 +63,7 @@ export const load = async ({ locals }) => {
 		siteOrigin,
 		playThresholds,
 		nav: {
+			id: locals.user.id,
 			name: locals.user.name ?? locals.user.email,
 			username: profile?.username ?? null,
 			image: locals.user.image ?? null,

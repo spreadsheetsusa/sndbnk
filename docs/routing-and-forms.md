@@ -27,8 +27,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/tracks/[id]`                 | required               | `DELETE` a track                                                                                            |
 | `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                                                       |
 | `/api/tracks/[id]/play`            | public                 | `POST` records a play (`{ playCount }`); history when signed in                                             |
-| `/api/tracks/[id]/comments`        | required               | `POST` adds a comment                                                                                       |
-| `/api/tracks/[id]/comments/[id]`   | required (author)      | `DELETE` removes own comment                                                                                |
+| `/api/tracks/[id]/comments`        | mixed                  | `GET` timed comments for markers; `POST` adds a comment (auth)                                              |
+| `/api/tracks/[id]/comments/[id]`   | required (author)      | `PATCH` repositions timed `atMs`; `DELETE` removes own comment                                              |
 | `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                                                         |
 | `/api/playlists/[id]`              | required               | `DELETE` a playlist                                                                                         |
 | `/api/playlists/[id]/like`         | required               | `POST` toggles a playlist like                                                                              |
