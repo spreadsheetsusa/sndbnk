@@ -6,15 +6,15 @@
 	import IconList from '@tabler/icons-svelte-runes/icons/list';
 	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
-	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
-	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconPlaylistAdd from '@tabler/icons-svelte-runes/icons/playlist-add';
 	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
 
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
+	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
 	import { parseGenres } from '#lib/genres.js';
 	import { player } from '#lib/player/player.svelte.js';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 	import { claimRowMenu } from './library-row-menu.js';
@@ -60,26 +60,13 @@
 	let releaseMenu = null;
 
 	const isPlaying = $derived(player.isCurrent(track.id) && player.playing);
+	const isLoading = $derived(player.isCurrent(track.id) && player.loading);
 	const genres = $derived(parseGenres(track.genre));
 	const extraGenreCount = $derived(Math.max(0, genres.length - 1));
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
 	function asPlayerTrack() {
-		return {
-			id: track.id,
-			title: track.title,
-			artist: track.artist,
-			username: track.username,
-			uploaderName: track.uploaderName,
-			durationMs: track.durationMs,
-			bitrate: track.bitrate ?? null,
-			sampleRate: track.sampleRate ?? null,
-			channels: track.channels ?? null,
-			codec: track.codec ?? null,
-			hasCover: track.hasCover,
-			waveform: track.waveform,
-			likedByViewer: track.likedByViewer
-		};
+		return toPlayerTrack(track);
 	}
 
 	function togglePlay() {
@@ -168,14 +155,15 @@
 	<button
 		type="button"
 		class="play-btn"
-		aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+		aria-label={isLoading
+			? `Loading ${track.title}`
+			: isPlaying
+				? `Pause ${track.title}`
+				: `Play ${track.title}`}
+		aria-busy={isLoading}
 		onclick={togglePlay}
 	>
-		{#if isPlaying}
-			<IconPlayerPauseFilled size={13} aria-hidden="true" />
-		{:else}
-			<IconPlayerPlayFilled size={13} aria-hidden="true" />
-		{/if}
+		<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={13} />
 	</button>
 
 	<CoverArt

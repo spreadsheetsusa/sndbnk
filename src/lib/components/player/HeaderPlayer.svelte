@@ -3,8 +3,6 @@
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
-	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
-	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconPlayerSkipBackFilled from '@tabler/icons-svelte-runes/icons/player-skip-back-filled';
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
@@ -14,6 +12,7 @@
 	import { page } from '$app/state';
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
+	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
@@ -276,14 +275,11 @@
 				<button
 					type="button"
 					class="cell transport-btn play"
-					aria-label={player.playing ? 'Pause' : 'Play'}
+					aria-label={player.loading ? 'Loading' : player.playing ? 'Pause' : 'Play'}
+					aria-busy={player.loading}
 					onclick={() => player.toggle()}
 				>
-					{#if player.playing}
-						<IconPlayerPauseFilled size={17} aria-hidden="true" />
-					{:else}
-						<IconPlayerPlayFilled size={17} aria-hidden="true" />
-					{/if}
+					<PlayPauseGlyph playing={player.playing} loading={player.loading} size={17} />
 				</button>
 				<button
 					type="button"

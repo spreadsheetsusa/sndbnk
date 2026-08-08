@@ -8,12 +8,11 @@
 	import IconCamera from '@tabler/icons-svelte-runes/icons/camera';
 	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte-runes/icons/plus';
-	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
-	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
+	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { MAX_GENRES, normalizeGenreField, parseGenres } from '#lib/genres.js';
 	import {
@@ -22,6 +21,7 @@
 	} from '#lib/media/track-media-type.js';
 	import { formatBytes, formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 
 	/**
@@ -41,6 +41,8 @@
 	 * @property {number | null} durationMs
 	 * @property {number} [audioBytes]
 	 * @property {boolean} hasCover
+	 * @property {string | null} [coverUrl]
+	 * @property {string | null} [audioUrl]
 	 * @property {boolean} [published]
 	 * @property {string | null} username
 	 * @property {string} uploaderName
@@ -285,6 +287,7 @@
 
 	const isActive = $derived(track != null && player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
+	const isLoading = $derived(isActive && player.loading);
 	const displayTime = $derived(scrubSeconds ?? (isActive ? player.currentTime : 0));
 	const durationSec = $derived((track?.durationMs ?? 0) / 1000);
 	const progressPct = $derived(
@@ -323,22 +326,7 @@
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack | null} */
 	function asPlayerTrack() {
-		if (!track) return null;
-		return {
-			id: track.id,
-			title: track.title,
-			artist: track.artist,
-			username: track.username,
-			uploaderName: track.uploaderName,
-			durationMs: track.durationMs,
-			bitrate: track.bitrate ?? null,
-			sampleRate: track.sampleRate ?? null,
-			channels: track.channels ?? null,
-			codec: track.codec ?? null,
-			hasCover: track.hasCover,
-			waveform: track.waveform,
-			likedByViewer: track.likedByViewer
-		};
+		return track ? toPlayerTrack(track) : null;
 	}
 
 	function togglePlay() {
@@ -558,14 +546,15 @@
 						<button
 							type="button"
 							class="play-btn"
-							aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+							aria-label={isLoading
+								? `Loading ${track.title}`
+								: isPlaying
+									? `Pause ${track.title}`
+									: `Play ${track.title}`}
+							aria-busy={isLoading}
 							onclick={togglePlay}
 						>
-							{#if isPlaying}
-								<IconPlayerPauseFilled size={20} aria-hidden="true" />
-							{:else}
-								<IconPlayerPlayFilled size={20} aria-hidden="true" />
-							{/if}
+							<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={20} />
 						</button>
 
 						<div class="titles">

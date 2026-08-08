@@ -43,18 +43,25 @@ export function createLocalAdapter(userId) {
 			await Bun.write(path.join(dir, filename), bytes);
 		},
 
-		async get(folderKey, filename) {
+		async get(folderKey, filename, range) {
 			assertSafeStorageSegment(filename, 'filename');
 			const filePath = path.join(folderPath(userId, folderKey), filename);
 			const file = Bun.file(filePath);
 			if (!(await file.exists())) {
 				throw new Error('File not found.');
 			}
-			return {
-				body: file,
-				contentType: file.type || 'application/octet-stream',
-				size: file.size
-			};
+			const size = file.size;
+			const contentType = file.type || 'application/octet-stream';
+			if (!range) {
+				return { body: file, contentType, size };
+			}
+			const start = Math.max(0, range.start);
+			const end = Math.min(range.end ?? size - 1, size - 1);
+			if (size <= 0 || start > end) {
+				return { body: file.slice(0, 0), contentType, size };
+			}
+			// Bun.file slices are lazy — disk seek, not a full read.
+			return { body: file.slice(start, end + 1), contentType, size };
 		},
 
 		async delete(folderKey) {

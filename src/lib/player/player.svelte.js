@@ -42,6 +42,16 @@ function isPlayerTrack(value) {
 }
 
 /**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function isAbortError(err) {
+	return err instanceof DOMException
+		? err.name === 'AbortError'
+		: err instanceof Error && err.name === 'AbortError';
+}
+
+/**
  * Global singleton audio player. Owns the single HTMLAudioElement so
  * playback persists across SvelteKit client-side navigations, and exposes
  * reactive state for the player bar and per-track waveforms.
@@ -52,6 +62,8 @@ class Player {
 	/** "Next Up" queue, persisted to localStorage. @type {PlayerTrack[]} */
 	queue = $state([]);
 	playing = $state(false);
+	/** Intent to play while media is still buffering / seeking to start. */
+	loading = $state(false);
 	currentTime = $state(0);
 	duration = $state(0);
 	/** Active saved playlist, if playback was started from one. @type {string | null} */
@@ -64,6 +76,12 @@ class Player {
 	/** @type {HTMLAudioElement | null} */
 	#audio = null;
 	#raf = 0;
+	/** Bumps on every load/pause/evict so stale media events cannot win. */
+	#loadGen = 0;
+	/** True while the current generation still wants playback. */
+	#wantsPlay = false;
+	/** @type {((this: HTMLAudioElement, ev: Event) => void) | null} */
+	#pendingSeek = null;
 	/** Track ids already counted as a play this browser session. */
 	#recordedPlays = new Set();
 	/** Accumulated ms spent actually playing the current track. */
@@ -125,34 +143,84 @@ class Player {
 		const el = this.#ensureAudio();
 		if (!el) return;
 
-		if (this.current?.id === track.id) {
+		const sameId = this.current?.id === track.id;
+		const needsReload =
+			sameId && (Boolean(el.error) || el.networkState === HTMLMediaElement.NETWORK_EMPTY);
+
+		if (sameId && !needsReload) {
 			if (atSeconds != null) this.seek(atSeconds);
-			void el.play();
+			void this.#startPlayback();
 			return;
 		}
 
-		if (this.current) {
+		if (this.current && !sameId) {
 			this.#history.push(this.current);
 		}
 
+		const gen = ++this.#loadGen;
+		this.#wantsPlay = true;
+		this.loading = true;
 		this.current = track;
 		this.currentTime = atSeconds ?? 0;
 		this.duration = (track.durationMs ?? 0) / 1000;
 		this.#playedMs = 0;
 		this.#lastTickWall = 0;
 
-		el.src = track.audioUrl?.trim() || `/api/media/${track.id}/audio`;
+		this.#clearPendingSeek(el);
+		el.pause();
+
+		const src = track.audioUrl?.trim() || `/api/media/${track.id}/audio`;
+		if (el.src !== new URL(src, location.href).href) {
+			el.src = src;
+		} else {
+			el.load();
+		}
+
 		if (atSeconds != null && atSeconds > 0) {
 			const seconds = atSeconds;
-			el.addEventListener(
-				'loadedmetadata',
-				() => {
-					el.currentTime = seconds;
-				},
-				{ once: true }
-			);
+			/** @param {Event} _ev */
+			const onMeta = (_ev) => {
+				this.#pendingSeek = null;
+				if (gen !== this.#loadGen) return;
+				el.currentTime = seconds;
+				this.currentTime = seconds;
+			};
+			this.#pendingSeek = onMeta;
+			el.addEventListener('loadedmetadata', onMeta, { once: true });
 		}
-		void el.play();
+
+		void this.#startPlayback(gen);
+	}
+
+	/**
+	 * @param {number} [gen]
+	 */
+	async #startPlayback(gen = this.#loadGen) {
+		const el = this.#audio;
+		if (!el) return;
+
+		this.#wantsPlay = true;
+		this.loading = true;
+
+		try {
+			await el.play();
+			if (gen !== this.#loadGen) return;
+			// `play` event also clears loading; belt-and-suspenders if it raced.
+			if (!el.paused) this.loading = false;
+		} catch (err) {
+			if (gen !== this.#loadGen || isAbortError(err)) return;
+			this.loading = false;
+			this.#wantsPlay = false;
+		}
+	}
+
+	/**
+	 * @param {HTMLAudioElement} el
+	 */
+	#clearPendingSeek(el) {
+		if (!this.#pendingSeek) return;
+		el.removeEventListener('loadedmetadata', this.#pendingSeek);
+		this.#pendingSeek = null;
 	}
 
 	#clearPlaylistContext() {
@@ -187,7 +255,7 @@ class Player {
 			this.play(track);
 			return;
 		}
-		if (this.playing) {
+		if (this.playing || this.loading) {
 			this.pause();
 		} else {
 			this.resume();
@@ -195,12 +263,21 @@ class Player {
 	}
 
 	pause() {
+		this.#loadGen += 1;
+		this.#wantsPlay = false;
+		this.loading = false;
 		this.#audio?.pause();
 	}
 
 	resume() {
 		if (!this.current) return;
-		void this.#audio?.play();
+		const el = this.#ensureAudio();
+		if (!el) return;
+		if (el.error || el.networkState === HTMLMediaElement.NETWORK_EMPTY) {
+			this.#playTrack(this.current, this.currentTime || undefined);
+			return;
+		}
+		void this.#startPlayback();
 	}
 
 	/** @param {number} seconds */
@@ -293,12 +370,17 @@ class Player {
 		this.#persistQueue();
 		if (this.current?.id === trackId) {
 			const el = this.#audio;
+			this.#loadGen += 1;
+			this.#wantsPlay = false;
 			if (el) {
+				this.#clearPendingSeek(el);
 				el.pause();
 				el.removeAttribute('src');
+				el.load();
 			}
 			this.current = null;
 			this.playing = false;
+			this.loading = false;
 			this.currentTime = 0;
 			this.duration = 0;
 			this.#clearPlaylistContext();
@@ -331,17 +413,38 @@ class Player {
 		el.crossOrigin = 'anonymous';
 
 		el.addEventListener('play', () => {
+			if (!this.#wantsPlay) {
+				el.pause();
+				return;
+			}
 			this.playing = true;
+			this.loading = false;
 			this.#startTicking();
+		});
+		el.addEventListener('playing', () => {
+			if (!this.#wantsPlay) return;
+			this.playing = true;
+			this.loading = false;
+		});
+		el.addEventListener('waiting', () => {
+			if (!this.#wantsPlay) return;
+			this.loading = true;
+		});
+		el.addEventListener('stalled', () => {
+			if (!this.#wantsPlay) return;
+			this.loading = true;
 		});
 		el.addEventListener('pause', () => {
 			this.playing = false;
 			this.#lastTickWall = 0;
 			this.#stopTicking();
 			this.currentTime = el.currentTime;
+			if (!this.#wantsPlay) this.loading = false;
 		});
 		el.addEventListener('ended', () => {
 			this.playing = false;
+			this.loading = false;
+			this.#wantsPlay = false;
 			this.#stopTicking();
 			this.#advanceAfterEnd();
 		});
@@ -356,7 +459,10 @@ class Player {
 			}
 		});
 		el.addEventListener('error', () => {
+			if (!this.#wantsPlay && !this.playing) return;
 			this.playing = false;
+			this.loading = false;
+			this.#wantsPlay = false;
 			this.#stopTicking();
 		});
 

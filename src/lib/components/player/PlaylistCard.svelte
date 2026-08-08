@@ -1,16 +1,16 @@
 <script>
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
-	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
-	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import CoverArt from '#lib/components/CoverArt.svelte';
+	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 
@@ -168,6 +168,7 @@
 	const playlistActive = $derived(player.isPlaylistCurrent(playlist.id));
 	const isActive = $derived(playlistActive && activeTrack && player.isCurrent(activeTrack.id));
 	const isPlaying = $derived(Boolean(isActive && player.playing));
+	const isLoading = $derived(Boolean(isActive && player.loading));
 	const cardTime = $derived(isActive ? player.currentTime : 0);
 
 	let nearViewport = $state(false);
@@ -226,23 +227,7 @@
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack[]} */
 	function asPlayerTracks() {
-		return playlist.tracks.map((t) => ({
-			id: t.id,
-			title: t.title,
-			artist: t.artist,
-			username: t.username,
-			uploaderName: t.uploaderName,
-			mediaType: t.mediaType ?? 'track',
-			durationMs: t.durationMs,
-			bitrate: t.bitrate ?? null,
-			sampleRate: t.sampleRate ?? null,
-			channels: t.channels ?? null,
-			codec: t.codec ?? null,
-			hasCover: t.hasCover,
-			waveform: t.waveform,
-			likedByViewer: t.likedByViewer,
-			playCount: t.playCount ?? 0
-		}));
+		return playlist.tracks.map((t) => toPlayerTrack(t));
 	}
 
 	function togglePlay() {
@@ -402,15 +387,16 @@
 			<button
 				type="button"
 				class="play-btn pressable"
-				aria-label={isPlaying ? `Pause ${playlist.title}` : `Play ${playlist.title}`}
+				aria-label={isLoading
+					? `Loading ${playlist.title}`
+					: isPlaying
+						? `Pause ${playlist.title}`
+						: `Play ${playlist.title}`}
+				aria-busy={isLoading}
 				disabled={playlist.tracks.length === 0}
 				onclick={togglePlay}
 			>
-				{#if isPlaying}
-					<IconPlayerPauseFilled size={18} aria-hidden="true" />
-				{:else}
-					<IconPlayerPlayFilled size={18} aria-hidden="true" />
-				{/if}
+				<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={18} />
 			</button>
 
 			<div class="titles">

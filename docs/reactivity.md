@@ -112,12 +112,14 @@ class Player {
 	current = $state(null);
 	queue = $state([]);
 	playing = $state(false);
+	loading = $state(false);
 	currentTime = $state(0);
 	duration = $state(0);
 
 	/** @type {HTMLAudioElement | null} */
 	#audio = null;
 	#raf = 0;
+	#loadGen = 0;
 }
 
 export const player = new Player();
@@ -125,9 +127,9 @@ export const player = new Player();
 
 What makes it work, and what to copy:
 
-- **Public reactive fields, private machinery.** `#audio`, `#raf`, and `#history` are `#private` and
-  deliberately _not_ `$state` — nothing renders from them, so making them reactive would only add
-  churn.
+- **Public reactive fields, private machinery.** `#audio`, `#raf`, `#history`, and `#loadGen` are
+  `#private` and deliberately _not_ `$state` — nothing renders from them, so making them reactive
+  would only add churn.
 - **Methods are the API.** `play()`, `toggle()`, `seek()`, `addToQueue()`, `evict()`. Consumers never
   assign to fields from outside; the invariants live in one file.
 - **Reassign, don't mutate, for arrays** — `this.queue = [...this.queue, track]` — which keeps the
@@ -135,6 +137,9 @@ What makes it work, and what to copy:
 - **The DOM element is created lazily and owned by the class.** `#ensureAudio()` builds one `Audio`
   on first use and wires listeners that write back into `$state`. That is why playback survives
   client-side navigation: no component owns the element.
+- **Load generations + `loading`.** Each src change bumps `#loadGen` and sets `loading` until the
+  element actually plays (or the user pauses / the load fails). Stale `play()` rejections and
+  `loadedmetadata` seeks are ignored when the generation no longer matches.
 - **`browser` guards at the edges.** The constructor restores the queue only in the browser;
   `#persistQueue()` returns early on the server and swallows storage failures.
 - **rAF for the playhead.** `timeupdate` fires ~4×/s, which looks stuttery, so a

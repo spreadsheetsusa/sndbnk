@@ -130,18 +130,47 @@ export function createSshAdapter(userId, config) {
 			}
 		},
 
-		async get(folderKey, filename) {
+		async get(folderKey, filename, range) {
 			assertSafeStorageSegment(filename, 'filename');
 			const { client, sftp } = await connect(config);
 			try {
 				const remotePath = path.posix.join(remoteFolder(userId, config, folderKey), filename);
+				const contentType = 'application/octet-stream';
+
+				if (!range) {
+					const body = await new Promise((resolve, reject) => {
+						sftp.readFile(remotePath, (err, data) => (err ? reject(err) : resolve(data)));
+					});
+					return {
+						body: new Uint8Array(body),
+						contentType,
+						size: body.length
+					};
+				}
+
+				/** @type {import('ssh2').Stats} */
+				const stat = await new Promise((resolve, reject) => {
+					sftp.stat(remotePath, (err, data) => (err ? reject(err) : resolve(data)));
+				});
+				const size = stat.size;
+				const start = Math.max(0, range.start);
+				const end = Math.min(range.end ?? size - 1, size - 1);
+				if (size <= 0 || start > end) {
+					return { body: new Uint8Array(0), contentType, size };
+				}
+
 				const body = await new Promise((resolve, reject) => {
-					sftp.readFile(remotePath, (err, data) => (err ? reject(err) : resolve(data)));
+					/** @type {Buffer[]} */
+					const chunks = [];
+					const stream = sftp.createReadStream(remotePath, { start, end });
+					stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+					stream.on('error', reject);
+					stream.on('end', () => resolve(Buffer.concat(chunks)));
 				});
 				return {
 					body: new Uint8Array(body),
-					contentType: 'application/octet-stream',
-					size: body.length
+					contentType,
+					size
 				};
 			} finally {
 				close(client);

@@ -14,7 +14,7 @@ with no runtime class or base implementation:
  * @typedef {Object} StorageAdapter
  * @property {StorageAdapterKind} id
  * @property {(folderKey, filename, data, contentType) => Promise<void>} put
- * @property {(folderKey, filename) => Promise<StorageObject>} get
+ * @property {(folderKey, filename, range?) => Promise<StorageObject>} get
  * @property {(folderKey) => Promise<void>} delete
  * @property {() => Promise<{ ok: true } | { ok: false, message: string }>} testConnection
  */
@@ -22,10 +22,13 @@ with no runtime class or base implementation:
 
 Four methods. No `list`, no `exists`, no `copy` — add one only when a feature actually needs it.
 
-`get()` returns `{ body, contentType, size }` where `body` is `Uint8Array | ReadableStream | Blob`.
-Callers must handle all three: local returns a lazy `Bun.file` Blob, SSH returns a `Uint8Array`. The
-two existing normalizers to copy are `toBytes()` in `embed-tags.js` and `sliceBody()` in the media
-route.
+`get()` returns `{ body, contentType, size }` where `body` is `Uint8Array | ReadableStream | Blob`
+and **`size` is always the full object length**. An optional third argument
+`{ start, end? }` (inclusive; omit `end` for through-EOF) returns only that byte slice in `body`.
+Local uses lazy `Bun.file` / `Blob.slice`; SSH uses `sftp.stat` + `createReadStream({ start, end })`
+so ranged proxy reads do not pull the whole remote file. Full `readFile` remains the no-range path.
+Callers must still handle all three body types (`toBytes()` in `embed-tags.js` is the normalizer to
+copy).
 
 ### Implementations
 
@@ -209,9 +212,9 @@ Default path: `/api/media/[id]/[file]` where `file` is `audio` or `cover`:
   at the check site.
 - Sets `accept-ranges: bytes`. Published covers use `cache-control: public, max-age=3600`; audio and
   unpublished owner previews stay `private, max-age=3600`.
-- Parses a single `Range: bytes=a-b` header (including suffix ranges) and answers `206` with
-  `content-range`. `sliceBody()` uses `Blob.slice` for local files, so seeking never reads the whole
-  file off disk.
+- Parses a single `Range: bytes=a-b` header (including open-ended and suffix ranges) and answers
+  `206` with `content-range`. The parsed range is passed into `adapter.get` so local and SSH both
+  fetch only the requested window (future S3/R2 adapters map the same optional range arg).
 - `storage.get` is tried up to three times with short backoff for transient failures (SSH connect
   blips). Clear missing-file errors (`File not found.`, SFTP/ENOENT) are not retried.
 - Any failure — bad `file` param, missing track, storage error after retries — is a flat `404` with
@@ -229,4 +232,7 @@ back to a placeholder. Upload inserts the track row before `storage.put` (folder
 during the put window.
 
 The player points an `HTMLAudioElement` at `track.audioUrl` when present, else
-`/api/media/${track.id}/audio`, and lets the browser do the ranged fetching.
+`/api/media/${track.id}/audio`, and lets the browser do the ranged fetching. UI entry points map
+tracks through [`toPlayerTrack()`](../src/lib/player/to-player-track.js) so `audioUrl` / `coverUrl`
+are never dropped at the boundary. While a load is in flight (or rebuffering), `player.loading` is
+true and play controls show an in-button spinner via `PlayPauseGlyph`.

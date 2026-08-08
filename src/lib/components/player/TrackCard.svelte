@@ -2,19 +2,19 @@
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
-	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
-	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 
 	import Avatar from '#lib/components/Avatar.svelte';
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import AddToPlaylistMenu from '#lib/components/player/AddToPlaylistMenu.svelte';
+	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { parseGenres } from '#lib/genres.js';
 	import { whileNearViewport } from '#lib/lists/infinite-scroll.js';
 	import { player } from '#lib/player/player.svelte.js';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 
@@ -161,6 +161,7 @@
 
 	const isActive = $derived(player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
+	const isLoading = $derived(isActive && player.loading);
 	const cardTime = $derived(isActive ? player.currentTime : 0);
 
 	/**
@@ -231,23 +232,7 @@
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack} */
 	function asPlayerTrack() {
-		return {
-			id: track.id,
-			title: track.title,
-			artist: track.artist,
-			username: track.username,
-			uploaderName: track.uploaderName,
-			mediaType: track.mediaType ?? 'track',
-			durationMs: track.durationMs,
-			bitrate: track.bitrate ?? null,
-			sampleRate: track.sampleRate ?? null,
-			channels: track.channels ?? null,
-			codec: track.codec ?? null,
-			hasCover: track.hasCover,
-			waveform: track.waveform,
-			likedByViewer: liked,
-			playCount: track.playCount ?? 0
-		};
+		return toPlayerTrack({ ...track, likedByViewer: liked });
 	}
 
 	function togglePlay() {
@@ -406,14 +391,15 @@
 			<button
 				type="button"
 				class="play-btn pressable"
-				aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+				aria-label={isLoading
+					? `Loading ${track.title}`
+					: isPlaying
+						? `Pause ${track.title}`
+						: `Play ${track.title}`}
+				aria-busy={isLoading}
 				onclick={togglePlay}
 			>
-				{#if isPlaying}
-					<IconPlayerPauseFilled size={18} aria-hidden="true" />
-				{:else}
-					<IconPlayerPlayFilled size={18} aria-hidden="true" />
-				{/if}
+				<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={18} />
 			</button>
 
 			<div class="titles">

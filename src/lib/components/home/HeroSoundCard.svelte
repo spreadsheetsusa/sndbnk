@@ -1,12 +1,11 @@
 <script>
-	import IconPlayerPauseFilled from '@tabler/icons-svelte-runes/icons/player-pause-filled';
-	import IconPlayerPlayFilled from '@tabler/icons-svelte-runes/icons/player-play-filled';
-
 	import CoverArt from '#lib/components/CoverArt.svelte';
+	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import { parseGenres } from '#lib/genres.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 
 	/**
 	 * @typedef {Object} HeroTrack
@@ -35,6 +34,7 @@
 	const track = $derived(player.current ?? showcaseTrack);
 	const isActive = $derived(track != null && player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
+	const isLoading = $derived(isActive && player.loading);
 	const displayTime = $derived(scrubSeconds ?? (isActive ? player.currentTime : 0));
 	const durationSec = $derived((track?.durationMs ?? 0) / 1000);
 	const progressPct = $derived(
@@ -50,23 +50,7 @@
 
 	/** @returns {import('#lib/player/player.svelte.js').PlayerTrack | null} */
 	function asPlayerTrack() {
-		if (!track) return null;
-		return {
-			id: track.id,
-			title: track.title,
-			artist: track.artist,
-			username: track.username,
-			uploaderName: track.uploaderName,
-			durationMs: track.durationMs,
-			bitrate: track.bitrate ?? null,
-			sampleRate: track.sampleRate ?? null,
-			channels: track.channels ?? null,
-			codec: track.codec ?? null,
-			hasCover: track.hasCover,
-			waveform: track.waveform,
-			likedByViewer: track.likedByViewer,
-			playCount: track.playCount ?? 0
-		};
+		return track ? toPlayerTrack(track) : null;
 	}
 
 	function togglePlay() {
@@ -116,14 +100,15 @@
 			<button
 				type="button"
 				class="play-btn pressable"
-				aria-label={isPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+				aria-label={isLoading
+					? `Loading ${track.title}`
+					: isPlaying
+						? `Pause ${track.title}`
+						: `Play ${track.title}`}
+				aria-busy={isLoading}
 				onclick={togglePlay}
 			>
-				{#if isPlaying}
-					<IconPlayerPauseFilled size={28} aria-hidden="true" />
-				{:else}
-					<IconPlayerPlayFilled size={28} aria-hidden="true" />
-				{/if}
+				<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={28} />
 			</button>
 		</div>
 

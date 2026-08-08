@@ -9,6 +9,7 @@
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import TrackInfoConsole from '#lib/components/player/TrackInfoConsole.svelte';
 	import { player } from '#lib/player/player.svelte.js';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
@@ -51,26 +52,7 @@
 			player.seek(seconds);
 			player.resume();
 		} else {
-			player.play(
-				{
-					id: data.track.id,
-					title: data.track.title,
-					artist: data.track.artist,
-					username: data.track.username,
-					uploaderName: data.track.uploaderName,
-					mediaType: data.track.mediaType ?? 'track',
-					durationMs: data.track.durationMs,
-					bitrate: data.track.bitrate ?? null,
-					sampleRate: data.track.sampleRate ?? null,
-					channels: data.track.channels ?? null,
-					codec: data.track.codec ?? null,
-					hasCover: data.track.hasCover,
-					waveform: data.track.waveform,
-					likedByViewer: data.track.likedByViewer,
-					playCount: data.track.playCount ?? 0
-				},
-				seconds
-			);
+			player.play(toPlayerTrack(data.track), seconds);
 		}
 	}
 

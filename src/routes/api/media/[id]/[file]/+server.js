@@ -26,15 +26,14 @@ function resolveMime(kind, row) {
 }
 
 /**
- * Parse a `Range: bytes=...` header against a known total size.
- * Only single ranges are supported (all browsers request media this way).
+ * Parse a `Range: bytes=...` header into a storage range without needing size.
+ * Open-ended (`bytes=N-`) and suffix (`bytes=-N`) leave `end` unset / use suffix.
  *
  * @param {string | null} header
- * @param {number} size
- * @returns {{ start: number, end: number } | null}
+ * @returns {{ start: number, end?: number } | { suffix: number } | null}
  */
-function parseRange(header, size) {
-	if (!header || size <= 0) return null;
+function parseRangeRequest(header) {
+	if (!header) return null;
 	const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
 	if (!match) return null;
 
@@ -42,36 +41,18 @@ function parseRange(header, size) {
 	if (!rawStart && !rawEnd) return null;
 
 	if (!rawStart) {
-		// Suffix range: last N bytes.
 		const suffix = Number.parseInt(rawEnd, 10);
 		if (!Number.isFinite(suffix) || suffix <= 0) return null;
-		const start = Math.max(0, size - suffix);
-		return { start, end: size - 1 };
+		return { suffix };
 	}
 
 	const start = Number.parseInt(rawStart, 10);
-	const end = rawEnd ? Math.min(Number.parseInt(rawEnd, 10), size - 1) : size - 1;
-	if (!Number.isFinite(start) || start >= size || start > end) return null;
-	return { start, end };
-}
+	if (!Number.isFinite(start) || start < 0) return null;
+	if (!rawEnd) return { start };
 
-/**
- * Slice a storage object body to a byte range without copying when possible.
- * @param {Uint8Array | ReadableStream | Blob} body
- * @param {number} start
- * @param {number} end Inclusive.
- * @returns {Promise<BodyInit>}
- */
-async function sliceBody(body, start, end) {
-	if (body instanceof Uint8Array) {
-		return body.subarray(start, end + 1);
-	}
-	if (typeof Blob !== 'undefined' && body instanceof Blob) {
-		// Bun.file slices are lazy, so local storage never reads the full file.
-		return body.slice(start, end + 1);
-	}
-	const bytes = new Uint8Array(await new Response(body).arrayBuffer());
-	return bytes.subarray(start, end + 1);
+	const end = Number.parseInt(rawEnd, 10);
+	if (!Number.isFinite(end) || end < start) return null;
+	return { start, end };
 }
 
 /**
@@ -91,8 +72,9 @@ function isMissingFileError(err) {
  * @param {import('#lib/server/storage/types.js').StorageAdapter} adapter
  * @param {string} folderKey
  * @param {string} filename
+ * @param {import('#lib/server/storage/types.js').StorageByteRange} [range]
  */
-async function getWithRetry(adapter, folderKey, filename) {
+async function getWithRetry(adapter, folderKey, filename, range) {
 	const delaysMs = [0, 120, 240];
 	/** @type {unknown} */
 	let lastErr;
@@ -101,13 +83,23 @@ async function getWithRetry(adapter, folderKey, filename) {
 			await new Promise((resolve) => setTimeout(resolve, delaysMs[i]));
 		}
 		try {
-			return await adapter.get(folderKey, filename);
+			return await adapter.get(folderKey, filename, range);
 		} catch (err) {
 			lastErr = err;
 			if (isMissingFileError(err)) throw err;
 		}
 	}
 	throw lastErr;
+}
+
+/**
+ * @param {Uint8Array | ReadableStream | Blob} body
+ * @returns {BodyInit}
+ */
+function asBodyInit(body) {
+	if (body instanceof Uint8Array) return body;
+	if (typeof Blob !== 'undefined' && body instanceof Blob) return body;
+	return /** @type {BodyInit} */ (body);
 }
 
 export async function GET({ locals, params, request, setHeaders, url }) {
@@ -132,8 +124,8 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 			row.userId,
 			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
 		);
-		const object = await getWithRetry(adapter, row.folderKey, filename);
-		const mime = resolveMime(kind, row) || object.contentType;
+		const mimeHint = resolveMime(kind, row);
+		const rangeReq = parseRangeRequest(request.headers.get('range'));
 
 		// ACAO so <audio crossOrigin="anonymous"> can feed MediaElementSource analysers
 		// (Milkdrop). Only first-party origins (apex + tenant hosts).
@@ -151,36 +143,76 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 			...(allowOrigin ? { 'access-control-allow-origin': allowOrigin, vary: 'Origin' } : {})
 		});
 
-		const range = parseRange(request.headers.get('range'), object.size);
-		if (range) {
-			const body = await sliceBody(object.body, range.start, range.end);
-			return new Response(body, {
-				status: 206,
+		if (!rangeReq) {
+			const object = await getWithRetry(adapter, row.folderKey, filename);
+			const mime = mimeHint || object.contentType;
+			return new Response(asBodyInit(object.body), {
 				headers: {
 					'content-type': mime,
-					'content-range': `bytes ${range.start}-${range.end}/${object.size}`,
-					'content-length': String(range.end - range.start + 1)
+					'content-length': String(object.size)
 				}
 			});
 		}
 
-		/** @type {BodyInit} */
-		let body;
-		if (object.body instanceof Uint8Array) {
-			body = object.body;
-		} else if (typeof Blob !== 'undefined' && object.body instanceof Blob) {
-			body = object.body;
+		/** @type {import('#lib/server/storage/types.js').StorageByteRange} */
+		let range;
+		if ('suffix' in rangeReq) {
+			// Need full size to resolve suffix ranges; probe one byte.
+			const probe = await getWithRetry(adapter, row.folderKey, filename, { start: 0, end: 0 });
+			if (probe.size <= 0) error(416, 'Range Not Satisfiable');
+			const start = Math.max(0, probe.size - rangeReq.suffix);
+			range = { start, end: probe.size - 1 };
+			if (range.start === 0 && range.end === 0) {
+				const mime = mimeHint || probe.contentType;
+				return new Response(asBodyInit(probe.body), {
+					status: 206,
+					headers: {
+						'content-type': mime,
+						'content-range': `bytes 0-0/${probe.size}`,
+						'content-length': String(
+							probe.body instanceof Blob
+								? probe.body.size
+								: probe.body instanceof Uint8Array
+									? probe.body.byteLength
+									: 1
+						)
+					}
+				});
+			}
 		} else {
-			body = /** @type {BodyInit} */ (object.body);
+			range = rangeReq.end == null ? { start: rangeReq.start } : rangeReq;
 		}
 
-		return new Response(body, {
+		const object = await getWithRetry(adapter, row.folderKey, filename, range);
+		const mime = mimeHint || object.contentType;
+		if (object.size <= 0 || range.start >= object.size) {
+			error(416, 'Range Not Satisfiable');
+		}
+		const end = Math.min(range.end ?? object.size - 1, object.size - 1);
+		const length =
+			object.body instanceof Blob
+				? object.body.size
+				: object.body instanceof Uint8Array
+					? object.body.byteLength
+					: end - range.start + 1;
+
+		return new Response(asBodyInit(object.body), {
+			status: 206,
 			headers: {
 				'content-type': mime,
-				'content-length': String(object.size)
+				'content-range': `bytes ${range.start}-${end}/${object.size}`,
+				'content-length': String(length)
 			}
 		});
-	} catch {
+	} catch (err) {
+		if (
+			err &&
+			typeof err === 'object' &&
+			'status' in err &&
+			/** @type {{ status?: number }} */ (err).status === 416
+		) {
+			throw err;
+		}
 		// Avoid sticky negative caching of transient SSH/storage misses.
 		setHeaders({ 'cache-control': 'private, no-store' });
 		error(404, 'Not found');
