@@ -167,7 +167,7 @@ export async function getSiteStats() {
  * @param {{ limit?: number }} [opts]
  * @returns {Promise<{ username: string, name: string, image: string | null, location: string | null }[]>}
  */
-export async function listLatestMembers({ limit = 12 } = {}) {
+export async function listLatestMembers({ limit = 16 } = {}) {
 	const rows = await db
 		.select({
 			username: profile.username,

@@ -65,9 +65,8 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(128px, 128px));
+		grid-template-columns: repeat(8, minmax(0, 1fr));
 		gap: 1.5rem 1.25rem;
-		justify-content: center;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -135,9 +134,14 @@
 		line-clamp: 2;
 	}
 
+	@media (max-width: 960px) {
+		.grid {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+
 	@media (max-width: 640px) {
 		.grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
 			gap: 0.85rem 0.55rem;
 		}
 
