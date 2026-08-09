@@ -373,12 +373,15 @@
 			body.set('description', meta.fields.description ?? '');
 			body.set('artist', meta.fields.artist ?? '');
 			body.set('album', meta.fields.album ?? '');
+			body.set('albumArtist', meta.fields.albumArtist ?? '');
 			body.set('genre', meta.fields.genre ?? '');
 			body.set('mediaType', DEFAULT_TRACK_MEDIA_TYPE);
 			body.set('year', meta.fields.year ?? '');
 			body.set('trackNumber', meta.fields.trackNumber ?? '');
+			body.set('discNumber', meta.fields.discNumber ?? '');
 			body.set('bpm', meta.fields.bpm ?? '');
 			body.set('isrc', meta.fields.isrc ?? '');
+			body.set('composer', meta.fields.composer ?? '');
 			body.set('comment', meta.fields.comment ?? '');
 			body.set('durationMs', meta.technical.durationMs ?? '');
 			body.set('bitrate', meta.technical.bitrate ?? '');

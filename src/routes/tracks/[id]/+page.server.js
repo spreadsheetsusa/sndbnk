@@ -38,10 +38,13 @@ export const load = async ({ locals, params }) => {
 		description: row.track.description,
 		meta: {
 			album: row.track.album ?? null,
+			albumArtist: row.track.albumArtist ?? null,
 			year: row.track.year ?? null,
 			trackNumber: row.track.trackNumber ?? null,
+			discNumber: row.track.discNumber ?? null,
 			bpm: row.track.bpm ?? null,
-			isrc: row.track.isrc ?? null
+			isrc: row.track.isrc ?? null,
+			composer: row.track.composer ?? null
 		},
 		comments,
 		viaTenantHost: Boolean(locals.tenant),

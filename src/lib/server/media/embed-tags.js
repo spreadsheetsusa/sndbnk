@@ -21,6 +21,12 @@ const TAG_FIELDS = [
 	{ field: 'title', label: 'title', writeKey: PROPERTIES.title.key, readKey: 'title' },
 	{ field: 'artist', label: 'artist', writeKey: PROPERTIES.artist.key, readKey: 'artist' },
 	{ field: 'album', label: 'album', writeKey: PROPERTIES.album.key, readKey: 'album' },
+	{
+		field: 'albumArtist',
+		label: 'album artist',
+		writeKey: PROPERTIES.albumArtist.key,
+		readKey: 'albumArtist'
+	},
 	{ field: 'genre', label: 'genre', writeKey: PROPERTIES.genre.key, readKey: 'genre' },
 	{ field: 'year', label: 'year', writeKey: PROPERTIES.date.key, readKey: 'date' },
 	{
@@ -29,8 +35,20 @@ const TAG_FIELDS = [
 		writeKey: PROPERTIES.trackNumber.key,
 		readKey: 'trackNumber'
 	},
+	{
+		field: 'discNumber',
+		label: 'disc number',
+		writeKey: PROPERTIES.discNumber.key,
+		readKey: 'discNumber'
+	},
 	{ field: 'bpm', label: 'BPM', writeKey: PROPERTIES.bpm.key, readKey: 'bpm' },
 	{ field: 'isrc', label: 'ISRC', writeKey: PROPERTIES.isrc.key, readKey: 'isrc' },
+	{
+		field: 'composer',
+		label: 'composer',
+		writeKey: PROPERTIES.composer.key,
+		readKey: 'composer'
+	},
 	{ field: 'comment', label: 'comment', writeKey: PROPERTIES.comment.key, readKey: 'comment' },
 	{
 		field: 'description',

@@ -26,12 +26,15 @@ function echoEditorial(formData, trackId) {
 		description: formData.get('description')?.toString() ?? '',
 		artist: formData.get('artist')?.toString() ?? '',
 		album: formData.get('album')?.toString() ?? '',
+		albumArtist: formData.get('albumArtist')?.toString() ?? '',
 		genre: formData.get('genre')?.toString() ?? '',
 		mediaType: formData.get('mediaType')?.toString() ?? '',
 		year: formData.get('year')?.toString() ?? '',
 		trackNumber: formData.get('trackNumber')?.toString() ?? '',
+		discNumber: formData.get('discNumber')?.toString() ?? '',
 		bpm: formData.get('bpm')?.toString() ?? '',
 		isrc: formData.get('isrc')?.toString() ?? '',
+		composer: formData.get('composer')?.toString() ?? '',
 		comment: formData.get('comment')?.toString() ?? ''
 	};
 }

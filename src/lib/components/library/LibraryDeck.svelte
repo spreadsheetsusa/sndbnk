@@ -32,11 +32,14 @@
 	 * @property {string | null} genre
 	 * @property {string} [description]
 	 * @property {string} [album]
+	 * @property {string} [albumArtist]
 	 * @property {string} [mediaType]
 	 * @property {string} [year]
 	 * @property {string} [trackNumber]
+	 * @property {string} [discNumber]
 	 * @property {string} [bpm]
 	 * @property {string} [isrc]
+	 * @property {string} [composer]
 	 * @property {string} [comment]
 	 * @property {number | null} durationMs
 	 * @property {number} [audioBytes]
@@ -67,12 +70,15 @@
 	 *   description?: string,
 	 *   artist?: string,
 	 *   album?: string,
+	 *   albumArtist?: string,
 	 *   genre?: string,
 	 *   mediaType?: string,
 	 *   year?: string,
 	 *   trackNumber?: string,
+	 *   discNumber?: string,
 	 *   bpm?: string,
 	 *   isrc?: string,
+	 *   composer?: string,
 	 *   comment?: string,
 	 *   hasCover?: boolean,
 	 *   tagsWritten?: string[],
@@ -163,11 +169,14 @@
 		description: '',
 		artist: '',
 		album: '',
+		albumArtist: '',
 		mediaType: DEFAULT_TRACK_MEDIA_TYPE,
 		year: '',
 		trackNumber: '',
+		discNumber: '',
 		bpm: '',
 		isrc: '',
+		composer: '',
 		comment: ''
 	});
 
@@ -198,11 +207,14 @@
 			description: echo?.description ?? track.description ?? '',
 			artist: echo?.artist ?? track.artist ?? '',
 			album: echo?.album ?? track.album ?? '',
+			albumArtist: echo?.albumArtist ?? track.albumArtist ?? '',
 			mediaType: echo?.mediaType ?? track.mediaType ?? DEFAULT_TRACK_MEDIA_TYPE,
 			year: echo?.year ?? track.year ?? '',
 			trackNumber: echo?.trackNumber ?? track.trackNumber ?? '',
+			discNumber: echo?.discNumber ?? track.discNumber ?? '',
 			bpm: echo?.bpm ?? track.bpm ?? '',
 			isrc: echo?.isrc ?? track.isrc ?? '',
+			composer: echo?.composer ?? track.composer ?? '',
 			comment: echo?.comment ?? track.comment ?? ''
 		};
 		editGenres = parseGenres(echo?.genre ?? track.genre);
@@ -258,6 +270,9 @@
 		}
 		if (track.codec) {
 			rows.push({ key: 'format', label: 'Format', value: track.codec });
+		}
+		if (track.container) {
+			rows.push({ key: 'container', label: 'Container', value: track.container });
 		}
 		return rows;
 	});
@@ -470,12 +485,15 @@
 						description: data.description,
 						artist: data.artist,
 						album: data.album,
+						albumArtist: data.albumArtist,
 						genre: data.genre,
 						mediaType: data.mediaType,
 						year: data.year,
 						trackNumber: data.trackNumber,
+						discNumber: data.discNumber,
 						bpm: data.bpm,
 						isrc: data.isrc,
+						composer: data.composer,
 						comment: data.comment,
 						hasCover: data.hasCover ?? (Boolean(coverPreviewUrl) || (track?.hasCover ?? false)),
 						tagsMessage
@@ -753,6 +771,27 @@
 											<input id="deck-album" name="album" type="text" bind:value={fields.album} />
 										</div>
 										<div class="field">
+											<label for="deck-albumArtist">Album artist</label>
+											<input
+												id="deck-albumArtist"
+												name="albumArtist"
+												type="text"
+												bind:value={fields.albumArtist}
+											/>
+										</div>
+									</div>
+
+									<div class="grid-2">
+										<div class="field">
+											<label for="deck-composer">Composer</label>
+											<input
+												id="deck-composer"
+												name="composer"
+												type="text"
+												bind:value={fields.composer}
+											/>
+										</div>
+										<div class="field">
 											<label for="deck-mediaType">Type</label>
 											<select id="deck-mediaType" name="mediaType" bind:value={fields.mediaType}>
 												{#each TRACK_MEDIA_TYPE_OPTIONS as option (option.value)}
@@ -762,7 +801,7 @@
 										</div>
 									</div>
 
-									<div class="grid-4">
+									<div class="grid-5">
 										<div class="field">
 											<label for="deck-year">Year</label>
 											<input
@@ -781,6 +820,16 @@
 												type="text"
 												inputmode="numeric"
 												bind:value={fields.trackNumber}
+											/>
+										</div>
+										<div class="field">
+											<label for="deck-discNumber">Disc #</label>
+											<input
+												id="deck-discNumber"
+												name="discNumber"
+												type="text"
+												inputmode="numeric"
+												bind:value={fields.discNumber}
 											/>
 										</div>
 										<div class="field">
@@ -1469,7 +1518,7 @@
 	}
 
 	.grid-2,
-	.grid-4 {
+	.grid-5 {
 		display: grid;
 		gap: 0.55rem 0.7rem;
 	}
@@ -1478,8 +1527,8 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	.grid-4 {
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+	.grid-5 {
+		grid-template-columns: repeat(5, minmax(0, 1fr));
 	}
 
 	.field {
@@ -1680,7 +1729,7 @@
 	}
 
 	@media (max-width: 720px) {
-		.grid-4 {
+		.grid-5 {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 
