@@ -296,7 +296,7 @@
 					type="button"
 					class="cell transport-btn"
 					aria-label="Next"
-					disabled={player.queue.length === 0}
+					disabled={!player.hasNext}
 					onclick={() => player.next()}
 				>
 					<IconPlayerSkipForwardFilled size={15} aria-hidden="true" />

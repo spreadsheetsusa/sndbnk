@@ -2,6 +2,7 @@
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
 	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
+	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 
 	/**
 	 * @type {{
@@ -23,6 +24,17 @@
 		viewerName,
 		viewerImage = null
 	} = $props();
+
+	/** Track-only continuum for continuous feed playback (skips playlist cards). */
+	const feedTracks = $derived(
+		list.items.filter((item) => item.kind !== 'playlist').map((item) => toPlayerTrack(item))
+	);
+	const feedIndexById = $derived.by(() => {
+		/** @type {Record<string, number>} */
+		const map = Object.create(null);
+		for (let i = 0; i < feedTracks.length; i++) map[feedTracks[i].id] = i;
+		return map;
+	});
 </script>
 
 {#if list.items.length === 0}
@@ -65,6 +77,8 @@
 							{viewerId}
 							{viewerName}
 							{viewerImage}
+							{feedTracks}
+							feedIndex={feedIndexById[item.id] ?? -1}
 							ondeleted={() => list.remove(item.id)}
 						/>
 					{/if}
