@@ -513,6 +513,10 @@
 	class:empty={!track}
 	class:viz-on={showViz}
 	class:editing={editUi}
+	class:viz-dock-hot={visualizerBackdrop &&
+		visualizer.draggingWindow &&
+		visualizer.dockHotKey === 'library'}
+	data-viz-dock={visualizerBackdrop ? 'library' : undefined}
 	aria-label="Track deck"
 >
 	{#if visualizerBackdrop}

@@ -505,6 +505,29 @@ html:not(.dark) .eyebrow-chip {
 	border-color: var(--accent);
 }
 
+/* Site-builder block thumbnails: remap source-kit vars onto sndbnk tokens. */
+.block-preview {
+	display: block;
+	width: 100%;
+	height: auto;
+	--solid: var(--paper);
+	--solid-900: var(--ink);
+	--base-200: color-mix(in srgb, var(--ink) 8%, var(--paper));
+	--base-300: color-mix(in srgb, var(--ink) 16%, var(--paper));
+	--base-400: color-mix(in srgb, var(--ink) 28%, var(--paper));
+	--base-500: var(--muted);
+	--main-100: color-mix(in srgb, var(--accent) 22%, var(--paper));
+	--main-200: color-mix(in srgb, var(--accent) 42%, var(--paper));
+	--main-500: var(--accent);
+}
+
+/* Floating Milkdrop drag-to-dock highlight on page hosts (`data-viz-dock`). */
+[data-viz-dock].viz-dock-hot {
+	outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+	outline-offset: -1px;
+	background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	html {
 		scroll-behavior: auto;

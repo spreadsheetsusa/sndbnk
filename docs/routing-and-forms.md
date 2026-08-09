@@ -11,6 +11,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                                                     |
 | `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`                                     |
 | `/settings`                        | required               | tabbed profile (incl. email change) / linked accounts / plan / domain / site / storage                      |
+| `/sites/[id]`                      | owner only (apex)      | first-run site setup wizard; redirects to builder when `setupCompletedAt` is set                            |
+| `/sites/[id]/builder`              | owner only (apex)      | site builder workspace (root page + draggable HUDs); redirects back to setup when incomplete                |
 | `/library`                         | required               | owner track list; drop/picker upload via `?/create`; `?mediaType=` filters; `?track=` + `?edit=1` deck edit |
 | `/library/new`                     | required               | redirects to `/library` (former LOAD console)                                                               |
 | `/library/[id]`                    | owner only             | redirects to `/library?track={id}&edit=1`                                                                   |
@@ -35,8 +37,17 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/playlists/[id]/tracks`       | required               | `POST`/`DELETE`/`PATCH` membership                                                                          |
 | `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                                                    |
 
-`/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, and
+`/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, `/sites`, and
 `/api/domain-tls-check` 404 on tenant hosts. See [architecture.md](architecture.md).
+
+**Site builder** (`/sites/[id]/builder`): Vault+ owner only. Load ensures a root `site_page` and site
+chrome (`ensureSiteChrome`), returns `site` (with `header` / `footer`), `pages` + `currentPageId`
+(each page includes parsed body `blocks`), and mounts SNDBNK-styled draggable HUDs (toolbar,
+inspector, blocks palette). Named action `?/updatePage` saves page title / slug / SEO (root path
+stays `/`). Canvas body blocks drag from the Blocks HUD (no Header/Footer categories); `PUT
+/api/sites/[id]/pages/[pageId]/blocks` persists the ordered body list. Site header/footer render
+outside the page stack on every page preview; Inspector **Site** tab picks layouts and edits props
+via `PUT /api/sites/[id]/chrome`. Inspector **Block** tab edits the selected body instance.
 
 ## `load` conventions
 

@@ -82,31 +82,64 @@ redirect to `/signup` rather than rendering.
 
 ### `site` — optional 1:1 tenant branding
 
-Keyed on `userId`, lazy-created on first Settings → Site save. Missing row means fall back to
-profile name / bio / avatar and SNDBNK defaults. Applied on subdomain and custom-domain hosts only;
-apex `/users/{username}` ignores it.
+Keyed on `userId`, lazy-created on first Settings → Site save or site-builder entry. Missing row
+means fall back to profile name / bio / avatar and SNDBNK defaults. Applied on subdomain and
+custom-domain hosts only; apex `/users/{username}` ignores it. Owner management lives at
+`/sites/{id}` (apex only).
 
-| Column                            | Purpose                                                           |
-| --------------------------------- | ----------------------------------------------------------------- |
-| `name` / `description`            | Tenant title and meta description                                 |
-| `logoFilename` / `logoMime`       | Local-disk logo (`site-logo/`); also used as favicon when set     |
-| `ogImageFilename` / `ogImageMime` | Social share image (`site-og/`); falls back to logo then avatar   |
-| `accentColor`                     | `#RRGGBB` tenant accent; null keeps listener/default accent       |
-| `hideBranding`                    | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding` |
-| `sidebarEnabled`                  | Master toggle for profile sidebar on **custom domains** only      |
-| `sidebarStats`                    | Stats card (counts, Follow, reposts); default on                  |
-| `sidebarFansAlsoLike`             | Fans Also Like card; default on                                   |
-| `sidebarFollowers`                | Followers card; default on                                        |
-| `sidebarActivity`                 | Last Comments card; default on                                    |
+| Column                                      | Purpose                                                           |
+| ------------------------------------------- | ----------------------------------------------------------------- |
+| `id`                                        | UUID route key for `/sites/{id}` (unique; `userId` remains PK)    |
+| `name` / `description`                      | Tenant title and meta description                                 |
+| `logoFilename` / `logoMime`                 | Local-disk logo (`site-logo/`); also used as favicon when set     |
+| `ogImageFilename` / `ogImageMime`           | Social share image (`site-og/`); falls back to logo then avatar   |
+| `accentColor`                               | `#RRGGBB` tenant accent; null keeps listener/default accent       |
+| `hideBranding`                              | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding` |
+| `sidebarEnabled`                            | Master toggle for profile sidebar on **custom domains** only      |
+| `sidebarStats`                              | Stats card (counts, Follow, reposts); default on                  |
+| `sidebarFansAlsoLike`                       | Fans Also Like card; default on                                   |
+| `sidebarFollowers`                          | Followers card; default on                                        |
+| `sidebarActivity`                           | Last Comments card; default on                                    |
+| `setupCompletedAt`                          | Set when the `/sites/{id}` setup wizard finishes                  |
+| `siteIntent`                                | `tracks` \| `mixes` \| `podcast` \| `label` \| `other` (prefs)    |
+| `wantBlog` / `wantEvents` / `wantEcommerce` | Feature interest flags from the wizard (prefs only)               |
+| `headerBlock` / `footerBlock`               | JSON `{ id, type, props }` site chrome (nullable until seeded)    |
 
 Sidebar defaults: master off, cards on (so enabling the master restores a full sidebar). Apex and
 subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
 [`site.js`](../src/lib/server/site.js) resolves them for the profile loader.
 
+Site chrome (header/footer) is site-wide, not per-page. `ensureSiteChrome()` seeds defaults
+(`header.logo-links-cta` + `footer.minimal`, brand text from `site.name`) on setup complete and
+builder load; it also lifts any legacy header/footer instances out of page `blocks`. Edited via
+`PUT /api/sites/{id}/chrome`.
+
 Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,
 `/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
 `hideBranding` needs Studio+ (`canRemoveBranding`); sidebar toggles need Studio+
 (`canUseCustomDomain`).
+
+### `site_page` — builder pages for a tenant site
+
+Keyed on `id`; belongs to `site` via `siteId` (FK → `site.id`, cascade). Every site gets a root
+page at `path = '/'` (empty `slug`) via `ensureRootPage()` when setup completes or the builder
+loads. `parentId` is ready for a folder hierarchy; nesting UI is not built yet.
+
+| Column                        | Purpose                                                         |
+| ----------------------------- | --------------------------------------------------------------- |
+| `id`                          | UUID PK                                                         |
+| `siteId`                      | Owner site (`site.id`)                                          |
+| `parentId`                    | Optional parent page (self-FK)                                  |
+| `slug` / `path`               | Root uses `''` / `'/'`; path unique per site                    |
+| `title`                       | Page title (default `Home`)                                     |
+| `seoTitle` / `seoDescription` | Optional SEO fields                                             |
+| `blocks`                      | JSON body blocks only (`{ id, type, props }`; no header/footer) |
+| `sortOrder`                   | Sibling order                                                   |
+
+Service: [`site-pages.js`](../src/lib/server/site-pages.js). Edited from `/sites/{id}/builder`
+(`?/updatePage` for metadata; `PUT /api/sites/{id}/pages/{pageId}/blocks` for the canvas). Root
+slug/path stay locked. Body types exclude `header.*` / `footer.*` (those live on `site` chrome).
+Allowlist: [`types.js`](../src/lib/components/blocks/types.js).
 
 ### `plan` — entitlement catalog
 
@@ -210,6 +243,7 @@ independent of likes on member tracks.
 erDiagram
   user ||--o| profile : "1:1"
   user ||--o| site : "1:1"
+  site ||--o{ site_page : "pages"
   user ||--o| storage_setting : "1:1"
   user ||--o{ track : owns
   user ||--o{ playlist : owns

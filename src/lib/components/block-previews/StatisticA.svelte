@@ -1,0 +1,31 @@
+<svg class="block-preview" viewBox="0 0 266 150" fill="none" aria-hidden="true">
+	<path fill="var(--solid)" d="M0 0h266v150H0z"></path><rect
+		x="45"
+		y="66"
+		width="26"
+		height="10"
+		rx="5"
+		fill="var(--solid-900)"
+	></rect><rect x="43" y="80" width="30" height="4" rx="2" fill="var(--base-500)"></rect><rect
+		x="95"
+		y="66"
+		width="26"
+		height="10"
+		rx="5"
+		fill="var(--solid-900)"
+	></rect><rect x="93" y="80" width="30" height="4" rx="2" fill="var(--base-500)"></rect><rect
+		x="145"
+		y="66"
+		width="26"
+		height="10"
+		rx="5"
+		fill="var(--solid-900)"
+	></rect><rect x="143" y="80" width="30" height="4" rx="2" fill="var(--base-500)"></rect><rect
+		x="195"
+		y="66"
+		width="26"
+		height="10"
+		rx="5"
+		fill="var(--solid-900)"
+	></rect><rect x="193" y="80" width="30" height="4" rx="2" fill="var(--base-500)"></rect>
+</svg>

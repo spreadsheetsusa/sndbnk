@@ -15,6 +15,7 @@
 	import ProfileLinkIcon from '#lib/components/ProfileLinkIcon.svelte';
 	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
+	import VizDockSlot from '#lib/components/player/VizDockSlot.svelte';
 	import ArtistRow from '#lib/components/profile/ArtistRow.svelte';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	/**
@@ -187,6 +188,9 @@
 			</nav>
 		{/if}
 		<div class="panel-rail" bind:this={panelRail} {@attach snapAttach}>
+			{#if !collapsed}
+				<VizDockSlot dockKey="profile" />
+			{/if}
 			{#if visualizer.showInline}
 				<InlineMilkdrop variant="panel" />
 			{/if}

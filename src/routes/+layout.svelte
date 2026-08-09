@@ -3,7 +3,9 @@
 	import { onMount } from 'svelte';
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
+	import EqPanel from '#lib/components/player/EqPanel.svelte';
 	import MilkdropWindow from '#lib/components/player/MilkdropWindow.svelte';
+	import { eq } from '#lib/player/eq.svelte.js';
 	import { setPlayThresholds } from '#lib/player/play-thresholds.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { initAccent, onAccentFor } from '#lib/stores/brand.js';
@@ -62,6 +64,9 @@
 <div class="app-shell">
 	{@render children()}
 </div>
+{#if eq.open}
+	<EqPanel active={eq.open} />
+{/if}
 {#if visualizer.showWindow}
 	<MilkdropWindow />
 {/if}

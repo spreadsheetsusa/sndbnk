@@ -99,6 +99,34 @@
       "when": 1786233407859,
       "tag": "0013_military_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1786302756413,
+      "tag": "0014_happy_ted_forrester",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1786312769169,
+      "tag": "0015_loose_slipstream",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1786313673196,
+      "tag": "0016_icy_siren",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1786314384648,
+      "tag": "0017_majestic_exiles",
+      "breakpoints": true
     }
   ]
 }

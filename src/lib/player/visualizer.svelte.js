@@ -1,14 +1,13 @@
 import { browser } from '$app/env';
-import { player } from '#lib/player/player.svelte.js';
+import { audioGraph } from '#lib/player/audio-graph.svelte.js';
+import { eq } from '#lib/player/eq.svelte.js';
+import { dockKeyAt, stackDock } from '#lib/player/window-snap.js';
 
 const STORAGE_KEY = 'sndbnk:milkdrop';
-/** Survives HMR so we never call createMediaElementSource twice on the same element. */
-const GRAPH_KEY = 'sndbnk:audio-graph';
 const DEFAULT_W = 480;
 const DEFAULT_H = 360;
 const MIN_W = 280;
 const MIN_H = 200;
-const TITLE_H = 32;
 
 /** Backdrop canvas opacity — dial here / via `--hero-viz-opacity`. */
 export const HERO_VIZ_OPACITY = 0.45;
@@ -94,8 +93,8 @@ function isBounds(value) {
 }
 
 /**
- * Global Milkdrop visualizer. Owns the one-shot Web Audio graph and up to two
- * butterchurn instances: primary surface (inline panel or floating window) and
+ * Global Milkdrop visualizer. Uses the shared `audioGraph` output hub and owns
+ * up to two butterchurn instances: primary surface (inline / floating) and
  * hero backdrop.
  */
 class Visualizer {
@@ -106,11 +105,17 @@ class Visualizer {
 	/** Last primary-surface attach failure (shown in the panel; does not auto-close). */
 	error = $state(/** @type {string | null} */ (null));
 	/** @type {VizMode} */
-	mode = $state('inline');
+	mode = $state('window');
 	x = $state(40);
 	y = $state(80);
 	w = $state(DEFAULT_W);
 	h = $state(DEFAULT_H);
+	/** True while the floating window is being dragged (for dock dropzone highlight). */
+	draggingWindow = $state(false);
+	/** `data-viz-dock` key under the pointer while dragging, else null. */
+	dockHotKey = $state(/** @type {string | null} */ (null));
+	/** True while the pointer is over a registered sidebar dock slot (preview snap). */
+	dockHover = $state(false);
 
 	/** Inline hosts (feed/library/profile/track) when planet is on and mode is inline. */
 	get showInline() {
@@ -122,13 +127,11 @@ class Visualizer {
 		return this.enabled && this.mode === 'window' && this.supported;
 	}
 
-	/** @type {AudioContext | null} */
-	#ctx = null;
-	/** @type {MediaElementAudioSourceNode | null} */
-	#source = null;
-	/** Stable hub: source → output → destination (never rewired on toggle). */
-	/** @type {GainNode | null} */
-	#output = null;
+	/** @type {HTMLElement | null} */
+	#dockSlot = null;
+	/** @type {VizBounds | null} */
+	#preDockBounds = null;
+
 	/** @type {any} */
 	#butterchurn = null;
 	/** @type {any} */
@@ -153,8 +156,6 @@ class Visualizer {
 	#backdropCycleTimer = 0;
 	/** @type {(() => void) | null} */
 	#onVisibility = null;
-	/** @type {(() => void) | null} */
-	#onAudioReady = null;
 
 	constructor() {
 		if (!browser) return;
@@ -168,9 +169,10 @@ class Visualizer {
 			}
 		};
 		document.addEventListener('visibilitychange', this.#onVisibility);
-		// Wire MediaElementSource as soon as the player creates <audio>, before play.
-		this.#onAudioReady = () => this.#primeAudio();
-		document.addEventListener('sndbnk:audio-ready', this.#onAudioReady);
+		// Warm the shared graph as soon as the player creates <audio>.
+		document.addEventListener('sndbnk:audio-ready', () => {
+			audioGraph.ensure();
+		});
 	}
 
 	toggle() {
@@ -185,13 +187,16 @@ class Visualizer {
 		if (on === this.enabled) return;
 		if (on) {
 			// Resume only — never rewire the speaker path on toggle.
-			this.#primeAudio();
+			audioGraph.ensure();
+			audioGraph.resume();
 			this.error = null;
 			this.enabled = true;
+			if (this.mode === 'window') this.spawnDocked();
 			return;
 		}
 		this.enabled = false;
 		this.error = null;
+		this.setWindowDragging(false);
 		this.#teardownWindowButter();
 		this.ready = false;
 	}
@@ -208,51 +213,155 @@ class Visualizer {
 	}
 
 	popOut() {
-		this.setMode('window');
+		if (this.mode !== 'window') this.setMode('window');
+		this.spawnDocked();
 	}
 
 	dock() {
+		this.setWindowDragging(false);
 		this.setMode('inline');
+	}
+
+	/**
+	 * Place the floating window under the player strip (or under a strip-snapped EQ),
+	 * matching the strip width. EQ uses the inverse: under a strip-snapped viz.
+	 */
+	spawnDocked() {
+		if (!browser) return;
+		const dock = stackDock({ eqOpen: eq.open });
+		if (!dock) {
+			this.setBounds({ ...defaultBounds(), h: DEFAULT_H });
+			return;
+		}
+		this.setBounds({ x: dock.x, y: dock.y, w: dock.w, h: DEFAULT_H });
+	}
+
+	/**
+	 * @param {HTMLElement | null} el
+	 */
+	registerDockSlot(el) {
+		this.#dockSlot = el;
+	}
+
+	/**
+	 * @param {HTMLElement | null} [el]
+	 */
+	unregisterDockSlot(el = null) {
+		if (el && this.#dockSlot !== el) return;
+		this.#dockSlot = null;
+		if (this.dockHover) this.#exitDockPreview(true);
+	}
+
+	/**
+	 * Start a floating-window drag; shows sidebar drop-zones.
+	 * @param {number} clientX
+	 * @param {number} clientY
+	 */
+	beginWindowDrag(clientX, clientY) {
+		this.draggingWindow = true;
+		this.#syncDockHover(clientX, clientY);
+	}
+
+	/**
+	 * Update dock hit-test / preview while dragging.
+	 * @param {number} clientX
+	 * @param {number} clientY
+	 */
+	updateWindowDrag(clientX, clientY) {
+		if (!this.draggingWindow) return;
+		this.#syncDockHover(clientX, clientY);
+	}
+
+	/**
+	 * End drag: dock to inline when over a slot or any `[data-viz-dock]` host.
+	 * @param {number} clientX
+	 * @param {number} clientY
+	 */
+	endWindowDrag(clientX, clientY) {
+		const overSlot = this.#pointerOverDockSlot(clientX, clientY);
+		const hotKey = dockKeyAt(clientX, clientY);
+		const shouldDock = this.dockHover || overSlot || Boolean(hotKey);
+		this.#exitDockPreview(false);
+		this.draggingWindow = false;
+		this.dockHotKey = null;
+		if (shouldDock) {
+			this.dock();
+			return;
+		}
+		this.#persistPrefs();
+	}
+
+	/**
+	 * @param {boolean} on
+	 */
+	setWindowDragging(on) {
+		if (!on) {
+			this.#exitDockPreview(true);
+			this.draggingWindow = false;
+			this.dockHotKey = null;
+			return;
+		}
+		this.draggingWindow = true;
+	}
+
+	/**
+	 * @param {number} clientX
+	 * @param {number} clientY
+	 */
+	#syncDockHover(clientX, clientY) {
+		this.dockHotKey = dockKeyAt(clientX, clientY);
+		const overSlot = this.#pointerOverDockSlot(clientX, clientY);
+		if (overSlot && !this.dockHover) {
+			this.#preDockBounds = { x: this.x, y: this.y, w: this.w, h: this.h };
+			this.dockHover = true;
+			// Next frame so `.dock-preview` transition is active before bounds change.
+			requestAnimationFrame(() => {
+				if (this.dockHover) this.#applyDockPreview();
+			});
+			return;
+		}
+		if (!overSlot && this.dockHover) {
+			// Restore free size; caller reapplies position on the same move frame.
+			this.#exitDockPreview(true);
+		}
+	}
+
+	/**
+	 * @param {number} clientX
+	 * @param {number} clientY
+	 * @returns {boolean}
+	 */
+	#pointerOverDockSlot(clientX, clientY) {
+		const el = this.#dockSlot;
+		if (!el) return false;
+		const r = el.getBoundingClientRect();
+		return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+	}
+
+	#applyDockPreview() {
+		const el = this.#dockSlot;
+		if (!el) return;
+		const r = el.getBoundingClientRect();
+		this.setBounds(
+			{ x: r.left, y: r.top, w: r.width, h: r.height },
+			{ persist: false, relaxMin: true }
+		);
+	}
+
+	/**
+	 * @param {boolean} restore
+	 */
+	#exitDockPreview(restore) {
+		if (!this.dockHover && !this.#preDockBounds) return;
+		const prev = this.#preDockBounds;
+		this.dockHover = false;
+		this.#preDockBounds = null;
+		if (restore && prev) this.setBounds(prev, { persist: false });
 	}
 
 	/** Re-measure the primary canvas after the host layout changes. */
 	resize() {
 		this.#resizeWindow();
-	}
-
-	/** Synchronously wire the media-element source and kick off ctx.resume(). */
-	#primeAudio() {
-		const audioEl = player.getAudioElement();
-		if (!audioEl) return;
-
-		if (!this.#ctx) {
-			const existing =
-				/** @type {{ ctx: AudioContext, source: MediaElementAudioSourceNode, output: GainNode } | undefined} */ (
-					globalThis[GRAPH_KEY]
-				);
-			if (existing?.ctx && existing?.source && existing?.output) {
-				this.#ctx = existing.ctx;
-				this.#source = existing.source;
-				this.#output = existing.output;
-			} else {
-				const AC = window.AudioContext || window.webkitAudioContext;
-				this.#ctx = new AC();
-				this.#source = this.#ctx.createMediaElementSource(audioEl);
-				this.#output = this.#ctx.createGain();
-				this.#output.gain.value = 1;
-				this.#source.connect(this.#output);
-				this.#output.connect(this.#ctx.destination);
-				globalThis[GRAPH_KEY] = {
-					ctx: this.#ctx,
-					source: this.#source,
-					output: this.#output
-				};
-			}
-		}
-
-		if (this.#ctx.state === 'suspended') {
-			void this.#ctx.resume();
-		}
 	}
 
 	/**
@@ -336,20 +445,25 @@ class Visualizer {
 
 	/**
 	 * @param {Partial<VizBounds>} bounds
+	 * @param {{ persist?: boolean, relaxMin?: boolean }} [opts]
 	 */
-	setBounds(bounds) {
+	setBounds(bounds, opts = {}) {
 		if (!browser) return;
-		const next = this.#clampBounds({
-			x: bounds.x ?? this.x,
-			y: bounds.y ?? this.y,
-			w: bounds.w ?? this.w,
-			h: bounds.h ?? this.h
-		});
+		const persist = opts.persist !== false;
+		const next = this.#clampBounds(
+			{
+				x: bounds.x ?? this.x,
+				y: bounds.y ?? this.y,
+				w: bounds.w ?? this.w,
+				h: bounds.h ?? this.h
+			},
+			{ relaxMin: Boolean(opts.relaxMin) }
+		);
 		this.x = next.x;
 		this.y = next.y;
 		this.w = next.w;
 		this.h = next.h;
-		this.#persistPrefs();
+		if (persist && !this.dockHover) this.#persistPrefs();
 		this.#resizeWindow();
 	}
 
@@ -361,10 +475,11 @@ class Visualizer {
 	}
 
 	async #ensureGraph() {
-		this.#primeAudio();
-		if (!this.#ctx || !this.#source) throw new Error('No audio element');
-		if (this.#ctx.state === 'suspended') {
-			await this.#ctx.resume();
+		if (!audioGraph.ensure()) throw new Error('No audio element');
+		const ctx = audioGraph.ctx;
+		if (!ctx) throw new Error('No audio context');
+		if (ctx.state === 'suspended') {
+			await ctx.resume();
 		}
 	}
 
@@ -430,25 +545,26 @@ class Visualizer {
 	}
 
 	async #ensureWindowButter() {
-		if (!this.#canvas || !this.#ctx || !this.#output) {
+		const ctx = audioGraph.ctx;
+		const output = audioGraph.output;
+		if (!this.#canvas || !ctx || !output) {
 			throw new Error('Audio graph not ready');
 		}
 		if (this.#butter) {
 			// Re-bind after remount; connectAudio fans out and is safe to re-call.
-			this.#butter.connectAudio(this.#output);
+			this.#butter.connectAudio(output);
 			return;
 		}
 
 		await this.#loadModules();
 		const { width, height, pixelRatio } = this.#syncCanvasBuffer(this.#canvas, WINDOW_PIXEL_RATIO);
-		this.#butter = this.#butterchurn.createVisualizer(this.#ctx, this.#canvas, {
+		this.#butter = this.#butterchurn.createVisualizer(ctx, this.#canvas, {
 			width,
 			height,
 			pixelRatio
 		});
-		// Tap the gain hub (not the raw MediaElementSource) so analysis shares
-		// the same post-source node the speakers hear.
-		this.#butter.connectAudio(this.#output);
+		// Tap the gain hub so analysis shares the same post-EQ node the speakers hear.
+		this.#butter.connectAudio(output);
 
 		this.#presetIndex = Math.floor(Math.random() * this.#presetKeys.length);
 		const key = this.#presetKeys[this.#presetIndex];
@@ -456,11 +572,13 @@ class Visualizer {
 	}
 
 	async #ensureBackdropButter() {
-		if (!this.#backdropCanvas || !this.#ctx || !this.#output) {
+		const ctx = audioGraph.ctx;
+		const output = audioGraph.output;
+		if (!this.#backdropCanvas || !ctx || !output) {
 			throw new Error('Audio graph not ready');
 		}
 		if (this.#backdropButter) {
-			this.#backdropButter.connectAudio(this.#output);
+			this.#backdropButter.connectAudio(output);
 			return;
 		}
 
@@ -471,12 +589,12 @@ class Visualizer {
 			this.#backdropCanvas,
 			BACKDROP_PIXEL_RATIO
 		);
-		this.#backdropButter = this.#butterchurn.createVisualizer(this.#ctx, this.#backdropCanvas, {
+		this.#backdropButter = this.#butterchurn.createVisualizer(ctx, this.#backdropCanvas, {
 			width,
 			height,
 			pixelRatio
 		});
-		this.#backdropButter.connectAudio(this.#output);
+		this.#backdropButter.connectAudio(output);
 
 		this.#backdropPresetIndex = Math.floor(Math.random() * this.#backdropPresetKeys.length);
 		const key = this.#backdropPresetKeys[this.#backdropPresetIndex];
@@ -527,7 +645,7 @@ class Visualizer {
 				return;
 			}
 			// Recover from Chrome auto-suspending the context while HTMLAudio plays.
-			if (this.#ctx?.state === 'suspended') void this.#ctx.resume();
+			audioGraph.resume();
 			if (win) this.#butter.render();
 			if (back) this.#backdropButter.render();
 			this.#raf = requestAnimationFrame(tick);
@@ -585,13 +703,16 @@ class Visualizer {
 
 	/**
 	 * @param {VizBounds} bounds
+	 * @param {{ relaxMin?: boolean }} [opts]
 	 * @returns {VizBounds}
 	 */
-	#clampBounds(bounds) {
-		const maxW = Math.max(MIN_W, window.innerWidth - 16);
-		const maxH = Math.max(MIN_H, window.innerHeight - 16);
-		const w = Math.min(Math.max(bounds.w, MIN_W), maxW);
-		const h = Math.min(Math.max(bounds.h, MIN_H), maxH);
+	#clampBounds(bounds, opts = {}) {
+		const minW = opts.relaxMin ? 1 : MIN_W;
+		const minH = opts.relaxMin ? 1 : MIN_H;
+		const maxW = Math.max(minW, window.innerWidth - 16);
+		const maxH = Math.max(minH, window.innerHeight - 16);
+		const w = Math.min(Math.max(bounds.w, minW), maxW);
+		const h = Math.min(Math.max(bounds.h, minH), maxH);
 		const x = Math.min(Math.max(bounds.x, 0), Math.max(0, window.innerWidth - w));
 		const y = Math.min(Math.max(bounds.y, 0), Math.max(0, window.innerHeight - h));
 		return { x, y, w, h };
@@ -617,7 +738,7 @@ class Visualizer {
 				this.y = fallback.y;
 				this.w = fallback.w;
 				this.h = fallback.h;
-				this.mode = 'inline';
+				this.mode = 'window';
 				return;
 			}
 			const parsed = JSON.parse(raw);
@@ -630,13 +751,13 @@ class Visualizer {
 				parsed && typeof parsed === 'object' && 'mode' in parsed
 					? /** @type {{ mode?: unknown }} */ (parsed).mode
 					: null;
-			this.mode = savedMode === 'window' ? 'window' : 'inline';
+			this.mode = savedMode === 'inline' ? 'inline' : 'window';
 		} catch {
 			this.x = fallback.x;
 			this.y = fallback.y;
 			this.w = fallback.w;
 			this.h = fallback.h;
-			this.mode = 'inline';
+			this.mode = 'window';
 		}
 	}
 }
@@ -697,6 +818,3 @@ function unwrapPresets(mod) {
 }
 
 export const visualizer = new Visualizer();
-
-/** Title bar height used by the floating window chrome. */
-export const MILKDROP_TITLE_H = TITLE_H;

@@ -1,0 +1,1 @@
+ALTER TABLE `site_page` ADD `blocks` text DEFAULT '[]' NOT NULL;

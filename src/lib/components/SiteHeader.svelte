@@ -30,11 +30,13 @@
 			username: null,
 			image: null,
 			isAdmin: false,
-			linkedAccounts: []
+			linkedAccounts: [],
+			sites: { siteId: null, hosts: [] }
 		}
 	);
 	const signedIn = $derived(Boolean(nav.name));
 	const linkedAccounts = $derived(nav.linkedAccounts ?? []);
+	const siteHosts = $derived(nav.sites?.hosts ?? []);
 	const appearanceValue = $derived(
 		$themePreference === 'light' || $themePreference === 'dark' ? $themePreference : $resolvedTheme
 	);
@@ -268,6 +270,21 @@
 							</div>
 						{/if}
 
+						{#if siteHosts.length > 0}
+							<hr class="account-divider" />
+							<div class="sites-list" role="group" aria-label="Sites">
+								{#each siteHosts as host (host.label)}
+									<a
+										class="account-item site-host"
+										href={host.href}
+										aria-current={current(host.href)}
+									>
+										<span class="site-host-label">{host.label}</span>
+									</a>
+								{/each}
+							</div>
+						{/if}
+
 						<hr class="account-divider" />
 
 						<a class="account-item" href="/settings" aria-current={current('/settings')}>
@@ -341,6 +358,7 @@
 		margin-bottom: var(--site-header-gap);
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 		background: var(--paper);
+		user-select: none;
 	}
 
 	/* Installed PWA: grow min-height so border-box keeps the inner content box. */
@@ -571,7 +589,8 @@
 		border-top: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
 	}
 
-	.linked-switch {
+	.linked-switch,
+	.sites-list {
 		display: grid;
 		gap: 0.1rem;
 	}
@@ -585,11 +604,19 @@
 		font-weight: 700;
 	}
 
-	.linked-label {
+	.linked-label,
+	.site-host-label {
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.site-host {
+		text-transform: none;
+		letter-spacing: 0.02em;
+		font-weight: 700;
+		font-family: var(--font-lcd), monospace;
 	}
 
 	.account-panel form {

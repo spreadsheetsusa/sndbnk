@@ -3,10 +3,15 @@ import { ORIGIN } from '$app/env/private';
 import { listAcceptedPeers } from '#lib/server/account-links';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { getPlatformSettings } from '#lib/server/platform-settings';
-import { getSitePublic } from '#lib/server/site';
+import { getSitePublic, listNavSites } from '#lib/server/site';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
+
+const emptySites = {
+	siteId: null,
+	hosts: /** @type {Array<{ label: string, href: string }>} */ ([])
+};
 
 const emptyNav = {
 	id: null,
@@ -15,7 +20,8 @@ const emptyNav = {
 	image: null,
 	isAdmin: false,
 	linkedAccounts:
-		/** @type {Array<{ userId: string, username: string, name: string, image: string | null }>} */ ([])
+		/** @type {Array<{ userId: string, username: string, name: string, image: string | null }>} */ ([]),
+	sites: emptySites
 };
 
 export const load = async ({ locals }) => {
@@ -59,6 +65,8 @@ export const load = async ({ locals }) => {
 		listAcceptedPeers(locals.user.id)
 	]);
 
+	const sites = await listNavSites(profile);
+
 	return {
 		siteOrigin,
 		playThresholds,
@@ -68,7 +76,8 @@ export const load = async ({ locals }) => {
 			username: profile?.username ?? null,
 			image: locals.user.image ?? null,
 			isAdmin: locals.user.role === 'admin',
-			linkedAccounts
+			linkedAccounts,
+			sites
 		},
 		tenantSite: null
 	};

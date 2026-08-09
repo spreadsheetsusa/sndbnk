@@ -61,7 +61,7 @@ On a tenant host the path allowlist is deliberately narrow:
 
 - **Passthrough:** `/_app`, `/api/auth`, `/favicon.*`, `/robots.txt`
 - **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`,
-  `/api/domain-tls-check` — account surfaces only exist on the apex
+  `/sites`, `/api/domain-tls-check` — account surfaces only exist on the apex
 - **Allowed:** `/`, `/tracks/*`, `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`,
   `/api/site-og/*`, `/api/tracks/*`, `/api/playlists/*`, `/api/users/*`,
   `/playlists/*`
@@ -152,7 +152,8 @@ src/
       account-links.js    request / approve / unlink moniker accounts
       db/                 schema.js, auth.schema.js (generated), index.js
       tenant.js billing/plans.js username.js domain-verify.js profile-page.js
-      site.js             tenant branding (name, logo, accent, hide branding)
+      site.js             tenant branding + site chrome (header/footer blocks)
+      site-pages.js       CMS pages + body block lists for the site builder
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg peaks), transcode.js (WAV→MP3), embed-tags.js (taglib)

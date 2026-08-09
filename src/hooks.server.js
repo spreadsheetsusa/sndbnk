@@ -12,6 +12,7 @@ const APEX_ONLY_PREFIXES = [
 	'/forgot-password',
 	'/reset-password',
 	'/library',
+	'/sites',
 	'/plans',
 	'/privacy',
 	'/terms',
@@ -22,7 +23,8 @@ const APEX_ONLY_PREFIXES = [
 	'/api/domain-tls-check',
 	'/api/billing',
 	'/api/stripe',
-	'/api/admin'
+	'/api/admin',
+	'/api/sites'
 ];
 
 /**

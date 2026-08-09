@@ -22,6 +22,7 @@ export const task = sqliteTable('task', {
 /** @typedef {'none' | 'pending' | 'active'} CustomDomainStatus */
 /** @typedef {'month' | 'year'} BillingInterval */
 /** @typedef {'pending' | 'accepted'} AccountLinkStatus */
+/** @typedef {'tracks' | 'mixes' | 'podcast' | 'label' | 'other'} SiteIntent */
 
 /**
  * Entitlements per tier, editable from the admin panel. Stripe owns the money
@@ -107,37 +108,94 @@ export const profile = sqliteTable('profile', {
 
 /**
  * Per-creator tenant branding for subdomain / custom-domain hosts.
- * Lazy-created on first Settings → Site save; missing row means fall back to profile defaults.
+ * Lazy-created on first Settings → Site save or site-builder entry; missing row means fall
+ * back to profile defaults. `id` is the public route key for `/sites/{id}`.
  */
-export const site = sqliteTable('site', {
-	userId: text('user_id')
-		.primaryKey()
-		.references(() => user.id, { onDelete: 'cascade' }),
-	name: text('name'),
-	description: text('description'),
-	logoFilename: text('logo_filename'),
-	logoMime: text('logo_mime'),
-	/** `#RRGGBB`; null keeps the listener/default accent. */
-	accentColor: text('accent_color'),
-	hideBranding: integer('hide_branding', { mode: 'boolean' }).notNull().default(false),
-	/** Custom-domain profile sidebar; ignored on subdomain/apex. Master off = hide all. */
-	sidebarEnabled: integer('sidebar_enabled', { mode: 'boolean' }).notNull().default(false),
-	sidebarStats: integer('sidebar_stats', { mode: 'boolean' }).notNull().default(true),
-	sidebarFansAlsoLike: integer('sidebar_fans_also_like', { mode: 'boolean' })
-		.notNull()
-		.default(true),
-	sidebarFollowers: integer('sidebar_followers', { mode: 'boolean' }).notNull().default(true),
-	sidebarActivity: integer('sidebar_activity', { mode: 'boolean' }).notNull().default(true),
-	ogImageFilename: text('og_image_filename'),
-	ogImageMime: text('og_image_mime'),
-	createdAt: integer('created_at', { mode: 'timestamp_ms' })
-		.$defaultFn(() => new Date())
-		.notNull(),
-	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
-		.$defaultFn(() => new Date())
-		.$onUpdate(() => new Date())
-		.notNull()
-});
+export const site = sqliteTable(
+	'site',
+	{
+		userId: text('user_id')
+			.primaryKey()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		id: text('id')
+			.notNull()
+			.$defaultFn(() => crypto.randomUUID()),
+		name: text('name'),
+		description: text('description'),
+		logoFilename: text('logo_filename'),
+		logoMime: text('logo_mime'),
+		/** `#RRGGBB`; null keeps the listener/default accent. */
+		accentColor: text('accent_color'),
+		hideBranding: integer('hide_branding', { mode: 'boolean' }).notNull().default(false),
+		/** Custom-domain profile sidebar; ignored on subdomain/apex. Master off = hide all. */
+		sidebarEnabled: integer('sidebar_enabled', { mode: 'boolean' }).notNull().default(false),
+		sidebarStats: integer('sidebar_stats', { mode: 'boolean' }).notNull().default(true),
+		sidebarFansAlsoLike: integer('sidebar_fans_also_like', { mode: 'boolean' })
+			.notNull()
+			.default(true),
+		sidebarFollowers: integer('sidebar_followers', { mode: 'boolean' }).notNull().default(true),
+		sidebarActivity: integer('sidebar_activity', { mode: 'boolean' }).notNull().default(true),
+		ogImageFilename: text('og_image_filename'),
+		ogImageMime: text('og_image_mime'),
+		/** Set when the `/sites/{id}` setup wizard completes. */
+		setupCompletedAt: integer('setup_completed_at', { mode: 'timestamp_ms' }),
+		/** `tracks` | `mixes` | `podcast` | `label` | `other`; validated in site.js. */
+		siteIntent: text('site_intent'),
+		wantBlog: integer('want_blog', { mode: 'boolean' }).notNull().default(false),
+		wantEvents: integer('want_events', { mode: 'boolean' }).notNull().default(false),
+		wantEcommerce: integer('want_ecommerce', { mode: 'boolean' }).notNull().default(false),
+		/** JSON `{ id, type, props }` site chrome header; null until ensureSiteChrome. */
+		headerBlock: text('header_block'),
+		/** JSON `{ id, type, props }` site chrome footer; null until ensureSiteChrome. */
+		footerBlock: text('footer_block'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [uniqueIndex('site_id_uidx').on(table.id)]
+);
+
+/**
+ * CMS pages for a tenant site. Every project starts with a root page (`path = '/'`).
+ * `parentId` supports a folder-like hierarchy; nesting UI comes later.
+ */
+export const sitePage = sqliteTable(
+	'site_page',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		siteId: text('site_id')
+			.notNull()
+			.references(() => site.id, { onDelete: 'cascade' }),
+		parentId: text('parent_id').references(() => sitePage.id, { onDelete: 'cascade' }),
+		/** Empty string for the root page. */
+		slug: text('slug').notNull().default(''),
+		/** Absolute path within the site; `'/'` for root. Unique per site. */
+		path: text('path').notNull(),
+		title: text('title').notNull().default('Home'),
+		seoTitle: text('seo_title'),
+		seoDescription: text('seo_description'),
+		/** JSON array of `{ id, type, props }` block instances for the page builder. */
+		blocks: text('blocks').notNull().default('[]'),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		uniqueIndex('site_page_site_path_uidx').on(table.siteId, table.path),
+		index('site_page_site_id_idx').on(table.siteId)
+	]
+);
 
 export const profileRelations = relations(profile, ({ one, many }) => ({
 	user: one(user, {
@@ -151,7 +209,7 @@ export const profileRelations = relations(profile, ({ one, many }) => ({
 	})
 }));
 
-export const siteRelations = relations(site, ({ one }) => ({
+export const siteRelations = relations(site, ({ one, many }) => ({
 	user: one(user, {
 		fields: [site.userId],
 		references: [user.id]
@@ -159,7 +217,21 @@ export const siteRelations = relations(site, ({ one }) => ({
 	profile: one(profile, {
 		fields: [site.userId],
 		references: [profile.userId]
-	})
+	}),
+	pages: many(sitePage)
+}));
+
+export const sitePageRelations = relations(sitePage, ({ one, many }) => ({
+	site: one(site, {
+		fields: [sitePage.siteId],
+		references: [site.id]
+	}),
+	parent: one(sitePage, {
+		fields: [sitePage.parentId],
+		references: [sitePage.id],
+		relationName: 'sitePageHierarchy'
+	}),
+	children: many(sitePage, { relationName: 'sitePageHierarchy' })
 }));
 
 export const profileLink = sqliteTable(

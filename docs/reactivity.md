@@ -217,8 +217,10 @@ flowchart TD
 ```
 
 Server data flows down as props. Playback state flows out of the singleton. Milkdrop is toggled from
-the header player; default `mode` is inline (feed sidebar, library deck, profile sidebar, track
-detail) with Pop out / Dock to the floating window mounted in the root layout so it survives
-per-page `SiteHeader` remounts. Both surfaces share one primary butterchurn instance and tap the
-player's singleton `HTMLAudioElement` through a one-shot Web Audio graph. Mutations go to an API
-route and come back as an override. Nothing reaches sideways into another component's state.
+the header player; default `mode` is `window` — the floating panel mounts in the root layout
+(survives per-page `SiteHeader` remounts) and spawns stacked under the player strip (or under a
+strip-snapped EQ) at the strip’s width. Drag onto a `[data-viz-dock]` host (feed/profile sidebars,
+library deck, track detail) or use Dock to switch `mode` to `inline`; Pop out re-snaps under the
+stack. Both surfaces share one primary butterchurn instance and tap the player's singleton
+`HTMLAudioElement` through a one-shot Web Audio graph. Mutations go to an API route and come back as
+an override. Nothing reaches sideways into another component's state.

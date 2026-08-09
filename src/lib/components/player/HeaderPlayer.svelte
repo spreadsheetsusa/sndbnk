@@ -1,4 +1,5 @@
 <script>
+	import IconAdjustments from '@tabler/icons-svelte-runes/icons/adjustments';
 	import IconGripVertical from '@tabler/icons-svelte-runes/icons/grip-vertical';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
@@ -16,6 +17,7 @@
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
+	import { eq } from '#lib/player/eq.svelte.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 
@@ -61,15 +63,13 @@
 	/** Waveform scrub preview in seconds. @type {number | null} */
 	let scrubSeconds = $state(null);
 
-	/** @typedef {'eq' | 'fs'} FeatureKey */
-	/** Local stubs; FX is wired to `visualizer` instead. */
-	/** @type {{ eq: boolean, fs: boolean }} */
-	let features = $state({ eq: false, fs: false });
-	/** @type {readonly { key: FeatureKey | 'fx', label: string }[]} */
+	/** Parked for later feature-pad restore; F is still a local stub. */
+	let fullscreenStub = $state(false);
+	/** @type {readonly { key: 'eq' | 'fx' | 'fs', label: string, ariaLabel: string }[]} */
 	const FEATURE_PAD = [
-		{ key: 'eq', label: 'EQ' },
-		{ key: 'fx', label: 'FX' },
-		{ key: 'fs', label: 'FS' }
+		{ key: 'eq', label: 'Q', ariaLabel: 'EQ' },
+		{ key: 'fx', label: 'V', ariaLabel: 'Visualizer' },
+		{ key: 'fs', label: 'F', ariaLabel: 'Fullscreen' }
 	];
 
 	/** @type {TimedComment[]} */
@@ -260,14 +260,19 @@
 	}
 
 	/** @param {KeyboardEvent} event */
-	function handleQueueKeydown(event) {
-		if (event.key !== 'Escape' || !queueOpen) return;
+	function handleChromeKeydown(event) {
+		if (event.key !== 'Escape') return;
+		if (eq.open) {
+			eq.setOpen(false);
+			return;
+		}
+		if (!queueOpen) return;
 		queueOpen = false;
 		queueBtn?.focus();
 	}
 </script>
 
-<svelte:window onkeydown={handleQueueKeydown} />
+<svelte:window onkeydown={handleChromeKeydown} />
 
 {#if player.current}
 	{@const track = player.current}
@@ -303,36 +308,7 @@
 				</button>
 			</div>
 
-			<div class="feature-pad" role="group" aria-label="Player features">
-				{#each FEATURE_PAD as { key, label } (key)}
-					{#if key === 'fx'}
-						<button
-							type="button"
-							class="feature-btn"
-							class:on={visualizer.enabled}
-							aria-pressed={visualizer.enabled}
-							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
-							disabled={!visualizer.supported}
-							onclick={() => visualizer.toggle()}
-						>
-							{label}
-						</button>
-					{:else}
-						<button
-							type="button"
-							class="feature-btn"
-							class:on={features[key]}
-							aria-pressed={features[key]}
-							aria-label={label}
-							onclick={() => (features[key] = !features[key])}
-						>
-							{label}
-						</button>
-					{/if}
-				{/each}
-			</div>
-
-			<div class="cell now-playing" class:queue-open={queueOpen}>
+			<div class="cell now-playing" class:queue-open={queueOpen} class:eq-open={eq.open}>
 				<div class="cover-wrap">
 					<button
 						type="button"
@@ -447,6 +423,33 @@
 							{#if techBottom}<span class="tech-row">{techBottom}</span>{/if}
 						</div>
 					{/if}
+
+					<div class="now-toggles" role="group" aria-label="Player features">
+						<button
+							type="button"
+							class="now-toggle"
+							class:on={eq.open}
+							aria-pressed={eq.open}
+							aria-expanded={eq.open}
+							aria-controls="header-eq-panel"
+							aria-label="EQ"
+							data-eq-trigger
+							onclick={() => eq.toggleOpen()}
+						>
+							EQ
+						</button>
+						<button
+							type="button"
+							class="now-toggle"
+							class:on={visualizer.enabled}
+							aria-pressed={visualizer.enabled}
+							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
+							disabled={!visualizer.supported}
+							onclick={() => visualizer.toggle()}
+						>
+							VIZ
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -480,38 +483,49 @@
 				</div>
 			</div>
 
-			{#if signedIn || visualizer.supported}
-				<div class="bar-actions">
-					{#if signedIn}
-						<button
-							type="button"
-							class="cell icon-btn"
-							class:active={track.likedByViewer}
-							aria-label={track.likedByViewer ? 'Unlike' : 'Like'}
-							aria-pressed={track.likedByViewer}
-							onclick={toggleLike}
-						>
-							{#if track.likedByViewer}
-								<IconHeartFilled size={15} aria-hidden="true" />
-							{:else}
-								<IconHeart size={15} stroke={1.75} aria-hidden="true" />
-							{/if}
-						</button>
-					{/if}
-					{#if visualizer.supported}
-						<button
-							type="button"
-							class="cell icon-btn viz-mobile-only"
-							class:active={visualizer.enabled}
-							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
-							aria-pressed={visualizer.enabled}
-							onclick={() => visualizer.toggle()}
-						>
-							<IconPlanet size={15} stroke={1.75} aria-hidden="true" />
-						</button>
-					{/if}
-				</div>
-			{/if}
+			<div class="bar-actions">
+				{#if signedIn}
+					<button
+						type="button"
+						class="cell icon-btn"
+						class:active={track.likedByViewer}
+						aria-label={track.likedByViewer ? 'Unlike' : 'Like'}
+						aria-pressed={track.likedByViewer}
+						onclick={toggleLike}
+					>
+						{#if track.likedByViewer}
+							<IconHeartFilled size={15} aria-hidden="true" />
+						{:else}
+							<IconHeart size={15} stroke={1.75} aria-hidden="true" />
+						{/if}
+					</button>
+				{/if}
+				<button
+					type="button"
+					class="cell icon-btn eq-mobile-only"
+					class:active={eq.open}
+					aria-label="EQ"
+					aria-pressed={eq.open}
+					aria-expanded={eq.open}
+					aria-controls="header-eq-panel"
+					data-eq-trigger
+					onclick={() => eq.toggleOpen()}
+				>
+					<IconAdjustments size={15} stroke={1.75} aria-hidden="true" />
+				</button>
+				{#if visualizer.supported}
+					<button
+						type="button"
+						class="cell icon-btn viz-mobile-only"
+						class:active={visualizer.enabled}
+						aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
+						aria-pressed={visualizer.enabled}
+						onclick={() => visualizer.toggle()}
+					>
+						<IconPlanet size={15} stroke={1.75} aria-hidden="true" />
+					</button>
+				{/if}
+			</div>
 		</div>
 	</div>
 {/if}
@@ -573,13 +587,15 @@
 		overflow: hidden;
 	}
 
-	/* Desktop: FX in the feature pad toggles viz; planet icon is mobile-only. */
+	/* Desktop: EQ/VIZ live in .now-toggles; adjustments/planet icons are mobile-only. */
+	.eq-mobile-only,
 	.viz-mobile-only {
 		display: none;
 	}
 
-	/* Right-edge radii on the last *visible* action (skip hidden mobile viz). */
-	.bar-actions .cell:last-child:not(.viz-mobile-only),
+	/* Right-edge radii on the last *visible* action (skip hidden mobile-only controls). */
+	.bar-actions .cell:last-child:not(.eq-mobile-only):not(.viz-mobile-only),
+	.bar-actions .cell:has(+ .eq-mobile-only),
 	.bar-actions .cell:has(+ .viz-mobile-only) {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
@@ -587,7 +603,7 @@
 	}
 
 	/* When no visible like/actions remain, scrub is the rightmost cell. */
-	.strip:not(:has(.bar-actions .cell:not(.viz-mobile-only))) .scrub {
+	.strip:not(:has(.bar-actions .cell:not(.eq-mobile-only):not(.viz-mobile-only))) .scrub {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
@@ -677,13 +693,14 @@
 	}
 
 	.now-playing {
+		position: relative;
 		gap: 0;
 		/* Cover (~2.25rem) + title room; shrink only after scrub has given ground. */
 		flex: 0 1 16rem;
 		min-width: 9.5rem;
 		max-width: 20rem;
 		padding: 0;
-		/* Visible so the queue badge can escape; clip spill inside .now-body. */
+		/* Visible so the queue badge / EQ panel can escape; clip spill inside .now-body. */
 		overflow: visible;
 		font-family: var(--font-lcd);
 		/* Query this cell (not .strip) so layout containment can't clip .queue-count. */
@@ -709,7 +726,8 @@
 			inset 0 0 1.1rem color-mix(in srgb, var(--lcd-tint) 9%, transparent);
 	}
 
-	.now-playing.queue-open {
+	.now-playing.queue-open,
+	.now-playing.eq-open {
 		z-index: 30;
 	}
 
@@ -790,13 +808,16 @@
 	}
 
 	.now-body {
+		/* LCD inset: room for meta/tech/toggles (feature-pad rail parked). */
+		--lcd-pad-y: 0.15rem;
+		--lcd-pad-left: 0.4rem;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.55rem;
+		gap: 0.35rem;
 		min-width: 0;
 		flex: 1;
-		padding: 0 0.4rem 0 0.45rem;
+		padding: var(--lcd-pad-y) 0.35rem var(--lcd-pad-y) var(--lcd-pad-left);
 		/* Keep bitrate/stereo from painting over the adjacent waveform. */
 		overflow: hidden;
 	}
@@ -805,81 +826,114 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
-		gap: 0.05rem;
+		gap: 0;
 		min-width: 0;
 		flex: 1;
 		text-align: left;
 		/* Match child type so MarqueeLine line-boxes fit the chrome height. */
-		font-size: 0.7rem;
-		line-height: 1.15;
+		font-size: 0.78rem;
+		line-height: 1.05;
 	}
 
 	.mobile-meta {
 		display: none;
 	}
 
-	/* Flat flip pad: inverse + accent off; accent + on-accent on. */
-	.feature-pad {
+	/*
+	 * Parked feature-pad styles (Q/V/F rail) — restore with FEATURE_PAD markup later:
+	 *
+	 * .feature-pad {
+	 *   display: flex; flex-direction: column; flex-shrink: 0; align-self: stretch;
+	 *   margin-block: calc(var(--lcd-pad-y) * -1 - 0.05rem); justify-content: space-evenly;
+	 *   width: 0.75rem; padding: 0; box-sizing: border-box; font-family: var(--font-lcd);
+	 *   border-right: 1px solid color-mix(in srgb, var(--lcd-tint, var(--accent)) 16%, transparent);
+	 * }
+	 * .feature-btn {
+	 *   display: flex; flex: 0 0 auto; align-items: center; justify-content: center;
+	 *   min-height: 0; padding: 0; border: 0; color: var(--muted); background: transparent;
+	 *   font: inherit; font-size: 0.55rem; font-weight: 400; letter-spacing: 0.04em; line-height: 1;
+	 *   text-transform: uppercase; text-shadow: none; cursor: pointer;
+	 *   transition: color 120ms ease, text-shadow 120ms ease;
+	 * }
+	 * .feature-btn:hover { color: color-mix(in oklab, var(--muted) 70%, var(--ink)); }
+	 * .feature-btn.on {
+	 *   color: var(--accent); background: transparent;
+	 *   text-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent);
+	 * }
+	 * .feature-btn.on:hover {
+	 *   color: var(--accent);
+	 *   text-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent),
+	 *     0 0 10px color-mix(in oklab, var(--accent) 35%, transparent);
+	 * }
+	 * .feature-btn:disabled { opacity: 0.35; cursor: default; }
+	 * .feature-btn:disabled:hover { color: var(--muted); text-shadow: none; }
+	 */
+
+	.now-toggles {
 		display: flex;
 		flex-direction: column;
 		flex-shrink: 0;
-		width: 1.1rem;
-		height: var(--header-chrome-height);
-		min-height: var(--header-chrome-height);
-		border-right: 1px solid var(--hard-border);
-		font-family: var(--font-lcd);
+		align-items: stretch;
+		align-self: center;
+		gap: 0.15rem;
+		width: 1.35rem;
 	}
 
-	.feature-btn {
-		display: flex;
-		flex: 1 1 0;
+	.now-toggle {
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		width: 100%;
 		min-height: 0;
-		padding: 0;
-		border: 0;
-		border-bottom: 1px solid var(--hard-border);
-		color: var(--accent);
-		background: var(--inverse);
-		font-family: inherit;
+		padding: 0.02rem 0;
+		border: 1px solid var(--accent);
+		border-radius: 0;
+		color: var(--ink);
+		background: transparent;
+		font-family: var(--font-lcd);
 		font-size: 0.55rem;
 		font-weight: 400;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.05em;
 		line-height: 1;
 		text-transform: uppercase;
+		text-shadow: none;
 		cursor: pointer;
+		box-sizing: border-box;
 		transition:
-			background 120ms ease,
-			color 120ms ease;
+			color 120ms ease,
+			text-shadow 120ms ease,
+			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
+			box-shadow 120ms ease,
+			background 120ms ease;
 	}
 
-	.feature-btn:last-child {
-		border-bottom: 0;
+	.now-toggle:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
 	}
 
-	.feature-btn:hover {
-		color: color-mix(in srgb, var(--accent) 88%, var(--on-inverse));
-		background: color-mix(in srgb, var(--accent) 10%, var(--inverse));
+	.now-toggle.on {
+		color: var(--accent);
+		background: transparent;
+		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+		text-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent);
+		transform: translate(1px, 1px);
 	}
 
-	.feature-btn.on {
-		color: var(--on-accent);
-		background: var(--accent);
+	.now-toggle.on:hover:not(:disabled) {
+		color: var(--accent);
+		background: transparent;
+		text-shadow:
+			0 0 6px color-mix(in oklab, var(--accent) 55%, transparent),
+			0 0 10px color-mix(in oklab, var(--accent) 35%, transparent);
 	}
 
-	.feature-btn.on:hover {
-		color: var(--on-accent);
-		background: color-mix(in srgb, var(--accent) 88%, var(--inverse));
-	}
-
-	.feature-btn:disabled {
+	.now-toggle:disabled {
 		opacity: 0.35;
 		cursor: default;
 	}
 
-	.feature-btn:disabled:hover {
-		color: var(--accent);
-		background: var(--inverse);
+	.now-toggle:disabled:hover {
+		background: transparent;
 	}
 
 	.now-tech {
@@ -912,25 +966,27 @@
 
 	.now-artist {
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 35%, var(--muted));
-		font-size: 0.6rem;
+		font-size: 0.68rem;
 		font-weight: 400;
 		letter-spacing: 0.01em;
+		line-height: 1;
 		text-decoration: none;
 		white-space: nowrap;
 	}
 
 	.now-title {
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 28%, var(--ink));
-		font-size: 0.7rem;
+		font-size: 0.78rem;
 		font-weight: 400;
 		letter-spacing: 0;
+		line-height: 1;
 		text-decoration: none;
 		white-space: nowrap;
 	}
 
 	.now-sep {
 		color: color-mix(in srgb, var(--lcd-tint, var(--accent)) 30%, var(--muted));
-		font-size: 0.65rem;
+		font-size: 0.72rem;
 		font-weight: 400;
 	}
 
@@ -1119,11 +1175,12 @@
 			margin-bottom: 0.75rem;
 		}
 
-		.feature-pad {
+		.now-toggles {
 			display: none;
 		}
 
-		/* Feature pad is hidden here — show the planet viz toggle instead. */
+		/* Desktop toggles / parked pad hidden — show EQ + planet viz icons instead. */
+		.eq-mobile-only,
 		.viz-mobile-only {
 			display: flex;
 		}
@@ -1162,7 +1219,8 @@
 			border-bottom-right-radius: 0;
 		}
 
-		/* Like + visible viz: like is not the right edge. */
+		/* Like / EQ before a trailing mobile control: not the right edge. */
+		.bar-actions .cell:has(+ .eq-mobile-only),
 		.bar-actions .cell:has(+ .viz-mobile-only) {
 			border-right: 1px solid var(--hard-border);
 			border-top-right-radius: 0;
@@ -1170,7 +1228,9 @@
 		}
 
 		.now-body {
-			padding: 0 0.45rem 0 0.5rem;
+			--lcd-pad-y: 0;
+			--lcd-pad-left: 0.5rem;
+			padding: 0 0.45rem 0 var(--lcd-pad-left);
 		}
 
 		.bar-actions {
@@ -1289,8 +1349,7 @@
 		}
 
 		.now-playing,
-		.scrub,
-		.feature-pad {
+		.scrub {
 			height: var(--tap-min);
 			min-height: var(--tap-min);
 		}

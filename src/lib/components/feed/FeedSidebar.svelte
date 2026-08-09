@@ -10,6 +10,7 @@
 	import FollowButton from '#lib/components/FollowButton.svelte';
 	import SnapMarquee from '#lib/components/lists/SnapMarquee.svelte';
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
+	import VizDockSlot from '#lib/components/player/VizDockSlot.svelte';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 
 	/**
@@ -165,6 +166,9 @@
 			{/each}
 		</nav>
 		<div class="panel-rail" bind:this={panelRail} {@attach snapAttach}>
+			{#if !collapsed}
+				<VizDockSlot dockKey="feed" />
+			{/if}
 			{#if visualizer.showInline}
 				<InlineMilkdrop variant="panel" />
 			{/if}

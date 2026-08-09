@@ -96,7 +96,11 @@
 	{/if}
 
 	<main id="main">
-		<div class="player-wrap">
+		<div
+			class="player-wrap"
+			class:viz-dock-hot={visualizer.draggingWindow && visualizer.dockHotKey === 'track'}
+			data-viz-dock="track"
+		>
 			{#if visualizer.showInline}
 				<InlineMilkdrop variant="deck" />
 			{/if}
