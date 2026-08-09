@@ -73,6 +73,8 @@ class Player {
 	#history = [];
 	/** Ordered members of the active playlist. @type {PlayerTrack[]} */
 	#playlistTracks = [];
+	/** Feed timeline continuum (not Next Up). @type {PlayerTrack[]} */
+	#feedTracks = [];
 	/** @type {HTMLAudioElement | null} */
 	#audio = null;
 	#raf = 0;
@@ -104,13 +106,14 @@ class Player {
 	/**
 	 * Play a track, optionally from a specific position (seconds).
 	 * If the track is already current, this resumes/seeks instead.
-	 * Clears any saved-playlist context (use `playFromPlaylist` to keep it).
+	 * Clears playlist and feed continuum (use `playFromPlaylist` / `playFromFeed`).
 	 *
 	 * @param {PlayerTrack} track
 	 * @param {number} [atSeconds]
 	 */
 	play(track, atSeconds) {
 		this.#clearPlaylistContext();
+		this.#clearFeedContext();
 		this.#playTrack(track, atSeconds);
 	}
 
@@ -125,14 +128,37 @@ class Player {
 	playFromPlaylist(playlistId, tracks, index = 0, atSeconds) {
 		if (!tracks.length) return;
 		const i = Math.max(0, Math.min(index, tracks.length - 1));
+		this.#clearFeedContext();
 		this.playlistId = playlistId;
 		this.#playlistTracks = tracks;
+		this.#playTrack(tracks[i], atSeconds);
+	}
+
+	/**
+	 * Play a feed track and advance through later loaded feed tracks on end.
+	 * Does not touch Next Up — that queue stays user-owned and wins on advance.
+	 *
+	 * @param {PlayerTrack[]} tracks
+	 * @param {number} [index]
+	 * @param {number} [atSeconds]
+	 */
+	playFromFeed(tracks, index = 0, atSeconds) {
+		if (!tracks.length) return;
+		const i = Math.max(0, Math.min(index, tracks.length - 1));
+		this.#clearPlaylistContext();
+		this.#feedTracks = tracks;
 		this.#playTrack(tracks[i], atSeconds);
 	}
 
 	/** @param {string} playlistId */
 	isPlaylistCurrent(playlistId) {
 		return this.playlistId === playlistId;
+	}
+
+	/** True when Skip can advance (Next Up head, or a later feed continuum track). */
+	get hasNext() {
+		if (this.queue.length > 0) return true;
+		return this.#feedSuccessor() != null;
 	}
 
 	/**
@@ -228,7 +254,23 @@ class Player {
 		this.#playlistTracks = [];
 	}
 
-	/** Advance within the active playlist, then fall through to Next Up. */
+	#clearFeedContext() {
+		this.#feedTracks = [];
+	}
+
+	/** @returns {PlayerTrack | null} */
+	#feedSuccessor() {
+		if (!this.current || this.#feedTracks.length === 0) return null;
+		const idx = this.#feedTracks.findIndex((t) => t.id === this.current?.id);
+		if (idx < 0) return null;
+		return this.#feedTracks[idx + 1] ?? null;
+	}
+
+	/**
+	 * Advance within the active playlist, then Next Up (clears feed), then feed
+	 * continuum. Consuming Next Up ends the feed session so playback stops when
+	 * the queue empties.
+	 */
 	#advanceAfterEnd() {
 		if (this.playlistId && this.#playlistTracks.length > 0 && this.current) {
 			const idx = this.#playlistTracks.findIndex((t) => t.id === this.current?.id);
@@ -243,6 +285,12 @@ class Player {
 			this.next();
 			return;
 		}
+		const feedNext = this.#feedSuccessor();
+		if (feedNext) {
+			this.#playTrack(feedNext);
+			return;
+		}
+		this.#clearFeedContext();
 		this.currentTime = this.duration;
 	}
 
@@ -289,14 +337,20 @@ class Player {
 		this.currentTime = clamped;
 	}
 
-	/** Advance to the next queued track, if any. */
+	/** Advance to the next queued track, or the next feed continuum track. */
 	next() {
 		const [head, ...rest] = this.queue;
-		if (!head) return;
-		this.queue = rest;
-		this.#persistQueue();
-		this.#clearPlaylistContext();
-		this.#playTrack(head);
+		if (head) {
+			this.queue = rest;
+			this.#persistQueue();
+			this.#clearPlaylistContext();
+			this.#clearFeedContext();
+			this.#playTrack(head);
+			return;
+		}
+		const feedNext = this.#feedSuccessor();
+		if (!feedNext) return;
+		this.#playTrack(feedNext);
 	}
 
 	/** Restart the track, or go back to the previously played one. */
@@ -351,6 +405,7 @@ class Player {
 		if (!track) return;
 		this.removeFromQueue(index);
 		this.#clearPlaylistContext();
+		this.#clearFeedContext();
 		this.#playTrack(track);
 	}
 
@@ -367,6 +422,7 @@ class Player {
 		this.queue = this.queue.filter((t) => t.id !== trackId);
 		this.#history = this.#history.filter((t) => t.id !== trackId);
 		this.#playlistTracks = this.#playlistTracks.filter((t) => t.id !== trackId);
+		this.#feedTracks = this.#feedTracks.filter((t) => t.id !== trackId);
 		this.#persistQueue();
 		if (this.current?.id === trackId) {
 			const el = this.#audio;
@@ -384,6 +440,7 @@ class Player {
 			this.currentTime = 0;
 			this.duration = 0;
 			this.#clearPlaylistContext();
+			this.#clearFeedContext();
 		}
 	}
 

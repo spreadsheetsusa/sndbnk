@@ -72,6 +72,8 @@
 	 *   showCommentForm?: boolean,
 	 *   linkBase?: string,
 	 *   titleAsHeading?: boolean,
+	 *   feedTracks?: import('#lib/player/player.svelte.js').PlayerTrack[] | null,
+	 *   feedIndex?: number,
 	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
 	 *   onrepositioned?: (comment: TimedComment) => void,
 	 *   ondeleted?: () => void
@@ -86,6 +88,8 @@
 		showCommentForm = true,
 		linkBase = '',
 		titleAsHeading = false,
+		feedTracks = null,
+		feedIndex = -1,
 		oncommented,
 		onrepositioned,
 		ondeleted
@@ -235,8 +239,29 @@
 		return toPlayerTrack({ ...track, likedByViewer: liked });
 	}
 
-	function togglePlay() {
+	const hasFeedContinuum = $derived(
+		Boolean(feedTracks?.length && feedIndex >= 0 && feedIndex < (feedTracks?.length ?? 0))
+	);
+
+	/** @param {number} [atSeconds] */
+	function startPlayback(atSeconds) {
+		if (hasFeedContinuum && feedTracks) {
+			player.playFromFeed(feedTracks, feedIndex, atSeconds);
+			return;
+		}
+		if (atSeconds != null) {
+			player.play(asPlayerTrack(), atSeconds);
+			return;
+		}
 		player.toggle(asPlayerTrack());
+	}
+
+	function togglePlay() {
+		if (isActive) {
+			player.toggle();
+			return;
+		}
+		startPlayback();
 	}
 
 	/** @param {number} seconds */
@@ -245,7 +270,7 @@
 			player.seek(seconds);
 			player.resume();
 		} else {
-			player.play(asPlayerTrack(), seconds);
+			startPlayback(seconds);
 		}
 	}
 
