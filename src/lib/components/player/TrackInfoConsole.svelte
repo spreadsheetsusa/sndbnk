@@ -16,10 +16,13 @@
 	 *   mediaType?: string | null,
 	 *   genre?: string | null,
 	 *   album?: string | null,
+	 *   albumArtist?: string | null,
 	 *   year?: number | null,
 	 *   trackNumber?: number | null,
+	 *   discNumber?: number | null,
 	 *   bpm?: number | null,
 	 *   isrc?: string | null,
+	 *   composer?: string | null,
 	 *   durationMs?: number | null,
 	 *   bitrate?: number | null,
 	 *   sampleRate?: number | null,
@@ -38,10 +41,13 @@
 		mediaType = null,
 		genre = null,
 		album = null,
+		albumArtist = null,
 		year = null,
 		trackNumber = null,
+		discNumber = null,
 		bpm = null,
 		isrc = null,
+		composer = null,
 		durationMs = null,
 		bitrate = null,
 		sampleRate = null,
@@ -94,9 +100,16 @@
 		/** @type {{ id: string, label: string, value: string }[]} */
 		const fields = [];
 		if (album) fields.push({ id: 'album', label: 'Album', value: String(album) });
+		if (albumArtist) {
+			fields.push({ id: 'albumArtist', label: 'Album artist', value: String(albumArtist) });
+		}
+		if (composer) fields.push({ id: 'composer', label: 'Composer', value: String(composer) });
 		if (year != null) fields.push({ id: 'year', label: 'Year', value: String(year) });
 		if (trackNumber != null) {
 			fields.push({ id: 'track', label: 'Track', value: String(trackNumber) });
+		}
+		if (discNumber != null) {
+			fields.push({ id: 'disc', label: 'Disc', value: String(discNumber) });
 		}
 		if (bpm != null) fields.push({ id: 'bpm', label: 'BPM', value: String(bpm) });
 		if (isrc) fields.push({ id: 'isrc', label: 'ISRC', value: String(isrc) });
@@ -104,16 +117,10 @@
 	});
 </script>
 
-<aside class="console" aria-label="Track info">
+<aside class="console" aria-label="File meta">
 	<div class="console-chrome">
-		<div class="chrome-leds" aria-hidden="true">
-			<span class="led on accent"></span>
-			<span class="led"></span>
-			<span class="led"></span>
-		</div>
 		<p class="chrome-title">
-			<span class="chrome-mark">INFO</span>
-			<span class="chrome-sub">track signal</span>
+			<span class="chrome-mark">File Meta</span>
 		</p>
 		<p class="chrome-status" data-status={status}>{status}</p>
 	</div>
@@ -216,7 +223,7 @@
 
 	.console-chrome {
 		display: grid;
-		grid-template-columns: auto 1fr auto;
+		grid-template-columns: 1fr auto;
 		gap: 0.55rem;
 		align-items: center;
 		padding: 0.4rem 0.65rem;
@@ -224,32 +231,6 @@
 		border-radius: 0;
 		background: var(--inverse);
 		color: var(--on-inverse);
-	}
-
-	.chrome-leds {
-		display: flex;
-		gap: 0.25rem;
-	}
-
-	.led {
-		width: 0.4rem;
-		height: 0.4rem;
-		border: 1px solid color-mix(in srgb, var(--on-inverse) 35%, transparent);
-		border-radius: 0;
-		background: color-mix(in srgb, var(--on-inverse) 12%, transparent);
-		opacity: 0.4;
-	}
-
-	.led.on {
-		opacity: 1;
-		background: color-mix(in srgb, var(--on-inverse) 55%, transparent);
-		border-color: var(--on-inverse);
-	}
-
-	.led.accent.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		box-shadow: 0 0 0.4rem color-mix(in srgb, var(--accent) 70%, transparent);
 	}
 
 	.chrome-title {
@@ -266,15 +247,8 @@
 		font-size: 0.72rem;
 		font-weight: 700;
 		letter-spacing: 0.16em;
-		color: var(--accent);
-	}
-
-	.chrome-sub {
-		color: color-mix(in srgb, var(--on-inverse) 62%, transparent);
-		font-size: 0.62rem;
-		font-weight: 600;
-		letter-spacing: 0.06em;
 		text-transform: uppercase;
+		color: var(--accent);
 	}
 
 	.chrome-status {
@@ -453,7 +427,7 @@
 
 	.kv-row {
 		display: grid;
-		grid-template-columns: 4.25rem minmax(0, 1fr);
+		grid-template-columns: 5.5rem minmax(0, 1fr);
 		gap: 0.4rem;
 		align-items: baseline;
 		min-width: 0;
@@ -485,6 +459,12 @@
 		}
 		50% {
 			transform: scaleY(1);
+		}
+	}
+
+	@media (max-width: 960px) {
+		.console {
+			max-width: none;
 		}
 	}
 

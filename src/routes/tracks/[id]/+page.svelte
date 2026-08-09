@@ -185,10 +185,13 @@
 					mediaType={data.track.mediaType}
 					genre={data.track.genre}
 					album={data.meta.album}
+					albumArtist={data.meta.albumArtist}
 					year={data.meta.year}
 					trackNumber={data.meta.trackNumber}
+					discNumber={data.meta.discNumber}
 					bpm={data.meta.bpm}
 					isrc={data.meta.isrc}
+					composer={data.meta.composer}
 					durationMs={data.track.durationMs}
 					bitrate={data.track.bitrate}
 					sampleRate={data.track.sampleRate}

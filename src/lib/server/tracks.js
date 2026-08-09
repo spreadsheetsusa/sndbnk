@@ -117,9 +117,11 @@ export function parseTrackMetadata(formData) {
 	const description = formData.get('description')?.toString().trim() || null;
 	const artist = formData.get('artist')?.toString().trim() || null;
 	const album = formData.get('album')?.toString().trim() || null;
+	const albumArtist = formData.get('albumArtist')?.toString().trim() || null;
 	const genre = normalizeGenreField(formData.get('genre')?.toString());
 	const mediaTypeRaw = formData.get('mediaType')?.toString().trim() || DEFAULT_TRACK_MEDIA_TYPE;
 	const isrc = formData.get('isrc')?.toString().trim() || null;
+	const composer = formData.get('composer')?.toString().trim() || null;
 	const comment = formData.get('comment')?.toString().trim() || null;
 
 	if (!isTrackMediaType(mediaTypeRaw)) {
@@ -129,12 +131,15 @@ export function parseTrackMetadata(formData) {
 
 	const yearRaw = formData.get('year')?.toString().trim() ?? '';
 	const trackNumberRaw = formData.get('trackNumber')?.toString().trim() ?? '';
+	const discNumberRaw = formData.get('discNumber')?.toString().trim() ?? '';
 	const bpmRaw = formData.get('bpm')?.toString().trim() ?? '';
 
 	/** @type {number | null} */
 	let year = null;
 	/** @type {number | null} */
 	let trackNumber = null;
+	/** @type {number | null} */
+	let discNumber = null;
 	/** @type {number | null} */
 	let bpm = null;
 
@@ -149,6 +154,13 @@ export function parseTrackMetadata(formData) {
 		trackNumber = Number.parseInt(trackNumberRaw, 10);
 		if (!Number.isInteger(trackNumber) || trackNumber < 1 || trackNumber > 9999) {
 			return { ok: false, message: 'Track number must be a positive integer.' };
+		}
+	}
+
+	if (discNumberRaw) {
+		discNumber = Number.parseInt(discNumberRaw, 10);
+		if (!Number.isInteger(discNumber) || discNumber < 1 || discNumber > 999) {
+			return { ok: false, message: 'Disc number must be a positive integer.' };
 		}
 	}
 
@@ -181,8 +193,12 @@ export function parseTrackMetadata(formData) {
 	if (!artistCap.ok) return artistCap;
 	const albumCap = capped(album, 200, 'Album');
 	if (!albumCap.ok) return albumCap;
+	const albumArtistCap = capped(albumArtist, 200, 'Album artist');
+	if (!albumArtistCap.ok) return albumArtistCap;
 	const genreCap = capped(genre, 200, 'Genre');
 	if (!genreCap.ok) return genreCap;
+	const composerCap = capped(composer, 200, 'Composer');
+	if (!composerCap.ok) return composerCap;
 	const commentCap = capped(comment, 2000, 'Comment');
 	if (!commentCap.ok) return commentCap;
 	const isrcCap = capped(isrc, 20, 'ISRC');
@@ -223,12 +239,15 @@ export function parseTrackMetadata(formData) {
 		description: descriptionCap.value,
 		artist: artistCap.value,
 		album: albumCap.value,
+		albumArtist: albumArtistCap.value,
 		genre: genreCap.value,
 		mediaType,
 		year,
 		trackNumber,
+		discNumber,
 		bpm,
 		isrc: isrcCap.value,
+		composer: composerCap.value,
 		comment: commentCap.value
 	};
 
@@ -1086,10 +1105,13 @@ export async function serializeLibraryTrackRows(rows, viewer) {
 			...item,
 			description: row.description ?? '',
 			album: row.album ?? '',
+			albumArtist: row.albumArtist ?? '',
 			year: row.year != null ? String(row.year) : '',
 			trackNumber: row.trackNumber != null ? String(row.trackNumber) : '',
+			discNumber: row.discNumber != null ? String(row.discNumber) : '',
 			bpm: row.bpm != null ? String(row.bpm) : '',
 			isrc: row.isrc ?? '',
+			composer: row.composer ?? '',
 			comment: row.comment ?? '',
 			audioBytes: row.audioBytes,
 			encoder: row.encoder ?? null,

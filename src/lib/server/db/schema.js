@@ -227,13 +227,18 @@ export const track = sqliteTable(
 		description: text('description'),
 		artist: text('artist'),
 		album: text('album'),
+		/** Album/release artist when distinct from the track artist (TPE2). */
+		albumArtist: text('album_artist'),
 		genre: text('genre'),
 		/** Catalog kind: track | mix | sample | loop | podcast. */
 		mediaType: text('media_type').notNull().default('track'),
 		year: integer('year'),
 		trackNumber: integer('track_number'),
+		/** Disc number for multi-disc releases (TPOS). */
+		discNumber: integer('disc_number'),
 		bpm: integer('bpm'),
 		isrc: text('isrc'),
+		composer: text('composer'),
 		comment: text('comment'),
 		audioFilename: text('audio_filename').notNull(),
 		audioMime: text('audio_mime').notNull(),

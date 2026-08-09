@@ -190,11 +190,14 @@ function resolveTrackGainDb(format, common) {
  *     description: string | null;
  *     artist: string | null;
  *     album: string | null;
+ *     albumArtist: string | null;
  *     genre: string | null;
  *     year: string | null;
  *     trackNumber: string | null;
+ *     discNumber: string | null;
  *     bpm: string | null;
  *     isrc: string | null;
+ *     composer: string | null;
  *     comment: string | null;
  *   };
  *   technical: {
@@ -221,11 +224,14 @@ export async function extractAudioMetadata(file) {
 			description: null,
 			artist: null,
 			album: null,
+			albumArtist: null,
 			genre: null,
 			year: null,
 			trackNumber: null,
+			discNumber: null,
 			bpm: null,
 			isrc: null,
+			composer: null,
 			comment: null
 		},
 		technical: {
@@ -249,19 +255,22 @@ export async function extractAudioMetadata(file) {
 		const { common, format } = await parseBlob(file, { duration: true });
 
 		const title = asTrimmedString(common.title) ?? titleFromFilename(file.name);
+		const albumArtist = asTrimmedString(common.albumartist);
 		const artist =
-			asTrimmedString(common.artist) ??
-			asTrimmedString(common.albumartist) ??
-			asTrimmedString(common.artists?.[0]) ??
-			null;
+			asTrimmedString(common.artist) ?? albumArtist ?? asTrimmedString(common.artists?.[0]) ?? null;
 		const album = asTrimmedString(common.album);
 		const genre = normalizeGenreField(
 			Array.isArray(common.genre) ? common.genre.join(', ') : common.genre
 		);
 		const year = resolveYear(common);
 		const trackNumber = clampInt(common.track?.no, 1, 9999);
+		const discNumber = clampInt(common.disk?.no, 1, 999);
 		const bpm = clampInt(common.bpm, 1, 999);
 		const isrc = asTrimmedString(common.isrc?.[0]);
+		const composerJoined = Array.isArray(common.composer)
+			? common.composer.filter((c) => typeof c === 'string' && c.trim()).join(', ')
+			: common.composer;
+		const composer = asTrimmedString(composerJoined)?.slice(0, 200) ?? null;
 		const comment = firstComment(common.comment);
 		// Some formats expose a free-text description; not all tag maps include it.
 		const descriptionRaw = /** @type {{ description?: unknown }} */ (common).description;
@@ -301,11 +310,14 @@ export async function extractAudioMetadata(file) {
 			description,
 			artist,
 			album,
+			albumArtist,
 			genre,
 			year: year != null ? String(year) : null,
 			trackNumber: trackNumber != null ? String(trackNumber) : null,
+			discNumber: discNumber != null ? String(discNumber) : null,
 			bpm: bpm != null ? String(bpm) : null,
 			isrc,
+			composer,
 			comment
 		};
 
