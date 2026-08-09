@@ -19,8 +19,10 @@
 	const DRAG_THRESHOLD_PX = 5;
 
 	/**
-	 * Timed-comment overlay for waveforms. Author markers render as a vertical
-	 * accent stem with a draggable avatar ping; others stay mid-wave avatars.
+	 * Timed-comment overlay for waveforms. When `authorPins` is true (default),
+	 * the viewer's own markers render as a vertical accent stem with optional
+	 * drag-to-reposition; others stay mid-wave avatars. Set `authorPins` false
+	 * (e.g. HeaderPlayer) for citation-only markers with no author chrome.
 	 *
 	 * @type {{
 	 *   trackId: string,
@@ -29,6 +31,7 @@
 	 *   durationMs: number,
 	 *   playheadMarkerId?: string | null,
 	 *   avatarSize?: string,
+	 *   authorPins?: boolean,
 	 *   draggable?: boolean,
 	 *   onseek?: (seconds: number) => void,
 	 *   onscrub?: (seconds: number | null) => void,
@@ -42,6 +45,7 @@
 		durationMs,
 		playheadMarkerId = null,
 		avatarSize = '1.15rem',
+		authorPins = true,
 		draggable = true,
 		onseek,
 		onscrub,
@@ -64,7 +68,7 @@
 	let dragSession = null;
 
 	const hasOwn = $derived(
-		Boolean(viewerId) && markers.some((marker) => marker.userId === viewerId)
+		authorPins && Boolean(viewerId) && markers.some((marker) => marker.userId === viewerId)
 	);
 
 	const displayMarkers = $derived.by(() => {
@@ -104,7 +108,7 @@
 
 	/** @param {MarkerComment} marker */
 	function isOwn(marker) {
-		return Boolean(viewerId && marker.userId === viewerId);
+		return authorPins && Boolean(viewerId && marker.userId === viewerId);
 	}
 
 	/** @param {MarkerComment} marker */

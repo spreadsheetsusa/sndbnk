@@ -61,6 +61,17 @@
 	/** Waveform scrub preview in seconds. @type {number | null} */
 	let scrubSeconds = $state(null);
 
+	/** @typedef {'eq' | 'fs'} FeatureKey */
+	/** Local stubs; FX is wired to `visualizer` instead. */
+	/** @type {{ eq: boolean, fs: boolean }} */
+	let features = $state({ eq: false, fs: false });
+	/** @type {readonly { key: FeatureKey | 'fx', label: string }[]} */
+	const FEATURE_PAD = [
+		{ key: 'eq', label: 'EQ' },
+		{ key: 'fx', label: 'FX' },
+		{ key: 'fs', label: 'FS' }
+	];
+
 	/** @type {TimedComment[]} */
 	let timedComments = $state([]);
 
@@ -292,6 +303,35 @@
 				</button>
 			</div>
 
+			<div class="feature-pad" role="group" aria-label="Player features">
+				{#each FEATURE_PAD as { key, label } (key)}
+					{#if key === 'fx'}
+						<button
+							type="button"
+							class="feature-btn"
+							class:on={visualizer.enabled}
+							aria-pressed={visualizer.enabled}
+							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
+							disabled={!visualizer.supported}
+							onclick={() => visualizer.toggle()}
+						>
+							{label}
+						</button>
+					{:else}
+						<button
+							type="button"
+							class="feature-btn"
+							class:on={features[key]}
+							aria-pressed={features[key]}
+							aria-label={label}
+							onclick={() => (features[key] = !features[key])}
+						>
+							{label}
+						</button>
+					{/if}
+				{/each}
+			</div>
+
 			<div class="cell now-playing" class:queue-open={queueOpen}>
 				<div class="cover-wrap">
 					<button
@@ -434,7 +474,7 @@
 							{viewerId}
 							{durationMs}
 							avatarSize="1rem"
-							draggable={false}
+							authorPins={false}
 						/>
 					{/if}
 				</div>
@@ -461,7 +501,7 @@
 					{#if visualizer.supported}
 						<button
 							type="button"
-							class="cell icon-btn"
+							class="cell icon-btn viz-mobile-only"
 							class:active={visualizer.enabled}
 							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
 							aria-pressed={visualizer.enabled}
@@ -533,14 +573,21 @@
 		overflow: hidden;
 	}
 
-	.bar-actions .cell:last-child {
+	/* Desktop: FX in the feature pad toggles viz; planet icon is mobile-only. */
+	.viz-mobile-only {
+		display: none;
+	}
+
+	/* Right-edge radii on the last *visible* action (skip hidden mobile viz). */
+	.bar-actions .cell:last-child:not(.viz-mobile-only),
+	.bar-actions .cell:has(+ .viz-mobile-only) {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
 	}
 
-	/* When no like/viz actions remain, scrub is the rightmost cell. */
-	.strip:not(:has(.bar-actions)) .scrub {
+	/* When no visible like/actions remain, scrub is the rightmost cell. */
+	.strip:not(:has(.bar-actions .cell:not(.viz-mobile-only))) .scrub {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
@@ -749,7 +796,7 @@
 		gap: 0.55rem;
 		min-width: 0;
 		flex: 1;
-		padding: 0 0.1rem 0 0.45rem;
+		padding: 0 0.4rem 0 0.45rem;
 		/* Keep bitrate/stereo from painting over the adjacent waveform. */
 		overflow: hidden;
 	}
@@ -769,6 +816,70 @@
 
 	.mobile-meta {
 		display: none;
+	}
+
+	/* Flat flip pad: inverse + accent off; accent + on-accent on. */
+	.feature-pad {
+		display: flex;
+		flex-direction: column;
+		flex-shrink: 0;
+		width: 1.1rem;
+		height: var(--header-chrome-height);
+		min-height: var(--header-chrome-height);
+		border-right: 1px solid var(--hard-border);
+		font-family: var(--font-lcd);
+	}
+
+	.feature-btn {
+		display: flex;
+		flex: 1 1 0;
+		align-items: center;
+		justify-content: center;
+		min-height: 0;
+		padding: 0;
+		border: 0;
+		border-bottom: 1px solid var(--hard-border);
+		color: var(--accent);
+		background: var(--inverse);
+		font-family: inherit;
+		font-size: 0.55rem;
+		font-weight: 400;
+		letter-spacing: 0.04em;
+		line-height: 1;
+		text-transform: uppercase;
+		cursor: pointer;
+		transition:
+			background 120ms ease,
+			color 120ms ease;
+	}
+
+	.feature-btn:last-child {
+		border-bottom: 0;
+	}
+
+	.feature-btn:hover {
+		color: color-mix(in srgb, var(--accent) 88%, var(--on-inverse));
+		background: color-mix(in srgb, var(--accent) 10%, var(--inverse));
+	}
+
+	.feature-btn.on {
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.feature-btn.on:hover {
+		color: var(--on-accent);
+		background: color-mix(in srgb, var(--accent) 88%, var(--inverse));
+	}
+
+	.feature-btn:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
+	.feature-btn:disabled:hover {
+		color: var(--accent);
+		background: var(--inverse);
 	}
 
 	.now-tech {
@@ -1008,6 +1119,15 @@
 			margin-bottom: 0.75rem;
 		}
 
+		.feature-pad {
+			display: none;
+		}
+
+		/* Feature pad is hidden here — show the planet viz toggle instead. */
+		.viz-mobile-only {
+			display: flex;
+		}
+
 		.strip {
 			display: grid;
 			grid-template-columns: auto 1fr auto;
@@ -1042,10 +1162,11 @@
 			border-bottom-right-radius: 0;
 		}
 
-		/* Undo desktop “scrub is rightmost” radii — top-right stays on meta. */
-		.strip:not(:has(.bar-actions)) .scrub {
+		/* Like + visible viz: like is not the right edge. */
+		.bar-actions .cell:has(+ .viz-mobile-only) {
+			border-right: 1px solid var(--hard-border);
 			border-top-right-radius: 0;
-			border-bottom-right-radius: var(--player-radius);
+			border-bottom-right-radius: 0;
 		}
 
 		.now-body {
@@ -1086,6 +1207,8 @@
 			min-width: 0;
 			padding: 0 0.5rem;
 			border-right: 0;
+			/* Undo desktop “scrub is rightmost” when only mobile viz was hidden. */
+			border-top-right-radius: 0;
 			border-bottom-right-radius: var(--player-radius);
 		}
 
@@ -1166,7 +1289,8 @@
 		}
 
 		.now-playing,
-		.scrub {
+		.scrub,
+		.feature-pad {
 			height: var(--tap-min);
 			min-height: var(--tap-min);
 		}
