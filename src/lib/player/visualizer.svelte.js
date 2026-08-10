@@ -8,6 +8,8 @@ const DEFAULT_W = 480;
 const DEFAULT_H = 360;
 const MIN_W = 280;
 const MIN_H = 200;
+/** Pointer travel before dock dropzones / host highlights arm. */
+const DOCK_DRAG_THRESHOLD_PX = 10;
 
 /** Backdrop canvas opacity — dial here / via `--hero-viz-opacity`. */
 export const HERO_VIZ_OPACITY = 0.45;
@@ -131,6 +133,10 @@ class Visualizer {
 	#dockSlot = null;
 	/** @type {VizBounds | null} */
 	#preDockBounds = null;
+	/** @type {number | null} */
+	#dragOriginX = null;
+	/** @type {number | null} */
+	#dragOriginY = null;
 
 	/** @type {any} */
 	#butterchurn = null;
@@ -253,13 +259,13 @@ class Visualizer {
 	}
 
 	/**
-	 * Start a floating-window drag; shows sidebar drop-zones.
+	 * Start a floating-window drag; drop-zones arm after DOCK_DRAG_THRESHOLD_PX.
 	 * @param {number} clientX
 	 * @param {number} clientY
 	 */
 	beginWindowDrag(clientX, clientY) {
-		this.draggingWindow = true;
-		this.#syncDockHover(clientX, clientY);
+		this.#dragOriginX = clientX;
+		this.#dragOriginY = clientY;
 	}
 
 	/**
@@ -268,7 +274,13 @@ class Visualizer {
 	 * @param {number} clientY
 	 */
 	updateWindowDrag(clientX, clientY) {
-		if (!this.draggingWindow) return;
+		if (this.#dragOriginX == null || this.#dragOriginY == null) return;
+		if (!this.draggingWindow) {
+			const dx = clientX - this.#dragOriginX;
+			const dy = clientY - this.#dragOriginY;
+			if (Math.hypot(dx, dy) < DOCK_DRAG_THRESHOLD_PX) return;
+			this.draggingWindow = true;
+		}
 		this.#syncDockHover(clientX, clientY);
 	}
 
@@ -278,12 +290,15 @@ class Visualizer {
 	 * @param {number} clientY
 	 */
 	endWindowDrag(clientX, clientY) {
+		if (!this.draggingWindow) {
+			this.#clearWindowDrag();
+			return;
+		}
 		const overSlot = this.#pointerOverDockSlot(clientX, clientY);
 		const hotKey = dockKeyAt(clientX, clientY);
 		const shouldDock = this.dockHover || overSlot || Boolean(hotKey);
 		this.#exitDockPreview(false);
-		this.draggingWindow = false;
-		this.dockHotKey = null;
+		this.#clearWindowDrag();
 		if (shouldDock) {
 			this.dock();
 			return;
@@ -297,11 +312,17 @@ class Visualizer {
 	setWindowDragging(on) {
 		if (!on) {
 			this.#exitDockPreview(true);
-			this.draggingWindow = false;
-			this.dockHotKey = null;
+			this.#clearWindowDrag();
 			return;
 		}
 		this.draggingWindow = true;
+	}
+
+	#clearWindowDrag() {
+		this.draggingWindow = false;
+		this.dockHotKey = null;
+		this.#dragOriginX = null;
+		this.#dragOriginY = null;
 	}
 
 	/**

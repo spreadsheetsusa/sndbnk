@@ -35,7 +35,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.85rem;
-		padding: 0.85rem 0;
+		padding: 0.85rem 1.25rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 	}
 

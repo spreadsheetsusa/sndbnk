@@ -36,7 +36,7 @@
 		grid-template-columns: auto 1fr auto;
 		align-items: center;
 		gap: 1rem;
-		padding: 0.85rem 0;
+		padding: 0.85rem 1.25rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
 	}
 

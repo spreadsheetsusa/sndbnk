@@ -44,10 +44,12 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 chrome (`ensureSiteChrome`), returns `site` (with `header` / `footer`), `pages` + `currentPageId`
 (each page includes parsed body `blocks`), and mounts SNDBNK-styled draggable HUDs (toolbar,
 inspector, blocks palette). Named action `?/updatePage` saves page title / slug / SEO (root path
-stays `/`). Canvas body blocks drag from the Blocks HUD (no Header/Footer categories); `PUT
-/api/sites/[id]/pages/[pageId]/blocks` persists the ordered body list. Site header/footer render
-outside the page stack on every page preview; Inspector **Site** tab picks layouts and edits props
-via `PUT /api/sites/[id]/chrome`. Inspector **Block** tab edits the selected body instance.
+stays `/`). Canvas body blocks drag from the Blocks HUD — insertable categories are Blog, Contact,
+Content, CTA, Ecommerce, Feature, Gallery, Hero, Pricing, Statistic, Step, Team, and Testimonial
+(Header/Footer stay site chrome only). `PUT /api/sites/[id]/pages/[pageId]/blocks` persists the
+ordered body list. Site header/footer render outside the page stack on every page preview;
+Inspector **Site** tab picks layouts and edits props via `PUT /api/sites/[id]/chrome`. Inspector
+**Block** tab edits the selected body instance.
 
 ## `load` conventions
 

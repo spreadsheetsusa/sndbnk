@@ -875,8 +875,8 @@
 		flex-shrink: 0;
 		align-items: stretch;
 		align-self: center;
-		gap: 0.15rem;
-		width: 1.35rem;
+		gap: 0.18rem;
+		width: 1.65rem;
 	}
 
 	.now-toggle {
@@ -884,25 +884,26 @@
 		align-items: center;
 		justify-content: center;
 		width: 100%;
-		min-height: 0;
-		padding: 0.02rem 0;
+		height: 0.95rem;
+		min-height: 0.95rem;
+		padding: 0;
 		border: 1px solid var(--accent);
 		border-radius: 0;
 		color: var(--ink);
 		background: transparent;
 		font-family: var(--font-lcd);
-		font-size: 0.55rem;
+		font-size: 0.62rem;
 		font-weight: 400;
-		letter-spacing: 0.05em;
+		letter-spacing: 0.04em;
 		line-height: 1;
 		text-transform: uppercase;
 		text-shadow: none;
 		cursor: pointer;
 		box-sizing: border-box;
+		transform: none;
 		transition:
 			color 120ms ease,
 			text-shadow 120ms ease,
-			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
 			box-shadow 120ms ease,
 			background 120ms ease;
 	}
@@ -914,9 +915,10 @@
 	.now-toggle.on {
 		color: var(--accent);
 		background: transparent;
+		/* Inset only — no translate, so EQ/VIZ stay on the same grid when pressed. */
 		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
 		text-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent);
-		transform: translate(1px, 1px);
+		transform: none;
 	}
 
 	.now-toggle.on:hover:not(:disabled) {

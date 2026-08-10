@@ -1,4 +1,5 @@
 <script>
+	import { cubicOut } from 'svelte/easing';
 	import { PANEL_VIZ_HEIGHT_REM } from '#lib/player/window-snap.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 
@@ -16,6 +17,33 @@
 		visualizer.registerDockSlot(node);
 		return () => visualizer.unregisterDockSlot(node);
 	}
+
+	/**
+	 * Slide height + fade (Svelte allows only one in:/out: per element).
+	 * @param {HTMLElement} node
+	 * @param {{ duration?: number }} [params]
+	 */
+	function slideFade(node, { duration = 180 } = {}) {
+		const style = getComputedStyle(node);
+		const opacity = +style.opacity;
+		const height = parseFloat(style.height);
+		const paddingTop = parseFloat(style.paddingTop);
+		const paddingBottom = parseFloat(style.paddingBottom);
+		const marginTop = parseFloat(style.marginTop);
+		const marginBottom = parseFloat(style.marginBottom);
+		const borderTopWidth = parseFloat(style.borderTopWidth);
+		const borderBottomWidth = parseFloat(style.borderBottomWidth);
+
+		return {
+			duration,
+			easing: cubicOut,
+			css: (t) =>
+				`overflow: hidden; opacity: ${t * opacity}; height: ${t * height}px;` +
+				`padding-top: ${t * paddingTop}px; padding-bottom: ${t * paddingBottom}px;` +
+				`margin-top: ${t * marginTop}px; margin-bottom: ${t * marginBottom}px;` +
+				`border-top-width: ${t * borderTopWidth}px; border-bottom-width: ${t * borderBottomWidth}px;`
+		};
+	}
 </script>
 
 {#if visible}
@@ -25,6 +53,8 @@
 		data-viz-dock={dockKey}
 		style:height="{PANEL_VIZ_HEIGHT_REM}rem"
 		aria-hidden="true"
+		in:slideFade={{ duration: 180 }}
+		out:slideFade={{ duration: 140 }}
 		{@attach dockAttach}
 	></div>
 {/if}

@@ -28,7 +28,6 @@ export const load = async ({ locals, params }) => {
 	const pages = await listSitePages(row.id);
 
 	return {
-		profile: { username: profile.username },
 		site: siteOwner,
 		pages,
 		currentPageId: root.id

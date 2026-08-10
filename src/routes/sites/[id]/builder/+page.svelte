@@ -9,7 +9,6 @@
 	/**
 	 * @type {{
 	 *   data: {
-	 *     profile: { username: string },
 	 *     site: {
 	 *       id: string,
 	 *       name: string,
@@ -57,12 +56,6 @@
 			currentPageId: data.currentPageId
 		});
 	});
-
-	const currentPage = $derived(
-		builder.pages.find((p) => p.id === builder.currentPageId) ??
-			data.pages.find((p) => p.id === data.currentPageId) ??
-			null
-	);
 
 	const headerDef = $derived(builder.header ? getBlockDefinition(builder.header.type) : null);
 	const footerDef = $derived(builder.footer ? getBlockDefinition(builder.footer.type) : null);
@@ -117,17 +110,6 @@
 <div class="page">
 	<main>
 		<div class="canvas" aria-label="Site builder canvas" ondragover={onDragOver} role="region">
-			<div class="canvas-meta">
-				<p class="eyebrow eyebrow-chip">@{data.profile.username}</p>
-				<h1 class="page-title">{currentPage?.title ?? 'Home'}</h1>
-				<p class="path lcd-face">{currentPage?.path ?? '/'}</p>
-				{#if builder.savingBlocks || builder.savingChrome}
-					<p class="save-status" role="status">Saving…</p>
-				{:else if builder.blocksError || builder.chromeError}
-					<p class="save-error" role="alert">{builder.blocksError || builder.chromeError}</p>
-				{/if}
-			</div>
-
 			<div class="preview">
 				{#if builder.header && HeaderBlock}
 					<div class="chrome instance" class:selected={builder.selectedChrome === 'header'}>
@@ -140,7 +122,6 @@
 						>
 							<HeaderBlock {...builder.header.props} />
 						</button>
-						<span class="chrome-badge">Site header</span>
 					</div>
 				{/if}
 
@@ -210,7 +191,6 @@
 						>
 							<FooterBlock {...builder.footer.props} />
 						</button>
-						<span class="chrome-badge">Site footer</span>
 					</div>
 				{/if}
 			</div>
@@ -246,44 +226,6 @@
 			color-mix(in srgb, var(--ink) 4%, var(--paper)),
 			color-mix(in srgb, var(--accent) 5%, var(--paper))
 		);
-	}
-
-	.canvas-meta {
-		display: grid;
-		justify-items: center;
-		gap: 0.35rem;
-		text-align: center;
-	}
-
-	.page-title {
-		margin: 0;
-		font-family: var(--font-editorial);
-		font-size: clamp(1.4rem, 2.4vw, 1.85rem);
-		font-weight: 500;
-	}
-
-	.path {
-		margin: 0;
-		font-size: 0.85rem;
-		color: var(--muted);
-		letter-spacing: 0.04em;
-	}
-
-	.save-status,
-	.save-error {
-		margin: 0;
-		font-size: 0.75rem;
-	}
-
-	.save-status {
-		color: var(--muted);
-	}
-
-	.save-error {
-		color: var(--ink);
-		padding: 0.25rem 0.45rem;
-		border: 1px solid var(--ink);
-		background: color-mix(in srgb, #c44 16%, var(--paper));
 	}
 
 	.preview {
@@ -356,21 +298,6 @@
 
 	.stack + .chrome {
 		border-top: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
-	}
-
-	.chrome-badge {
-		position: absolute;
-		top: 0.4rem;
-		left: 0.4rem;
-		z-index: 2;
-		padding: 0.15rem 0.4rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
-		background: color-mix(in srgb, var(--paper) 88%, transparent);
-		font-size: 0.6rem;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--muted);
-		pointer-events: none;
 	}
 
 	.instance-hit {

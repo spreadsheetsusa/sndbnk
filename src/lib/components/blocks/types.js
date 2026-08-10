@@ -1,5 +1,5 @@
 /**
- * Server-safe allowlist of first-slice block types (no Svelte imports).
+ * Server-safe allowlist of block types (no Svelte imports).
  * Keep in sync with `#lib/components/blocks/registry.js`.
  */
 export const BLOCK_TYPES = [
@@ -14,16 +14,58 @@ export const BLOCK_TYPES = [
 	'hero.split-image-wide-cta',
 	'hero.centered-wide-cta',
 	'content.four-list-columns',
+	'content.four-media-cards',
+	'content.six-icon-cards',
+	'content.split-body-lists',
 	'content.split-heading-body',
+	'content.split-avatar-media',
 	'content.two-media-columns',
 	'content.three-media-cards',
 	'cta.inline-button',
 	'cta.copy-form',
 	'cta.centered-three',
 	'cta.eyebrow-two',
+	'blog.three-media-cards',
+	'blog.three-overlay-cards',
+	'blog.two-text-posts',
+	'blog.stacked-date-rows',
+	'blog.three-text-columns',
+	'contact.map-form',
+	'contact.map-panel-form',
+	'contact.centered-form',
+	'ecommerce.eight-product-grid',
+	'ecommerce.split-image-detail',
+	'ecommerce.split-detail-image',
+	'feature.three-icon-columns',
+	'feature.three-icon-cta',
+	'feature.split-media-list',
+	'feature.two-icon-cards',
+	'feature.three-icon-cards',
+	'feature.alternating-icon-rows',
+	'feature.six-chip-grid',
+	'feature.four-check-columns',
+	'gallery.asymmetric-tiles',
+	'gallery.featured-pair',
+	'gallery.six-image-grid',
+	'pricing.four-tier-cards',
+	'pricing.comparison-table',
+	'statistic.four-inline',
+	'statistic.split-stats-media',
+	'statistic.four-icon-cards',
+	'step.timeline-media',
+	'step.tabs-media',
+	'step.icon-timeline-media',
+	'team.nine-avatar-cards',
+	'team.four-media-rows',
+	'team.eight-portrait-grid',
+	'testimonial.two-quote-cards',
+	'testimonial.centered-quote',
+	'testimonial.three-quote-columns',
 	'footer.link-columns-bar',
+	'footer.link-columns-mark-bar',
 	'footer.newsletter-bar',
-	'footer.minimal'
+	'footer.minimal',
+	'footer.columns-newsletter-bar'
 ];
 
 /** @type {Set<string>} */
@@ -38,8 +80,10 @@ export const HEADER_TYPES = /** @type {const} */ ([
 
 export const FOOTER_TYPES = /** @type {const} */ ([
 	'footer.link-columns-bar',
+	'footer.link-columns-mark-bar',
 	'footer.newsletter-bar',
-	'footer.minimal'
+	'footer.minimal',
+	'footer.columns-newsletter-bar'
 ]);
 
 /** @type {Set<string>} */
@@ -163,6 +207,19 @@ export function defaultChromeProps(type, siteName = 'Site') {
 			meta: 'Audio multi-tool'
 		};
 	}
+	if (type === 'footer.link-columns-mark-bar') {
+		return {
+			markText: brand,
+			columns: [
+				{ title: 'Product', links: 'Feed\nLibrary\nPlans' },
+				{ title: 'Creators', links: 'Upload\nSites\nDomains' },
+				{ title: 'Company', links: 'About\nPrivacy\nTerms' },
+				{ title: 'Help', links: 'Support\nStatus\nContact' }
+			],
+			copyright: `© ${brand}`,
+			meta: 'Audio multi-tool'
+		};
+	}
 	if (type === 'footer.newsletter-bar') {
 		return {
 			columns: [
@@ -184,6 +241,21 @@ export function defaultChromeProps(type, siteName = 'Site') {
 			logoText: brand,
 			meta: 'Audio host for creators',
 			rightMeta: 'sndbnk.com'
+		};
+	}
+	if (type === 'footer.columns-newsletter-bar') {
+		return {
+			columns: [
+				{ title: 'Listen', links: 'Feed\nCharts\nNew' },
+				{ title: 'Create', links: 'Upload\nPlaylists\nSites' },
+				{ title: 'Account', links: 'Settings\nBilling\nStorage' }
+			],
+			newsletterTitle: 'Stay in the loop',
+			emailPlaceholder: 'you@example.com',
+			submitLabel: 'Join',
+			logoText: brand,
+			copyright: `© ${brand}`,
+			meta: 'Made for artists & listeners'
 		};
 	}
 	return null;
