@@ -11,28 +11,27 @@
 			id: 'domains',
 			icon: IconWorld,
 			title: 'Your own address',
-			description:
-				'A real home for your catalog — subdomain out of the box, custom domain when you are ready.'
+			description: 'Subdomain out of the box, custom domain when you are ready.'
 		},
 		{
 			id: 'storage',
 			icon: IconServer,
 			title: 'Bring your own disks',
 			description:
-				'Host with us, or point storage at the kit you already run. Your files, your call.'
+				'Host on our disk or point at yours. The platform should feel like a friend, not a landlord.'
 		},
 		{
 			id: 'viz',
 			icon: IconPlanet,
 			title: 'Milkdrop in the mix',
-			description:
-				'Butterchurn viz rides the waveform while you listen — a toy that earns its keep.'
+			description: 'Butterchurn viz rides the waveform while you listen.'
 		},
 		{
 			id: 'people',
 			icon: IconUsers,
-			title: 'People in the room',
-			description: 'Follows, comments, and a feed from humans you chose — discovery you can feel.'
+			title: 'People, not predictions',
+			description:
+				'A feed from the humans you follow. Stumble into sound — we are not here to guess what you should like.'
 		},
 		{
 			id: 'any-sound',
@@ -55,10 +54,10 @@
 			<p class="eyebrow">In the toolkit</p>
 			<span class="mark" aria-hidden="true">///</span>
 		</div>
-		<h2 id="features-title">Platform, community, and a bag of toys</h2>
+		<h2 id="features-title">Built for posting and making contact</h2>
 		<p class="lede">
-			Bank the catalog, keep the listening chrome alive, and stick around for the people who show
-			up.
+			Drop the file. Keep the chrome alive. Find people the old way — by listening, following, and
+			showing up.
 		</p>
 	</header>
 
