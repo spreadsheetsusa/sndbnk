@@ -5,26 +5,33 @@
 	import {
 		BLOCK_MIN_WIDTH_PX,
 		clampBlockMaxWidth,
-		layoutFromMaxWidth
+		layoutFromMaxWidth,
+		snapBlockMaxWidth,
+		visibleBlockWidthBreakpoints
 	} from '#lib/components/blocks/types.js';
+	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
 	import BlocksHud from '#lib/components/builder/BlocksHud.svelte';
 	import BuilderToolbar from '#lib/components/builder/BuilderToolbar.svelte';
 	import InspectorHud from '#lib/components/builder/InspectorHud.svelte';
-	import { ACCENTS, normalizeHex, onAccentFor } from '#lib/stores/brand.js';
+	import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 
 	/** @typedef {import('#lib/components/blocks/types.js').PageBlockInstance} PageBlockInstance */
 
 	const DEFAULT_SITE_ACCENT = ACCENTS[0].value;
 
 	/**
-	 * Scope site accent + light/dark tokens on the canvas so HUDs keep platform theme.
+	 * Scope site accent + persona + light/dark tokens on the canvas so HUDs keep platform theme.
 	 * @param {string} accentHex
-	 * @param {'light' | 'dark'} appearance
+	 * @param {'light' | 'dark'} previewAppearance
+	 * @param {string} themePersona
+	 * @param {import('#lib/builder/theme-persona.js').ThemeSlotColors | null} slotColors
 	 */
-	function previewThemeStyle(accentHex, appearance) {
-		const accent = normalizeHex(accentHex) ?? DEFAULT_SITE_ACCENT;
-		const onAccent = onAccentFor(accent);
-		const dark = appearance === 'dark';
+	function previewThemeStyle(accentHex, previewAppearance, themePersona, slotColors) {
+		const seed = normalizeHex(accentHex) ?? DEFAULT_SITE_ACCENT;
+		const palette = buildPersonaPalette(seed, themePersona, slotColors);
+		const accent = palette.accent;
+		const onAccent = palette.onAccent;
+		const dark = previewAppearance === 'dark';
 		const ink = dark ? '#f2f0e8' : '#11110f';
 		const paper = dark ? '#141410' : '#f2f0e8';
 		const muted = dark ? '#a8a69c' : '#696861';
@@ -37,9 +44,11 @@
 		const fieldSurface = dark
 			? `color-mix(in srgb, ${accent} 10%, transparent)`
 			: `color-mix(in srgb, ${accent} 7%, transparent)`;
+		const themeVars = Object.entries(palette.cssVars)
+			.map(([key, value]) => `${key}: ${value}`)
+			.join('; ');
 		return [
-			`--accent: ${accent}`,
-			`--on-accent: ${onAccent}`,
+			themeVars,
 			`--ink: ${ink}`,
 			`--paper: ${paper}`,
 			`--muted: ${muted}`,
@@ -63,7 +72,9 @@
 	 *       id: string,
 	 *       name: string,
 	 *       accentColor?: string,
-	 *       appearance?: 'light' | 'dark',
+	 *       appearance?: 'light' | 'dark' | 'user',
+	 *       themePersona?: string,
+	 *       themePalette?: import('#lib/builder/theme-persona.js').ThemeSlotColors | null,
 	 *       header: { id: string, type: string, props: Record<string, unknown> } | null,
 	 *       footer: { id: string, type: string, props: Record<string, unknown> } | null
 	 *     },
@@ -119,7 +130,12 @@
 			siteId: data.site.id,
 			siteName: data.site.name,
 			accentColor: data.site.accentColor ?? '',
-			appearance: data.site.appearance === 'dark' ? 'dark' : 'light',
+			appearance:
+				data.site.appearance === 'dark' || data.site.appearance === 'user'
+					? data.site.appearance
+					: 'light',
+			themePersona: data.site.themePersona ?? 'mono',
+			themePalette: data.site.themePalette ?? null,
 			header: data.site.header,
 			footer: data.site.footer,
 			pages: data.pages,
@@ -127,7 +143,14 @@
 		});
 	});
 
-	const previewStyle = $derived(previewThemeStyle(builder.accentColor, builder.appearance));
+	const previewStyle = $derived(
+		previewThemeStyle(
+			builder.accentColor,
+			builder.previewAppearance,
+			builder.themePersona,
+			builder.themeSlotColors
+		)
+	);
 
 	/** @type {import('svelte/attachments').Attachment} */
 	const measureCanvas = (el) => {
@@ -158,6 +181,8 @@
 	function boardWidth() {
 		return canvasWidth || BLOCK_MIN_WIDTH_PX;
 	}
+
+	const guideBreakpoints = $derived(visibleBlockWidthBreakpoints(boardWidth()));
 
 	/**
 	 * @param {PageBlockInstance} instance
@@ -212,7 +237,8 @@
 		const board = boardWidth();
 		const dx = event.clientX - resizeDrag.startX;
 		const signed = resizeDrag.side === 'right' ? dx : -dx;
-		const liveWidth = clampBlockMaxWidth(resizeDrag.startWidth + 2 * signed, board);
+		const raw = clampBlockMaxWidth(resizeDrag.startWidth + 2 * signed, board);
+		const liveWidth = snapBlockMaxWidth(raw, board);
 		resizeDrag = { ...resizeDrag, liveWidth };
 	}
 
@@ -271,6 +297,15 @@
 		if (!type) return;
 		builder.insertBlock(type, index);
 	}
+
+	/**
+	 * @param {MouseEvent} event
+	 */
+	function clearCanvasSelection(event) {
+		if (!(event.target instanceof Element) || event.target.closest('.instance')) return;
+		builder.selectInstance(null);
+		builder.selectChrome(null);
+	}
 </script>
 
 <svelte:head>
@@ -284,6 +319,7 @@
 			class="canvas"
 			aria-label="Site builder canvas"
 			ondragover={onDragOver}
+			onclick={clearCanvasSelection}
 			role="region"
 			{@attach measureCanvas}
 		>
@@ -297,7 +333,12 @@
 							aria-pressed={builder.selectedChrome === 'header'}
 							onclick={() => builder.selectChrome('header')}
 						>
-							<HeaderBlock {...builder.header.props} />
+							<HeaderBlock
+								{...builder.header.props}
+								showAppearanceToggle={builder.appearance === 'user'}
+								resolvedAppearance={builder.previewAppearance}
+								onAppearanceToggle={() => builder.togglePreviewAppearance()}
+							/>
 						</button>
 					</div>
 				{/if}
@@ -356,15 +397,15 @@
 									onpointerup={onResizePointerUp}
 									onpointercancel={onResizePointerUp}
 								></button>
-								<button
-									type="button"
-									class="remove"
-									aria-label="Remove block"
-									onclick={() => builder.removeBlock(instance.id)}
-								>
-									<IconTrash size={15} stroke={1.75} aria-hidden="true" />
-								</button>
 							{/if}
+							<button
+								type="button"
+								class="remove"
+								aria-label="Remove block"
+								onclick={() => builder.removeBlock(instance.id)}
+							>
+								<IconTrash size={15} stroke={1.75} aria-hidden="true" />
+							</button>
 						</div>
 					{/each}
 					<div
@@ -397,6 +438,20 @@
 					</div>
 				{/if}
 			</div>
+			<div class="width-guides" class:active={!!resizeDrag} aria-hidden="true">
+				{#each guideBreakpoints as w (w)}
+					<span
+						class="guide"
+						class:snapped={resizeDrag?.liveWidth === w}
+						style:left="calc(50% - {w / 2}px)"
+					></span>
+					<span
+						class="guide"
+						class:snapped={resizeDrag?.liveWidth === w}
+						style:left="calc(50% + {w / 2}px)"
+					></span>
+				{/each}
+			</div>
 		</div>
 	</main>
 
@@ -418,17 +473,46 @@
 	}
 
 	.canvas {
+		position: relative;
 		min-height: calc(100vh - 2rem);
 		display: grid;
 		align-content: start;
 		gap: 1.25rem;
 		padding: 1.5rem 1.25rem 4rem;
-		border: 1px dashed color-mix(in srgb, var(--ink) 35%, transparent);
-		background: linear-gradient(
-			180deg,
-			color-mix(in srgb, var(--ink) 4%, var(--paper)),
-			color-mix(in srgb, var(--accent) 5%, var(--paper))
-		);
+		border: 1px dotted color-mix(in srgb, var(--ink) 32%, transparent);
+		background: transparent;
+	}
+
+	.width-guides {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 150ms ease;
+	}
+
+	.width-guides.active {
+		opacity: 1;
+	}
+
+	.guide {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 0;
+		border-left: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
+		transform: translateX(-50%);
+	}
+
+	.guide.snapped {
+		border-left-color: color-mix(in srgb, var(--accent) 88%, var(--ink));
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.width-guides {
+			transition: none;
+		}
 	}
 
 	.preview {
@@ -488,6 +572,10 @@
 		margin-inline: auto;
 		outline: 1px solid transparent;
 		background: var(--paper);
+	}
+
+	.instance:not(.selected):hover {
+		outline: 1px dotted color-mix(in srgb, var(--ink) 28%, transparent);
 	}
 
 	.instance.selected {
@@ -582,6 +670,14 @@
 		color: var(--ink);
 		cursor: pointer;
 		z-index: 2;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.instance:hover .remove,
+	.instance.selected .remove {
+		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.remove:hover {

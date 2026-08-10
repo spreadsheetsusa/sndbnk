@@ -48,13 +48,18 @@ stays `/`). Canvas body blocks drag from the Blocks HUD — insertable categorie
 Content, CTA, Ecommerce, Feature, Gallery, Hero, Pricing, Statistic, Step, Team, and Testimonial
 (Header/Footer stay site chrome only). `PUT /api/sites/[id]/pages/[pageId]/blocks` persists the
 ordered body list (`{ id, type, props, layout? }` — optional `layout.maxWidth` from canvas side
-handles, centered between ~512px and the full canvas content width). Site header/footer render outside
+handles, centered between ~512px and the full canvas content width; resize snaps to common
+breakpoints with dashed vertical guides while dragging). Site header/footer render outside
 the page stack
-on every page preview; Inspector **Site** tab edits site theme (accent + light/dark) via
-`PUT /api/sites/[id]/theme`, then picks header/footer layouts and props via
-`PUT /api/sites/[id]/chrome`. The canvas `.preview` scopes site theme tokens; builder HUDs stay
-on the platform/listener accent and appearance. Inspector **Block** tab edits the selected body
-instance.
+on every page preview; Inspector **Site** tab edits site theme (accent + appearance
+`light`/`dark`/`user` + theme persona) via `PUT /api/sites/[id]/theme`, then picks header/footer
+layouts and props via `PUT /api/sites/[id]/chrome`. Locked light/dark force the canvas preview;
+`user` shows a header sun/moon toggle that flips session preview only. Persona ids seed named
+slots (`primary` / `secondary` / `tertiary` / `surface` / `success` / `error`) via
+`#lib/builder/theme-persona.js` (colorjs.io); Inspector can reorder those chips (FLIP) or override
+a slot with the accent picker, persisted as `themePalette`. The canvas `.preview` scopes those
+tokens; builder HUDs stay on the platform/listener accent and appearance.
+Inspector **Block** tab edits the selected body instance.
 
 ## `load` conventions
 

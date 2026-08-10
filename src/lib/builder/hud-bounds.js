@@ -6,7 +6,7 @@ export const VIEW_PAD = 8;
 
 /** @type {Record<BuilderHudId, { w: number, h: number, minW: number, minH: number, lockH?: boolean }>} */
 export const HUD_SPECS = {
-	toolbar: { w: 72, h: 240, minW: 64, minH: 180, lockH: true },
+	toolbar: { w: 72, h: 240, minW: 72, minH: 180, lockH: true },
 	inspector: { w: 300, h: 440, minW: 240, minH: 280 },
 	blocks: { w: 720, h: 196, minW: 360, minH: 160, lockH: true }
 };

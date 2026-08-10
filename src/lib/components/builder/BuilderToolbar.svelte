@@ -26,18 +26,18 @@
 	.tools {
 		display: grid;
 		gap: 0.35rem;
-		padding: 0.45rem;
+		padding: 0.3rem 0.2rem;
 	}
 
 	.tool {
 		display: grid;
 		justify-items: center;
 		gap: 0.15rem;
-		padding: 0.45rem 0.25rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
+		padding: 0.35rem 0.2rem;
+		border: 0;
 		background: transparent;
 		color: var(--muted);
-		font-size: 0.65rem;
+		font-size: 0.5rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		cursor: pointer;
@@ -45,13 +45,10 @@
 
 	.tool:hover {
 		color: var(--ink);
-		border-color: var(--ink);
 	}
 
 	.tool.active {
 		color: var(--accent);
-		border-color: var(--accent);
-		box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 		text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
 	}
 </style>

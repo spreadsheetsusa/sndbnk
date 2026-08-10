@@ -40,12 +40,15 @@ export const load = async ({ locals }) => {
 						hideBranding: site.hideBranding && canRemoveBranding(locals.tenant.plan)
 					}
 				: {
+						id: null,
 						name: locals.tenant.name || locals.tenant.username,
 						description: null,
 						logoUrl: null,
 						ogImageUrl: null,
 						accentColor: null,
-						appearance: /** @type {'light' | 'dark'} */ ('light'),
+						appearance: /** @type {'light' | 'dark' | 'user'} */ ('light'),
+						themePersona: 'mono',
+						themePalette: null,
 						hideBranding: false,
 						updatedAt: null
 					}

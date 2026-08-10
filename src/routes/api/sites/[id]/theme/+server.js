@@ -32,7 +32,11 @@ export async function PUT({ locals, params, request, url }) {
 		plan: profile.plan,
 		siteId: siteRow.id,
 		accentColor: body?.accentColor?.toString() ?? '',
-		appearance: body?.appearance?.toString() ?? ''
+		appearance: body?.appearance?.toString() ?? '',
+		themePersona: body?.themePersona?.toString() ?? '',
+		...(Object.prototype.hasOwnProperty.call(body ?? {}, 'themePalette')
+			? { themePalette: body.themePalette }
+			: {})
 	});
 
 	if (!result.ok) {
@@ -41,6 +45,8 @@ export async function PUT({ locals, params, request, url }) {
 
 	return json({
 		accentColor: result.accentColor,
-		appearance: result.appearance
+		appearance: result.appearance,
+		themePersona: result.themePersona,
+		themePalette: result.themePalette
 	});
 }

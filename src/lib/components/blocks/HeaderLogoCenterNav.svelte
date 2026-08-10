@@ -1,10 +1,15 @@
 <script>
+	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+
 	/**
 	 * @type {{
 	 *   logoText?: string,
 	 *   links?: Array<{ label: string, href: string }>,
 	 *   ctaLabel?: string,
-	 *   ctaHref?: string
+	 *   ctaHref?: string,
+	 *   showAppearanceToggle?: boolean,
+	 *   resolvedAppearance?: 'light' | 'dark',
+	 *   onAppearanceToggle?: () => void
 	 * }}
 	 */
 	let {
@@ -16,7 +21,10 @@
 			{ label: 'Press', href: '/' }
 		],
 		ctaLabel = 'Book',
-		ctaHref = '/'
+		ctaHref = '/',
+		showAppearanceToggle = false,
+		resolvedAppearance = 'light',
+		onAppearanceToggle
 	} = $props();
 </script>
 
@@ -27,7 +35,12 @@
 			<a href={link.href}>{link.label}</a>
 		{/each}
 	</nav>
-	<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
+	<div class="end">
+		{#if showAppearanceToggle}
+			<AppearanceToggle {resolvedAppearance} {onAppearanceToggle} />
+		{/if}
+		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
+	</div>
 </header>
 
 <style>
@@ -37,13 +50,14 @@
 		align-items: center;
 		gap: 1rem;
 		padding: 0.85rem 1.25rem;
-		border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		border-bottom: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 40%, transparent);
+		background: color-mix(in srgb, var(--theme-1, var(--paper)) 40%, var(--paper));
 	}
 
 	.logo {
 		font-family: var(--font-display);
 		font-size: 1rem;
-		color: var(--ink);
+		color: var(--theme-4, var(--ink));
 		text-decoration: none;
 	}
 
@@ -60,9 +74,19 @@
 		text-decoration: none;
 	}
 
+	nav a:hover {
+		color: var(--theme-2, var(--ink));
+	}
+
+	.end {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+	}
+
 	.cta {
 		padding: 0.4rem 0.75rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--theme-3, var(--ink));
 		color: var(--on-accent);
 		text-decoration: none;
 		font-size: 0.85rem;

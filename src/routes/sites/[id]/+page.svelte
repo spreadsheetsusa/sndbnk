@@ -155,8 +155,19 @@
 						/>
 						<span>Dark</span>
 					</label>
+					<label class="appearance-opt">
+						<input
+							type="radio"
+							name="appearance"
+							value="user"
+							checked={appearanceValue === 'user'}
+						/>
+						<span>User</span>
+					</label>
 				</div>
-				<p class="hint">Look for your public site — separate from your SNDBNK account theme.</p>
+				<p class="hint">
+					Light/Dark lock the public look. User lets visitors switch via the header toggle.
+				</p>
 			</fieldset>
 
 			<label for="site-description">

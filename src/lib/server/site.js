@@ -1,6 +1,12 @@
 import { and, eq } from 'drizzle-orm';
 
 import {
+	DEFAULT_THEME_PERSONA,
+	normalizeThemePersona,
+	parseThemePalette,
+	THEME_PERSONA_SET
+} from '#lib/builder/theme-persona.js';
+import {
 	createDefaultChromeBlock,
 	isFooterBlockType,
 	isHeaderBlockType,
@@ -28,9 +34,9 @@ export const MAX_SITE_DESCRIPTION_LENGTH = 300;
 
 export const SITE_INTENTS = /** @type {const} */ (['tracks', 'mixes', 'podcast', 'label', 'other']);
 
-/** @typedef {'light' | 'dark'} SiteAppearance */
+/** @typedef {'light' | 'dark' | 'user'} SiteAppearance */
 
-export const SITE_APPEARANCES = /** @type {const} */ (['light', 'dark']);
+export const SITE_APPEARANCES = /** @type {const} */ (['light', 'dark', 'user']);
 
 const SITE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -107,6 +113,7 @@ export async function getSitePublic(userId) {
 	if (!row) return null;
 
 	return {
+		id: row.id,
 		name: row.name ?? null,
 		description: row.description ?? null,
 		logoUrl: row.logoFilename ? siteLogoUrl(userId, row.updatedAt) : null,
@@ -117,6 +124,8 @@ export async function getSitePublic(userId) {
 				? row.appearance
 				: 'light'
 		),
+		themePersona: normalizeThemePersona(row.themePersona),
+		themePalette: parseThemePalette(row.themePalette),
 		hideBranding: row.hideBranding,
 		sidebarEnabled: row.sidebarEnabled,
 		sidebarStats: row.sidebarStats,
@@ -143,6 +152,8 @@ export function serializeSiteOwner(row) {
 				? row.appearance
 				: 'light'
 		),
+		themePersona: normalizeThemePersona(row.themePersona),
+		themePalette: parseThemePalette(row.themePalette),
 		siteIntent: row.siteIntent ?? '',
 		wantBlog: row.wantBlog,
 		wantEvents: row.wantEvents,
@@ -456,7 +467,7 @@ export function normalizeAppearance(raw) {
 	if (!SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (value))) {
 		return {
 			ok: /** @type {const} */ (false),
-			message: 'Appearance must be light or dark.'
+			message: 'Appearance must be light, dark, or user.'
 		};
 	}
 	return {
@@ -466,13 +477,52 @@ export function normalizeAppearance(raw) {
 }
 
 /**
- * Accent + appearance for builder Inspector / theme API.
+ * @param {string | null | undefined} raw
+ */
+export function normalizeSiteThemePersona(raw) {
+	const value = raw?.toString().trim() ?? '';
+	if (value && !THEME_PERSONA_SET.has(value)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Pick a valid theme persona.'
+		};
+	}
+	return {
+		ok: /** @type {const} */ (true),
+		themePersona: value ? normalizeThemePersona(value) : DEFAULT_THEME_PERSONA
+	};
+}
+
+/**
+ * @param {unknown} raw
+ */
+export function normalizeSiteThemePalette(raw) {
+	if (raw === null) {
+		return { ok: /** @type {const} */ (true), themePalette: /** @type {null} */ (null) };
+	}
+	if (raw === undefined) {
+		return { ok: /** @type {const} */ (true), themePalette: undefined };
+	}
+	const parsed = parseThemePalette(raw);
+	if (!parsed) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Theme palette needs six hex slot colors.'
+		};
+	}
+	return { ok: /** @type {const} */ (true), themePalette: parsed };
+}
+
+/**
+ * Accent + appearance + persona + optional slot palette for builder Inspector / theme API.
  * @param {{
  *   userId: string,
  *   plan: string | null | undefined,
  *   siteId: string,
  *   accentColor: string,
- *   appearance: string
+ *   appearance: string,
+ *   themePersona?: string,
+ *   themePalette?: unknown
  * }} input
  */
 export async function updateSiteTheme(input) {
@@ -494,19 +544,40 @@ export async function updateSiteTheme(input) {
 	const appearanceResult = normalizeAppearance(input.appearance);
 	if (!appearanceResult.ok) return appearanceResult;
 
-	await db
-		.update(site)
-		.set({
-			accentColor: accentResult.accentColor,
-			appearance: appearanceResult.appearance,
-			updatedAt: new Date()
-		})
-		.where(eq(site.id, row.id));
+	const personaResult = normalizeSiteThemePersona(input.themePersona ?? row.themePersona);
+	if (!personaResult.ok) return personaResult;
+
+	const paletteResult = normalizeSiteThemePalette(
+		Object.prototype.hasOwnProperty.call(input, 'themePalette') ? input.themePalette : undefined
+	);
+	if (!paletteResult.ok) return paletteResult;
+
+	/** @type {Record<string, unknown>} */
+	const patch = {
+		accentColor: accentResult.accentColor,
+		appearance: appearanceResult.appearance,
+		themePersona: personaResult.themePersona,
+		updatedAt: new Date()
+	};
+	if (paletteResult.themePalette !== undefined) {
+		patch.themePalette = paletteResult.themePalette
+			? JSON.stringify(paletteResult.themePalette)
+			: null;
+	}
+
+	await db.update(site).set(patch).where(eq(site.id, row.id));
+
+	const themePalette =
+		paletteResult.themePalette !== undefined
+			? paletteResult.themePalette
+			: parseThemePalette(row.themePalette);
 
 	return {
 		ok: /** @type {const} */ (true),
 		accentColor: accentResult.accentColor ?? '',
-		appearance: appearanceResult.appearance
+		appearance: appearanceResult.appearance,
+		themePersona: personaResult.themePersona,
+		themePalette
 	};
 }
 

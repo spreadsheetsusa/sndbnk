@@ -6,12 +6,14 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { builder } from '#lib/builder/builder.svelte.js';
+	import { THEME_PERSONA_OPTIONS } from '#lib/builder/theme-persona.js';
 	import {
 		footerBlockCatalog,
 		getBlockDefinition,
 		headerBlockCatalog
 	} from '#lib/components/blocks/registry.js';
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
+	import PersonaPaletteEditor from '#lib/components/builder/PersonaPaletteEditor.svelte';
 	import ThemeControls from '#lib/components/ThemeControls.svelte';
 
 	/**
@@ -381,11 +383,36 @@
 					<ThemeControls
 						accentHex={builder.accentColor}
 						appearance={builder.appearance}
+						appearanceModes={['light', 'dark', 'user']}
 						onAccentChange={(hex) => builder.setAccentColor(hex)}
 						onAppearanceChange={(value) => builder.setAppearance(value)}
-						hint="For your public site and canvas preview — not your SNDBNK account theme."
+						hint="Light/Dark lock the preview. User lets visitors (and the header toggle) switch."
 						idPrefix="site-theme"
 					/>
+
+					<div class="persona-row">
+						<span id="site-persona-label">Persona</span>
+						<select
+							aria-labelledby="site-persona-label"
+							value={builder.themePersona}
+							onchange={(event) =>
+								builder.setThemePersona(
+									/** @type {HTMLSelectElement} */ (event.currentTarget).value
+								)}
+						>
+							{#each THEME_PERSONA_OPTIONS as option (option.id)}
+								<option value={option.id}>{option.label}</option>
+							{/each}
+						</select>
+					</div>
+
+					{#if builder.themeChips.length === 6}
+						<PersonaPaletteEditor
+							chips={builder.themeChips}
+							onReorder={(from, to) => builder.reorderThemeChips(from, to)}
+							onOverride={(index, hex) => builder.setThemeChipHex(index, hex)}
+						/>
+					{/if}
 
 					{#if builder.savingTheme}
 						<p class="form-ok" role="status">Saving theme…</p>
@@ -610,6 +637,32 @@
 		gap: 0.65rem;
 		padding: 0.55rem;
 		border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+	}
+
+	.persona-row {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.45rem 0.7rem;
+		color: var(--ink);
+		font-size: 0.75rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.persona-row select {
+		min-width: 7.5rem;
+		padding: 0.3rem 0.4rem;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		color: var(--ink);
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		cursor: pointer;
 	}
 
 	.theme-head {

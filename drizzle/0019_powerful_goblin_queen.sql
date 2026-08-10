@@ -1,0 +1,1 @@
+ALTER TABLE `site` ADD `theme_persona` text DEFAULT 'mono' NOT NULL;

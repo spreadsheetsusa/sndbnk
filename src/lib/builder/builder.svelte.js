@@ -1,14 +1,30 @@
 import { browser } from '$app/env';
 import { clampBounds, defaultSpawn, HUD_SPECS } from '#lib/builder/hud-bounds.js';
+import { resolveSiteAppearance } from '#lib/builder/site-appearance.js';
+import {
+	chipsFromSlotColors,
+	DEFAULT_THEME_PERSONA,
+	deriveSlotColors,
+	normalizeThemePersona,
+	parseThemePalette,
+	slotColorsFromChips,
+	THEME_SLOT_IDS
+} from '#lib/builder/theme-persona.js';
 import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 import {
 	createDefaultChromeBlock,
 	isPageBodyBlockType,
 	parseBlockLayout
 } from '#lib/components/blocks/types.js';
+import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 
 /** @typedef {import('#lib/builder/hud-bounds.js').BuilderHudId} BuilderHudId */
 /** @typedef {import('#lib/builder/hud-bounds.js').HudBounds} HudBounds */
+/** @typedef {import('#lib/builder/site-appearance.js').ResolvedAppearance} ResolvedAppearance */
+/** @typedef {import('#lib/builder/site-appearance.js').SiteAppearanceMode} SiteAppearanceMode */
+/** @typedef {import('#lib/builder/theme-persona.js').ThemeChip} ThemeChip */
+/** @typedef {import('#lib/builder/theme-persona.js').ThemePersona} ThemePersona */
+/** @typedef {import('#lib/builder/theme-persona.js').ThemeSlotColors} ThemeSlotColors */
 /** @typedef {import('#lib/components/blocks/types.js').PageBlockInstance} PageBlockInstance */
 /** @typedef {import('#lib/components/blocks/types.js').PageBlockLayout} PageBlockLayout */
 
@@ -49,7 +65,15 @@ const PERSIST_DEBOUNCE_MS = 320;
 /** @typedef {null | 'block'} BuilderTool */
 /** @typedef {'pages' | 'page' | 'site' | 'block'} InspectorTab */
 /** @typedef {null | 'header' | 'footer'} ChromeKind */
-/** @typedef {'light' | 'dark'} SiteAppearance */
+
+/**
+ * @param {string | null | undefined} value
+ * @returns {SiteAppearanceMode}
+ */
+function normalizeSiteAppearanceMode(value) {
+	if (value === 'dark' || value === 'user') return value;
+	return 'light';
+}
 
 /**
  * @param {unknown} value
@@ -105,8 +129,16 @@ class Builder {
 	siteName = $state('');
 	/** Site accent hex (`#RRGGBB`) or empty for default. @type {string} */
 	accentColor = $state('');
-	/** Public / preview appearance. @type {SiteAppearance} */
-	appearance = $state(/** @type {SiteAppearance} */ ('light'));
+	/** Site appearance mode: locked light/dark or visitor choice. @type {SiteAppearanceMode} */
+	appearance = $state(/** @type {SiteAppearanceMode} */ ('light'));
+	/** Canvas light/dark (locked when appearance is light/dark). @type {ResolvedAppearance} */
+	previewAppearance = $state(/** @type {ResolvedAppearance} */ ('light'));
+	/** Theme persona id for derived palette. @type {ThemePersona} */
+	themePersona = $state(/** @type {ThemePersona} */ (DEFAULT_THEME_PERSONA));
+	/** Ordered chips for semantic slots (primary…error). @type {ThemeChip[]} */
+	themeChips = $state(/** @type {ThemeChip[]} */ ([]));
+	/** True when chips were reordered/overridden (persist palette JSON). */
+	themePaletteCustom = $state(false);
 	/** @type {boolean} */
 	savingBlocks = $state(false);
 	/** @type {string | null} */
@@ -163,7 +195,9 @@ class Builder {
 	 *   siteId: string,
 	 *   siteName?: string,
 	 *   accentColor?: string,
-	 *   appearance?: SiteAppearance,
+	 *   appearance?: SiteAppearanceMode,
+	 *   themePersona?: ThemePersona | string,
+	 *   themePalette?: ThemeSlotColors | null,
 	 *   header?: PageBlockInstance | null,
 	 *   footer?: PageBlockInstance | null,
 	 *   pages: BuilderPage[],
@@ -177,7 +211,20 @@ class Builder {
 		// Keep live theme/chrome across page-metadata reloads; only seed on site change / first load.
 		if (siteChanging) {
 			this.accentColor = data.accentColor ?? '';
-			this.appearance = data.appearance === 'dark' ? 'dark' : 'light';
+			this.appearance = normalizeSiteAppearanceMode(data.appearance);
+			this.themePersona = normalizeThemePersona(data.themePersona);
+			const stored = parseThemePalette(data.themePalette);
+			if (stored) {
+				this.themeChips = chipsFromSlotColors(stored);
+				this.themePaletteCustom = true;
+				this.accentColor = stored.primary;
+			} else {
+				this.#seedChipsFromPersona();
+				this.themePaletteCustom = false;
+			}
+			this.#syncPreviewAppearance({ seedUser: true });
+		} else if (this.themeChips.length === 0) {
+			this.#seedChipsFromPersona();
 		}
 		if (siteChanging || !this.header) this.header = cloneBlock(data.header);
 		if (siteChanging || !this.footer) this.footer = cloneBlock(data.footer);
@@ -542,16 +589,108 @@ class Builder {
 		const trimmed = value.trim();
 		// Debounce-persist only empty (default) or a complete hex; ignore mid-edit.
 		if (!trimmed || /^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+			this.#seedChipsFromPersona();
+			this.themePaletteCustom = false;
 			this.persistTheme();
 		}
 	}
 
 	/**
-	 * @param {SiteAppearance} value
+	 * @param {SiteAppearanceMode} value
 	 */
 	setAppearance(value) {
-		this.appearance = value === 'dark' ? 'dark' : 'light';
+		const next = normalizeSiteAppearanceMode(value);
+		const enteringUser = next === 'user' && this.appearance !== 'user';
+		this.appearance = next;
+		this.#syncPreviewAppearance({ seedUser: enteringUser });
 		this.persistTheme({ immediate: true });
+	}
+
+	/**
+	 * @param {string} value
+	 */
+	setThemePersona(value) {
+		this.themePersona = normalizeThemePersona(value);
+		this.#seedChipsFromPersona();
+		this.themePaletteCustom = false;
+		this.persistTheme({ immediate: true });
+	}
+
+	/**
+	 * Reorder chips among fixed semantic slots (FLIP keys stay on chip ids).
+	 * @param {number} fromIndex
+	 * @param {number} toIndex
+	 */
+	reorderThemeChips(fromIndex, toIndex) {
+		if (fromIndex === toIndex) return;
+		if (fromIndex < 0 || toIndex < 0) return;
+		if (fromIndex >= this.themeChips.length || toIndex >= this.themeChips.length) return;
+		const next = [...this.themeChips];
+		const [chip] = next.splice(fromIndex, 1);
+		next.splice(toIndex, 0, chip);
+		this.themeChips = next;
+		this.accentColor = next[0]?.hex ?? this.accentColor;
+		this.themePaletteCustom = true;
+		this.persistTheme({ immediate: true });
+	}
+
+	/**
+	 * Override a single slot hex (after click + picker).
+	 * @param {number} index
+	 * @param {string} hex
+	 */
+	setThemeChipHex(index, hex) {
+		const normalized = normalizeHex(hex);
+		if (!normalized || index < 0 || index >= this.themeChips.length) return;
+		this.themeChips = this.themeChips.map((chip, i) =>
+			i === index ? { ...chip, hex: normalized } : chip
+		);
+		if (index === 0) this.accentColor = normalized;
+		this.themePaletteCustom = true;
+		this.persistTheme({ immediate: true });
+	}
+
+	#seedChipsFromPersona() {
+		const accent = normalizeHex(this.accentColor) ?? ACCENTS[0].value;
+		const slots = deriveSlotColors(accent, this.themePersona);
+		this.themeChips = chipsFromSlotColors(slots);
+		this.accentColor = slots.primary;
+	}
+
+	/** @returns {ThemeSlotColors | null} */
+	get themeSlotColors() {
+		if (this.themeChips.length !== 6) return null;
+		return slotColorsFromChips(this.themeChips);
+	}
+
+	/**
+	 * Flip canvas light/dark when site appearance mode is `user`.
+	 */
+	togglePreviewAppearance() {
+		if (this.appearance !== 'user') return;
+		this.previewAppearance = this.previewAppearance === 'dark' ? 'light' : 'dark';
+	}
+
+	/**
+	 * @param {ResolvedAppearance} value
+	 */
+	setPreviewAppearance(value) {
+		if (this.appearance !== 'user') return;
+		this.previewAppearance = value === 'dark' ? 'dark' : 'light';
+	}
+
+	/**
+	 * @param {{ seedUser?: boolean }} [opts]
+	 */
+	#syncPreviewAppearance(opts = {}) {
+		if (this.appearance === 'user') {
+			// Only seed visitor mode (hydrate / switch into User); keep live toggles otherwise.
+			if (opts.seedUser) {
+				this.previewAppearance = resolveSiteAppearance('user', this.siteId);
+			}
+			return;
+		}
+		this.previewAppearance = this.appearance === 'dark' ? 'dark' : 'light';
 	}
 
 	/**
@@ -650,7 +789,9 @@ class Builder {
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
 					accentColor: this.accentColor,
-					appearance: this.appearance
+					appearance: this.appearance,
+					themePersona: this.themePersona,
+					themePalette: this.themePaletteCustom ? slotColorsFromChips(this.themeChips) : null
 				})
 			});
 			if (gen !== this.#themePersistGen) return;
@@ -661,8 +802,19 @@ class Builder {
 			}
 			const data = await res.json();
 			if (typeof data.accentColor === 'string') this.accentColor = data.accentColor;
-			if (data.appearance === 'light' || data.appearance === 'dark') {
+			if (data.appearance === 'light' || data.appearance === 'dark' || data.appearance === 'user') {
 				this.appearance = data.appearance;
+				this.#syncPreviewAppearance();
+			}
+			if (typeof data.themePersona === 'string') {
+				this.themePersona = normalizeThemePersona(data.themePersona);
+			}
+			const stored = parseThemePalette(data.themePalette);
+			this.themePaletteCustom = Boolean(stored);
+			if (stored) {
+				const current = slotColorsFromChips(this.themeChips);
+				const same = THEME_SLOT_IDS.every((slot) => current[slot] === stored[slot]);
+				if (!same) this.themeChips = chipsFromSlotColors(stored);
 			}
 		} catch {
 			if (gen !== this.#themePersistGen) return;
@@ -684,9 +836,12 @@ class Builder {
 		const viewport = browser
 			? { innerWidth: window.innerWidth, innerHeight: window.innerHeight }
 			: { innerWidth: 1200, innerHeight: 800 };
+		const spec = HUD_SPECS[id];
 		const stored = this.#hudBounds[id];
-		if (stored) return clampBounds(stored, HUD_SPECS[id], viewport);
-		return defaultSpawn(id, viewport);
+		if (!stored) return defaultSpawn(id, viewport);
+		// Non-resizable HUDs always take the current default width.
+		const w = id === 'toolbar' || id === 'blocks' ? spec.w : stored.w;
+		return clampBounds({ ...stored, w }, spec, viewport);
 	}
 
 	/**

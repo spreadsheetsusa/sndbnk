@@ -87,24 +87,26 @@ means fall back to profile name / bio / avatar and SNDBNK defaults. Applied on s
 custom-domain hosts only; apex `/users/{username}` ignores it. Owner management lives at
 `/sites/{id}` (apex only).
 
-| Column                                      | Purpose                                                                           |
-| ------------------------------------------- | --------------------------------------------------------------------------------- |
-| `id`                                        | UUID route key for `/sites/{id}` (unique; `userId` remains PK)                    |
-| `name` / `description`                      | Tenant title and meta description                                                 |
-| `logoFilename` / `logoMime`                 | Local-disk logo (`site-logo/`); also used as favicon when set                     |
-| `ogImageFilename` / `ogImageMime`           | Social share image (`site-og/`); falls back to logo then avatar                   |
-| `accentColor`                               | `#RRGGBB` tenant accent; null keeps listener/default accent                       |
-| `appearance`                                | `light` \| `dark` for public tenant + builder preview (not SNDBNK listener theme) |
-| `hideBranding`                              | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding`                 |
-| `sidebarEnabled`                            | Master toggle for profile sidebar on **custom domains** only                      |
-| `sidebarStats`                              | Stats card (counts, Follow, reposts); default on                                  |
-| `sidebarFansAlsoLike`                       | Fans Also Like card; default on                                                   |
-| `sidebarFollowers`                          | Followers card; default on                                                        |
-| `sidebarActivity`                           | Last Comments card; default on                                                    |
-| `setupCompletedAt`                          | Set when the `/sites/{id}` setup wizard finishes                                  |
-| `siteIntent`                                | `tracks` \| `mixes` \| `podcast` \| `label` \| `other` (prefs)                    |
-| `wantBlog` / `wantEvents` / `wantEcommerce` | Feature interest flags from the wizard (prefs only)                               |
-| `headerBlock` / `footerBlock`               | JSON `{ id, type, props }` site chrome (nullable until seeded)                    |
+| Column                                      | Purpose                                                                                                               |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `id`                                        | UUID route key for `/sites/{id}` (unique; `userId` remains PK)                                                        |
+| `name` / `description`                      | Tenant title and meta description                                                                                     |
+| `logoFilename` / `logoMime`                 | Local-disk logo (`site-logo/`); also used as favicon when set                                                         |
+| `ogImageFilename` / `ogImageMime`           | Social share image (`site-og/`); falls back to logo then avatar                                                       |
+| `accentColor`                               | `#RRGGBB` tenant accent; null keeps listener/default accent                                                           |
+| `appearance`                                | `light` \| `dark` \| `user` — locked modes, or visitor toggle via header blocks                                       |
+| `themePersona`                              | Persona id (`mono` \| `analogous` \| `complementary` \| `split` \| `soft` \| `vivid`); seeds slot palette from accent |
+| `themePalette`                              | JSON `{ primary, secondary, tertiary, surface, success, error }` hex map; null = derive from accent + persona         |
+| `hideBranding`                              | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding`                                                     |
+| `sidebarEnabled`                            | Master toggle for profile sidebar on **custom domains** only                                                          |
+| `sidebarStats`                              | Stats card (counts, Follow, reposts); default on                                                                      |
+| `sidebarFansAlsoLike`                       | Fans Also Like card; default on                                                                                       |
+| `sidebarFollowers`                          | Followers card; default on                                                                                            |
+| `sidebarActivity`                           | Last Comments card; default on                                                                                        |
+| `setupCompletedAt`                          | Set when the `/sites/{id}` setup wizard finishes                                                                      |
+| `siteIntent`                                | `tracks` \| `mixes` \| `podcast` \| `label` \| `other` (prefs)                                                        |
+| `wantBlog` / `wantEvents` / `wantEcommerce` | Feature interest flags from the wizard (prefs only)                                                                   |
+| `headerBlock` / `footerBlock`               | JSON `{ id, type, props }` site chrome (nullable until seeded)                                                        |
 
 Sidebar defaults: master off, cards on (so enabling the master restores a full sidebar). Apex and
 subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
@@ -113,7 +115,7 @@ subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
 Site chrome (header/footer) is site-wide, not per-page. `ensureSiteChrome()` seeds defaults
 (`header.logo-links-cta` + `footer.minimal`, brand text from `site.name`) on setup complete and
 builder load; it also lifts any legacy header/footer instances out of page `blocks`. Edited via
-`PUT /api/sites/{id}/chrome`. Accent + appearance edit via Inspector **Site** theme or
+`PUT /api/sites/{id}/chrome`. Accent + appearance + theme persona edit via Inspector **Site** theme or
 `PUT /api/sites/{id}/theme` (also Settings → Site / setup wizard).
 
 Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,

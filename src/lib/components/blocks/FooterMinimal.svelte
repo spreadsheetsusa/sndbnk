@@ -25,19 +25,20 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.85rem 1.25rem;
-		padding: 1.1rem 0;
-		border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		padding: 1.1rem 1.25rem;
+		border-top: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 40%, transparent);
+		background: color-mix(in srgb, var(--theme-5, var(--paper)) 55%, var(--paper));
 		font-size: 0.88rem;
 	}
 
 	.logo {
 		font-family: var(--font-display);
-		color: var(--ink);
+		color: var(--theme-4, var(--ink));
 		text-decoration: none;
 	}
 
 	.meta {
-		color: var(--muted);
+		color: var(--theme-2, var(--muted));
 	}
 
 	.right {

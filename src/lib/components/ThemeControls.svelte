@@ -9,12 +9,15 @@
 		normalizeHex
 	} from '#lib/stores/brand.js';
 
+	/** @typedef {'light' | 'dark' | 'user'} AppearanceMode */
+
 	/**
 	 * @type {{
 	 *   accentHex: string,
-	 *   appearance: 'light' | 'dark',
+	 *   appearance: AppearanceMode,
 	 *   onAccentChange: (hex: string) => void,
-	 *   onAppearanceChange: (value: 'light' | 'dark') => void,
+	 *   onAppearanceChange: (value: AppearanceMode) => void,
+	 *   appearanceModes?: AppearanceMode[],
 	 *   hint?: string,
 	 *   idPrefix?: string,
 	 *   customHex?: string,
@@ -26,6 +29,7 @@
 		appearance,
 		onAccentChange,
 		onAppearanceChange,
+		appearanceModes = /** @type {AppearanceMode[]} */ (['light', 'dark']),
 		hint = '',
 		idPrefix = 'theme',
 		customHex,
@@ -33,6 +37,7 @@
 	} = $props();
 
 	const accentLabelId = $derived(`${idPrefix}-accent-label`);
+	const appearanceLabelId = $derived(`${idPrefix}-appearance-label`);
 	const pickerId = $derived(`${idPrefix}-accent-picker`);
 
 	const normalizedAccent = $derived(normalizeHex(accentHex));
@@ -41,6 +46,13 @@
 		const preset = ACCENTS.find((option) => option.value === normalizedAccent);
 		return preset?.id ?? CUSTOM_ACCENT_ID;
 	});
+
+	/** @type {Record<AppearanceMode, string>} */
+	const MODE_LABELS = {
+		light: 'Light',
+		dark: 'Dark',
+		user: 'User'
+	};
 
 	/** Hex used to seed the picker when it opens. */
 	let pickerSeed = $state(DEFAULT_CUSTOM_ACCENT);
@@ -72,11 +84,11 @@
 	}
 
 	/**
-	 * @param {Event} event
+	 * @param {AppearanceMode} value
 	 */
-	function handleAppearanceChange(event) {
-		const value = /** @type {HTMLSelectElement} */ (event.currentTarget).value;
-		if (value === 'light' || value === 'dark') onAppearanceChange(value);
+	function selectAppearance(value) {
+		if (!appearanceModes.includes(value)) return;
+		onAppearanceChange(value);
 	}
 </script>
 
@@ -116,14 +128,21 @@
 		</div>
 	{/if}
 
-	<label class="appearance-row">
-		<span>Appearance</span>
-		<select value={appearance} aria-label="Appearance" onchange={handleAppearanceChange}>
-			<option value="light">Light</option>
-			<option value="dark">Dark</option>
-			<option value="disco" disabled>Disco</option>
-		</select>
-	</label>
+	<div class="appearance-row">
+		<span id={appearanceLabelId}>Appearance</span>
+		<div class="mode-seg" role="group" aria-labelledby={appearanceLabelId}>
+			{#each appearanceModes as mode (mode)}
+				<button
+					type="button"
+					class="mode-btn"
+					aria-pressed={appearance === mode}
+					onclick={() => selectAppearance(mode)}
+				>
+					{MODE_LABELS[mode]}
+				</button>
+			{/each}
+		</div>
+	</div>
 
 	{#if hint}
 		<p class="theme-hint">{hint}</p>
@@ -135,32 +154,7 @@
 		display: grid;
 	}
 
-	.appearance-row {
-		display: flex;
-		gap: 0.65rem;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.45rem 0.7rem;
-		color: var(--ink);
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.appearance-row select {
-		min-width: 6.5rem;
-		padding: 0.3rem 0.4rem;
-		border: 1px solid var(--ink);
-		background: var(--paper);
-		color: var(--ink);
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
+	.appearance-row,
 	.accent-row {
 		display: flex;
 		gap: 0.65rem;
@@ -172,6 +166,34 @@
 		font-weight: 800;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
+	}
+
+	.mode-seg {
+		display: inline-flex;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+	}
+
+	.mode-btn {
+		padding: 0.28rem 0.5rem;
+		border: 0;
+		border-right: 1px solid var(--ink);
+		background: transparent;
+		color: var(--muted);
+		font-size: 0.65rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.mode-btn:last-child {
+		border-right: 0;
+	}
+
+	.mode-btn[aria-pressed='true'] {
+		background: var(--accent);
+		color: var(--on-accent);
 	}
 
 	.swatches {

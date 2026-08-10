@@ -1,0 +1,1 @@
+ALTER TABLE `site` ADD `theme_palette` text;

@@ -7,9 +7,12 @@
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import { builderFloatStack } from '#lib/builder/float-stack.svelte.js';
 	import { clampBounds, HUD_SPECS } from '#lib/builder/hud-bounds.js';
+	import AccountMenu from '#lib/components/AccountMenu.svelte';
 
 	/** Titlebar-only height used for viewport clamping while collapsed. */
-	const COLLAPSED_H = 40;
+	const COLLAPSED_H = 28;
+	/** Pixels of pointer travel before a titlebar press becomes a drag. */
+	const DRAG_THRESHOLD_PX = 7;
 
 	/**
 	 * @type {{
@@ -46,7 +49,7 @@
 	let h = $state(200);
 	let collapsed = $state(false);
 
-	/** @type {'drag' | 'resize-se' | null} */
+	/** @type {'pending-drag' | 'drag' | 'resize-se' | null} */
 	let mode = $state(null);
 	/** @type {number | null} */
 	let pointerId = $state(null);
@@ -56,6 +59,18 @@
 	let startY = 0;
 	let startW = 0;
 	let startH = 0;
+	/** Suppress the click that fires after a committed titlebar drag. */
+	let suppressClick = false;
+	/** @type {HTMLElement | null} */
+	let titlebarEl = null;
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	let suppressClickTimer = null;
+
+	function clearTitlebarListeners() {
+		window.removeEventListener('pointermove', onTitlebarPointerMove);
+		window.removeEventListener('pointerup', onTitlebarPointerUp);
+		window.removeEventListener('pointercancel', onTitlebarPointerUp);
+	}
 
 	/**
 	 * @param {import('#lib/builder/hud-bounds.js').HudBounds} bounds
@@ -99,24 +114,87 @@
 		applyBounds(builder.resolveHudBounds(id));
 		const onResize = () => applyBounds({ x, y, w, h });
 		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
+		return () => {
+			window.removeEventListener('resize', onResize);
+			clearTitlebarListeners();
+			if (suppressClickTimer != null) clearTimeout(suppressClickTimer);
+		};
 	});
 
 	/**
+	 * Pending drag on titlebar: track on window, capture only after threshold so
+	 * brand / account / collapse clicks still fire when movement stays under 7px.
 	 * @param {PointerEvent & { currentTarget: HTMLElement }} event
 	 */
-	function startDrag(event) {
+	function onTitlebarPointerDown(event) {
 		if (event.button !== 0) return;
 		const target = event.target;
-		if (!(target instanceof Element) || target.closest('[data-builder-no-drag]')) return;
-		mode = 'drag';
+		// Dropdown panels live in the titlebar DOM; never treat those presses as drags.
+		if (target instanceof Element && target.closest('.account-panel')) return;
+		if (suppressClickTimer != null) {
+			clearTimeout(suppressClickTimer);
+			suppressClickTimer = null;
+		}
+		suppressClick = false;
+		mode = 'pending-drag';
 		pointerId = event.pointerId;
 		originX = event.clientX;
 		originY = event.clientY;
 		startX = x;
 		startY = y;
-		event.currentTarget.setPointerCapture(event.pointerId);
-		event.preventDefault();
+		titlebarEl = event.currentTarget;
+		window.addEventListener('pointermove', onTitlebarPointerMove);
+		window.addEventListener('pointerup', onTitlebarPointerUp);
+		window.addEventListener('pointercancel', onTitlebarPointerUp);
+	}
+
+	/**
+	 * @param {PointerEvent} event
+	 */
+	function onTitlebarPointerMove(event) {
+		if (pointerId == null || event.pointerId !== pointerId) return;
+		if (mode === 'pending-drag') {
+			const dist = Math.hypot(event.clientX - originX, event.clientY - originY);
+			if (dist < DRAG_THRESHOLD_PX) return;
+			mode = 'drag';
+			suppressClick = true;
+			try {
+				titlebarEl?.setPointerCapture(event.pointerId);
+			} catch {
+				// Capture optional once drag is committed.
+			}
+			event.preventDefault();
+		}
+		if (mode !== 'drag') return;
+		applyBounds({
+			x: startX + (event.clientX - originX),
+			y: startY + (event.clientY - originY),
+			w,
+			h
+		});
+	}
+
+	/**
+	 * @param {PointerEvent} event
+	 */
+	function onTitlebarPointerUp(event) {
+		if (pointerId == null || event.pointerId !== pointerId) return;
+		const wasDrag = mode === 'drag';
+		mode = null;
+		pointerId = null;
+		clearTitlebarListeners();
+		try {
+			titlebarEl?.releasePointerCapture(event.pointerId);
+		} catch {
+			// Already released or never captured.
+		}
+		titlebarEl = null;
+		if (!wasDrag) return;
+		suppressClick = true;
+		suppressClickTimer = setTimeout(() => {
+			suppressClick = false;
+			suppressClickTimer = null;
+		}, 0);
 	}
 
 	/**
@@ -139,24 +217,16 @@
 	/**
 	 * @param {PointerEvent} event
 	 */
-	function onPointerMove(event) {
-		if (pointerId == null || event.pointerId !== pointerId || !mode) return;
-		const dx = event.clientX - originX;
-		const dy = event.clientY - originY;
-		if (mode === 'drag') {
-			applyBounds({ x: startX + dx, y: startY + dy, w, h });
-			return;
-		}
-		if (mode === 'resize-se') {
-			const nextH = spec.lockH ? h : startH + dy;
-			applyBounds({ x: startX, y: startY, w: startW + dx, h: nextH });
-		}
+	function onResizePointerMove(event) {
+		if (pointerId == null || event.pointerId !== pointerId || mode !== 'resize-se') return;
+		const nextH = spec.lockH ? h : startH + (event.clientY - originY);
+		applyBounds({ x: startX, y: startY, w: startW + (event.clientX - originX), h: nextH });
 	}
 
 	/**
 	 * @param {PointerEvent & { currentTarget: HTMLElement }} event
 	 */
-	function onPointerUp(event) {
+	function onResizePointerUp(event) {
 		if (pointerId == null || event.pointerId !== pointerId) return;
 		mode = null;
 		pointerId = null;
@@ -165,6 +235,20 @@
 		} catch {
 			// Already released.
 		}
+	}
+
+	/**
+	 * @param {MouseEvent} event
+	 */
+	function onTitlebarClickCapture(event) {
+		if (!suppressClick) return;
+		suppressClick = false;
+		if (suppressClickTimer != null) {
+			clearTimeout(suppressClickTimer);
+			suppressClickTimer = null;
+		}
+		event.preventDefault();
+		event.stopPropagation();
 	}
 </script>
 
@@ -180,25 +264,21 @@
 	style:z-index={z}
 	aria-label={panelLabel}
 	onpointerdowncapture={() => builderFloatStack.raise(id)}
-	onpointerdown={startDrag}
-	onpointermove={onPointerMove}
-	onpointerup={onPointerUp}
-	onpointercancel={onPointerUp}
 >
-	<header class="hud-titlebar">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="hud-titlebar"
+		onpointerdown={onTitlebarPointerDown}
+		onclickcapture={onTitlebarClickCapture}
+	>
 		<div class="hud-leading">
 			{#if brandHref}
-				<a
-					class="hud-brand"
-					href={brandHref}
-					aria-label="Exit builder to settings"
-					data-builder-no-drag
-				>
+				<a class="hud-brand" href={brandHref} aria-label="Exit builder to settings">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 64 64"
-						width="16"
-						height="16"
+						width="14"
+						height="14"
 						aria-hidden="true"
 					>
 						<path
@@ -215,7 +295,10 @@
 				<span class="hud-title lcd-face">{title}</span>
 			{/if}
 		</div>
-		<div class="hud-actions" data-builder-no-drag>
+		<div class="hud-actions">
+			{#if brandHref}
+				<AccountMenu align="end" avatarSize="1.1rem" idPrefix="builder-account" compact />
+			{/if}
 			{#if actions}
 				{@render actions()}
 			{/if}
@@ -228,20 +311,20 @@
 					onclick={toggleCollapsed}
 				>
 					{#if collapsed}
-						<IconChevronDown size={14} stroke={1.75} aria-hidden="true" />
+						<IconChevronDown size={12} stroke={1.75} aria-hidden="true" />
 					{:else}
-						<IconChevronUp size={14} stroke={1.75} aria-hidden="true" />
+						<IconChevronUp size={12} stroke={1.75} aria-hidden="true" />
 					{/if}
 				</button>
 			{/if}
 			{#if onclose}
 				<button type="button" class="hud-close" aria-label="Close {panelLabel}" onclick={onclose}>
-					<IconX size={14} stroke={1.75} aria-hidden="true" />
+					<IconX size={12} stroke={1.75} aria-hidden="true" />
 				</button>
 			{/if}
 		</div>
-	</header>
-	<div class="hud-body" data-builder-no-drag inert={collapsed || undefined}>
+	</div>
+	<div class="hud-body" inert={collapsed || undefined}>
 		{@render children()}
 	</div>
 	{#if resizable && !collapsed}
@@ -249,11 +332,10 @@
 			type="button"
 			class="resize-se"
 			aria-label="Resize {panelLabel}"
-			data-builder-no-drag
 			onpointerdown={startResize}
-			onpointermove={onPointerMove}
-			onpointerup={onPointerUp}
-			onpointercancel={onPointerUp}
+			onpointermove={onResizePointerMove}
+			onpointerup={onResizePointerUp}
+			onpointercancel={onResizePointerUp}
 		></button>
 	{/if}
 </section>
@@ -263,6 +345,7 @@
 		position: fixed;
 		display: grid;
 		grid-template-rows: auto 1fr;
+		overflow: visible;
 		background: var(--paper);
 		border: 1px solid var(--hard-border);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
@@ -284,8 +367,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.35rem;
-		padding: 0.35rem 0.4rem;
+		gap: 0.25rem;
+		padding: 0.15rem 0.3rem;
+		overflow: visible;
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
 		background: color-mix(in srgb, var(--ink) 6%, var(--paper));
 		cursor: grab;
@@ -304,14 +388,15 @@
 		align-items: center;
 		gap: 0.3rem;
 		min-width: 0;
+		overflow: visible;
 	}
 
 	.hud-brand {
 		display: grid;
 		place-items: center;
 		flex-shrink: 0;
-		width: 1.1rem;
-		height: 1.1rem;
+		width: 0.95rem;
+		height: 0.95rem;
 		color: var(--accent);
 		line-height: 0;
 		cursor: pointer;
@@ -333,7 +418,7 @@
 	}
 
 	.hud-title {
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--ink);
@@ -344,14 +429,19 @@
 	.hud-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.2rem;
+		margin-inline-start: auto;
+	}
+
+	.hud-actions :global(.account-wrap) {
+		flex-shrink: 0;
 	}
 
 	.hud-close {
 		display: grid;
 		place-items: center;
-		width: 1.35rem;
-		height: 1.35rem;
+		width: 1rem;
+		height: 1rem;
 		padding: 0;
 		border: 1px solid var(--ink);
 		background: var(--paper);

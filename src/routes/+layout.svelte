@@ -8,16 +8,28 @@
 	import { eq } from '#lib/player/eq.svelte.js';
 	import { setPlayThresholds } from '#lib/player/play-thresholds.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
-	import { initAccent, onAccentFor } from '#lib/stores/brand.js';
+	import { resolveSiteAppearance } from '#lib/builder/site-appearance.js';
+	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
+	import { ACCENTS, initAccent, normalizeHex } from '#lib/stores/brand.js';
 	import { applyTheme, initTheme } from '#lib/stores/theme.js';
 
 	let { data, children } = $props();
 
 	const tenantLogo = $derived(data.tenantSite?.logoUrl ?? null);
 	const tenantAccent = $derived(data.tenantSite?.accentColor ?? null);
-	const tenantAppearance = $derived(
-		data.tenantSite?.appearance === 'dark' ? 'dark' : data.tenantSite ? 'light' : null
+	const tenantPersona = $derived(data.tenantSite?.themePersona ?? 'mono');
+	const tenantPalette = $derived(data.tenantSite?.themePalette ?? null);
+	const tenantAppearanceMode = $derived(
+		data.tenantSite?.appearance === 'dark' || data.tenantSite?.appearance === 'user'
+			? data.tenantSite.appearance
+			: data.tenantSite
+				? 'light'
+				: null
 	);
+	const tenantSiteId = $derived(data.tenantSite?.id ?? null);
+
+	/** Visitor-resolved light/dark when mode is `user`. */
+	let tenantResolvedAppearance = $state(/** @type {'light' | 'dark' | null} */ (null));
 
 	$effect(() => {
 		setPlayThresholds(data.playThresholds);
@@ -28,8 +40,18 @@
 		if (!data.tenantSite) initTheme();
 	});
 
-	// Tenant site accent overrides the listener store only while on a tenant host.
-	// When absent, re-apply the listener accent from localStorage (also covers first paint).
+	// Resolve locked or visitor appearance for tenant hosts.
+	$effect(() => {
+		if (!browser) return;
+		const mode = tenantAppearanceMode;
+		if (!mode) {
+			tenantResolvedAppearance = null;
+			return;
+		}
+		tenantResolvedAppearance = resolveSiteAppearance(mode, tenantSiteId);
+	});
+
+	// Tenant site accent + persona overrides the listener store only while on a tenant host.
 	$effect(() => {
 		if (!browser) return;
 
@@ -38,22 +60,29 @@
 
 		if (!hex) {
 			initAccent();
+			for (const key of ['--theme-1', '--theme-2', '--theme-3', '--theme-4', '--theme-5']) {
+				root.style.removeProperty(key);
+			}
 			return;
 		}
 
-		root.style.setProperty('--accent', hex);
-		root.style.setProperty('--on-accent', onAccentFor(hex));
+		const accent = normalizeHex(hex) ?? ACCENTS[0].value;
+		const palette = buildPersonaPalette(accent, tenantPersona, tenantPalette);
+		for (const [key, value] of Object.entries(palette.cssVars)) {
+			root.style.setProperty(key, value);
+		}
 
 		return () => {
-			root.style.removeProperty('--accent');
-			root.style.removeProperty('--on-accent');
+			for (const key of Object.keys(palette.cssVars)) {
+				root.style.removeProperty(key);
+			}
 		};
 	});
 
-	// Artist-chosen light/dark for public tenant pages — not the listener SNDBNK theme.
+	// Artist-chosen light/dark (or visitor choice) for public tenant pages.
 	$effect(() => {
 		if (!browser) return;
-		const appearance = tenantAppearance;
+		const appearance = tenantResolvedAppearance;
 		if (!appearance) return;
 		applyTheme(appearance);
 	});

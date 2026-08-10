@@ -55,7 +55,8 @@
 	.footer {
 		display: grid;
 		gap: 1.1rem;
-		padding: 2rem 0 0;
+		padding: 2rem 1.25rem 0;
+		background: color-mix(in srgb, var(--theme-5, var(--paper)) 40%, var(--paper));
 	}
 
 	.cols {
@@ -75,7 +76,7 @@
 		font-size: 0.75rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var(--muted);
+		color: var(--theme-2, var(--muted));
 	}
 
 	ul {
@@ -120,7 +121,7 @@
 
 	button {
 		padding: 0.45rem 0.75rem;
-		border: 1px solid var(--ink);
+		border: 1px solid var(--theme-3, var(--ink));
 		color: var(--on-accent);
 		cursor: pointer;
 		font: inherit;
@@ -131,7 +132,8 @@
 		justify-content: space-between;
 		gap: 1rem;
 		padding: 0.75rem 0;
-		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		border-top: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 35%, transparent);
+		background: color-mix(in srgb, var(--theme-1, var(--ink)) 10%, transparent);
 		font-size: 0.8rem;
 		color: var(--muted);
 	}

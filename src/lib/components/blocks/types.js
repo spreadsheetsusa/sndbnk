@@ -98,6 +98,12 @@ export const DEFAULT_FOOTER_TYPE = 'footer.minimal';
 /** Narrowest centered body-block width on the builder artboard (~500 breakpoint). */
 export const BLOCK_MIN_WIDTH_PX = 512;
 
+/** Common centered widths the builder snaps to while resizing. */
+export const BLOCK_WIDTH_BREAKPOINTS_PX = [512, 640, 768, 1024, 1280, 1536];
+
+/** Magnetic threshold (px of width) for snapping to a breakpoint during resize. */
+export const BLOCK_WIDTH_SNAP_PX = 12;
+
 /**
  * @typedef {{
  *   maxWidth?: number
@@ -138,6 +144,45 @@ export function clampBlockMaxWidth(width, artboardWidth) {
 	const floor = Math.min(BLOCK_MIN_WIDTH_PX, board);
 	const raw = Number.isFinite(width) ? Math.round(width) : board;
 	return Math.min(board, Math.max(floor, raw));
+}
+
+/**
+ * Breakpoints that fit strictly inside the artboard (guides omit full-bleed board edges).
+ * @param {number} artboardWidth
+ * @returns {number[]}
+ */
+export function visibleBlockWidthBreakpoints(artboardWidth) {
+	const board = Math.max(1, Math.round(artboardWidth));
+	const floor = Math.min(BLOCK_MIN_WIDTH_PX, board);
+	return BLOCK_WIDTH_BREAKPOINTS_PX.filter((bp) => bp >= floor && bp < board);
+}
+
+/**
+ * Clamp then magnetically snap to a common breakpoint or the full artboard.
+ * @param {number} width
+ * @param {number} artboardWidth
+ * @param {number} [snapPx]
+ */
+export function snapBlockMaxWidth(width, artboardWidth, snapPx = BLOCK_WIDTH_SNAP_PX) {
+	const board = Math.max(1, Math.round(artboardWidth));
+	const clamped = clampBlockMaxWidth(width, board);
+	const threshold = Number.isFinite(snapPx) ? Math.max(0, snapPx) : BLOCK_WIDTH_SNAP_PX;
+	let best = clamped;
+	let bestDist = Infinity;
+	for (const bp of BLOCK_WIDTH_BREAKPOINTS_PX) {
+		if (bp > board) continue;
+		const dist = Math.abs(clamped - bp);
+		if (dist <= threshold && dist < bestDist) {
+			best = bp;
+			bestDist = dist;
+		}
+	}
+	const boardDist = Math.abs(clamped - board);
+	if (boardDist <= threshold && boardDist < bestDist) {
+		best = board;
+		bestDist = boardDist;
+	}
+	return clampBlockMaxWidth(best, board);
 }
 
 /**

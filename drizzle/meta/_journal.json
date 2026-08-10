@@ -134,6 +134,20 @@
       "when": 1786329751276,
       "tag": "0018_burly_kingpin",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1786339705406,
+      "tag": "0019_powerful_goblin_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1786340465709,
+      "tag": "0020_free_goblin_queen",
+      "breakpoints": true
     }
   ]
 }

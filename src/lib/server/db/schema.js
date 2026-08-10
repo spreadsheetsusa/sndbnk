@@ -126,8 +126,12 @@ export const site = sqliteTable(
 		logoMime: text('logo_mime'),
 		/** `#RRGGBB`; null keeps the listener/default accent. */
 		accentColor: text('accent_color'),
-		/** `light` | `dark`; public tenant + builder preview appearance. */
+		/** `light` | `dark` | `user`; locked modes or visitor toggle via header. */
 		appearance: text('appearance').notNull().default('light'),
+		/** Builder persona id (`mono` | `analogous` | …); derives palette from accent. */
+		themePersona: text('theme_persona').notNull().default('mono'),
+		/** JSON slot map `{ primary, secondary, tertiary, surface, success, error }` hex overrides. */
+		themePalette: text('theme_palette'),
 		hideBranding: integer('hide_branding', { mode: 'boolean' }).notNull().default(false),
 		/** Custom-domain profile sidebar; ignored on subdomain/apex. Master off = hide all. */
 		sidebarEnabled: integer('sidebar_enabled', { mode: 'boolean' }).notNull().default(false),

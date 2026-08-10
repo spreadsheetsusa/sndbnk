@@ -46,7 +46,8 @@
 	.footer {
 		display: grid;
 		gap: 1rem;
-		padding: 2rem 0 0;
+		padding: 2rem 1.25rem 0;
+		background: color-mix(in srgb, var(--theme-5, var(--paper)) 40%, var(--paper));
 	}
 
 	.top {
@@ -56,7 +57,7 @@
 
 	.logo {
 		font-family: var(--font-display);
-		color: var(--ink);
+		color: var(--theme-4, var(--ink));
 		text-decoration: none;
 		width: fit-content;
 	}
@@ -78,7 +79,7 @@
 		font-size: 0.8rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var(--muted);
+		color: var(--theme-2, var(--muted));
 	}
 
 	ul {
@@ -100,8 +101,8 @@
 		justify-content: space-between;
 		gap: 1rem;
 		padding: 0.75rem 0;
-		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-		background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+		border-top: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 35%, transparent);
+		background: color-mix(in srgb, var(--theme-1, var(--ink)) 12%, var(--paper));
 		font-size: 0.8rem;
 		color: var(--muted);
 	}
