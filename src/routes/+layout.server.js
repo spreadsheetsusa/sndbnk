@@ -45,6 +45,7 @@ export const load = async ({ locals }) => {
 						logoUrl: null,
 						ogImageUrl: null,
 						accentColor: null,
+						appearance: /** @type {'light' | 'dark'} */ ('light'),
 						hideBranding: false,
 						updatedAt: null
 					}

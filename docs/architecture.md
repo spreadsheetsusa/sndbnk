@@ -85,8 +85,9 @@ Declared in [`src/app.d.ts`](../src/app.d.ts). All three fields are optional —
 `locals.tenant` carries `{ userId, username, plan, name, customDomain, customDomainStatus, hostKind }`
 where `hostKind` is `'subdomain' | 'custom'`. Its presence is the single signal for "render in
 tenant mode": hide the apex site header, serve the profile from `/`, and apply optional `site`
-branding (name, logo, accent, hide “Powered by SNDBNK”) from the root layout +
-[`loadPublicProfilePage()`](../src/lib/server/profile-page.js).
+branding (name, logo, accent, appearance light/dark, hide “Powered by SNDBNK”) from the root layout +
+[`loadPublicProfilePage()`](../src/lib/server/profile-page.js). Tenant appearance overrides the
+listener theme preference while on that host.
 
 Only `handleTenant` writes `locals.tenant`. Loaders read it, never set it.
 
@@ -152,7 +153,7 @@ src/
       account-links.js    request / approve / unlink moniker accounts
       db/                 schema.js, auth.schema.js (generated), index.js
       tenant.js billing/plans.js username.js domain-verify.js profile-page.js
-      site.js             tenant branding + site chrome (header/footer blocks)
+      site.js             tenant branding (accent/appearance) + site chrome (header/footer)
       site-pages.js       CMS pages + body block lists for the site builder
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats

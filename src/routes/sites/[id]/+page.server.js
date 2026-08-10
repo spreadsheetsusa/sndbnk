@@ -58,6 +58,7 @@ export const actions = {
 		const name = formData.get('name')?.toString() ?? '';
 		const description = formData.get('description')?.toString() ?? '';
 		const accentColor = formData.get('accentColor')?.toString() ?? '';
+		const appearance = formData.get('appearance')?.toString() ?? 'light';
 		const siteIntent = formData.get('siteIntent')?.toString() ?? '';
 		const wantBlog = formData.get('wantBlog') === 'on';
 		const wantEvents = formData.get('wantEvents') === 'on';
@@ -72,6 +73,7 @@ export const actions = {
 			name,
 			description,
 			accentColor,
+			appearance,
 			siteIntent,
 			wantBlog,
 			wantEvents,
@@ -85,6 +87,7 @@ export const actions = {
 				name,
 				description,
 				accentColor,
+				appearance,
 				siteIntent,
 				wantBlog,
 				wantEvents,

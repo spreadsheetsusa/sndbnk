@@ -7,16 +7,13 @@
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { slide } from 'svelte/transition';
-	import AccentPicker from '#lib/components/AccentPicker.svelte';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import HeaderPlayer from '#lib/components/player/HeaderPlayer.svelte';
+	import ThemeControls from '#lib/components/ThemeControls.svelte';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 	import {
 		ACCENTS,
-		CUSTOM_ACCENT_ID,
-		accent,
+		accentColor,
 		customAccent,
 		setAccent,
 		setCustomAccent
@@ -48,19 +45,6 @@
 	const guestMenuLabel = $derived(guestMenuOpen ? 'Close menu' : 'Open menu');
 
 	/**
-	 * @param {string} id
-	 */
-	function selectPreset(id) {
-		setAccent(id);
-		pickerOpen = false;
-	}
-
-	function toggleCustomAccent() {
-		setCustomAccent($customAccent);
-		pickerOpen = !pickerOpen;
-	}
-
-	/**
 	 * @param {string} href
 	 */
 	function current(href) {
@@ -69,13 +53,12 @@
 	}
 
 	/**
-	 * @param {Event} event
+	 * @param {string} hex
 	 */
-	function handleAppearanceChange(event) {
-		const value = /** @type {HTMLSelectElement} */ (event.currentTarget).value;
-		if (value === 'light' || value === 'dark') {
-			setThemePreference(value);
-		}
+	function handleAccentChange(hex) {
+		const preset = ACCENTS.find((option) => option.value === hex);
+		if (preset && !pickerOpen) setAccent(preset.id);
+		else setCustomAccent(hex);
 	}
 
 	/** @type {import('svelte/attachments').Attachment} */
@@ -206,54 +189,15 @@
 
 				{#if accountMenuOpen}
 					<div id="account-menu" class="account-panel" aria-label="Account menu">
-						<div class="accent-row">
-							<span id="accent-label">Accent</span>
-							<div class="swatches" role="group" aria-labelledby="accent-label">
-								{#each ACCENTS as option (option.id)}
-									<button
-										type="button"
-										class="swatch"
-										style:--swatch={option.value}
-										aria-pressed={$accent === option.id}
-										aria-label={option.label}
-										title={option.label}
-										onclick={() => selectPreset(option.id)}
-									></button>
-								{/each}
-								<button
-									type="button"
-									class="swatch wheel"
-									aria-pressed={$accent === CUSTOM_ACCENT_ID}
-									aria-expanded={pickerOpen}
-									aria-controls="accent-picker"
-									aria-label="Custom"
-									title="Custom"
-									onclick={toggleCustomAccent}
-								></button>
-							</div>
-						</div>
-
-						{#if pickerOpen}
-							<div
-								id="accent-picker"
-								transition:slide={{ duration: prefersReducedMotion.current ? 0 : 200 }}
-							>
-								<AccentPicker />
-							</div>
-						{/if}
-
-						<label class="appearance-row">
-							<span>Appearance</span>
-							<select
-								value={appearanceValue}
-								aria-label="Appearance"
-								onchange={handleAppearanceChange}
-							>
-								<option value="light">Light</option>
-								<option value="dark">Dark</option>
-								<option value="disco" disabled>Disco</option>
-							</select>
-						</label>
+						<ThemeControls
+							accentHex={$accentColor}
+							appearance={appearanceValue === 'dark' ? 'dark' : 'light'}
+							customHex={$customAccent}
+							bind:pickerOpen
+							onAccentChange={handleAccentChange}
+							onAppearanceChange={setThemePreference}
+							idPrefix="account"
+						/>
 
 						{#if linkedAccounts.length > 0}
 							<hr class="account-divider" />
@@ -496,91 +440,6 @@
 		background: var(--accent);
 	}
 
-	.appearance-row {
-		display: flex;
-		gap: 0.65rem;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.45rem 0.7rem;
-		color: var(--ink);
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.appearance-row select {
-		min-width: 6.5rem;
-		padding: 0.3rem 0.4rem;
-		border: 1px solid var(--ink);
-		background: var(--paper);
-		color: var(--ink);
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.accent-row {
-		display: flex;
-		gap: 0.65rem;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.45rem 0.7rem;
-		color: var(--ink);
-		font-size: 0.75rem;
-		font-weight: 800;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.swatches {
-		display: inline-flex;
-		gap: 0.35rem;
-		align-items: center;
-	}
-
-	.swatch {
-		width: 1.15rem;
-		height: 1.15rem;
-		padding: 0;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		background: var(--swatch);
-		cursor: pointer;
-		transition:
-			transform 120ms cubic-bezier(0.2, 0.8, 0.4, 1),
-			box-shadow 120ms ease,
-			opacity 120ms ease;
-	}
-
-	.swatch:hover {
-		opacity: 0.85;
-	}
-
-	.swatch:active,
-	.swatch[aria-pressed='true'] {
-		box-shadow:
-			0 0 0 2px var(--paper),
-			0 0 0 3px var(--ink);
-		transform: translate(1px, 1px);
-	}
-
-	.swatch.wheel {
-		background: conic-gradient(
-			from 0deg,
-			#ff3d3d,
-			#ffd93d,
-			#5dff3d,
-			#3dffd9,
-			#3d8aff,
-			#b83dff,
-			#ff3d8a,
-			#ff3d3d
-		);
-	}
-
 	.account-divider {
 		width: 100%;
 		height: 0;
@@ -806,15 +665,6 @@
 
 		.account-item {
 			min-height: var(--tap-min);
-		}
-
-		.swatches {
-			gap: 0.5rem;
-		}
-
-		.swatch {
-			width: 1.75rem;
-			height: 1.75rem;
 		}
 	}
 </style>

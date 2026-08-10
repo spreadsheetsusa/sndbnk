@@ -28,6 +28,10 @@ export const MAX_SITE_DESCRIPTION_LENGTH = 300;
 
 export const SITE_INTENTS = /** @type {const} */ (['tracks', 'mixes', 'podcast', 'label', 'other']);
 
+/** @typedef {'light' | 'dark'} SiteAppearance */
+
+export const SITE_APPEARANCES = /** @type {const} */ (['light', 'dark']);
+
 const SITE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
 /** @type {Record<string, string>} */
@@ -108,6 +112,11 @@ export async function getSitePublic(userId) {
 		logoUrl: row.logoFilename ? siteLogoUrl(userId, row.updatedAt) : null,
 		ogImageUrl: row.ogImageFilename ? siteOgImageUrl(userId, row.updatedAt) : null,
 		accentColor: row.accentColor ?? null,
+		appearance: /** @type {SiteAppearance} */ (
+			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
+				? row.appearance
+				: 'light'
+		),
 		hideBranding: row.hideBranding,
 		sidebarEnabled: row.sidebarEnabled,
 		sidebarStats: row.sidebarStats,
@@ -129,6 +138,11 @@ export function serializeSiteOwner(row) {
 		description: row.description ?? '',
 		logoUrl: row.logoFilename ? siteLogoUrl(row.userId, row.updatedAt) : null,
 		accentColor: row.accentColor ?? '',
+		appearance: /** @type {SiteAppearance} */ (
+			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
+				? row.appearance
+				: 'light'
+		),
 		siteIntent: row.siteIntent ?? '',
 		wantBlog: row.wantBlog,
 		wantEvents: row.wantEvents,
@@ -248,6 +262,7 @@ export async function listNavSites(profile) {
  *   name: string,
  *   description: string,
  *   accentColor: string,
+ *   appearance?: string,
  *   siteIntent: string,
  *   wantBlog: boolean,
  *   wantEvents: boolean,
@@ -285,6 +300,9 @@ export async function completeSiteSetup(input) {
 	const accentResult = normalizeAccentColor(input.accentColor);
 	if (!accentResult.ok) return accentResult;
 
+	const appearanceResult = normalizeAppearance(input.appearance ?? 'light');
+	if (!appearanceResult.ok) return appearanceResult;
+
 	const intentResult = normalizeSiteIntent(input.siteIntent);
 	if (!intentResult.ok) return intentResult;
 
@@ -302,6 +320,7 @@ export async function completeSiteSetup(input) {
 			name,
 			description: description || null,
 			accentColor: accentResult.accentColor,
+			appearance: appearanceResult.appearance,
 			siteIntent: intentResult.siteIntent,
 			wantBlog: Boolean(input.wantBlog),
 			wantEvents: Boolean(input.wantEvents),
@@ -430,12 +449,75 @@ export function normalizeAccentColor(raw) {
 }
 
 /**
+ * @param {string | null | undefined} raw
+ */
+export function normalizeAppearance(raw) {
+	const value = raw?.toString().trim() ?? '';
+	if (!SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (value))) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Appearance must be light or dark.'
+		};
+	}
+	return {
+		ok: /** @type {const} */ (true),
+		appearance: /** @type {SiteAppearance} */ (value)
+	};
+}
+
+/**
+ * Accent + appearance for builder Inspector / theme API.
+ * @param {{
+ *   userId: string,
+ *   plan: string | null | undefined,
+ *   siteId: string,
+ *   accentColor: string,
+ *   appearance: string
+ * }} input
+ */
+export async function updateSiteTheme(input) {
+	if (!canEditSite(input.plan)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Site theme needs Vault or higher.'
+		};
+	}
+
+	const row = await getOwnedSite(input.userId, input.siteId);
+	if (!row) {
+		return { ok: /** @type {const} */ (false), message: 'Site not found.' };
+	}
+
+	const accentResult = normalizeAccentColor(input.accentColor);
+	if (!accentResult.ok) return accentResult;
+
+	const appearanceResult = normalizeAppearance(input.appearance);
+	if (!appearanceResult.ok) return appearanceResult;
+
+	await db
+		.update(site)
+		.set({
+			accentColor: accentResult.accentColor,
+			appearance: appearanceResult.appearance,
+			updatedAt: new Date()
+		})
+		.where(eq(site.id, row.id));
+
+	return {
+		ok: /** @type {const} */ (true),
+		accentColor: accentResult.accentColor ?? '',
+		appearance: appearanceResult.appearance
+	};
+}
+
+/**
  * @param {{
  *   userId: string,
  *   plan: string | null | undefined,
  *   name: string,
  *   description: string,
  *   accentColor: string,
+ *   appearance?: string,
  *   hideBranding: boolean,
  *   sidebarEnabled?: boolean,
  *   sidebarStats?: boolean,
@@ -472,6 +554,9 @@ export async function updateSiteSettings(input) {
 	const accentResult = normalizeAccentColor(input.accentColor);
 	if (!accentResult.ok) return accentResult;
 
+	const appearanceResult = normalizeAppearance(input.appearance ?? 'light');
+	if (!appearanceResult.ok) return appearanceResult;
+
 	const wantHide = Boolean(input.hideBranding);
 	if (wantHide && !canRemoveBranding(input.plan)) {
 		return {
@@ -490,6 +575,7 @@ export async function updateSiteSettings(input) {
 		name: name || null,
 		description: description || null,
 		accentColor: accentResult.accentColor,
+		appearance: appearanceResult.appearance,
 		hideBranding,
 		updatedAt: new Date()
 	};

@@ -12,6 +12,7 @@
 		headerBlockCatalog
 	} from '#lib/components/blocks/registry.js';
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
+	import ThemeControls from '#lib/components/ThemeControls.svelte';
 
 	/**
 	 * @type {{
@@ -233,7 +234,7 @@
 	{/if}
 {/snippet}
 
-<FloatingHud id="inspector" title="Inspector" resizable>
+<FloatingHud id="inspector" title="Inspector" resizable collapsible>
 	<div class="inspector">
 		<div class="tabs" role="tablist" aria-label="Inspector sections">
 			<button
@@ -372,6 +373,27 @@
 			</div>
 		{:else if builder.inspectorTab === 'site'}
 			<div class="panel site-panel" role="tabpanel" aria-label="Site chrome">
+				<section class="theme-section" aria-labelledby="site-theme-label">
+					<header class="theme-head">
+						<h2 class="theme-title" id="site-theme-label">Site theme</h2>
+					</header>
+
+					<ThemeControls
+						accentHex={builder.accentColor}
+						appearance={builder.appearance}
+						onAccentChange={(hex) => builder.setAccentColor(hex)}
+						onAppearanceChange={(value) => builder.setAppearance(value)}
+						hint="For your public site and canvas preview — not your SNDBNK account theme."
+						idPrefix="site-theme"
+					/>
+
+					{#if builder.savingTheme}
+						<p class="form-ok" role="status">Saving theme…</p>
+					{:else if builder.themeError}
+						<p class="form-error" role="alert">{builder.themeError}</p>
+					{/if}
+				</section>
+
 				<section
 					class="chrome-section"
 					class:focused={builder.selectedChrome === 'header'}
@@ -581,6 +603,31 @@
 	.site-panel {
 		display: grid;
 		gap: 1rem;
+	}
+
+	.theme-section {
+		display: grid;
+		gap: 0.65rem;
+		padding: 0.55rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+	}
+
+	.theme-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+
+	.theme-title {
+		margin: 0;
+		font-family: var(--font-editorial);
+		font-size: 0.95rem;
+		font-weight: 500;
+	}
+
+	.theme-section :global(.theme-controls) {
+		margin-inline: -0.15rem;
 	}
 
 	.chrome-section {

@@ -1,0 +1,1 @@
+ALTER TABLE `site` ADD `appearance` text DEFAULT 'light' NOT NULL;

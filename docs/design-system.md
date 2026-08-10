@@ -97,9 +97,12 @@ both custom properties onto `documentElement`.
 Four presets live in `ACCENTS` with a hardcoded `onAccent`. The fifth, `CUSTOM_ACCENT_ID`, is any
 hex the user picks: it is stored separately under `accent-custom`, and its `--on-accent` is computed
 by `onAccentFor()`, which returns ink or paper depending on which gives better WCAG contrast against
-the fill. The account menu renders it as a conic-gradient wheel swatch that slides
+the fill. [`ThemeControls.svelte`](../src/lib/components/ThemeControls.svelte) is the shared accent
+swatch row + appearance select used by the account menu (listener theme via `brand.js` /
+`theme.js`) and the builder Inspector Site theme panel (tenant hex + light/dark via
+`PUT /api/sites/{id}/theme`). The conic-gradient wheel slides
 [`AccentPicker.svelte`](../src/lib/components/AccentPicker.svelte) open beneath the row; every drag
-commits immediately, so the whole site recolors live.
+commits through the parent's callback so listener chrome or the site preview recolors live.
 
 **`--accent` must always be a `#rrggbb` string.** `Waveform.svelte` reads it back through
 `getComputedStyle` and parses the hex itself, so `normalizeHex()` is the only door into the custom

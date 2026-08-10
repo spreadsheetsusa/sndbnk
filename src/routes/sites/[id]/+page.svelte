@@ -10,6 +10,7 @@
 	const nameValue = $derived(form?.name ?? data.site.name);
 	const descriptionValue = $derived(form?.description ?? data.site.description);
 	const accentValue = $derived(form?.accentColor ?? data.site.accentColor);
+	const appearanceValue = $derived(form?.appearance ?? data.site.appearance ?? 'light');
 	const intentValue = $derived(form?.siteIntent ?? data.site.siteIntent);
 	const wantBlogValue = $derived(form?.wantBlog ?? data.site.wantBlog);
 	const wantEventsValue = $derived(form?.wantEvents ?? data.site.wantEvents);
@@ -132,6 +133,31 @@
 				</div>
 			</label>
 			<p class="hint">Optional hex. Leave blank for the default.</p>
+
+			<fieldset class="appearance-fieldset" disabled={busy}>
+				<legend>Appearance</legend>
+				<div class="appearance-row" role="radiogroup" aria-label="Site appearance">
+					<label class="appearance-opt">
+						<input
+							type="radio"
+							name="appearance"
+							value="light"
+							checked={appearanceValue === 'light'}
+						/>
+						<span>Light</span>
+					</label>
+					<label class="appearance-opt">
+						<input
+							type="radio"
+							name="appearance"
+							value="dark"
+							checked={appearanceValue === 'dark'}
+						/>
+						<span>Dark</span>
+					</label>
+				</div>
+				<p class="hint">Look for your public site — separate from your SNDBNK account theme.</p>
+			</fieldset>
 
 			<label for="site-description">
 				<span>Short description</span>
@@ -325,6 +351,50 @@
 		height: 1.5rem;
 		border: 1px solid var(--ink);
 		flex: 0 0 auto;
+	}
+
+	.appearance-fieldset {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		min-width: 0;
+	}
+
+	.appearance-fieldset legend {
+		margin-bottom: 0.35rem;
+		font-weight: 600;
+	}
+
+	.appearance-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.35rem;
+	}
+
+	.appearance-opt {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.35rem 0.65rem;
+		border: 1px solid var(--field-border);
+		background: var(--field-surface);
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.appearance-opt:has(input:checked) {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+	}
+
+	.appearance-opt input {
+		margin: 0;
+	}
+
+	.appearance-fieldset:disabled .appearance-opt {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.features {

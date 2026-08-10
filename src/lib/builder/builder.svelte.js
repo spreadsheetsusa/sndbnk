@@ -1,11 +1,30 @@
 import { browser } from '$app/env';
 import { clampBounds, defaultSpawn, HUD_SPECS } from '#lib/builder/hud-bounds.js';
 import { getBlockDefinition } from '#lib/components/blocks/registry.js';
-import { createDefaultChromeBlock, isPageBodyBlockType } from '#lib/components/blocks/types.js';
+import {
+	createDefaultChromeBlock,
+	isPageBodyBlockType,
+	parseBlockLayout
+} from '#lib/components/blocks/types.js';
 
 /** @typedef {import('#lib/builder/hud-bounds.js').BuilderHudId} BuilderHudId */
 /** @typedef {import('#lib/builder/hud-bounds.js').HudBounds} HudBounds */
 /** @typedef {import('#lib/components/blocks/types.js').PageBlockInstance} PageBlockInstance */
+/** @typedef {import('#lib/components/blocks/types.js').PageBlockLayout} PageBlockLayout */
+
+/**
+ * @param {PageBlockInstance} block
+ * @returns {PageBlockInstance}
+ */
+function cloneBodyBlock(block) {
+	const layout = parseBlockLayout(block.layout);
+	return {
+		id: block.id,
+		type: block.type,
+		props: structuredClone(block.props ?? {}),
+		...(layout ? { layout: { ...layout } } : {})
+	};
+}
 
 /**
  * @typedef {{
@@ -30,6 +49,7 @@ const PERSIST_DEBOUNCE_MS = 320;
 /** @typedef {null | 'block'} BuilderTool */
 /** @typedef {'pages' | 'page' | 'site' | 'block'} InspectorTab */
 /** @typedef {null | 'header' | 'footer'} ChromeKind */
+/** @typedef {'light' | 'dark'} SiteAppearance */
 
 /**
  * @param {unknown} value
@@ -52,11 +72,7 @@ function isBounds(value) {
  */
 function cloneBlock(block) {
 	if (!block) return null;
-	return {
-		id: block.id,
-		type: block.type,
-		props: structuredClone(block.props ?? {})
-	};
+	return cloneBodyBlock(block);
 }
 
 /**
@@ -87,6 +103,10 @@ class Builder {
 	siteId = $state(null);
 	/** @type {string} */
 	siteName = $state('');
+	/** Site accent hex (`#RRGGBB`) or empty for default. @type {string} */
+	accentColor = $state('');
+	/** Public / preview appearance. @type {SiteAppearance} */
+	appearance = $state(/** @type {SiteAppearance} */ ('light'));
 	/** @type {boolean} */
 	savingBlocks = $state(false);
 	/** @type {string | null} */
@@ -95,16 +115,24 @@ class Builder {
 	savingChrome = $state(false);
 	/** @type {string | null} */
 	chromeError = $state(null);
+	/** @type {boolean} */
+	savingTheme = $state(false);
+	/** @type {string | null} */
+	themeError = $state(null);
 	/** @type {Partial<Record<BuilderHudId, HudBounds>>} */
 	#hudBounds = {};
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	#persistTimer = null;
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	#chromePersistTimer = null;
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	#themePersistTimer = null;
 	/** Bump to ignore stale persist responses. */
 	#persistGen = 0;
 	/** @type {number} */
 	#chromePersistGen = 0;
+	/** @type {number} */
+	#themePersistGen = 0;
 
 	constructor() {
 		if (!browser) return;
@@ -134,6 +162,8 @@ class Builder {
 	 * @param {{
 	 *   siteId: string,
 	 *   siteName?: string,
+	 *   accentColor?: string,
+	 *   appearance?: SiteAppearance,
 	 *   header?: PageBlockInstance | null,
 	 *   footer?: PageBlockInstance | null,
 	 *   pages: BuilderPage[],
@@ -144,7 +174,11 @@ class Builder {
 		const siteChanging = this.siteId !== data.siteId;
 		this.siteId = data.siteId;
 		this.siteName = data.siteName ?? '';
-		// Keep live chrome across page-metadata reloads; only seed on site change / first load.
+		// Keep live theme/chrome across page-metadata reloads; only seed on site change / first load.
+		if (siteChanging) {
+			this.accentColor = data.accentColor ?? '';
+			this.appearance = data.appearance === 'dark' ? 'dark' : 'light';
+		}
 		if (siteChanging || !this.header) this.header = cloneBlock(data.header);
 		if (siteChanging || !this.footer) this.footer = cloneBlock(data.footer);
 
@@ -155,11 +189,7 @@ class Builder {
 			this.selectedInstanceId = null;
 			this.pages = data.pages;
 			const page = data.pages.find((p) => p.id === this.currentPageId);
-			this.blocks = (page?.blocks ?? []).map((b) => ({
-				id: b.id,
-				type: b.type,
-				props: structuredClone(b.props ?? {})
-			}));
+			this.blocks = (page?.blocks ?? []).map((b) => cloneBodyBlock(b));
 			return;
 		}
 		// Keep the live canvas; only refresh page metadata from the load.
@@ -182,11 +212,7 @@ class Builder {
 		const page = this.pages.find((p) => p.id === pageId);
 		if (!page) return;
 		this.currentPageId = pageId;
-		this.blocks = (page.blocks ?? []).map((b) => ({
-			id: b.id,
-			type: b.type,
-			props: structuredClone(b.props ?? {})
-		}));
+		this.blocks = (page.blocks ?? []).map((b) => cloneBodyBlock(b));
 		this.selectedInstanceId = null;
 		this.selectedChrome = null;
 		this.blocksError = null;
@@ -378,6 +404,25 @@ class Builder {
 	}
 
 	/**
+	 * Set or clear centered max-width layout for a body block.
+	 * @param {string} instanceId
+	 * @param {PageBlockLayout | null | undefined} layout
+	 * @param {{ immediate?: boolean }} [opts]
+	 */
+	updateBlockLayout(instanceId, layout, opts = {}) {
+		const nextLayout = parseBlockLayout(layout);
+		this.blocks = this.blocks.map((b) => {
+			if (b.id !== instanceId) return b;
+			if (!nextLayout) {
+				const { layout: _drop, ...rest } = b;
+				return rest;
+			}
+			return { ...b, layout: { ...nextLayout } };
+		});
+		this.persistBlocks(opts);
+	}
+
+	/**
 	 * Replace a list prop item field.
 	 * @param {string} instanceId
 	 * @param {string} listKey
@@ -489,14 +534,55 @@ class Builder {
 		else this.#chromePersistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
 	}
 
+	/**
+	 * @param {string} value
+	 */
+	setAccentColor(value) {
+		this.accentColor = value;
+		const trimmed = value.trim();
+		// Debounce-persist only empty (default) or a complete hex; ignore mid-edit.
+		if (!trimmed || /^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+			this.persistTheme();
+		}
+	}
+
+	/**
+	 * @param {SiteAppearance} value
+	 */
+	setAppearance(value) {
+		this.appearance = value === 'dark' ? 'dark' : 'light';
+		this.persistTheme({ immediate: true });
+	}
+
+	/**
+	 * @param {{ immediate?: boolean }} [opts]
+	 */
+	persistTheme(opts = {}) {
+		if (!browser || !this.siteId) return;
+		if (this.#themePersistTimer) {
+			clearTimeout(this.#themePersistTimer);
+			this.#themePersistTimer = null;
+		}
+		const run = () => {
+			this.#themePersistTimer = null;
+			void this.#flushTheme();
+		};
+		if (opts.immediate) run();
+		else this.#themePersistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+	}
+
 	async #flushBlocks() {
 		if (!this.siteId || !this.currentPageId) return;
 		const gen = ++this.#persistGen;
-		const payload = this.blocks.map((b) => ({
-			id: b.id,
-			type: b.type,
-			props: b.props
-		}));
+		const payload = this.blocks.map((b) => {
+			const layout = parseBlockLayout(b.layout);
+			return {
+				id: b.id,
+				type: b.type,
+				props: b.props,
+				...(layout ? { layout } : {})
+			};
+		});
 		this.savingBlocks = true;
 		this.blocksError = null;
 		try {
@@ -550,6 +636,39 @@ class Builder {
 			this.chromeError = 'Could not save site chrome.';
 		} finally {
 			if (gen === this.#chromePersistGen) this.savingChrome = false;
+		}
+	}
+
+	async #flushTheme() {
+		if (!this.siteId) return;
+		const gen = ++this.#themePersistGen;
+		this.savingTheme = true;
+		this.themeError = null;
+		try {
+			const res = await fetch(`/api/sites/${this.siteId}/theme`, {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					accentColor: this.accentColor,
+					appearance: this.appearance
+				})
+			});
+			if (gen !== this.#themePersistGen) return;
+			if (!res.ok) {
+				const text = await res.text();
+				this.themeError = text || 'Could not save site theme.';
+				return;
+			}
+			const data = await res.json();
+			if (typeof data.accentColor === 'string') this.accentColor = data.accentColor;
+			if (data.appearance === 'light' || data.appearance === 'dark') {
+				this.appearance = data.appearance;
+			}
+		} catch {
+			if (gen !== this.#themePersistGen) return;
+			this.themeError = 'Could not save site theme.';
+		} finally {
+			if (gen === this.#themePersistGen) this.savingTheme = false;
 		}
 	}
 

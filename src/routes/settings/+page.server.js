@@ -103,6 +103,7 @@ export const load = async ({ locals }) => {
 			logoUrl: siteSettings?.logoUrl ?? null,
 			ogImageUrl: siteSettings?.ogImageUrl ?? null,
 			accentColor: siteSettings?.accentColor ?? '',
+			appearance: siteSettings?.appearance ?? 'light',
 			hideBranding: siteSettings?.hideBranding ?? false,
 			sidebarEnabled: siteSettings?.sidebarEnabled ?? false,
 			sidebarStats: siteSettings?.sidebarStats ?? true,
@@ -534,6 +535,7 @@ export const actions = {
 		const name = formData.get('siteName')?.toString() ?? '';
 		const description = formData.get('siteDescription')?.toString() ?? '';
 		const accentColor = formData.get('accentColor')?.toString() ?? '';
+		const appearance = formData.get('appearance')?.toString() ?? 'light';
 		const hideBranding = formData.get('hideBranding')?.toString() === 'on';
 		const sidebarEnabled = formData.get('sidebarEnabled')?.toString() === 'on';
 		const sidebarStats = formData.get('sidebarStats')?.toString() === 'on';
@@ -547,6 +549,7 @@ export const actions = {
 			name,
 			description,
 			accentColor,
+			appearance,
 			hideBranding,
 			sidebarEnabled,
 			sidebarStats,
@@ -563,6 +566,7 @@ export const actions = {
 					siteName: name,
 					siteDescription: description,
 					accentColor,
+					appearance,
 					hideBranding,
 					sidebarEnabled,
 					sidebarStats,

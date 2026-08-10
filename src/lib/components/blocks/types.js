@@ -95,13 +95,64 @@ export const FOOTER_TYPE_SET = new Set(FOOTER_TYPES);
 export const DEFAULT_HEADER_TYPE = 'header.logo-links-cta';
 export const DEFAULT_FOOTER_TYPE = 'footer.minimal';
 
+/** Narrowest centered body-block width on the builder artboard (~500 breakpoint). */
+export const BLOCK_MIN_WIDTH_PX = 512;
+
+/**
+ * @typedef {{
+ *   maxWidth?: number
+ * }} PageBlockLayout
+ */
+
 /**
  * @typedef {{
  *   id: string,
  *   type: string,
- *   props: Record<string, unknown>
+ *   props: Record<string, unknown>,
+ *   layout?: PageBlockLayout
  * }} PageBlockInstance
  */
+
+/**
+ * Parse optional instance layout; drop invalid / empty shapes.
+ * @param {unknown} value
+ * @returns {PageBlockLayout | undefined}
+ */
+export function parseBlockLayout(value) {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+	const row = /** @type {Record<string, unknown>} */ (value);
+	if (typeof row.maxWidth !== 'number' || !Number.isFinite(row.maxWidth)) return undefined;
+	const maxWidth = Math.round(row.maxWidth);
+	if (maxWidth < BLOCK_MIN_WIDTH_PX) return undefined;
+	return { maxWidth };
+}
+
+/**
+ * Clamp a drag/persist width between the floor and the artboard.
+ * Floor collapses to artboard when the canvas is narrower than {@link BLOCK_MIN_WIDTH_PX}.
+ * @param {number} width
+ * @param {number} artboardWidth
+ */
+export function clampBlockMaxWidth(width, artboardWidth) {
+	const board = Math.max(1, Math.round(artboardWidth));
+	const floor = Math.min(BLOCK_MIN_WIDTH_PX, board);
+	const raw = Number.isFinite(width) ? Math.round(width) : board;
+	return Math.min(board, Math.max(floor, raw));
+}
+
+/**
+ * Persistable layout, or `undefined` when full-artboard (default).
+ * @param {number | null | undefined} maxWidth
+ * @param {number} artboardWidth
+ * @returns {PageBlockLayout | undefined}
+ */
+export function layoutFromMaxWidth(maxWidth, artboardWidth) {
+	if (maxWidth == null || !Number.isFinite(maxWidth)) return undefined;
+	const board = Math.max(1, Math.round(artboardWidth));
+	const clamped = clampBlockMaxWidth(maxWidth, board);
+	if (clamped >= board) return undefined;
+	return { maxWidth: clamped };
+}
 
 /**
  * @param {string} type
@@ -348,7 +399,13 @@ export function parsePageBlocks(value) {
 			const row = /** @type {Record<string, unknown>} */ (item);
 			if (typeof row.id !== 'string' || !row.id) continue;
 			if (typeof row.type !== 'string' || !isPageBodyBlockType(row.type)) continue;
-			out.push({ id: row.id, type: row.type, props: cloneProps(row.props) });
+			const layout = parseBlockLayout(row.layout);
+			out.push({
+				id: row.id,
+				type: row.type,
+				props: cloneProps(row.props),
+				...(layout ? { layout } : {})
+			});
 		}
 		return out;
 	} catch {
@@ -373,7 +430,13 @@ export function parseAllPageBlocks(value) {
 			const row = /** @type {Record<string, unknown>} */ (item);
 			if (typeof row.id !== 'string' || !row.id) continue;
 			if (typeof row.type !== 'string' || !BLOCK_TYPE_SET.has(row.type)) continue;
-			out.push({ id: row.id, type: row.type, props: cloneProps(row.props) });
+			const layout = parseBlockLayout(row.layout);
+			out.push({
+				id: row.id,
+				type: row.type,
+				props: cloneProps(row.props),
+				...(layout ? { layout } : {})
+			});
 		}
 		return out;
 	} catch {

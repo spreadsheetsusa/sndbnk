@@ -127,6 +127,13 @@
       "when": 1786314384648,
       "tag": "0017_majestic_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1786329751276,
+      "tag": "0018_burly_kingpin",
+      "breakpoints": true
     }
   ]
 }

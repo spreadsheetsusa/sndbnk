@@ -384,13 +384,13 @@
 
 	@media (max-width: 640px) {
 		.sound-card {
-			min-height: clamp(16rem, 110vw, 42rem);
+			min-height: clamp(16rem, 85vw, 30rem);
 			box-shadow: 0.65rem 0.65rem 0 color-mix(in srgb, var(--accent) 60%, black);
 		}
 
 		.stage :global(img.cover),
 		.stage :global(span.cover.placeholder) {
-			width: min(100%, 18rem);
+			width: min(100%, 15rem);
 		}
 
 		.play-btn {

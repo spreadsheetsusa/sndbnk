@@ -1,4 +1,6 @@
 <script>
+	import IconChevronDown from '@tabler/icons-svelte-runes/icons/chevron-down';
+	import IconChevronUp from '@tabler/icons-svelte-runes/icons/chevron-up';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
 	import { browser } from '$app/env';
 	import { onMount } from 'svelte';
@@ -6,12 +8,16 @@
 	import { builderFloatStack } from '#lib/builder/float-stack.svelte.js';
 	import { clampBounds, HUD_SPECS } from '#lib/builder/hud-bounds.js';
 
+	/** Titlebar-only height used for viewport clamping while collapsed. */
+	const COLLAPSED_H = 40;
+
 	/**
 	 * @type {{
 	 *   id: import('#lib/builder/hud-bounds.js').BuilderHudId,
 	 *   title?: string,
 	 *   brandHref?: string | null,
 	 *   resizable?: boolean,
+	 *   collapsible?: boolean,
 	 *   onclose?: () => void,
 	 *   children: import('svelte').Snippet,
 	 *   actions?: import('svelte').Snippet
@@ -22,6 +28,7 @@
 		title = '',
 		brandHref = null,
 		resizable = false,
+		collapsible = false,
 		onclose,
 		children,
 		actions
@@ -37,6 +44,7 @@
 	let y = $state(0);
 	let w = $state(280);
 	let h = $state(200);
+	let collapsed = $state(false);
 
 	/** @type {'drag' | 'resize-se' | null} */
 	let mode = $state(null);
@@ -54,15 +62,36 @@
 	 */
 	function applyBounds(bounds) {
 		if (!browser) return;
-		const next = clampBounds(bounds, spec, {
-			innerWidth: window.innerWidth,
-			innerHeight: window.innerHeight
-		});
+		const viewport = { innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+		if (collapsed) {
+			const next = clampBounds(
+				{ x: bounds.x, y: bounds.y, w: bounds.w, h: COLLAPSED_H },
+				{ minW: spec.minW, minH: COLLAPSED_H, lockH: true },
+				viewport
+			);
+			x = next.x;
+			y = next.y;
+			w = next.w;
+			builder.persistHudBounds(id, { x, y, w, h });
+			return;
+		}
+		const next = clampBounds(bounds, spec, viewport);
 		x = next.x;
 		y = next.y;
 		w = next.w;
 		h = next.h;
 		builder.persistHudBounds(id, next);
+	}
+
+	function toggleCollapsed() {
+		if (!collapsible) return;
+		if (collapsed) {
+			collapsed = false;
+			applyBounds({ x, y, w, h });
+			return;
+		}
+		collapsed = true;
+		applyBounds({ x, y, w, h });
 	}
 
 	onMount(() => {
@@ -143,10 +172,11 @@
 	class="floating-hud"
 	class:resizing={mode === 'resize-se'}
 	class:dragging={mode === 'drag'}
+	class:collapsed
 	style:left="{x}px"
 	style:top="{y}px"
 	style:width="{w}px"
-	style:height="{h}px"
+	style:height={collapsed ? 'auto' : `${h}px`}
 	style:z-index={z}
 	aria-label={panelLabel}
 	onpointerdowncapture={() => builderFloatStack.raise(id)}
@@ -189,6 +219,21 @@
 			{#if actions}
 				{@render actions()}
 			{/if}
+			{#if collapsible}
+				<button
+					type="button"
+					class="hud-close"
+					aria-label={collapsed ? `Expand ${panelLabel}` : `Collapse ${panelLabel}`}
+					aria-expanded={!collapsed}
+					onclick={toggleCollapsed}
+				>
+					{#if collapsed}
+						<IconChevronDown size={14} stroke={1.75} aria-hidden="true" />
+					{:else}
+						<IconChevronUp size={14} stroke={1.75} aria-hidden="true" />
+					{/if}
+				</button>
+			{/if}
 			{#if onclose}
 				<button type="button" class="hud-close" aria-label="Close {panelLabel}" onclick={onclose}>
 					<IconX size={14} stroke={1.75} aria-hidden="true" />
@@ -196,10 +241,10 @@
 			{/if}
 		</div>
 	</header>
-	<div class="hud-body" data-builder-no-drag>
+	<div class="hud-body" data-builder-no-drag inert={collapsed || undefined}>
 		{@render children()}
 	</div>
-	{#if resizable}
+	{#if resizable && !collapsed}
 		<button
 			type="button"
 			class="resize-se"
@@ -226,6 +271,10 @@
 		min-height: 0;
 	}
 
+	.floating-hud.collapsed {
+		grid-template-rows: auto;
+	}
+
 	.floating-hud.dragging,
 	.floating-hud.resizing {
 		cursor: grabbing;
@@ -240,6 +289,10 @@
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
 		background: color-mix(in srgb, var(--ink) 6%, var(--paper));
 		cursor: grab;
+	}
+
+	.floating-hud.collapsed .hud-titlebar {
+		border-bottom: 0;
 	}
 
 	.floating-hud.dragging .hud-titlebar {
@@ -315,6 +368,10 @@
 		min-width: 0;
 		overflow: auto;
 		cursor: default;
+	}
+
+	.floating-hud.collapsed .hud-body {
+		display: none;
 	}
 
 	.resize-se {

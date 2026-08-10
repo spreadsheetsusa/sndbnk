@@ -47,9 +47,14 @@ inspector, blocks palette). Named action `?/updatePage` saves page title / slug 
 stays `/`). Canvas body blocks drag from the Blocks HUD — insertable categories are Blog, Contact,
 Content, CTA, Ecommerce, Feature, Gallery, Hero, Pricing, Statistic, Step, Team, and Testimonial
 (Header/Footer stay site chrome only). `PUT /api/sites/[id]/pages/[pageId]/blocks` persists the
-ordered body list. Site header/footer render outside the page stack on every page preview;
-Inspector **Site** tab picks layouts and edits props via `PUT /api/sites/[id]/chrome`. Inspector
-**Block** tab edits the selected body instance.
+ordered body list (`{ id, type, props, layout? }` — optional `layout.maxWidth` from canvas side
+handles, centered between ~512px and the full canvas content width). Site header/footer render outside
+the page stack
+on every page preview; Inspector **Site** tab edits site theme (accent + light/dark) via
+`PUT /api/sites/[id]/theme`, then picks header/footer layouts and props via
+`PUT /api/sites/[id]/chrome`. The canvas `.preview` scopes site theme tokens; builder HUDs stay
+on the platform/listener accent and appearance. Inspector **Block** tab edits the selected body
+instance.
 
 ## `load` conventions
 

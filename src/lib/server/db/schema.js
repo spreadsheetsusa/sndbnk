@@ -126,6 +126,8 @@ export const site = sqliteTable(
 		logoMime: text('logo_mime'),
 		/** `#RRGGBB`; null keeps the listener/default accent. */
 		accentColor: text('accent_color'),
+		/** `light` | `dark`; public tenant + builder preview appearance. */
+		appearance: text('appearance').notNull().default('light'),
 		hideBranding: integer('hide_branding', { mode: 'boolean' }).notNull().default(false),
 		/** Custom-domain profile sidebar; ignored on subdomain/apex. Master off = hide all. */
 		sidebarEnabled: integer('sidebar_enabled', { mode: 'boolean' }).notNull().default(false),

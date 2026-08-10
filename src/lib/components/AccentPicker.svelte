@@ -1,6 +1,13 @@
 <script>
-	import { get } from 'svelte/store';
-	import { customAccent, normalizeHex, setCustomAccent } from '#lib/stores/brand.js';
+	import { DEFAULT_CUSTOM_ACCENT, normalizeHex } from '#lib/stores/brand.js';
+
+	/**
+	 * @type {{
+	 *   value: string,
+	 *   onchange: (hex: string) => void
+	 * }}
+	 */
+	let { value, onchange } = $props();
 
 	/**
 	 * @param {number} h hue in degrees
@@ -45,25 +52,27 @@
 	const clamp = (n) => Math.min(1, Math.max(0, n));
 
 	// HSV is the source of truth so dragging into black or grey does not lose the chosen hue.
-	const initial = hexToHsv(get(customAccent));
+	// Seed once from the value prop; the parent remounts via {#key} when the picker opens.
+	// svelte-ignore state_referenced_locally
+	const initial = hexToHsv(normalizeHex(value) ?? DEFAULT_CUSTOM_ACCENT);
 	let hue = $state(initial.h);
 	let saturation = $state(initial.s);
-	let value = $state(initial.v);
+	let brightness = $state(initial.v);
 	let hexDraft = $state(/** @type {string | null} */ (null));
 	let dragging = $state(false);
 
-	const hex = $derived(hsvToHex(hue, saturation, value));
+	const hex = $derived(hsvToHex(hue, saturation, brightness));
 	const hexField = $derived(hexDraft ?? hex);
 
 	function commit() {
-		setCustomAccent(hsvToHex(hue, saturation, value));
+		onchange(hsvToHex(hue, saturation, brightness));
 	}
 
 	/** @param {PointerEvent} event */
 	function trackPointer(event) {
 		const rect = /** @type {HTMLElement} */ (event.currentTarget).getBoundingClientRect();
 		saturation = clamp((event.clientX - rect.left) / rect.width);
-		value = 1 - clamp((event.clientY - rect.top) / rect.height);
+		brightness = 1 - clamp((event.clientY - rect.top) / rect.height);
 		commit();
 	}
 
@@ -94,7 +103,7 @@
 
 		event.preventDefault();
 		saturation = clamp(saturation + dx);
-		value = clamp(value + dy);
+		brightness = clamp(brightness + dy);
 		commit();
 	}
 
@@ -116,8 +125,8 @@
 		// A pure grey or black has no meaningful hue of its own; keep the strip where the user left it.
 		if (next.s > 0 && next.v > 0) hue = next.h;
 		saturation = next.s;
-		value = next.v;
-		setCustomAccent(parsed);
+		brightness = next.v;
+		onchange(parsed);
 	}
 </script>
 
@@ -133,7 +142,8 @@
 		onpointercancel={() => (dragging = false)}
 		onkeydown={onAreaKeydown}
 	>
-		<span class="handle" style:left="{saturation * 100}%" style:top="{(1 - value) * 100}%"></span>
+		<span class="handle" style:left="{saturation * 100}%" style:top="{(1 - brightness) * 100}%"
+		></span>
 	</button>
 
 	<input

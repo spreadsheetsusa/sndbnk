@@ -390,23 +390,27 @@
 
 		h1 {
 			max-width: 8ch;
-			font-size: clamp(4.4rem, 18vw, 8rem);
+			font-size: clamp(2.2rem, 9vw, 4rem);
 		}
 	}
 
 	@media (max-width: 640px) {
 		.hero {
-			gap: 3rem;
+			gap: 1.5rem;
 			/* Shell already gutters the landing; don't double-inset the hero. */
-			padding: 3.5rem 0 4.5rem;
+			padding: 1.25rem 0 1.75rem;
+		}
+
+		.hero-copy > .eyebrow {
+			margin-bottom: 0.75rem;
 		}
 
 		h1 {
-			font-size: clamp(4rem, 20vw, 6.5rem);
+			font-size: clamp(2rem, 10vw, 3.25rem);
 		}
 
 		.intro {
-			margin-top: 2rem;
+			margin-top: 1rem;
 		}
 
 		.hero-actions {

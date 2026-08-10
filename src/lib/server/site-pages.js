@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import {
 	isPageBodyBlockType,
 	parseAllPageBlocks,
+	parseBlockLayout,
 	parsePageBlocks,
 	stringifyPageBlocks,
 	stripChromeFromBlocks
@@ -145,7 +146,13 @@ export function normalizePageBlocks(raw) {
 			typeof row.props === 'object' && row.props !== null && !Array.isArray(row.props)
 				? /** @type {Record<string, unknown>} */ (structuredClone(row.props))
 				: {};
-		blocks.push({ id: row.id, type: row.type, props });
+		const layout = parseBlockLayout(row.layout);
+		blocks.push({
+			id: row.id,
+			type: row.type,
+			props,
+			...(layout ? { layout } : {})
+		});
 	}
 	return { ok: /** @type {const} */ (true), blocks };
 }

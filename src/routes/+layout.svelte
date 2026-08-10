@@ -9,19 +9,23 @@
 	import { setPlayThresholds } from '#lib/player/play-thresholds.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { initAccent, onAccentFor } from '#lib/stores/brand.js';
-	import { initTheme } from '#lib/stores/theme.js';
+	import { applyTheme, initTheme } from '#lib/stores/theme.js';
 
 	let { data, children } = $props();
 
 	const tenantLogo = $derived(data.tenantSite?.logoUrl ?? null);
 	const tenantAccent = $derived(data.tenantSite?.accentColor ?? null);
+	const tenantAppearance = $derived(
+		data.tenantSite?.appearance === 'dark' ? 'dark' : data.tenantSite ? 'light' : null
+	);
 
 	$effect(() => {
 		setPlayThresholds(data.playThresholds);
 	});
 
 	onMount(() => {
-		initTheme();
+		// Tenant hosts use site appearance; apex keeps the listener preference.
+		if (!data.tenantSite) initTheme();
 	});
 
 	// Tenant site accent overrides the listener store only while on a tenant host.
@@ -44,6 +48,14 @@
 			root.style.removeProperty('--accent');
 			root.style.removeProperty('--on-accent');
 		};
+	});
+
+	// Artist-chosen light/dark for public tenant pages — not the listener SNDBNK theme.
+	$effect(() => {
+		if (!browser) return;
+		const appearance = tenantAppearance;
+		if (!appearance) return;
+		applyTheme(appearance);
 	});
 </script>
 

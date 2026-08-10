@@ -178,6 +178,7 @@
 	let siteDescriptionTyped = $state(/** @type {number | null} */ (null));
 	const siteDescriptionLength = $derived(siteDescriptionTyped ?? siteDescriptionValue.length);
 	const accentColorValue = $derived(form?.accentColor ?? data.site.accentColor);
+	const appearanceValue = $derived(form?.appearance ?? data.site.appearance ?? 'light');
 	const hideBrandingValue = $derived(form?.hideBranding ?? data.site.hideBranding);
 	/** Live drafts so toggles stick before save (and children can dim with the parent). */
 	let sidebarEnabledDraft = $state(/** @type {boolean | null} */ (null));
@@ -1072,6 +1073,33 @@
 							Optional hex color for your tenant host. Leave blank for the default.
 						</p>
 
+						<fieldset class="appearance-fieldset">
+							<legend>Site appearance</legend>
+							<div class="appearance-row" role="radiogroup" aria-label="Site appearance">
+								<label class="appearance-opt">
+									<input
+										type="radio"
+										name="appearance"
+										value="light"
+										checked={appearanceValue === 'light'}
+									/>
+									<span>Light</span>
+								</label>
+								<label class="appearance-opt">
+									<input
+										type="radio"
+										name="appearance"
+										value="dark"
+										checked={appearanceValue === 'dark'}
+									/>
+									<span>Dark</span>
+								</label>
+							</div>
+							<p class="hint">
+								Fixed look for your public site — separate from your SNDBNK account theme.
+							</p>
+						</fieldset>
+
 						{#if canRemoveBranding}
 							<label class="check-row">
 								<input name="hideBranding" type="checkbox" checked={hideBrandingValue} />
@@ -1812,6 +1840,45 @@
 		width: 2rem;
 		height: 2rem;
 		border: 1px solid var(--ink);
+	}
+
+	.appearance-fieldset {
+		margin: 0 0 1rem;
+		padding: 0;
+		border: 0;
+		min-width: 0;
+	}
+
+	.appearance-fieldset legend {
+		margin-bottom: 0.35rem;
+		font-weight: 600;
+	}
+
+	.appearance-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.35rem;
+	}
+
+	.appearance-opt {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.35rem 0.65rem;
+		border: 1px solid var(--field-border);
+		background: var(--field-surface);
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.appearance-opt:has(input:checked) {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+	}
+
+	.appearance-opt input {
+		margin: 0;
 	}
 
 	.check-row {
