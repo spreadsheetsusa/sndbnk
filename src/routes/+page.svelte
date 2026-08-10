@@ -51,7 +51,7 @@
 	const pageDescription = $derived(
 		data.mode === 'tenant-profile'
 			? data.site?.description?.trim() || `${data.profile.name} — a public profile for sound.`
-			: 'An audio multi-tool for both artists and listeners.'
+			: 'A place for sound — audio tools, listening toys, and a community worth hanging in.'
 	);
 
 	const seoCanonical = $derived(
@@ -105,7 +105,10 @@
 				<div class="hero-copy">
 					<p class="eyebrow">A place for sound</p>
 					<h1 id="hero-title" class="display-face">Punch it in. <span>Turn it up.</span></h1>
-					<p class="intro">An audio multi-tool for both artists and creative listeners.</p>
+					<p class="intro">
+						A platform, a community, and a load of audio tools and toys — for artists and the
+						listeners who stick around.
+					</p>
 					{#if data.authNotice}
 						<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
 					{/if}
@@ -153,8 +156,10 @@
 				</div>
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">
-					Starting from what we know and are familiar with and taking it for a ride. Things will get
-					weird here. SNDBNK is an Audio Multi-Tool built for vibes.
+					We want a home for sound that still feels like a room you can walk into. Post while it is
+					hot. Play with the toys. Find your people the long way — by listening, following, and
+					showing up. Keep your files where you want them. Things will get weird here. SNDBNK is a
+					platform, a community, and an audio multi-tool built for vibes.
 				</p>
 				<span class="manifesto-mark" aria-hidden="true">///</span>
 			</section>

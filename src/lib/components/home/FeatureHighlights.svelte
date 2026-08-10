@@ -1,8 +1,8 @@
 <script>
-	import IconFileMusic from '@tabler/icons-svelte-runes/icons/file-music';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
 	import IconServer from '@tabler/icons-svelte-runes/icons/server';
+	import IconUsers from '@tabler/icons-svelte-runes/icons/users';
 	import IconWaveSine from '@tabler/icons-svelte-runes/icons/wave-sine';
 	import IconWorld from '@tabler/icons-svelte-runes/icons/world';
 
@@ -11,31 +11,34 @@
 			id: 'domains',
 			icon: IconWorld,
 			title: 'Your own address',
-			description: 'Subdomain out of the box, custom domain when you are ready.'
+			description:
+				'A real home for your catalog — subdomain out of the box, custom domain when you are ready.'
 		},
 		{
 			id: 'storage',
 			icon: IconServer,
 			title: 'Bring your own disks',
-			description: 'Point storage adapters at the kit you already run.'
+			description:
+				'Host with us, or point storage at the kit you already run. Your files, your call.'
 		},
 		{
 			id: 'viz',
 			icon: IconPlanet,
 			title: 'Milkdrop in the mix',
-			description: 'Butterchurn viz rides the waveform while you listen.'
+			description:
+				'Butterchurn viz rides the waveform while you listen — a toy that earns its keep.'
 		},
 		{
-			id: 'tags',
-			icon: IconFileMusic,
-			title: 'Tags that stick',
-			description: 'Write metadata back into the file — not just the database.'
+			id: 'people',
+			icon: IconUsers,
+			title: 'People in the room',
+			description: 'Follows, comments, and a feed from humans you chose — discovery you can feel.'
 		},
 		{
 			id: 'any-sound',
 			icon: IconHeadphones,
 			title: 'Any sound, posted',
-			description: 'Tracks, mixes, loops, samples, podcasts — drop it in.'
+			description: 'Tracks, mixes, loops, samples, sessions — get it up while it is still warm.'
 		},
 		{
 			id: 'player',
@@ -52,9 +55,10 @@
 			<p class="eyebrow">In the toolkit</p>
 			<span class="mark" aria-hidden="true">///</span>
 		</div>
-		<h2 id="features-title">Built for the whole signal chain</h2>
+		<h2 id="features-title">Platform, community, and a bag of toys</h2>
 		<p class="lede">
-			Host it, store it, tag it, see it, keep playing — then post whatever sound you've got.
+			Bank the catalog, keep the listening chrome alive, and stick around for the people who show
+			up.
 		</p>
 	</header>
 
