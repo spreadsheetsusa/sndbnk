@@ -306,7 +306,22 @@
 		builder.selectInstance(null);
 		builder.selectChrome(null);
 	}
+
+	/**
+	 * @param {KeyboardEvent} event
+	 */
+	function onBuilderKeydown(event) {
+		if (event.key !== 'Escape') return;
+		if (event.target instanceof HTMLElement) {
+			const tag = event.target.tagName;
+			if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target.isContentEditable) return;
+		}
+		builder.selectInstance(null);
+		builder.selectChrome(null);
+	}
 </script>
+
+<svelte:window onkeydown={onBuilderKeydown} />
 
 <svelte:head>
 	<title>{data.site.name || 'Site'} builder | SNDBNK</title>
@@ -315,6 +330,9 @@
 
 <div class="page">
 	<main>
+		<!-- Canvas click clears selection; Escape is handled below for keyboard. -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="canvas"
 			aria-label="Site builder canvas"
@@ -402,6 +420,7 @@
 								type="button"
 								class="remove"
 								aria-label="Remove block"
+								tabindex={builder.selectedInstanceId === instance.id ? 0 : -1}
 								onclick={() => builder.removeBlock(instance.id)}
 							>
 								<IconTrash size={15} stroke={1.75} aria-hidden="true" />
