@@ -18,7 +18,7 @@ export const load = ({ locals, url }) => {
 };
 
 export const actions = {
-	default: async (event) => {
+	signin: async (event) => {
 		const { cookies, request, url } = event;
 		const formData = await request.formData();
 		const email = formData.get('email')?.toString().trim() ?? '';

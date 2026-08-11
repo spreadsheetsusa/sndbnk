@@ -118,7 +118,12 @@
 				</div>
 			{/if}
 
-			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting || resending}>
+			<form
+				method="POST"
+				action="?/signin"
+				use:enhance={handleSubmit}
+				aria-busy={submitting || resending}
+			>
 				<label for="email">Email</label>
 				<input
 					id="email"
