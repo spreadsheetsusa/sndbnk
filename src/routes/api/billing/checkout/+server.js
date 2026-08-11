@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 
 import { createSubscriptionCheckout } from '#lib/server/billing/checkout';
 import { billingEnabled } from '#lib/server/billing/stripe';
+import { verifyFormGuard } from '#lib/server/form-guard';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { createAccount } from '#lib/server/signup';
@@ -33,6 +34,12 @@ export const POST = async (event) => {
 	let userId = locals.user?.id;
 
 	if (!userId) {
+		const guard = verifyFormGuard({
+			token: body._fg ?? '',
+			honeypot: body.website ?? ''
+		});
+		if (!guard.ok) error(400, 'We could not create your account.');
+
 		const limited = rateLimit(`checkout-signup:${clientIp(event)}`, {
 			windowMs: 60 * 60 * 1000,
 			max: 10

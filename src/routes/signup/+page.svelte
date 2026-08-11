@@ -5,7 +5,7 @@
 	import { enhance } from '$app/forms';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
-	let { form } = $props();
+	let { data, form } = $props();
 	let submitting = $state(false);
 
 	function handleSubmit() {
@@ -61,6 +61,19 @@
 			{/if}
 
 			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+				<input type="hidden" name="_fg" value={data.formGuard.token} />
+				<div class="hp" aria-hidden="true">
+					<label for="website">Website</label>
+					<input
+						id="website"
+						name="website"
+						type="text"
+						tabindex="-1"
+						autocomplete="off"
+						value=""
+					/>
+				</div>
+
 				<label for="name">Name</label>
 				<input
 					id="name"
@@ -289,6 +302,18 @@
 
 	form {
 		display: grid;
+	}
+
+	.hp {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		border: 0;
+		clip: rect(0, 0, 0, 0);
 	}
 
 	label {
