@@ -9,7 +9,8 @@ import { getRequestEvent } from '$app/server';
 import { linkedAccountSwitch } from '#lib/server/auth-linked-switch';
 import { syncStripeCustomerEmail } from '#lib/server/billing/customer';
 import { db } from '#lib/server/db';
-import { sendResetPasswordMail, sendVerifyEmailChangeMail } from '#lib/server/mail/templates';
+import { sendResetPasswordMail, sendVerifyEmailMail } from '#lib/server/mail/templates';
+import { sendWelcomeAfterVerification } from '#lib/server/welcome-after-verify';
 
 const isLocalBase = PUBLIC_BASE_DOMAIN === 'localhost' || PUBLIC_BASE_DOMAIN === '127.0.0.1';
 
@@ -19,6 +20,7 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 	emailAndPassword: {
 		enabled: true,
+		requireEmailVerification: true,
 		revokeSessionsOnPasswordReset: true,
 		// Fire-and-forget so timing does not leak whether the address exists.
 		sendResetPassword: async ({ user, url }) => {
@@ -29,12 +31,23 @@ export const auth = betterAuth({
 		changeEmail: { enabled: true }
 	},
 	emailVerification: {
+		sendOnSignUp: true,
+		sendOnSignIn: true,
+		autoSignInAfterVerification: true,
+		expiresIn: 60 * 60 * 24,
 		// Fire-and-forget so timing does not leak whether the address is new.
 		sendVerificationEmail: async ({ user, url }) => {
-			void sendVerifyEmailChangeMail({ to: user.email, name: user.name, url });
+			void sendVerifyEmailMail({
+				to: user.email,
+				name: user.name,
+				url,
+				// Email-change flow passes a verified user with email swapped to the new address.
+				kind: user.emailVerified ? 'change' : 'signup'
+			});
 		},
 		afterEmailVerification: async (user) => {
 			await syncStripeCustomerEmail(user.id, user.email);
+			await sendWelcomeAfterVerification(user);
 		}
 	},
 	// Apex + www (Caddy redirects www, but preflight/origin checks can still see it).

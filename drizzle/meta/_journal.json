@@ -148,6 +148,13 @@
       "when": 1786340465709,
       "tag": "0020_free_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1786500000000,
+      "tag": "0021_verify_existing_emails",
+      "breakpoints": true
     }
   ]
 }

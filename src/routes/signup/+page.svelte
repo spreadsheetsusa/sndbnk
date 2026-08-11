@@ -5,7 +5,13 @@
 	import { enhance } from '$app/forms';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
-	let { form } = $props();
+	/**
+	 * @type {{
+	 *   data: { turnstileSiteKey: string | null },
+	 *   form: { message?: string, name?: string, username?: string, email?: string } | null | undefined
+	 * }}
+	 */
+	let { data, form } = $props();
 	let submitting = $state(false);
 
 	function handleSubmit() {
@@ -14,6 +20,9 @@
 		return async ({ update }) => {
 			try {
 				await update();
+				if (data.turnstileSiteKey && typeof window !== 'undefined' && window.turnstile) {
+					window.turnstile.reset();
+				}
 			} finally {
 				submitting = false;
 			}
@@ -25,6 +34,9 @@
 	<title>Create an account | SNDBNK</title>
 	<meta name="description" content="Create your SNDBNK account and join a place built for sound." />
 	<meta name="robots" content="noindex" />
+	{#if data.turnstileSiteKey}
+		<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+	{/if}
 </svelte:head>
 
 <main class="auth-page">
@@ -49,7 +61,7 @@
 		<div class="form-wrap">
 			<p class="eyebrow">New account</p>
 			<h2>Create account</h2>
-			<p class="form-intro">A few details and you are in.</p>
+			<p class="form-intro">A few details, then confirm your email to get in.</p>
 
 			{#if form?.message && !submitting}
 				<div class="form-error" id="form-error" role="alert" aria-live="polite">
@@ -122,6 +134,20 @@
 						: 'password-hint'}
 				/>
 				<p class="field-hint" id="password-hint">Use at least 8 characters.</p>
+
+				<div class="hp" aria-hidden="true">
+					<label for="website">Website</label>
+					<input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+				</div>
+
+				{#if data.turnstileSiteKey}
+					<div
+						class="cf-turnstile"
+						data-sitekey={data.turnstileSiteKey}
+						data-appearance="interaction-only"
+						data-action="signup"
+					></div>
+				{/if}
 
 				<button class="pressable" type="submit" disabled={submitting}>
 					{submitting ? 'Creating account…' : 'Create account'}
@@ -325,6 +351,14 @@
 	.hint-em {
 		color: var(--ink);
 		font-weight: 700;
+	}
+
+	.hp {
+		position: absolute;
+		left: -10000px;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
 	}
 
 	button {

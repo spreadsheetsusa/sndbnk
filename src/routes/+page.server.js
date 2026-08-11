@@ -39,6 +39,10 @@ export const load = async ({ cookies, locals, url }) => {
 					: null;
 	}
 
+	if (!authNotice && url.searchParams.get('verified') === '1' && locals.user) {
+		authNotice = 'Email confirmed. Welcome to SNDBNK.';
+	}
+
 	const [stats, heroTrack, latestMembers, profile] = await Promise.all([
 		getSiteStats(),
 		pickHeroTrack(locals.user),

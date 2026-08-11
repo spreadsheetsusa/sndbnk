@@ -8,6 +8,7 @@
 	import { fly } from 'svelte/transition';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import { requestTurnstileToken } from '#lib/turnstile-client';
 
 	let { data } = $props();
 
@@ -159,14 +160,31 @@
 		message = null;
 
 		try {
+			/** @type {Record<string, string>} */
+			const payload = {
+				planId: selected.id,
+				interval
+			};
+
+			if (needsAccount) {
+				payload.name = name;
+				payload.username = username;
+				payload.email = email;
+				payload.password = password;
+				payload.website = '';
+
+				if (data.turnstileSiteKey) {
+					payload['cf-turnstile-response'] = await requestTurnstileToken({
+						siteKey: data.turnstileSiteKey,
+						action: 'checkout-signup'
+					});
+				}
+			}
+
 			const response = await fetch('/api/billing/checkout', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({
-					planId: selected.id,
-					interval,
-					...(needsAccount ? { name, username, email, password } : {})
-				})
+				body: JSON.stringify(payload)
 			});
 
 			if (!response.ok) {
@@ -175,11 +193,14 @@
 				return;
 			}
 
-			const { clientSecret, accountCreated } = await response.json();
+			const { clientSecret, accountCreated, pendingVerification } = await response.json();
 
-			// The account now exists and the session cookie is set, so the page's own
-			// data (and the header) must catch up before payment resolves.
+			// Account exists server-side; email confirmation is still required before sign-in.
 			if (accountCreated) await invalidateAll();
+			if (pendingVerification) {
+				message =
+					'Account created — confirm your email when you are done paying so you can sign in.';
+			}
 
 			const { loadStripe } = await import('@stripe/stripe-js');
 			const stripe = await loadStripe(PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
@@ -404,7 +425,7 @@
 							>
 								<p class="form-intro">
 									Your account is created before payment, so a declined card still leaves you a
-									working Free profile.
+									working Free profile. Confirm your email after checkout before signing in.
 								</p>
 
 								<label for="plan-name">Name</label>
@@ -448,6 +469,10 @@
 									required
 								/>
 
+								<div class="hp" aria-hidden="true">
+									<label for="plan-website">Website</label>
+									<input id="plan-website" type="text" tabindex="-1" autocomplete="off" value="" />
+								</div>
 								<button class="submit pressable" type="submit" disabled={starting}>
 									{starting ? 'Preparing checkout…' : 'Continue to payment'}
 								</button>
@@ -908,6 +933,14 @@
 		color: var(--muted);
 		font-size: 0.7rem;
 		line-height: 1.45;
+	}
+
+	.hp {
+		position: absolute;
+		left: -10000px;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
 	}
 
 	.mono {

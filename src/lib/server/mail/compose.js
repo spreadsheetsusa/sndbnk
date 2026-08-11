@@ -165,6 +165,33 @@ Resubscribe any time at ${plansUrl}.
  * @param {{ name: string, url: string }} input
  * @returns {MailContent}
  */
+export function buildVerifySignupMail({ name, url }) {
+	return {
+		subject: 'Confirm your SNDBNK email',
+		preheader: 'One tap to activate your account.',
+		bodyHtml: [
+			mailGreeting(name),
+			mailP('Confirm this address to activate your SNDBNK account and start uploading.'),
+			mailCta(url, 'Confirm email'),
+			mailP('If you did not create an account, you can ignore this message.'),
+			mailSignoff()
+		].join(''),
+		text: `${name},
+
+Confirm this address to activate your SNDBNK account and start uploading:
+
+${url}
+
+If you did not create an account, you can ignore this message.
+
+— SNDBNK`
+	};
+}
+
+/**
+ * @param {{ name: string, url: string }} input
+ * @returns {MailContent}
+ */
 export function buildVerifyEmailChangeMail({ name, url }) {
 	return {
 		subject: 'Confirm your new SNDBNK email',

@@ -220,8 +220,10 @@ pointing any domain at the server would let it obtain a certificate.
 - **Tenant isolation:** subdomain / custom-domain hosts only serve that creator’s tracks, playlists,
   and profile APIs. Apex discovery stays global.
 - **Auth abuse:** in-memory rate limits on sign-in / signup / password reset / anonymous checkout
-  signup; better-auth `disabledPaths` closes public `/sign-up/email` and unused admin HTTP routes
-  (impersonation, create/remove user, set password).
+  signup; Cloudflare Turnstile (when keys are set) plus a honeypot on signup and checkout signup;
+  better-auth `requireEmailVerification` gates sign-in until the inbox link is clicked;
+  `disabledPaths` closes public `/sign-up/email` and unused admin HTTP routes (impersonation,
+  create/remove user, set password).
 - **Uploads:** magic-byte sniffing for audio/images; SSH BYOS rejects private / link-local /
   metadata targets; storage adapters refuse path-escaping segments; ffmpeg waveform extraction runs
   in a BullMQ worker with a long timeout and streams PCM (no full-decode memory cap).

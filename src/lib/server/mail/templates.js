@@ -7,6 +7,7 @@ import {
 	buildResetPasswordMail,
 	buildSubscriptionCanceledMail,
 	buildVerifyEmailChangeMail,
+	buildVerifySignupMail,
 	buildWelcomeMail
 } from './compose.js';
 import { wrapMail } from './layout.js';
@@ -67,13 +68,22 @@ export function sendSubscriptionCanceledMail({ to, name }) {
 }
 
 /**
+ * @param {{ to: string, name: string, url: string, kind?: 'signup' | 'change' }} input
+ */
+export function sendVerifyEmailMail({ to, name, url, kind = 'signup' }) {
+	return sendBrandedMail({
+		to,
+		...(kind === 'change'
+			? buildVerifyEmailChangeMail({ name, url })
+			: buildVerifySignupMail({ name, url }))
+	});
+}
+
+/**
  * @param {{ to: string, name: string, url: string }} input
  */
 export function sendVerifyEmailChangeMail({ to, name, url }) {
-	return sendBrandedMail({
-		to,
-		...buildVerifyEmailChangeMail({ name, url })
-	});
+	return sendVerifyEmailMail({ to, name, url, kind: 'change' });
 }
 
 /**
@@ -103,5 +113,6 @@ export {
 	buildResetPasswordMail,
 	buildSubscriptionCanceledMail,
 	buildVerifyEmailChangeMail,
+	buildVerifySignupMail,
 	buildWelcomeMail
 } from './compose.js';

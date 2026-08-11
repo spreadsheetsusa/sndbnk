@@ -2,7 +2,8 @@ import { getPlans } from '#lib/server/billing/plans';
 import { billingEnabled } from '#lib/server/billing/stripe';
 import { getUsage } from '#lib/server/quota';
 import { getProfileByUserId } from '#lib/server/tenant';
-import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
+import { turnstileEnabled } from '#lib/server/turnstile';
+import { PUBLIC_BASE_DOMAIN, PUBLIC_TURNSTILE_SITE_KEY } from '$app/env/public';
 
 export const load = async ({ locals, url }) => {
 	const row = locals.user ? await getProfileByUserId(locals.user.id) : null;
@@ -22,6 +23,7 @@ export const load = async ({ locals, url }) => {
 	return {
 		billingEnabled,
 		baseDomain: PUBLIC_BASE_DOMAIN,
+		turnstileSiteKey: turnstileEnabled() ? (PUBLIC_TURNSTILE_SITE_KEY ?? null) : null,
 		plans,
 		preselectPlan,
 		account: row
