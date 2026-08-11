@@ -54,11 +54,10 @@ if (existingProfile && (!existingUser || existingProfile.user_id !== existingUse
 const now = Date.now();
 
 if (existingUser) {
-	db.run(`UPDATE user SET role = 'admin', name = ?, updated_at = ? WHERE id = ?`, [
-		name,
-		now,
-		existingUser.id
-	]);
+	db.run(
+		`UPDATE user SET role = 'admin', name = ?, email_verified = 1, updated_at = ? WHERE id = ?`,
+		[name, now, existingUser.id]
+	);
 
 	if (args.password) {
 		const hashed = await hashPassword(password);

@@ -92,10 +92,12 @@ Stripe products/prices into the database.
 
 ### Rate limits are in-memory only
 
-Sign-in, signup, forgot/reset password, and anonymous checkout use
+Sign-in, signup, forgot/reset password, verification resend, and anonymous checkout use
 [`rate-limit.js`](../src/lib/server/rate-limit.js). Counters live in process memory: they reset on
 restart and are not shared across processes. Fine for single-node Lightsail; not a Redis-backed
-limiter.
+limiter. Signup also uses Cloudflare Turnstile (optional keys) and a honeypot; new accounts must
+confirm email before sign-in (`requireEmailVerification`). Migration
+`0021_verify_existing_emails` marks pre-existing users verified so deploy does not lock them out.
 
 ### List chrome, infinite scroll, and scroll restore
 

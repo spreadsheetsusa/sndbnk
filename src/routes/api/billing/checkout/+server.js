@@ -2,13 +2,17 @@ import { error, json } from '@sveltejs/kit';
 
 import { createSubscriptionCheckout } from '#lib/server/billing/checkout';
 import { billingEnabled } from '#lib/server/billing/stripe';
+import { honeypotTripped } from '#lib/server/honeypot';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { createAccount } from '#lib/server/signup';
+import { verifyTurnstile } from '#lib/server/turnstile';
 
 /**
  * Start an inline subscription. Anonymous callers get an account first: it lands
  * on Free, so a declined card leaves a usable account instead of a dead end.
+ * New accounts still need email confirmation before sign-in; checkout itself
+ * uses the server-side user id.
  *
  * @type {import('./$types').RequestHandler}
  */
@@ -33,11 +37,21 @@ export const POST = async (event) => {
 	let userId = locals.user?.id;
 
 	if (!userId) {
+		if (honeypotTripped(body)) {
+			error(400, 'We could not start checkout. Try again.');
+		}
+
 		const limited = rateLimit(`checkout-signup:${clientIp(event)}`, {
 			windowMs: 60 * 60 * 1000,
-			max: 10
+			max: 5
 		});
 		if (!limited.ok) error(429, 'Too many signup attempts. Try again later.');
+
+		const captcha = await verifyTurnstile({
+			token: body['cf-turnstile-response'] ?? body.turnstileToken ?? '',
+			ip: clientIp(event)
+		});
+		if (!captcha.ok) error(400, captcha.message);
 
 		const created = await createAccount({
 			name: body.name ?? '',
@@ -54,5 +68,9 @@ export const POST = async (event) => {
 	const checkout = await createSubscriptionCheckout({ userId, planId, interval });
 	if (!checkout.ok) error(400, checkout.message);
 
-	return json({ clientSecret: checkout.clientSecret, accountCreated: !locals.user });
+	return json({
+		clientSecret: checkout.clientSecret,
+		accountCreated: !locals.user,
+		pendingVerification: !locals.user
+	});
 };

@@ -11,6 +11,7 @@ import {
 	buildResetPasswordMail,
 	buildSubscriptionCanceledMail,
 	buildVerifyEmailChangeMail,
+	buildVerifySignupMail,
 	buildWelcomeMail
 } from '../src/lib/server/mail/compose.js';
 import { wrapMail } from '../src/lib/server/mail/layout.js';
@@ -35,6 +36,13 @@ function write(slug, content) {
 }
 
 write('welcome', buildWelcomeMail({ name: 'Ben', username: 'ben', planId: 'free', origin }));
+write(
+	'verify-signup',
+	buildVerifySignupMail({
+		name: 'Ben',
+		url: `${origin}/api/auth/verify-email?token=preview&callbackURL=%2F%3Fverified%3D1`
+	})
+);
 write(
 	'plan-changed',
 	buildPlanChangedMail({

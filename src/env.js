@@ -81,5 +81,17 @@ export const variables = defineEnvVars({
 	SMTP_PASSWORD: {
 		schema: (value) => value || undefined,
 		description: 'SMTP password. Omit for an unauthenticated relay.'
+	},
+	// Bot protection. Both keys required to enforce; empty in local `.env` skips the challenge.
+	PUBLIC_TURNSTILE_SITE_KEY: {
+		public: true,
+		schema: (value) => value || undefined,
+		description:
+			'Cloudflare Turnstile site key (public). Pair with TURNSTILE_SECRET_KEY. Leave empty to disable.'
+	},
+	TURNSTILE_SECRET_KEY: {
+		schema: (value) => value || undefined,
+		description:
+			'Cloudflare Turnstile secret key. Pair with PUBLIC_TURNSTILE_SITE_KEY. Leave empty to disable.'
 	}
 });

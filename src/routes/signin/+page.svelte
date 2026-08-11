@@ -8,22 +8,37 @@
 
 	/**
 	 * @type {{
-	 *   data: { passwordReset: boolean },
-	 *   form: { message?: string, email?: string } | null | undefined
+	 *   data: { passwordReset: boolean, emailPending: boolean, emailVerifiedNotice: boolean },
+	 *   form: {
+	 *     message?: string,
+	 *     email?: string,
+	 *     needsVerification?: boolean,
+	 *     resendSuccess?: boolean
+	 *   } | null | undefined
 	 * }}
 	 */
 	let { data, form } = $props();
 	let submitting = $state(false);
+	let resending = $state(false);
+
+	const showVerificationHelp = $derived(
+		Boolean(data.emailPending || form?.needsVerification || form?.resendSuccess)
+	);
 
 	function handleSubmit() {
-		submitting = true;
+		return ({ action }) => {
+			const isResend = String(action).includes('resendVerification');
+			if (isResend) resending = true;
+			else submitting = true;
 
-		return async ({ update }) => {
-			try {
-				await update();
-			} finally {
-				submitting = false;
-			}
+			return async ({ update }) => {
+				try {
+					await update({ reset: false });
+				} finally {
+					submitting = false;
+					resending = false;
+				}
+			};
 		};
 	}
 </script>
@@ -67,7 +82,34 @@
 				</div>
 			{/if}
 
-			{#if form?.message && !submitting}
+			{#if data.emailVerifiedNotice && !form?.message && !submitting}
+				<div class="form-success" role="status" aria-live="polite">
+					<span class="form-success-icon" aria-hidden="true">
+						<IconCircleCheck size={16} stroke={1.75} />
+					</span>
+					Email confirmed — you can sign in now.
+				</div>
+			{/if}
+
+			{#if data.emailPending && !form?.message && !form?.resendSuccess && !submitting}
+				<div class="form-success" role="status" aria-live="polite">
+					<span class="form-success-icon" aria-hidden="true">
+						<IconCircleCheck size={16} stroke={1.75} />
+					</span>
+					Check your email for a confirmation link before signing in.
+				</div>
+			{/if}
+
+			{#if form?.resendSuccess && !resending}
+				<div class="form-success" role="status" aria-live="polite">
+					<span class="form-success-icon" aria-hidden="true">
+						<IconCircleCheck size={16} stroke={1.75} />
+					</span>
+					If that address needs confirmation, we sent a fresh link.
+				</div>
+			{/if}
+
+			{#if form?.message && !submitting && !resending}
 				<div class="form-error" id="form-error" role="alert" aria-live="polite">
 					<span class="form-error-icon" aria-hidden="true">
 						<IconAlertCircle size={16} stroke={1.75} />
@@ -76,7 +118,12 @@
 				</div>
 			{/if}
 
-			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+			<form
+				method="POST"
+				action="?/signin"
+				use:enhance={handleSubmit}
+				aria-busy={submitting || resending}
+			>
 				<label for="email">Email</label>
 				<input
 					id="email"
@@ -103,12 +150,24 @@
 					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 				/>
 
-				<button class="pressable" type="submit" disabled={submitting}>
+				<button class="pressable" type="submit" disabled={submitting || resending}>
 					{submitting ? 'Signing in…' : 'Sign in'}
 					{#if !submitting}
 						<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
 					{/if}
 				</button>
+
+				{#if showVerificationHelp}
+					<button
+						class="resend-btn pressable"
+						type="submit"
+						formaction="?/resendVerification"
+						formnovalidate
+						disabled={resending || submitting}
+					>
+						{resending ? 'Sending…' : 'Resend confirmation email'}
+					</button>
+				{/if}
 			</form>
 
 			<p class="switch-auth">New to SNDBNK? <a href="/signup">Create an account</a></p>
@@ -341,6 +400,16 @@
 		opacity: 0.65;
 		box-shadow: 2px 2px 0 var(--hard-shadow);
 		cursor: wait;
+	}
+
+	.resend-btn {
+		justify-content: center;
+		height: 2.75rem;
+		margin-top: 0.85rem;
+		color: var(--ink);
+		background: var(--paper);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+		font-size: 0.68rem;
 	}
 
 	.switch-auth {

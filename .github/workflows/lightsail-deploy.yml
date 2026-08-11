@@ -130,6 +130,8 @@ jobs:
                 "STRIPE_SECRET_KEY",
                 "PUBLIC_STRIPE_PUBLISHABLE_KEY",
                 "STRIPE_WEBHOOK_SECRET",
+                "PUBLIC_TURNSTILE_SITE_KEY",
+                "TURNSTILE_SECRET_KEY",
             )
             pre_pull = Path(os.environ.get("PRE_PULL_ENV", "/tmp/sndbnk.env.pre-pull"))
             if pre_pull.exists():

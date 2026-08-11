@@ -3,17 +3,21 @@ import { eq } from 'drizzle-orm';
 
 import { auth } from '#lib/server/auth';
 import { db } from '#lib/server/db';
+import { user } from '#lib/server/db/auth.schema';
 import { profile } from '#lib/server/db/schema';
-import { sendWelcomeMail } from '#lib/server/mail/templates';
 import { validateUsername } from '#lib/server/username';
 
 /**
- * Create a better-auth user plus its profile row, signed in on the returned
- * headers. Shared by `/signup` and the inline signup on `/plans`, which must not
- * drift — new accounts always start on Free and upgrade through Stripe.
+ * Create a better-auth user plus its profile row. With
+ * `requireEmailVerification`, better-auth does not open a session — the user
+ * must confirm email before sign-in. Shared by `/signup` and anonymous checkout
+ * on `/plans`; new accounts always start on Free.
  *
  * @param {{ name: string, username: string, email: string, password: string, headers: Headers }} input
- * @returns {Promise<{ ok: true, userId: string, username: string } | { ok: false, message: string }>}
+ * @returns {Promise<
+ *   | { ok: true, userId: string, username: string, pendingVerification: true }
+ *   | { ok: false, message: string }
+ * >}
  */
 export async function createAccount({
 	name: nameRaw,
@@ -46,7 +50,15 @@ export async function createAccount({
 	/** @type {{ user: { id: string } } | null} */
 	let signedUp = null;
 	try {
-		signedUp = await auth.api.signUpEmail({ body: { name, email, password }, headers });
+		signedUp = await auth.api.signUpEmail({
+			body: {
+				name,
+				email,
+				password,
+				callbackURL: '/?verified=1'
+			},
+			headers
+		});
 	} catch (error) {
 		if (error instanceof APIError) {
 			return { ok: false, message: error.message || 'We could not create your account.' };
@@ -59,6 +71,17 @@ export async function createAccount({
 		return {
 			ok: false,
 			message: 'Account created but profile setup failed. Please contact support.'
+		};
+	}
+
+	// requireEmailVerification returns a synthetic user for duplicate emails —
+	// only continue when the id actually exists in the user table.
+	const realUser = await db.select({ id: user.id }).from(user).where(eq(user.id, userId)).limit(1);
+
+	if (!realUser[0]) {
+		return {
+			ok: false,
+			message: 'If that email is new, check your inbox for a confirmation link. Otherwise sign in.'
 		};
 	}
 
@@ -75,11 +98,9 @@ export async function createAccount({
 	} catch {
 		return {
 			ok: false,
-			message: 'Account created but we could not reserve your username. Try settings after sign-in.'
+			message: 'Account created but we could not reserve your username. Try a different one.'
 		};
 	}
 
-	await sendWelcomeMail({ to: email, name, username });
-
-	return { ok: true, userId, username };
+	return { ok: true, userId, username, pendingVerification: true };
 }
