@@ -1,5 +1,6 @@
 import { getPlans } from '#lib/server/billing/plans';
 import { billingEnabled } from '#lib/server/billing/stripe';
+import { issueFormGuard } from '#lib/server/form-guard';
 import { getUsage } from '#lib/server/quota';
 import { getProfileByUserId } from '#lib/server/tenant';
 import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
@@ -24,6 +25,7 @@ export const load = async ({ locals, url }) => {
 		baseDomain: PUBLIC_BASE_DOMAIN,
 		plans,
 		preselectPlan,
+		formGuard: row ? null : issueFormGuard(),
 		account: row
 			? {
 					username: row.username,

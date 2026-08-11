@@ -22,6 +22,7 @@
 	let username = $state('');
 	let email = $state('');
 	let password = $state('');
+	let website = $state('');
 	let promoCode = $state('');
 	let starting = $state(false);
 	let confirming = $state(false);
@@ -165,7 +166,16 @@
 				body: JSON.stringify({
 					planId: selected.id,
 					interval,
-					...(needsAccount ? { name, username, email, password } : {})
+					...(needsAccount
+						? {
+								name,
+								username,
+								email,
+								password,
+								_fg: data.formGuard?.token ?? '',
+								website
+							}
+						: {})
 				})
 			});
 
@@ -406,6 +416,18 @@
 									Your account is created before payment, so a declined card still leaves you a
 									working Free profile.
 								</p>
+
+								<div class="hp" aria-hidden="true">
+									<label for="plan-website">Website</label>
+									<input
+										id="plan-website"
+										name="website"
+										type="text"
+										tabindex="-1"
+										autocomplete="off"
+										bind:value={website}
+									/>
+								</div>
 
 								<label for="plan-name">Name</label>
 								<input id="plan-name" type="text" autocomplete="name" bind:value={name} required />
@@ -870,6 +892,18 @@
 
 	.account-form {
 		display: grid;
+	}
+
+	.hp {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		border: 0;
+		clip: rect(0, 0, 0, 0);
 	}
 
 	.form-intro {
