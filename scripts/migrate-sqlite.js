@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { SQLITE_PRAGMAS } from '../src/lib/server/db/pragmas.js';
 
 const dbPath = process.env.DATABASE_URL;
 if (!dbPath) throw new Error('DATABASE_URL is not set');
@@ -27,7 +28,7 @@ if (!existsSync(journalPath)) {
 }
 
 const sqlite = new Database(dbPath, { create: true });
-sqlite.exec('PRAGMA foreign_keys = ON;');
+sqlite.exec(SQLITE_PRAGMAS);
 
 /**
  * @returns {boolean}

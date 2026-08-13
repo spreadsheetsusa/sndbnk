@@ -1,6 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 
 import {
+	cloneBlockProps,
 	isPageBodyBlockType,
 	parseAllPageBlocks,
 	parseBlockLayout,
@@ -142,10 +143,7 @@ export function normalizePageBlocks(raw) {
 				message: 'Headers and footers are site chrome — use the Site tab.'
 			};
 		}
-		const props =
-			typeof row.props === 'object' && row.props !== null && !Array.isArray(row.props)
-				? /** @type {Record<string, unknown>} */ (structuredClone(row.props))
-				: {};
+		const props = cloneBlockProps(row.props);
 		const layout = parseBlockLayout(row.layout);
 		blocks.push({
 			id: row.id,

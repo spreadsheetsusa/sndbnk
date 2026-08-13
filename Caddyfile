@@ -41,6 +41,10 @@ sndbnk.com {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Forwarded-Host {host}
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+		}
 	}
 }
 
@@ -70,5 +74,9 @@ https:// {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Forwarded-Host {host}
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+		}
 	}
 }

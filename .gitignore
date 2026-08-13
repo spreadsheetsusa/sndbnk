@@ -23,6 +23,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 # SQLite
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
 
 # Local media uploads
 /media

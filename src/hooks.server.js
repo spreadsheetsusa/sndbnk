@@ -2,6 +2,7 @@ import { building } from '$app/env';
 import { sequence } from '@sveltejs/kit/hooks';
 import { auth } from '#lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { handleSecurityHeaders } from '#lib/server/security-headers';
 import { getRequestHostname, resolveTenantHost } from '#lib/server/tenant';
 
@@ -123,6 +124,9 @@ const handleTenant = async ({ event, resolve }) => {
 
 /** @type {import('@sveltejs/kit').Handle} */
 const handleBetterAuth = async ({ event, resolve }) => {
+	const limited = rateLimitAuthHttp(event);
+	if (limited) return limited;
+
 	const session = await auth.api.getSession({ headers: event.request.headers });
 
 	if (session) {
@@ -132,5 +136,58 @@ const handleBetterAuth = async ({ event, resolve }) => {
 
 	return svelteKitHandler({ event, resolve, auth, building });
 };
+
+const AUTH_SIGNIN_PREFIX = '/api/auth/sign-in';
+const AUTH_RESET_PATHS = ['/api/auth/request-password-reset', '/api/auth/forget-password'];
+const AUTH_RESET_PREFIX = '/api/auth/reset-password';
+
+/**
+ * Rate-limit credential stuffing and reset-email spam on better-auth HTTP paths.
+ * Form actions have their own limits; this covers direct `/api/auth/*` POSTs.
+ * Loopback is skipped so the deploy smoke probe cannot 429.
+ * @param {import('@sveltejs/kit').RequestEvent} event
+ * @returns {Response | null}
+ */
+function rateLimitAuthHttp(event) {
+	if (event.request.method !== 'POST') return null;
+
+	const path = event.url.pathname;
+	const isSignIn = path === AUTH_SIGNIN_PREFIX || path.startsWith(`${AUTH_SIGNIN_PREFIX}/`);
+	const isReset =
+		path === AUTH_RESET_PREFIX ||
+		path.startsWith(`${AUTH_RESET_PREFIX}/`) ||
+		AUTH_RESET_PATHS.includes(path);
+	if (!isSignIn && !isReset) return null;
+
+	const ip = clientIp(event);
+	if (isLoopbackIp(ip)) return null;
+
+	const limited = isSignIn
+		? rateLimit(`auth-signin:${ip}`, { windowMs: 10 * 60 * 1000, max: 20 })
+		: rateLimit(`auth-reset:${ip}`, { windowMs: 60 * 60 * 1000, max: 5 });
+	if (limited.ok) return null;
+
+	return new Response(JSON.stringify({ message: 'Too many attempts. Try again later.' }), {
+		status: 429,
+		headers: {
+			'content-type': 'application/json',
+			'retry-after': String(limited.retryAfterSec)
+		}
+	});
+}
+
+/**
+ * @param {string} ip
+ */
+function isLoopbackIp(ip) {
+	return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost';
+}
+
+/** @type {import('@sveltejs/kit').HandleServerError} */
+export function handleError({ error, event, status, message }) {
+	const detail = error instanceof Error ? error.message : String(error);
+	console.error(`[error] ${status} ${event.url.pathname}: ${detail}`);
+	return { message };
+}
 
 export const handle = sequence(handleTenant, handleBetterAuth, handleSecurityHeaders);

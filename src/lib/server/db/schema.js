@@ -427,7 +427,10 @@ export const trackLike = sqliteTable(
 			.$defaultFn(() => new Date())
 			.notNull()
 	},
-	(table) => [primaryKey({ columns: [table.trackId, table.userId] })]
+	(table) => [
+		primaryKey({ columns: [table.trackId, table.userId] }),
+		index('track_like_userId_createdAt_idx').on(table.userId, table.createdAt, table.trackId)
+	]
 );
 
 export const trackLikeRelations = relations(trackLike, ({ one }) => ({
@@ -632,7 +635,10 @@ export const playlistLike = sqliteTable(
 			.$defaultFn(() => new Date())
 			.notNull()
 	},
-	(table) => [primaryKey({ columns: [table.playlistId, table.userId] })]
+	(table) => [
+		primaryKey({ columns: [table.playlistId, table.userId] }),
+		index('playlist_like_userId_createdAt_idx').on(table.userId, table.createdAt, table.playlistId)
+	]
 );
 
 export const playlistLikeRelations = relations(playlistLike, ({ one }) => ({

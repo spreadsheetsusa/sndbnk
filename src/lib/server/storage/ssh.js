@@ -2,6 +2,7 @@ import { Client } from 'ssh2';
 import path from 'node:path';
 
 import { assertSafeStorageSegment } from './path-safety.js';
+import { assertPublicSshHost } from './ssh-host.js';
 
 /**
  * @typedef {Object} SshConfig
@@ -54,7 +55,12 @@ function mkdirp(sftp, dir) {
  * @param {SshConfig} config
  * @returns {Promise<{ client: import('ssh2').Client, sftp: import('ssh2').SFTPWrapper }>}
  */
-function connect(config) {
+async function connect(config) {
+	const hostCheck = await assertPublicSshHost(config.host);
+	if (!hostCheck.ok) {
+		throw new Error(hostCheck.message);
+	}
+
 	return new Promise((resolve, reject) => {
 		const client = new Client();
 		client

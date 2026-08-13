@@ -148,6 +148,13 @@
       "when": 1786340465709,
       "tag": "0020_free_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1786641924581,
+      "tag": "0021_useful_jackpot",
+      "breakpoints": true
     }
   ]
 }

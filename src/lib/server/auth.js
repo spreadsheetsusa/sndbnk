@@ -13,6 +13,25 @@ import { sendResetPasswordMail, sendVerifyEmailChangeMail } from '#lib/server/ma
 
 const isLocalBase = PUBLIC_BASE_DOMAIN === 'localhost' || PUBLIC_BASE_DOMAIN === '127.0.0.1';
 
+/**
+ * @returns {string[]}
+ */
+function authTrustedOrigins() {
+	/** @type {string[]} */
+	const origins = [];
+	try {
+		origins.push(new URL(ORIGIN).origin);
+	} catch {
+		// ignore a malformed ORIGIN; other entries still apply
+	}
+	if (isLocalBase) {
+		origins.push('http://localhost:5174', 'http://127.0.0.1:5174');
+	} else {
+		origins.push(`https://www.${PUBLIC_BASE_DOMAIN}`);
+	}
+	return [...new Set(origins)];
+}
+
 export const auth = betterAuth({
 	baseURL: ORIGIN,
 	secret: BETTER_AUTH_SECRET,
@@ -37,13 +56,7 @@ export const auth = betterAuth({
 			await syncStripeCustomerEmail(user.id, user.email);
 		}
 	},
-	// Apex + www (Caddy redirects www, but preflight/origin checks can still see it).
-	trustedOrigins: [
-		'https://sndbnk.com',
-		'https://www.sndbnk.com',
-		'http://localhost:5174',
-		'http://127.0.0.1:5174'
-	],
+	trustedOrigins: authTrustedOrigins(),
 	// Close HTTP paths that bypass app signup (profile creation) or expose
 	// unused admin capabilities. Server-side auth.api.setRole / ban / unban remain.
 	disabledPaths: [
@@ -55,7 +68,13 @@ export const auth = betterAuth({
 		'/admin/set-user-password',
 		'/admin/update-user',
 		'/admin/revoke-user-session',
-		'/admin/revoke-user-sessions'
+		'/admin/revoke-user-sessions',
+		'/admin/set-role',
+		'/admin/ban-user',
+		'/admin/unban-user',
+		'/admin/list-users',
+		'/admin/get-user',
+		'/admin/list-user-sessions'
 	],
 	advanced: {
 		crossSubDomainCookies: isLocalBase

@@ -1,0 +1,2 @@
+CREATE INDEX `playlist_like_userId_createdAt_idx` ON `playlist_like` (`user_id`,`created_at`,`playlist_id`);--> statement-breakpoint
+CREATE INDEX `track_like_userId_createdAt_idx` ON `track_like` (`user_id`,`created_at`,`track_id`);

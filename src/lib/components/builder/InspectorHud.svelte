@@ -15,6 +15,7 @@
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
 	import PersonaPaletteEditor from '#lib/components/builder/PersonaPaletteEditor.svelte';
 	import ThemeControls from '#lib/components/ThemeControls.svelte';
+	import { isSafeHref } from '#lib/safe-href.js';
 
 	/**
 	 * @type {{
@@ -111,7 +112,31 @@
 		}
 		return blank;
 	}
+
+	/**
+	 * @param {unknown} value
+	 */
+	function hrefInvalid(value) {
+		return !isSafeHref(typeof value === 'string' ? value : String(value ?? ''));
+	}
 </script>
+
+{#snippet urlField(label, value, oninput)}
+	{@const invalid = hrefInvalid(value)}
+	<label>
+		<span>{label}</span>
+		<input
+			type="text"
+			inputmode="url"
+			value={String(value ?? '')}
+			aria-invalid={invalid}
+			oninput={(e) => oninput(e.currentTarget.value)}
+		/>
+		{#if invalid}
+			<span class="field-error" role="alert">Use a /path, http(s) URL, or mailto: address.</span>
+		{/if}
+	</label>
+{/snippet}
 
 {#snippet chromePicker(kind, catalog, activeType)}
 	<ul class="chrome-thumbs" aria-label="{kind} layouts">
@@ -173,40 +198,49 @@
 									</button>
 								</div>
 								{#each field.itemFields ?? [] as itemField (itemField.key)}
-									<label>
-										<span>{itemField.label}</span>
-										{#if itemField.kind === 'textarea'}
-											<textarea
-												rows="3"
-												value={String(item[itemField.key] ?? '')}
-												oninput={(e) =>
-													builder.updateChromeListItem(
-														kind,
-														field.key,
-														itemIndex,
-														itemField.key,
-														e.currentTarget.value
-													)}></textarea>
-										{:else}
-											<input
-												type="text"
-												inputmode={itemField.kind === 'url' ? 'url' : 'text'}
-												value={String(item[itemField.key] ?? '')}
-												oninput={(e) =>
-													builder.updateChromeListItem(
-														kind,
-														field.key,
-														itemIndex,
-														itemField.key,
-														e.currentTarget.value
-													)}
-											/>
-										{/if}
-									</label>
+									{#if itemField.kind === 'url'}
+										{@render urlField(itemField.label, item[itemField.key], (value) =>
+											builder.updateChromeListItem(kind, field.key, itemIndex, itemField.key, value)
+										)}
+									{:else}
+										<label>
+											<span>{itemField.label}</span>
+											{#if itemField.kind === 'textarea'}
+												<textarea
+													rows="3"
+													value={String(item[itemField.key] ?? '')}
+													oninput={(e) =>
+														builder.updateChromeListItem(
+															kind,
+															field.key,
+															itemIndex,
+															itemField.key,
+															e.currentTarget.value
+														)}></textarea>
+											{:else}
+												<input
+													type="text"
+													value={String(item[itemField.key] ?? '')}
+													oninput={(e) =>
+														builder.updateChromeListItem(
+															kind,
+															field.key,
+															itemIndex,
+															itemField.key,
+															e.currentTarget.value
+														)}
+												/>
+											{/if}
+										</label>
+									{/if}
 								{/each}
 							</div>
 						{/each}
 					</section>
+				{:else if field.kind === 'url'}
+					{@render urlField(field.label, instance.props[field.key], (value) =>
+						builder.updateChromeProps(kind, { [field.key]: value })
+					)}
 				{:else}
 					<label>
 						<span>{field.label}</span>
@@ -221,7 +255,6 @@
 						{:else}
 							<input
 								type="text"
-								inputmode={field.kind === 'url' ? 'url' : 'text'}
 								value={String(instance.props[field.key] ?? '')}
 								oninput={(e) =>
 									builder.updateChromeProps(kind, {
@@ -516,40 +549,55 @@
 												</button>
 											</div>
 											{#each field.itemFields ?? [] as itemField (itemField.key)}
-												<label>
-													<span>{itemField.label}</span>
-													{#if itemField.kind === 'textarea'}
-														<textarea
-															rows="3"
-															value={String(item[itemField.key] ?? '')}
-															oninput={(e) =>
-																builder.updateBlockListItem(
-																	selected.id,
-																	field.key,
-																	itemIndex,
-																	itemField.key,
-																	e.currentTarget.value
-																)}></textarea>
-													{:else}
-														<input
-															type="text"
-															inputmode={itemField.kind === 'url' ? 'url' : 'text'}
-															value={String(item[itemField.key] ?? '')}
-															oninput={(e) =>
-																builder.updateBlockListItem(
-																	selected.id,
-																	field.key,
-																	itemIndex,
-																	itemField.key,
-																	e.currentTarget.value
-																)}
-														/>
-													{/if}
-												</label>
+												{#if itemField.kind === 'url'}
+													{@render urlField(itemField.label, item[itemField.key], (value) =>
+														builder.updateBlockListItem(
+															selected.id,
+															field.key,
+															itemIndex,
+															itemField.key,
+															value
+														)
+													)}
+												{:else}
+													<label>
+														<span>{itemField.label}</span>
+														{#if itemField.kind === 'textarea'}
+															<textarea
+																rows="3"
+																value={String(item[itemField.key] ?? '')}
+																oninput={(e) =>
+																	builder.updateBlockListItem(
+																		selected.id,
+																		field.key,
+																		itemIndex,
+																		itemField.key,
+																		e.currentTarget.value
+																	)}></textarea>
+														{:else}
+															<input
+																type="text"
+																value={String(item[itemField.key] ?? '')}
+																oninput={(e) =>
+																	builder.updateBlockListItem(
+																		selected.id,
+																		field.key,
+																		itemIndex,
+																		itemField.key,
+																		e.currentTarget.value
+																	)}
+															/>
+														{/if}
+													</label>
+												{/if}
 											{/each}
 										</div>
 									{/each}
 								</section>
+							{:else if field.kind === 'url'}
+								{@render urlField(field.label, selected.props[field.key], (value) =>
+									setProp(field.key, value)
+								)}
 							{:else}
 								<label>
 									<span>{field.label}</span>
@@ -561,7 +609,6 @@
 									{:else}
 										<input
 											type="text"
-											inputmode={field.kind === 'url' ? 'url' : 'text'}
 											value={String(selected.props[field.key] ?? '')}
 											oninput={(e) => setProp(field.key, e.currentTarget.value)}
 										/>
@@ -924,6 +971,13 @@
 		border: 1px solid var(--ink);
 		padding: 0.4rem 0.5rem;
 		font-size: 0.8rem;
+	}
+
+	.field-error {
+		display: block;
+		margin: 0.2rem 0 0;
+		color: var(--muted);
+		font-size: 0.75rem;
 	}
 
 	.form-ok {
