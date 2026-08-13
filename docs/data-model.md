@@ -200,7 +200,8 @@ treated as a position tweak, not an edit.
 ### `track_like`
 
 Composite primary key `(trackId, userId)`, so the "one like per user" rule is a schema guarantee and
-the toggle endpoint needs no uniqueness check.
+the toggle endpoint needs no uniqueness check. Indexed on `(userId, createdAt, trackId)` for the
+profile Likes tab keyset, matching `track_repost`.
 
 ### `track_repost`
 
@@ -238,8 +239,9 @@ cascade, so deleting a track or playlist drops membership. Only published tracks
 
 ### `playlist_like`
 
-Same shape as `track_like` — composite primary key `(playlistId, userId)`. Playlist likes are
-independent of likes on member tracks.
+Same shape as `track_like` — composite primary key `(playlistId, userId)` plus a
+`(userId, createdAt, playlistId)` index for the Likes tab. Playlist likes are independent of likes
+on member tracks.
 
 ## Relations
 

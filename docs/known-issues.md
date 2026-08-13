@@ -92,10 +92,10 @@ Stripe products/prices into the database.
 
 ### Rate limits are in-memory only
 
-Sign-in, signup, forgot/reset password, and anonymous checkout use
+Sign-in, signup, forgot/reset password, anonymous checkout, better-auth HTTP POSTs, and comments use
 [`rate-limit.js`](../src/lib/server/rate-limit.js). Counters live in process memory: they reset on
 restart and are not shared across processes. Fine for single-node Lightsail; not a Redis-backed
-limiter.
+limiter. Loopback is skipped on `/api/auth` so the deploy smoke probe cannot 429.
 
 ### List chrome, infinite scroll, and scroll restore
 

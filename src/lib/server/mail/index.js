@@ -1,13 +1,31 @@
-import { MAIL_FROM, MAIL_TRANSPORT } from '$app/env/private';
+import { MAIL_FROM, MAIL_TRANSPORT, ORIGIN } from '$app/env/private';
 
 import { consoleAdapter } from './console.js';
 import { smtpAdapter } from './smtp.js';
+
+let warnedConsoleMail = false;
 
 /**
  * @returns {import('./types.js').MailAdapter}
  */
 function getAdapter() {
+	warnIfConsoleInProd();
 	return MAIL_TRANSPORT === 'smtp' ? smtpAdapter : consoleAdapter;
+}
+
+function warnIfConsoleInProd() {
+	if (warnedConsoleMail || MAIL_TRANSPORT === 'smtp') return;
+	let host = '';
+	try {
+		host = new URL(ORIGIN).hostname;
+	} catch {
+		return;
+	}
+	if (host === 'localhost' || host === '127.0.0.1') return;
+	warnedConsoleMail = true;
+	console.warn(
+		'[mail] MAIL_TRANSPORT=console on a non-local ORIGIN; reset/verify links will print to stdout instead of sending.'
+	);
 }
 
 /**

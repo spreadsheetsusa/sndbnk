@@ -2,6 +2,8 @@
 Description=sndbnk waveform worker
 After=network.target redis-server.service
 Wants=redis-server.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=exec
@@ -11,7 +13,9 @@ WorkingDirectory=/var/www/sndbnk
 EnvironmentFile=-/var/www/sndbnk/.env
 ExecStart=/home/ubuntu/.bun/bin/bun ./scripts/waveform-worker.js
 Restart=always
-RestartSec=2
+RestartSec=5
+TimeoutStopSec=60
+Nice=10
 
 [Install]
 WantedBy=multi-user.target

@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 
 import { db } from '#lib/server/db';
 import { trackComment } from '#lib/server/db/schema';
+import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
 import { canViewTrack, getTrackById, listTimedCommentsForTracks } from '#lib/server/tracks';
@@ -27,12 +28,21 @@ export async function GET({ locals, params }) {
 	return json({ comments: map.get(row.id) ?? [] });
 }
 
-export async function POST({ locals, params, request, url }) {
+export async function POST(event) {
+	const { locals, params, request, url } = event;
 	if (!locals.user) {
 		error(401, 'Sign in to comment.');
 	}
 	if (!isTrustedMutationRequest(request, url)) {
 		error(403, 'Invalid request origin.');
+	}
+
+	const limited = rateLimit(`comment:${locals.user.id}:${clientIp(event)}`, {
+		windowMs: 10 * 60 * 1000,
+		max: 20
+	});
+	if (!limited.ok) {
+		error(429, 'Too many comments. Try again in a few minutes.');
 	}
 
 	const row = await getTrackById(params.id);

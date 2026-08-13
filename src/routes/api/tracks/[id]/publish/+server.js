@@ -1,10 +1,14 @@
 import { error, json } from '@sveltejs/kit';
 
+import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { setTrackPublished } from '#lib/server/tracks';
 
-export async function POST({ locals, params, request }) {
+export async function POST({ locals, params, request, url }) {
 	if (!locals.user) {
 		error(401, 'Unauthorized');
+	}
+	if (!isTrustedMutationRequest(request, url)) {
+		error(403, 'Invalid request origin.');
 	}
 
 	/** @type {{ published?: unknown }} */

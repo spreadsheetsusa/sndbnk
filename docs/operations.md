@@ -123,7 +123,8 @@ Steps, in order:
    ffmpeg is still absent.
 6. `bun install`, source `.env`, `bun run db:backup` (when the SQLite file exists),
    `bun run db:migrate` (Drizzle SQL under `drizzle/` via the Bun migrator), `bun run build`.
-7. `systemctl restart sndbnk sndbnk-waveform-worker`, confirm both `is-active`.
+7. `systemctl restart sndbnk sndbnk-waveform-worker`, confirm both `is-active`, then wait for
+   `GET http://127.0.0.1:3000/api/health` (`{ ok: true }` after `SELECT 1`) for up to 30s.
 8. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with
    `origin: https://sndbnk.com`. A `400`/`401` means the origin was accepted and the deploy passes.
    A `403 INVALID_ORIGIN` or a `500` fails the job and dumps `journalctl -u sndbnk -n 50`.
@@ -133,14 +134,14 @@ That last step is the reason production auth regressions get caught by CI rather
 ### The service
 
 [`systemd.service`](../systemd.service) runs as `ubuntu` from `/var/www/sndbnk`,
-`ExecStart=/home/ubuntu/.bun/bin/bun run build/index.js`, `Restart=always`,
-`HOST=127.0.0.1` / `PORT=3000` (loopback-only so clients cannot forge `X-Forwarded-Host` against the
-app port), and `EnvironmentFile=-/var/www/sndbnk/.env` (Bun also auto-loads `.env`; the
-`EnvironmentFile` makes the values visible to non-Bun helpers).
+`ExecStart=/home/ubuntu/.bun/bin/bun run build/index.js`, `Restart=always` / `RestartSec=5` with a
+burst limit, `TimeoutStopSec=30`, `HOST=127.0.0.1` / `PORT=3000` (loopback-only so clients cannot
+forge `X-Forwarded-Host` against the app port), and `EnvironmentFile=-/var/www/sndbnk/.env` (Bun
+also auto-loads `.env`; the `EnvironmentFile` makes the values visible to non-Bun helpers).
 
 [`systemd.waveform-worker.service`](../systemd.waveform-worker.service) runs the BullMQ consumer
 (`bun ./scripts/waveform-worker.js`) with concurrency 1 so one long mix cannot pile up ffmpeg on the
-box. It wants `redis-server.service`.
+box. It wants `redis-server.service`, `Nice=10`, and `TimeoutStopSec=60`.
 
 Useful commands on the box:
 
@@ -193,7 +194,9 @@ process keeps a stale config (subdomains then fail TLS with
 | `https://` catch-all | `tls { on_demand }`, same proxy — serves entitled subdomains and custom domains |
 
 All proxied requests get `X-Real-IP`, `X-Forwarded-Proto`, and `X-Forwarded-Host`. The tenant hook
-reads `x-forwarded-host`, so this header is load-bearing, not cosmetic.
+reads `x-forwarded-host`, so this header is load-bearing, not cosmetic. Upstream `transport` sets a
+5s dial timeout and 30s response-header timeout; there is no short `read_timeout` so long media
+streams and large uploads are not cut off.
 
 Security headers set on both site blocks: HSTS, `X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive
@@ -220,15 +223,28 @@ pointing any domain at the server would let it obtain a certificate.
 - **Tenant isolation:** subdomain / custom-domain hosts only serve that creator’s tracks, playlists,
   and profile APIs. Apex discovery stays global.
 - **Auth abuse:** in-memory rate limits on sign-in / signup / password reset / anonymous checkout
-  signup; better-auth `disabledPaths` closes public `/sign-up/email` and unused admin HTTP routes
-  (impersonation, create/remove user, set password). Signup surfaces (`/signup` and anonymous
-  `/plans` checkout) also use an invisible honeypot plus HMAC timing token (`form-guard.js`) — no
-  third-party captcha or extra services.
-
+  signup **and** on better-auth HTTP POSTs (`/api/auth/sign-in/*`, password-reset paths); leftover
+  admin HTTP routes are in `disabledPaths` (staff `/admin` still uses `auth.api.*`). Signup surfaces
+  (`/signup` and anonymous `/plans` checkout) also use an invisible honeypot plus HMAC timing token
+  (`form-guard.js`) — no third-party captcha or extra services.
 - **Uploads:** magic-byte sniffing for audio/images; SSH BYOS rejects private / link-local /
-  metadata targets; storage adapters refuse path-escaping segments; ffmpeg waveform extraction runs
-  in a BullMQ worker with a long timeout and streams PCM (no full-decode memory cap).
-- **Mutating JSON APIs:** require a same-site / allowed `Origin` (or `Sec-Fetch-Site`).
+  metadata targets **at save and again on connect**; storage adapters refuse path-escaping segments;
+  ffmpeg waveform extraction runs in a BullMQ worker with a long timeout and streams PCM (no
+  full-decode memory cap). Site-builder hrefs are sanitized to `/` paths, http(s), or `mailto:`.
+- **Mutating JSON APIs:** require a same-site / allowed `Origin` (or `Sec-Fetch-Site`). Comments are
+  rate-limited per user+IP.
+
+### SQLite, backups, and health
+
+Runtime (and the migrator) enable `journal_mode=WAL`, `busy_timeout=5000`, `synchronous=NORMAL`, and
+`foreign_keys=ON` so the HTTP process and waveform worker can share one file. Deploy already chowns
+`-wal` / `-shm` sidecars.
+
+`bun run db:backup` uses `VACUUM INTO` for a consistent snapshot while the app is up, then keeps the
+last 14 files under `BACKUP_DIR` (default `<db-dir>/backups`).
+
+`GET /api/health` (apex) returns `{ ok: true }` after `SELECT 1`. Redis and ffmpeg are fail-soft and
+are not part of this probe. Deploy waits on it after restart before the auth smoke POST.
 
 DNS requirements (platform, Route 53 hosted zone for `sndbnk.com`):
 

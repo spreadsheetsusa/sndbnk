@@ -321,9 +321,28 @@ jobs:
 
             echo "Restarting Bun app + waveform worker..."
             sudo systemctl restart sndbnk sndbnk-waveform-worker
-            sleep 2
             systemctl is-active sndbnk
             systemctl is-active sndbnk-waveform-worker
+
+            echo "Waiting for /api/health..."
+            health_ok=0
+            for _ in $(seq 1 30); do
+              HEALTH_CODE="$(
+                curl -sS -o /tmp/health.body -w '%{http_code}' --max-time 2 \
+                  'http://127.0.0.1:3000/api/health' || true
+              )"
+              if [ "$HEALTH_CODE" = "200" ] && grep -q '"ok":true' /tmp/health.body; then
+                health_ok=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$health_ok" != "1" ]; then
+              echo "Health check failed after restart (last HTTP ${HEALTH_CODE:-none})" >&2
+              cat /tmp/health.body 2>/dev/null || true
+              journalctl -u sndbnk -n 50 --no-pager || true
+              exit 1
+            fi
 
             echo "Smoke-testing auth origin..."
             CODE="$(

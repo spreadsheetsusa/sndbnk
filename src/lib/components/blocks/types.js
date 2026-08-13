@@ -1,3 +1,5 @@
+import { sanitizeBlockUrlProps } from '#lib/safe-href.js';
+
 /**
  * Server-safe allowlist of block types (no Svelte imports).
  * Keep in sync with `#lib/components/blocks/registry.js`.
@@ -222,14 +224,21 @@ export function isPageBodyBlockType(type) {
 }
 
 /**
+ * Clone block/chrome props and strip unsafe hrefs (`javascript:`, `data:`, …).
+ * Used on both parse (public render) and normalize (save).
  * @param {unknown} value
  * @returns {Record<string, unknown>}
  */
-function cloneProps(value) {
+export function cloneBlockProps(value) {
 	if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-		return /** @type {Record<string, unknown>} */ (structuredClone(value));
+		return sanitizeBlockUrlProps(/** @type {Record<string, unknown>} */ (structuredClone(value)));
 	}
 	return {};
+}
+
+/** @param {unknown} value */
+function cloneProps(value) {
+	return cloneBlockProps(value);
 }
 
 /**

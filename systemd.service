@@ -1,6 +1,8 @@
 [Unit]
 Description=sndbnk
 After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=exec
@@ -14,7 +16,8 @@ Environment=HOST=127.0.0.1
 Environment=PORT=3000
 ExecStart=/home/ubuntu/.bun/bin/bun run build/index.js
 Restart=always
-RestartSec=2
+RestartSec=5
+TimeoutStopSec=30
 
 # SQLite needs write access for the db file and WAL/SHM sidecars.
 UMask=0022

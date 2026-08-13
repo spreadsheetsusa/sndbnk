@@ -16,6 +16,7 @@ import { createInterface } from 'node:readline';
 import { hashPassword } from 'better-auth/crypto';
 
 import { validateUsername } from '../src/lib/server/username.js';
+import { SQLITE_PRAGMAS } from '../src/lib/server/db/pragmas.js';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -24,7 +25,7 @@ if (!dbPath) throw new Error('DATABASE_URL is not set');
 
 const args = parseArgs(process.argv.slice(2));
 const db = new Database(dbPath);
-db.exec('PRAGMA foreign_keys = ON;');
+db.exec(SQLITE_PRAGMAS);
 
 const email = (args.email ?? (await ask('Email: '))).trim().toLowerCase();
 const usernameRaw = args.username ?? (await ask('Username: '));

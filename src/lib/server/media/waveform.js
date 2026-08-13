@@ -44,9 +44,10 @@ function truncate(text, max = 240) {
 
 /**
  * @param {string} inputPath
+ * @param {number} [timeoutMs]
  * @returns {Promise<number | null>} duration in seconds, or null if unknown
  */
-async function probeDurationSeconds(inputPath) {
+async function probeDurationSeconds(inputPath, timeoutMs = FFMPEG_TIMEOUT_MS) {
 	const proc = Bun.spawn(
 		[
 			'ffprobe',
@@ -61,15 +62,27 @@ async function probeDurationSeconds(inputPath) {
 		{ stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }
 	);
 
-	const [stdoutBuf, exitCode] = await Promise.all([
-		new Response(proc.stdout).arrayBuffer(),
-		proc.exited
-	]);
+	const timer = setTimeout(() => {
+		try {
+			proc.kill();
+		} catch {
+			// already exited
+		}
+	}, timeoutMs);
 
-	if (exitCode !== 0) return null;
-	const text = new TextDecoder().decode(stdoutBuf).trim();
-	const seconds = Number.parseFloat(text);
-	return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+	try {
+		const [stdoutBuf, exitCode] = await Promise.all([
+			new Response(proc.stdout).arrayBuffer(),
+			proc.exited
+		]);
+
+		if (exitCode !== 0) return null;
+		const text = new TextDecoder().decode(stdoutBuf).trim();
+		const seconds = Number.parseFloat(text);
+		return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 /**
