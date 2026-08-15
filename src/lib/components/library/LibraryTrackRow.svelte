@@ -30,6 +30,7 @@
 	 * @property {string | null} [coverUrl]
 	 * @property {string | null} [audioUrl]
 	 * @property {boolean} published
+	 * @property {boolean} [isPrivate]
 	 * @property {number} createdAt
 	 * @property {string | null} username
 	 * @property {string} uploaderName
@@ -182,7 +183,12 @@
 		aria-label="Load {track.title} into the deck"
 		onclick={() => onselect?.()}
 	>
-		<span class="title">{track.title}</span>
+		<span class="title-line">
+			<span class="title">{track.title}</span>
+			{#if track.published && track.isPrivate}
+				<span class="private-badge" title="Only reachable by link">Private</span>
+			{/if}
+		</span>
 		<span class="artist">{track.artist || track.uploaderName}</span>
 	</button>
 
@@ -387,8 +393,18 @@
 		cursor: pointer;
 	}
 
+	.title-line {
+		display: inline-flex;
+		gap: 0.35rem;
+		align-items: center;
+		min-width: 0;
+		max-width: 100%;
+		overflow: hidden;
+	}
+
 	.title {
 		overflow: hidden;
+		min-width: 0;
 		max-width: 100%;
 		color: var(--ink);
 		font-size: 0.85rem;
@@ -396,6 +412,19 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		flex-shrink: 1;
+	}
+
+	.private-badge {
+		flex-shrink: 0;
+		padding: 0.15rem 0.35rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--accent) 25%, var(--paper));
+		color: var(--ink);
+		font-size: 0.58rem;
+		font-weight: 900;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
 	}
 
 	.artist {

@@ -14,7 +14,8 @@ import { getSshPublicBaseUrls } from '#lib/server/storage';
 import {
 	getSocialForTracks,
 	listTimedCommentsForTracks,
-	serializeTrackForPlayer
+	serializeTrackForPlayer,
+	trackListedCondition
 } from '#lib/server/tracks';
 
 export const PLAYLIST_PAGE_SIZE = 24;
@@ -113,7 +114,7 @@ export async function listPlaylistTrackRows(playlistId) {
 		.innerJoin(track, eq(track.id, playlistTrack.trackId))
 		.leftJoin(profile, eq(profile.userId, track.userId))
 		.leftJoin(user, eq(user.id, track.userId))
-		.where(and(eq(playlistTrack.playlistId, playlistId), eq(track.published, true)))
+		.where(and(eq(playlistTrack.playlistId, playlistId), trackListedCondition()))
 		.orderBy(asc(playlistTrack.position));
 }
 
@@ -300,10 +301,12 @@ export async function addTrackToPlaylist(userId, playlistId, trackId) {
 	const trackRows = await db
 		.select()
 		.from(track)
-		.where(and(eq(track.id, trackId), eq(track.published, true)))
+		.where(and(eq(track.id, trackId), trackListedCondition()))
 		.limit(1);
 	const member = trackRows[0] ?? null;
-	if (!member) return { ok: false, message: 'Only published tracks can be added to a playlist.' };
+	if (!member) {
+		return { ok: false, message: 'Only publicly listed tracks can be added to a playlist.' };
+	}
 
 	const existing = await db
 		.select({ trackId: playlistTrack.trackId })

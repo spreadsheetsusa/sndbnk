@@ -47,6 +47,7 @@
 	 * @property {string | null} [coverUrl]
 	 * @property {string | null} [audioUrl]
 	 * @property {boolean} [published]
+	 * @property {boolean} [isPrivate]
 	 * @property {string | null} username
 	 * @property {string} uploaderName
 	 * @property {number[] | null} waveform
@@ -95,7 +96,8 @@
 	 *   onedit?: () => void,
 	 *   oncancel?: () => void,
 	 *   onupdated?: (patch: Record<string, unknown>) => void,
-	 *   onpublished?: (published: boolean) => void
+	 *   onpublished?: (published: boolean) => void,
+	 *   onprivate?: (isPrivate: boolean) => void
 	 * }}
 	 */
 	let {
@@ -106,7 +108,8 @@
 		onedit,
 		oncancel,
 		onupdated,
-		onpublished
+		onpublished,
+		onprivate
 	} = $props();
 
 	const showViz = $derived(visualizerBackdrop && visualizer.showInline);
@@ -159,10 +162,14 @@
 	let coverPreviewUrl = $state(null);
 	let busy = $state(false);
 	let publishBusy = $state(false);
+	let privateBusy = $state(false);
 	let writeTags = $state(false);
 	/** @type {boolean | null} */
 	let publishOverride = $state(null);
+	/** @type {boolean | null} */
+	let privateOverride = $state(null);
 	const published = $derived(publishOverride ?? track?.published ?? false);
+	const isPrivate = $derived(privateOverride ?? track?.isPrivate ?? false);
 
 	let fields = $state({
 		title: '',
@@ -221,6 +228,7 @@
 		draftOpen = false;
 		draftValue = '';
 		publishOverride = null;
+		privateOverride = null;
 		writeTags = false;
 		clearCoverPreview();
 	});
@@ -459,6 +467,25 @@
 			}
 		} finally {
 			publishBusy = false;
+		}
+	}
+
+	async function togglePrivate() {
+		if (!track || privateBusy) return;
+		privateBusy = true;
+		try {
+			const res = await fetch(`/api/tracks/${track.id}/private`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ isPrivate: !isPrivate })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				privateOverride = data.isPrivate;
+				onprivate?.(data.isPrivate);
+			}
+		} finally {
+			privateBusy = false;
 		}
 	}
 
@@ -904,12 +931,33 @@
 												title={published
 													? 'Visible on your public profile'
 													: 'Hidden from your public profile'}
-												disabled={publishBusy || busy}
+												disabled={publishBusy || privateBusy || busy}
 												onclick={togglePublished}
 											>
 												<span class="knob"></span>
 											</button>
 										</div>
+										{#if published}
+											<div class="publish-field">
+												<span class="publish-label">Private</span>
+												<button
+													type="button"
+													class="publish-switch"
+													role="switch"
+													aria-checked={isPrivate}
+													aria-label={isPrivate
+														? `Make ${track.title} public`
+														: `Make ${track.title} private`}
+													title={isPrivate
+														? 'Only reachable by link'
+														: 'Listed on feed and profile'}
+													disabled={privateBusy || publishBusy || busy}
+													onclick={togglePrivate}
+												>
+													<span class="knob"></span>
+												</button>
+											</div>
+										{/if}
 										<label class="write-tags">
 											<input
 												type="checkbox"

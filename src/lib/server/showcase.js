@@ -6,7 +6,8 @@ import { profile, track, trackComment, trackLike, user } from '#lib/server/db/sc
 import {
 	getSocialForTracks,
 	getTrackWithUploader,
-	serializeTrackForPlayer
+	serializeTrackForPlayer,
+	trackListedCondition
 } from '#lib/server/tracks';
 
 const HERO_POOL_SIZE = 12;
@@ -28,7 +29,7 @@ async function listHeroCandidateIds(limit = HERO_POOL_SIZE) {
 		})
 		.from(trackLike)
 		.innerJoin(track, eq(trackLike.trackId, track.id))
-		.where(eq(track.published, true))
+		.where(trackListedCondition())
 		.groupBy(track.id, track.coverFilename, track.createdAt)
 		.orderBy(desc(likeCount), desc(track.createdAt))
 		.limit(limit);
@@ -42,7 +43,7 @@ async function listHeroCandidateIds(limit = HERO_POOL_SIZE) {
 	const newest = await db
 		.select({ id: track.id })
 		.from(track)
-		.where(and(eq(track.published, true), isNotNull(track.coverFilename)))
+		.where(and(trackListedCondition(), isNotNull(track.coverFilename)))
 		.orderBy(desc(track.createdAt), desc(track.id))
 		.limit(limit);
 
@@ -94,17 +95,17 @@ export async function getSiteStats() {
 				totalDurationMs: sql`coalesce(sum(${track.durationMs}), 0)`.mapWith(Number)
 			})
 			.from(track)
-			.where(eq(track.published, true)),
+			.where(trackListedCondition()),
 		db
 			.select({ n: count() })
 			.from(trackLike)
 			.innerJoin(track, eq(track.id, trackLike.trackId))
-			.where(eq(track.published, true)),
+			.where(trackListedCondition()),
 		db
 			.select({ n: count() })
 			.from(trackComment)
 			.innerJoin(track, eq(track.id, trackComment.trackId))
-			.where(eq(track.published, true)),
+			.where(trackListedCondition()),
 		db
 			.select({
 				name: user.name,
@@ -116,14 +117,14 @@ export async function getSiteStats() {
 			.leftJoin(trackLike, eq(trackLike.trackId, track.id))
 			.leftJoin(profile, eq(profile.userId, track.userId))
 			.leftJoin(user, eq(user.id, track.userId))
-			.where(eq(track.published, true))
+			.where(trackListedCondition())
 			.groupBy(track.userId, user.name, profile.username)
 			.orderBy(desc(artistLikes), desc(artistTracks))
 			.limit(1),
 		db
 			.select({ genre: track.genre })
 			.from(track)
-			.where(and(eq(track.published, true), isNotNull(track.genre), ne(track.genre, '')))
+			.where(and(trackListedCondition(), isNotNull(track.genre), ne(track.genre, '')))
 	]);
 
 	const top = topArtists[0];

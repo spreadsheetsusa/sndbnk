@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 
 import { db } from '#lib/server/db';
 import { follow, profile, track, trackLike, trackRepost, user } from '#lib/server/db/schema';
+import { isTrackListed, trackListedCondition } from '#lib/server/tracks';
 
 const DEFAULT_ARTIST_LIMIT = 5;
 
@@ -84,13 +85,21 @@ export async function listFollowingIds(userId) {
 /**
  * Repost or un-repost a track, returning the new state and total repost count.
  * Reposting your own track is rejected — it would duplicate the row on your profile.
+ * Private published tracks cannot be reposted (would re-list them on the feed).
  * @param {string} userId
  * @param {string} trackId
  * @param {string} trackOwnerId
+ * @param {{ published: boolean, isPrivate: boolean }} [trackRow]
  */
-export async function toggleRepost(userId, trackId, trackOwnerId) {
+export async function toggleRepost(userId, trackId, trackOwnerId, trackRow) {
 	if (userId === trackOwnerId) {
 		return { ok: /** @type {const} */ (false), message: 'You cannot repost your own track.' };
+	}
+	if (trackRow && !isTrackListed(trackRow)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Private tracks cannot be reposted.'
+		};
 	}
 
 	const pair = and(eq(trackRepost.trackId, trackId), eq(trackRepost.userId, userId));
@@ -128,12 +137,12 @@ export async function getProfileStats(userId) {
 		db
 			.select({ n: count() })
 			.from(track)
-			.where(and(eq(track.userId, userId), eq(track.published, true))),
+			.where(and(eq(track.userId, userId), trackListedCondition())),
 		db
 			.select({ n: count() })
 			.from(trackLike)
 			.innerJoin(track, eq(track.id, trackLike.trackId))
-			.where(and(eq(track.userId, userId), eq(track.published, true))),
+			.where(and(eq(track.userId, userId), trackListedCondition())),
 		db.select({ n: count() }).from(trackRepost).where(eq(trackRepost.userId, userId))
 	]);
 
@@ -177,7 +186,7 @@ export async function describeArtists(userIds, viewerId) {
 			.select({ userId: track.userId, n: count() })
 			.from(trackLike)
 			.innerJoin(track, eq(track.id, trackLike.trackId))
-			.where(and(inArray(track.userId, userIds), eq(track.published, true)))
+			.where(and(inArray(track.userId, userIds), trackListedCondition()))
 			.groupBy(track.userId),
 		viewerId
 			? db
@@ -254,7 +263,10 @@ export async function listFansAlsoLike(userId, viewerId, limit = DEFAULT_ARTIST_
 		.where(
 			and(
 				eq(fanTrack.userId, userId),
+				eq(fanTrack.published, true),
+				eq(fanTrack.isPrivate, false),
 				eq(otherTrack.published, true),
+				eq(otherTrack.isPrivate, false),
 				notInArray(otherTrack.userId, excludedIds(userId, viewerId))
 			)
 		)

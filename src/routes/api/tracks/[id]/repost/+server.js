@@ -18,7 +18,7 @@ export async function POST({ locals, params, request, url }) {
 		error(404, 'Track not found');
 	}
 
-	const result = await toggleRepost(locals.user.id, row.id, row.userId);
+	const result = await toggleRepost(locals.user.id, row.id, row.userId, row);
 	if (!result.ok) {
 		error(400, result.message);
 	}

@@ -180,15 +180,17 @@ Four groups of columns:
 | Editable metadata   | `title` (required), `description`, `artist`, `album`, `albumArtist`, `genre` (free text; comma-separated for multiple values), `mediaType` (`track` \| `mix` \| `sample` \| `loop` \| `podcast`, default `track`), `year`, `trackNumber`, `discNumber`, `bpm`, `isrc`, `composer`, `comment` |
 | Files               | `audioFilename`, `audioMime`, `audioBytes` (playback file the player serves), `originalFilename`, `originalMime`, `originalBytes` (preserved source when playback is a derivative, e.g. WAV kept after MP3 encode; null otherwise), `coverFilename`, `coverMime`, `coverBytes`               |
 | Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`, `encoder`, `tagTypes`, `trackGainDb`, `container`                                                                                                                                                                                |
-| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `storageAdapter`, `folderKey`                                                                                                                                                                                                           |
+| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `isPrivate`, `storageAdapter`, `folderKey`                                                                                                                                                                                              |
 
 `storageAdapter` is a **snapshot of the owner's adapter at upload time**, and `folderKey` equals the
 track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —
 so switching your storage setting never orphans existing tracks.
 
-`published` defaults to `1`. Public surfaces — profile pages, the feed, the landing hero, and
-`/tracks/[id]` for anyone but the owner — filter on it; the owner's library lists every track and
-carries the toggle.
+`published` defaults to `1`; `isPrivate` defaults to `0`. Link access (`/tracks/[id]`, media) uses
+`published` — private published tracks stay reachable by URL. Public listings — profile pages, the
+feed, the landing hero, sitemap, likes tabs, playlists, and discover sidebars — require
+`published && !isPrivate`. The owner's library lists every track and carries Published + Private
+toggles.
 
 ### `track_comment`
 
@@ -234,7 +236,8 @@ comment chrome on a playlist card posts to the active member track.
 ### `playlist_track`
 
 Composite primary key `(playlistId, trackId)` with a dense `position` (0..n-1) for order. Both FKs
-cascade, so deleting a track or playlist drops membership. Only published tracks may be added
+cascade, so deleting a track or playlist drops membership. Only publicly listed tracks
+(`published && !isPrivate`) may be added
 (enforced in the service).
 
 ### `playlist_like`
