@@ -524,6 +524,9 @@
 			onpublished={(published) => {
 				if (resolvedId) mergeTrackPatch({ id: resolvedId, published });
 			}}
+			onprivate={(isPrivate) => {
+				if (resolvedId) mergeTrackPatch({ id: resolvedId, isPrivate });
+			}}
 		/>
 
 		<section class="block" aria-labelledby="tracks-heading">

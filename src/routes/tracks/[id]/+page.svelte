@@ -88,6 +88,7 @@
 	siteName={tenantSiteName}
 	type="music.song"
 	jsonLd={seoJsonLd}
+	noindex={Boolean(data.track.isPrivate)}
 />
 
 <div class="track-page">
