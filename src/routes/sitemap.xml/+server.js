@@ -3,6 +3,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { playlist, profile, track } from '#lib/server/db/schema';
+import { trackListedCondition } from '#lib/server/tracks';
 
 /**
  * @param {string} value
@@ -43,7 +44,7 @@ export const GET = async () => {
 				createdAt: track.createdAt
 			})
 			.from(track)
-			.where(eq(track.published, true)),
+			.where(trackListedCondition()),
 		db
 			.select({
 				id: playlist.id,

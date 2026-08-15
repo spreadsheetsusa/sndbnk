@@ -18,7 +18,12 @@ import {
 	trackLike,
 	user
 } from '#lib/server/db/schema';
-import { TRACK_PAGE_SIZE, canViewTrack, getTrackById } from '#lib/server/tracks';
+import {
+	TRACK_PAGE_SIZE,
+	canViewTrack,
+	getTrackById,
+	trackListedCondition
+} from '#lib/server/tracks';
 
 /**
  * @typedef {{
@@ -150,7 +155,7 @@ export async function listLikedItemsWithUploader(
 	const decoded = cursor ? decodeCursor(cursor) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
-	const trackConditions = [eq(trackLike.userId, userId), eq(track.published, true)];
+	const trackConditions = [eq(trackLike.userId, userId), trackListedCondition()];
 	/** @type {import('drizzle-orm').SQL[]} */
 	const playlistConditions = [eq(playlistLike.userId, userId), eq(playlist.published, true)];
 

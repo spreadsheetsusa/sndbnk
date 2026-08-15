@@ -617,6 +617,25 @@ export async function setTrackPublished(userId, trackId, published) {
 /**
  * @param {string} userId
  * @param {string} trackId
+ * @param {boolean} isPrivate
+ */
+export async function setTrackPrivate(userId, trackId, isPrivate) {
+	const existing = await getOwnedTrack(userId, trackId);
+	if (!existing) {
+		return { ok: false, message: 'Track not found.' };
+	}
+
+	await db
+		.update(track)
+		.set({ isPrivate, updatedAt: new Date() })
+		.where(and(eq(track.id, trackId), eq(track.userId, userId)));
+
+	return { ok: true, isPrivate };
+}
+
+/**
+ * @param {string} userId
+ * @param {string} trackId
  */
 export async function deleteTrackForUser(userId, trackId) {
 	const existing = await getOwnedTrack(userId, trackId);
@@ -649,12 +668,28 @@ export async function getTrackById(trackId) {
 
 /**
  * Unpublished tracks stay reachable for their owner (library playback, edit page)
- * and read as missing to everyone else.
+ * and read as missing to everyone else. Private published tracks stay link-reachable
+ * for anyone with the URL.
  * @param {typeof track.$inferSelect} row
  * @param {string | null | undefined} viewerId
  */
 export function canViewTrack(row, viewerId) {
 	return row.published || row.userId === viewerId;
+}
+
+/**
+ * Public listings (feed, profile, discover, sitemap) only show published non-private tracks.
+ * @param {{ published: boolean, isPrivate: boolean }} row
+ */
+export function isTrackListed(row) {
+	return row.published && !row.isPrivate;
+}
+
+/** Drizzle condition for publicly listed tracks. */
+export function trackListedCondition() {
+	return /** @type {import('drizzle-orm').SQL} */ (
+		and(eq(track.published, true), eq(track.isPrivate, false))
+	);
 }
 
 /**
@@ -1029,6 +1064,7 @@ export async function serializeTrackForPlayer(
 		audioUrl,
 		coverUrl,
 		published: Boolean(row.published),
+		isPrivate: Boolean(row.isPrivate),
 		playCount: row.playCount ?? 0,
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
 		// Position in the paged list, so the client can resume from any item.
@@ -1192,7 +1228,7 @@ function selectOwnTracks(
 ) {
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.userId, userId)];
-	if (publishedOnly) conditions.push(eq(track.published, true));
+	if (publishedOnly) conditions.push(trackListedCondition());
 	if (mediaType) conditions.push(eq(track.mediaType, mediaType));
 	if (decoded) {
 		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
@@ -1277,7 +1313,7 @@ export async function listProfileItemsWithUploader(
 	const decoded = cursor ? decodeCursor(cursor) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
-	const repostConditions = [eq(trackRepost.userId, userId), eq(track.published, true)];
+	const repostConditions = [eq(trackRepost.userId, userId), trackListedCondition()];
 	if (decoded) {
 		repostConditions.push(
 			keysetCondition(trackRepost.createdAt, trackRepost.trackId, decoded, direction, inclusive)

@@ -22,6 +22,7 @@ import {
 } from '#lib/server/db/schema';
 import { listPlaylistRows } from '#lib/server/playlists';
 import { likePattern, normalizeSearchQuery } from '#lib/server/search-query';
+import { trackListedCondition } from '#lib/server/tracks';
 
 export const FEED_PAGE_SIZE = 24;
 const COMMENT_BODY_MAX = 80;
@@ -102,7 +103,7 @@ export async function listFeedTracks({
 	const term = search ? likePattern(search) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
-	const conditions = [eq(track.published, true)];
+	const conditions = [trackListedCondition()];
 	if (genre) conditions.push(genreTokenCondition(genre));
 	if (followingIds) conditions.push(inArray(track.userId, followingIds));
 	if (term) conditions.push(trackSearchCondition(term));
@@ -240,7 +241,7 @@ async function listRepostedFeedRows({
 	const reposterProfile = alias(profile, 'reposter_profile');
 
 	/** @type {import('drizzle-orm').SQL[]} */
-	const conditions = [eq(track.published, true), inArray(trackRepost.userId, followingIds)];
+	const conditions = [trackListedCondition(), inArray(trackRepost.userId, followingIds)];
 	if (genre) conditions.push(genreTokenCondition(genre));
 	if (term) conditions.push(trackSearchCondition(term));
 	if (decoded) {
@@ -295,7 +296,7 @@ export async function listMostLikedTracks(limit = 5) {
 		.innerJoin(track, eq(trackLike.trackId, track.id))
 		.leftJoin(profile, eq(profile.userId, track.userId))
 		.leftJoin(user, eq(user.id, track.userId))
-		.where(eq(track.published, true))
+		.where(trackListedCondition())
 		.groupBy(track.id, track.title, user.name, user.image, profile.username, track.createdAt)
 		.orderBy(desc(likeCount), desc(track.createdAt))
 		.limit(limit);
@@ -353,7 +354,7 @@ export async function listNewArtists({ limit = 5, viewerId = null } = {}) {
  */
 export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 	/** @type {import('drizzle-orm').SQL[]} */
-	const conditions = [eq(track.published, true)];
+	const conditions = [trackListedCondition()];
 	if (creatorId) conditions.push(eq(track.userId, creatorId));
 
 	const rows = await db
@@ -395,7 +396,7 @@ export async function listGenres(limit = 12) {
 	const rows = await db
 		.select({ genre: track.genre })
 		.from(track)
-		.where(and(eq(track.published, true), isNotNull(track.genre), ne(track.genre, '')));
+		.where(and(trackListedCondition(), isNotNull(track.genre), ne(track.genre, '')));
 
 	/** @type {Map<string, { genre: string, count: number }>} */
 	const tallies = new Map();
