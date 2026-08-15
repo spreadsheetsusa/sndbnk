@@ -51,7 +51,7 @@
 	const pageDescription = $derived(
 		data.mode === 'tenant-profile'
 			? data.site?.description?.trim() || `${data.profile.name} — a public profile for sound.`
-			: 'An audio multi-tool for both artists and listeners.'
+			: 'Post sound with low friction. Follow people, not predictions. An audio multi-tool for artists and listeners.'
 	);
 
 	const seoCanonical = $derived(
@@ -105,7 +105,9 @@
 				<div class="hero-copy">
 					<p class="eyebrow">A place for sound</p>
 					<h1 id="hero-title" class="display-face">Punch it in. <span>Turn it up.</span></h1>
-					<p class="intro">An audio multi-tool for both artists and creative listeners.</p>
+					<p class="intro">
+						Post the session the night you made it. Follow people, not predictions.
+					</p>
 					{#if data.authNotice}
 						<p class="auth-notice" role="status" aria-live="polite">{data.authNotice}</p>
 					{/if}
@@ -153,8 +155,11 @@
 				</div>
 				<p class="eyebrow">Why we are here</p>
 				<p class="manifesto-copy">
-					Starting from what we know and are familiar with and taking it for a ride. Things will get
-					weird here. SNDBNK is an Audio Multi-Tool built for vibes.
+					Platforms get cold when they stop trusting the people on them. We want the other thing:
+					post the weird session the same night you made it, talk in the comments, follow humans
+					instead of a model, and keep your files if you want. Creativity, connection, and actual
+					discovery — not a sterile feed that thinks for you. Things will get weird here. SNDBNK is
+					an audio multi-tool built for vibes.
 				</p>
 				<span class="manifesto-mark" aria-hidden="true">///</span>
 			</section>

@@ -1,8 +1,8 @@
 <script>
-	import IconFileMusic from '@tabler/icons-svelte-runes/icons/file-music';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
 	import IconServer from '@tabler/icons-svelte-runes/icons/server';
+	import IconUsers from '@tabler/icons-svelte-runes/icons/users';
 	import IconWaveSine from '@tabler/icons-svelte-runes/icons/wave-sine';
 	import IconWorld from '@tabler/icons-svelte-runes/icons/world';
 
@@ -17,7 +17,8 @@
 			id: 'storage',
 			icon: IconServer,
 			title: 'Bring your own disks',
-			description: 'Point storage adapters at the kit you already run.'
+			description:
+				'Host on our disk or point at yours. The platform should feel like a friend, not a landlord.'
 		},
 		{
 			id: 'viz',
@@ -26,16 +27,17 @@
 			description: 'Butterchurn viz rides the waveform while you listen.'
 		},
 		{
-			id: 'tags',
-			icon: IconFileMusic,
-			title: 'Tags that stick',
-			description: 'Write metadata back into the file — not just the database.'
+			id: 'people',
+			icon: IconUsers,
+			title: 'People, not predictions',
+			description:
+				'A feed from the humans you follow. Stumble into sound — we are not here to guess what you should like.'
 		},
 		{
 			id: 'any-sound',
 			icon: IconHeadphones,
 			title: 'Any sound, posted',
-			description: 'Tracks, mixes, loops, samples, podcasts — drop it in.'
+			description: 'Tracks, mixes, loops, samples, sessions — get it up while it is still warm.'
 		},
 		{
 			id: 'player',
@@ -52,9 +54,10 @@
 			<p class="eyebrow">In the toolkit</p>
 			<span class="mark" aria-hidden="true">///</span>
 		</div>
-		<h2 id="features-title">Built for the whole signal chain</h2>
+		<h2 id="features-title">Built for posting and making contact</h2>
 		<p class="lede">
-			Host it, store it, tag it, see it, keep playing — then post whatever sound you've got.
+			Drop the file. Keep the chrome alive. Find people the old way — by listening, following, and
+			showing up.
 		</p>
 	</header>
 
