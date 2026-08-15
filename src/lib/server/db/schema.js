@@ -346,6 +346,8 @@ export const track = sqliteTable(
 		/** Denormalized listen count; incremented by recordTrackPlay. */
 		playCount: integer('play_count').notNull().default(0),
 		published: integer('published', { mode: 'boolean' }).notNull().default(true),
+		/** When true with published, link-reachable but omitted from public listings. */
+		isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
 		storageAdapter: text('storage_adapter').notNull().default('local'),
 		folderKey: text('folder_key').notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
