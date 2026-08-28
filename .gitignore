@@ -30,3 +30,6 @@ vite.config.ts.timestamp-*
 # Local media uploads
 /media
 /backups
+
+# One-off local probes
+scratch-*.js

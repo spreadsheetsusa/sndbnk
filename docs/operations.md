@@ -6,7 +6,7 @@
 cp .env.example .env    # then fill BETTER_AUTH_SECRET and STORAGE_SECRET
 bun install
 bun run db:migrate
-bun run dev             # http://localhost:5173
+bun run dev             # http://localhost:5174
 ```
 
 Install `ffmpeg` with `libmp3lame` too. Uploads shell out to it for waveform peaks and WAV→MP3
@@ -17,8 +17,8 @@ Production deploy installs and verifies ffmpeg before restarting the service.
 
 With `PUBLIC_BASE_DOMAIN=localhost`:
 
-- apex surfaces (`/`, `/signin`, `/signup`, `/settings`, `/library`) → `http://localhost:5173`
-- a Vault+ profile → `http://{username}.localhost:5173` (browsers resolve `*.localhost` to
+- apex surfaces (`/`, `/signin`, `/signup`, `/settings`, `/library`) → `http://localhost:5174`
+- a Vault+ profile → `http://{username}.localhost:5174` (browsers resolve `*.localhost` to
   loopback with no hosts-file entry)
 - a custom domain → add a `127.0.0.1` hosts entry and verify the domain in Settings first;
   `vite.config.js` sets `server.allowedHosts: true` specifically so arbitrary `Host` headers reach
@@ -50,7 +50,7 @@ Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` 
 | Variable             | Visibility | Dev                     | Prod                     | Purpose                                                                 |
 | -------------------- | ---------- | ----------------------- | ------------------------ | ----------------------------------------------------------------------- |
 | `DATABASE_URL`       | private    | `local.db`              | `local.db`               | SQLite **file path**, not a URL                                         |
-| `ORIGIN`             | private    | `http://localhost:5173` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly            |
+| `ORIGIN`             | private    | `http://localhost:5174` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly            |
 | `PUBLIC_BASE_DOMAIN` | **public** | `localhost`             | `sndbnk.com`             | apex hostname for tenant classification                                 |
 | `BETTER_AUTH_SECRET` | private    | any                     | 32+ chars                | signs sessions; changing it logs everyone out                           |
 | `MEDIA_ROOT`         | private    | `./media`               | `./media`                | local upload root                                                       |
@@ -291,7 +291,5 @@ but is the fastest way to inspect a broken production box.
 
 ## Repo hygiene
 
-- `scratch-seed.js` and `scratch-verify.js` at the repo root are one-off probes from the tag-embedding
-  work, with hardcoded `/tmp` paths. They are committed but wired to nothing. Do not build on them.
 - `bun run lint` is `prettier --check .`, which covers markdown and CSS too. There is no ESLint and
   no test runner in this project.

@@ -132,20 +132,19 @@ Barrel imports make Vite compile the whole icon set.
 ### Dev server port is 5174
 
 [`vite.config.js`](../vite.config.js) pins `server.port` to **5174**. Use
-`ORIGIN=http://localhost:5174`. Some older docs still say 5173; a mismatched `ORIGIN` breaks
-better-auth the same way a wrong prod origin does.
+`ORIGIN=http://localhost:5174`. A mismatched `ORIGIN` breaks better-auth the same way a wrong
+prod origin does.
 
 ## Dead and unfinished code
 
-| Item                                       | Status                                                                                                                                                          |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `task` table                               | Scaffolding from `sv create`. Defined in `schema.js`, queried by nothing. Safe to remove.                                                                       |
-| `resolveTenantHost().pathname`             | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                                                    |
-| `s3` and `r2` in `STORAGE_ADAPTERS`        | `enabled: false`, no implementation. The settings UI renders them as unavailable.                                                                               |
-| Old Basic/Premium/Business Stripe products | Retired in app catalog (Free/Vault/Studio/Label). Archive leftover products in the Stripe Dashboard after `stripe:bootstrap`.                                   |
-| `src/lib/index.js`                         | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                                                           |
-| `scratch-*.js` (repo root)                 | One-off probes (`scratch-seed.js`, `scratch-verify.js`, `scratch-billing-verify.js`, `scratch-seed-many.js`) with hardcoded paths and no `package.json` wiring. |
-| `db:push` (retired stub)                   | Exits with instructions. Real path is `db:generate` + `db:migrate`. See [`drizzle-migrations.html`](drizzle-migrations.html).                                   |
+| Item                                       | Status                                                                                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `task` table                               | Scaffolding from `sv create`. Defined in `schema.js`, queried by nothing. Safe to remove.                                     |
+| `resolveTenantHost().pathname`             | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                  |
+| `s3` and `r2` in `STORAGE_ADAPTERS`        | `enabled: false`, no implementation. The settings UI renders them as unavailable.                                             |
+| Old Basic/Premium/Business Stripe products | Retired in app catalog (Free/Vault/Studio/Label). Archive leftover products in the Stripe Dashboard after `stripe:bootstrap`. |
+| `src/lib/index.js`                         | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                         |
+| `db:push` (retired stub)                   | Exits with instructions. Real path is `db:generate` + `db:migrate`. See [`drizzle-migrations.html`](drizzle-migrations.html). |
 
 ## Inconsistencies worth knowing
 

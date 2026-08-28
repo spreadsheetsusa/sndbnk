@@ -18,7 +18,7 @@ to placeholder bars.
 cp .env.example .env    # then fill BETTER_AUTH_SECRET and STORAGE_SECRET
 bun install
 bun run db:migrate
-bun run dev             # http://localhost:5173
+bun run dev             # http://localhost:5174
 ```
 
 Copy `.env.example` to `.env` if you do not already have one. For local tenant
@@ -35,8 +35,8 @@ record; custom domains verify via CNAME or A/AAAA/ALIAS to the platform edge
 
 With `PUBLIC_BASE_DOMAIN=localhost`:
 
-- apex surfaces (`/`, `/signin`, `/signup`, `/settings`, `/library`) → `http://localhost:5173`
-- a Vault+ profile → `http://{username}.localhost:5173` (browsers resolve `*.localhost` to loopback,
+- apex surfaces (`/`, `/signin`, `/signup`, `/settings`, `/library`) → `http://localhost:5174`
+- a Vault+ profile → `http://{username}.localhost:5174` (browsers resolve `*.localhost` to loopback,
   no hosts-file entry needed)
 - a custom domain → add a `127.0.0.1` hosts entry after verifying the domain in Settings; Vite is
   configured to accept arbitrary `Host` headers so tenant resolution runs
@@ -45,7 +45,7 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 
 | Command                           | What it does                                                 |
 | --------------------------------- | ------------------------------------------------------------ |
-| `bun run dev`                     | Vite dev server on `:5173`                                   |
+| `bun run dev`                     | Vite dev server on `:5174`                                   |
 | `bun run build`                   | production build via `svelte-adapter-bun` → `build/index.js` |
 | `bun run preview`                 | serve the production build                                   |
 | `bun run db:generate`             | diff `schema.js` → SQL under `drizzle/`                      |
