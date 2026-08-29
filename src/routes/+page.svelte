@@ -1,6 +1,5 @@
 <script>
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
-	import PublicProfile from '#lib/components/PublicProfile.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
@@ -10,6 +9,7 @@
 	import LatestMembers from '#lib/components/home/LatestMembers.svelte';
 	import PlansShowcase from '#lib/components/home/PlansShowcase.svelte';
 	import StatBadges from '#lib/components/home/StatBadges.svelte';
+	import TenantSitePage from '#lib/components/site/TenantSitePage.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 	import { webSiteJsonLd } from '#lib/seo.js';
 
@@ -17,85 +17,54 @@
 
 	/** @type {HTMLElement | undefined} */
 	let container = $state.raw();
+	/** @type {import('svelte/attachments').Attachment} */
+	const captureContainer = (node) => {
+		container = node;
+		return () => {
+			if (container === node) container = undefined;
+		};
+	};
 
-	// Tenant hosts serve one profile from `/`; the marketing home has no paged
-	// list, so this stays empty and inert there.
+	const catalog = $derived(data.mode === 'tenant-site' ? data.catalog : null);
 	const paged = restorableList(
 		() => ({
-			scope:
-				data.mode === 'tenant-profile'
-					? data.tab === 'likes'
-						? 'likes'
-						: data.tab === 'history'
-							? 'history'
-							: 'profile'
-					: 'profile',
-			username: data.mode === 'tenant-profile' ? data.profile.username : null
+			scope: catalog
+				? catalog.tab === 'likes'
+					? 'likes'
+					: catalog.tab === 'history'
+						? 'history'
+						: 'profile'
+				: 'profile',
+			username: catalog?.profile.username ?? null
 		}),
-		() => (data.mode === 'tenant-profile' ? data : { items: [], nextCursor: null }),
+		() => catalog ?? { items: [], nextCursor: null },
 		() => container
 	);
 
 	export const snapshot = paged.snapshot;
 
-	const tenantSiteName = $derived(
-		data.mode === 'tenant-profile' ? data.site?.name?.trim() || data.profile.name : null
-	);
-
-	const pageTitle = $derived(
-		data.mode === 'tenant-profile'
-			? `${tenantSiteName} (@${data.profile.username})`
-			: 'SNDBNK | A place for sound'
-	);
-
-	const pageDescription = $derived(
-		data.mode === 'tenant-profile'
-			? data.site?.description?.trim() || `${data.profile.name} — a public profile for sound.`
-			: 'An audio multi-tool for both artists and listeners.'
-	);
-
-	const seoCanonical = $derived(
-		data.mode === 'tenant-profile'
-			? `${data.siteOrigin}/users/${data.profile.username}`
-			: `${data.siteOrigin}/`
-	);
-
-	const seoImage = $derived(
-		data.mode === 'tenant-profile'
-			? (data.site?.ogImageUrl ?? data.site?.logoUrl ?? data.profile.avatarUrl ?? null)
-			: null
-	);
-
-	const seoType = $derived(data.mode === 'tenant-profile' ? 'profile' : 'website');
-
+	const pageTitle = 'SNDBNK | A place for sound';
+	const pageDescription = 'An audio multi-tool for both artists and listeners.';
+	const seoCanonical = $derived(`${data.siteOrigin}/`);
 	const seoJsonLd = $derived(
-		data.mode === 'tenant-profile'
-			? webSiteJsonLd({
-					origin: data.siteOrigin,
-					description: pageDescription,
-					name: tenantSiteName ?? data.profile.name,
-					logo: data.site?.logoUrl ?? data.profile.avatarUrl ?? null
-				})
-			: webSiteJsonLd({ origin: data.siteOrigin, description: pageDescription })
+		webSiteJsonLd({ origin: data.siteOrigin, description: pageDescription })
 	);
 </script>
 
-<SeoHead
-	title={pageTitle}
-	description={pageDescription}
-	canonical={seoCanonical}
-	origin={data.siteOrigin}
-	image={seoImage}
-	siteName={tenantSiteName}
-	type={seoType}
-	jsonLd={seoJsonLd}
-/>
-
-{#if data.mode === 'tenant-profile'}
-	<div bind:this={container}>
-		<PublicProfile {data} list={paged.current} />
+{#if data.mode === 'tenant-site'}
+	<div {@attach captureContainer}>
+		<TenantSitePage {data} profileList={data.catalog ? paged.current : null} />
 	</div>
 {:else}
+	<SeoHead
+		title={pageTitle}
+		description={pageDescription}
+		canonical={seoCanonical}
+		origin={data.siteOrigin}
+		type="website"
+		jsonLd={seoJsonLd}
+	/>
+
 	<div class="landing">
 		<SiteHeader --site-header-gap="0" />
 

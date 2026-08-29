@@ -2,6 +2,7 @@ import HeaderA from '#lib/components/block-previews/HeaderA.svelte';
 import HeaderB from '#lib/components/block-previews/HeaderB.svelte';
 import HeaderC from '#lib/components/block-previews/HeaderC.svelte';
 import HeaderD from '#lib/components/block-previews/HeaderD.svelte';
+import CatalogProfilePreview from '#lib/components/block-previews/CatalogProfilePreview.svelte';
 import HeroA from '#lib/components/block-previews/HeroA.svelte';
 import HeroB from '#lib/components/block-previews/HeroB.svelte';
 import HeroC from '#lib/components/block-previews/HeroC.svelte';
@@ -66,6 +67,7 @@ import BlogThreeMediaCards from '#lib/components/blocks/BlogThreeMediaCards.svel
 import BlogThreeOverlayCards from '#lib/components/blocks/BlogThreeOverlayCards.svelte';
 import BlogThreeTextColumns from '#lib/components/blocks/BlogThreeTextColumns.svelte';
 import BlogTwoTextPosts from '#lib/components/blocks/BlogTwoTextPosts.svelte';
+import CatalogProfile from '#lib/components/blocks/CatalogProfile.svelte';
 import ContactCenteredForm from '#lib/components/blocks/ContactCenteredForm.svelte';
 import ContactMapForm from '#lib/components/blocks/ContactMapForm.svelte';
 import ContactMapPanelForm from '#lib/components/blocks/ContactMapPanelForm.svelte';
@@ -127,7 +129,7 @@ import TestimonialTwoQuoteCards from '#lib/components/blocks/TestimonialTwoQuote
 import { BLOCK_TYPES } from '#lib/components/blocks/types.js';
 
 /**
- * @typedef {'text' | 'textarea' | 'url' | 'list'} BlockFieldKind
+ * @typedef {'text' | 'textarea' | 'url' | 'list' | 'boolean'} BlockFieldKind
  *
  * @typedef {{
  *   key: string,
@@ -321,6 +323,23 @@ export const blockDefinitions = [
 			ctaHref: '/'
 		},
 		fields: NAV_FIELDS
+	},
+	{
+		type: 'catalog.profile',
+		category: 'Music',
+		label: 'Profile catalog',
+		preview: CatalogProfilePreview,
+		component: CatalogProfile,
+		defaults: {
+			showHero: true,
+			showTabs: true,
+			showSidebar: true
+		},
+		fields: [
+			{ key: 'showHero', label: 'Show profile hero', kind: 'boolean' },
+			{ key: 'showTabs', label: 'Show catalog tabs', kind: 'boolean' },
+			{ key: 'showSidebar', label: 'Show profile sidebar', kind: 'boolean' }
+		]
 	},
 	{
 		type: 'hero.split-copy-image',

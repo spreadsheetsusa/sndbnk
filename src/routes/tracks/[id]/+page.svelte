@@ -8,6 +8,7 @@
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import TrackInfoConsole from '#lib/components/player/TrackInfoConsole.svelte';
+	import TenantSiteChrome from '#lib/components/site/TenantSiteChrome.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
@@ -91,11 +92,7 @@
 	noindex={Boolean(data.track.isPrivate)}
 />
 
-<div class="track-page">
-	{#if !data.viaTenantHost}
-		<SiteHeader />
-	{/if}
-
+{#snippet trackContent()}
 	<main id="main">
 		<div
 			class="player-wrap"
@@ -210,7 +207,20 @@
 			</div>
 		</div>
 	</main>
-</div>
+{/snippet}
+
+{#if page.data.tenantSite}
+	<TenantSiteChrome site={page.data.tenantSite}>
+		<div class="track-page">
+			{@render trackContent()}
+		</div>
+	</TenantSiteChrome>
+{:else}
+	<div class="track-page">
+		<SiteHeader />
+		{@render trackContent()}
+	</div>
+{/if}
 
 <style>
 	.track-page {

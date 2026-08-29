@@ -15,6 +15,9 @@ const APEX_ONLY_PREFIXES = [
 	'/library',
 	'/sites',
 	'/plans',
+	'/feed',
+	'/dev',
+	'/users',
 	'/privacy',
 	'/terms',
 	'/copyright',
@@ -25,7 +28,8 @@ const APEX_ONLY_PREFIXES = [
 	'/api/billing',
 	'/api/stripe',
 	'/api/admin',
-	'/api/sites'
+	'/api/sites',
+	'/api'
 ];
 
 /**
@@ -81,12 +85,25 @@ const handleTenant = async ({ event, resolve }) => {
 		return Response.redirect(outcome.location, 302);
 	}
 
-	// Tenant host: public profile is served from `/` (see root +page).
+	// Tenant host: composed site pages are served from `/` and the catch-all page route.
 	event.locals.tenant = outcome.tenant;
 
 	const { pathname } = event.url;
 
 	if (isPassthroughPath(pathname)) {
+		return resolve(event);
+	}
+
+	// Canonicalize profile path URLs on tenant hosts back to `/`.
+	if (pathname === `/users/${outcome.tenant.username}`) {
+		return Response.redirect(`${event.url.protocol}//${event.url.host}/`, 302);
+	}
+
+	if (
+		TENANT_ALLOWED_PREFIXES.some(
+			(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+		)
+	) {
 		return resolve(event);
 	}
 
@@ -99,27 +116,7 @@ const handleTenant = async ({ event, resolve }) => {
 		});
 	}
 
-	if (pathname === '/') {
-		return resolve(event);
-	}
-
-	if (
-		TENANT_ALLOWED_PREFIXES.some(
-			(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-		)
-	) {
-		return resolve(event);
-	}
-
-	// Canonicalize profile path URLs on tenant hosts back to `/`.
-	if (pathname === `/users/${outcome.tenant.username}`) {
-		return Response.redirect(`${event.url.protocol}//${event.url.host}/`, 302);
-	}
-
-	return new Response('Not Found', {
-		status: 404,
-		headers: { 'content-type': 'text/plain; charset=utf-8' }
-	});
+	return resolve(event);
 };
 
 /** @type {import('@sveltejs/kit').Handle} */

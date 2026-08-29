@@ -127,7 +127,9 @@ Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[
 
 Keyed on `id`; belongs to `site` via `siteId` (FK → `site.id`, cascade). Every site gets a root
 page at `path = '/'` (empty `slug`) via `ensureRootPage()` when setup completes or the builder
-loads. `parentId` is ready for a folder hierarchy; nesting UI is not built yet.
+loads. Legacy empty root pages receive one `catalog.profile` block once; `catalogSeeded` prevents
+re-adding it after an artist deliberately deletes it. `parentId` is ready for a folder hierarchy;
+the current UI creates flat sibling pages only.
 
 | Column                        | Purpose                                                                  |
 | ----------------------------- | ------------------------------------------------------------------------ |
@@ -138,12 +140,14 @@ loads. `parentId` is ready for a folder hierarchy; nesting UI is not built yet.
 | `title`                       | Page title (default `Home`)                                              |
 | `seoTitle` / `seoDescription` | Optional SEO fields                                                      |
 | `blocks`                      | JSON body blocks only (`{ id, type, props, layout? }`; no header/footer) |
+| `catalogSeeded`               | One-time legacy Home catalog seed guard                                  |
 | `sortOrder`                   | Sibling order                                                            |
 
 Service: [`site-pages.js`](../src/lib/server/site-pages.js). Edited from `/sites/{id}/builder`
-(`?/updatePage` for metadata; `PUT /api/sites/{id}/pages/{pageId}/blocks` for the canvas). Root
-slug/path stay locked. Body types exclude `header.*` / `footer.*` (those live on `site` chrome).
-Allowlist: [`types.js`](../src/lib/components/blocks/types.js).
+(`?/createPage`, `?/deletePage`, `?/updatePage` for page management;
+`PUT /api/sites/{id}/pages/{pageId}/blocks` for the canvas). Root slug/path stay locked. Body types
+exclude `header.*` / `footer.*` (those live on `site` chrome). Allowlist:
+[`types.js`](../src/lib/components/blocks/types.js).
 
 ### `plan` — entitlement catalog
 

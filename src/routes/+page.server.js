@@ -2,27 +2,16 @@ import { error } from '@sveltejs/kit';
 
 import { auth } from '#lib/server/auth';
 import { getPlans } from '#lib/server/billing/plans';
-import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { getSiteStats, listLatestMembers, pickHeroTrack } from '#lib/server/showcase';
+import { loadTenantSitePage } from '#lib/server/site-page-public';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 export const load = async ({ cookies, locals, url }) => {
 	if (locals.tenant) {
-		const profilePage = await loadPublicProfilePage({
-			username: locals.tenant.username,
-			locals,
-			url
-		});
-
-		if (!profilePage) {
-			error(404, 'Profile not found');
-		}
-
-		return {
-			mode: /** @type {const} */ ('tenant-profile'),
-			...profilePage
-		};
+		const sitePage = await loadTenantSitePage({ locals, url, path: '/' });
+		if (!sitePage) error(404, 'Site page not found');
+		return sitePage;
 	}
 
 	const authNoticeType = cookies.get('sndbnk-auth-notice');

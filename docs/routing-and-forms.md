@@ -6,7 +6,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 
 | Route                              | Auth                   | What it does                                                                                                |
 | ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `/`                                | optional               | Marketing landing on apex; the owner's public profile on a tenant host                                      |
+| `/`                                | optional               | Marketing landing on apex; the composed Home `site_page` on a tenant host                                   |
+| `/[...path]`                       | public (tenant only)   | Flat composed tenant page such as `/about`; exact `site_page.path` lookup or 404                            |
 | `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                                                         |
 | `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                                                     |
 | `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`                                     |
@@ -37,8 +38,9 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/playlists/[id]/tracks`       | required               | `POST`/`DELETE`/`PATCH` membership                                                                          |
 | `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                                                    |
 
-`/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`, `/sites`, and
-`/api/domain-tls-check` 404 on tenant hosts. See [architecture.md](architecture.md).
+`/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`, `/library`,
+`/sites`, `/plans`, `/admin`, `/dev`, `/users/*`, and unlisted `/api/*` 404 on tenant hosts. See
+[architecture.md](architecture.md).
 
 **Site builder** (`/sites/[id]/builder`): Vault+ owner only. Load ensures a root `site_page` and site
 chrome (`ensureSiteChrome`), returns `site` (with `header` / `footer`), `pages` + `currentPageId`
@@ -60,6 +62,11 @@ slots (`primary` / `secondary` / `tertiary` / `surface` / `success` / `error`) v
 a slot with the accent picker, persisted as `themePalette`. The canvas `.preview` scopes those
 tokens; builder HUDs stay on the platform/listener accent and appearance.
 Inspector **Block** tab edits the selected body instance.
+
+The Pages tab creates and deletes flat sibling pages (the root Home cannot be deleted). Slugs are
+single segments and cannot collide with platform routes. Public tenant pages render through the
+shared site-page view with persisted header/footer chrome. `catalog.profile` is the live creator
+catalog block; legacy empty Home pages receive one exactly once.
 
 ## `load` conventions
 

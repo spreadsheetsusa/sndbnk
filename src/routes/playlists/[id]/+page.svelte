@@ -1,15 +1,19 @@
 <script>
+	import { page } from '$app/state';
 	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import SeoHead from '#lib/components/SeoHead.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
+	import TenantSiteChrome from '#lib/components/site/TenantSiteChrome.svelte';
 	import { absoluteUrl, musicPlaylistJsonLd } from '#lib/seo.js';
 
 	let { data } = $props();
 
-	const title = $derived(`${data.playlist.title} | SNDBNK`);
+	const tenantSiteName = $derived(page.data.tenantSite?.name ?? null);
+	const siteLabel = $derived(tenantSiteName || 'SNDBNK');
+	const title = $derived(`${data.playlist.title} | ${siteLabel}`);
 	const description = $derived(
 		data.playlist.description?.trim() ||
-			`Playlist by ${data.playlist.uploaderName} on SNDBNK — ${data.playlist.trackCount} tracks.`
+			`Playlist by ${data.playlist.uploaderName} on ${siteLabel} — ${data.playlist.trackCount} tracks.`
 	);
 	const seoCanonical = $derived(`${data.siteOrigin}/playlists/${data.playlist.id}`);
 	const seoImage = $derived.by(() => {
@@ -37,13 +41,12 @@
 	canonical={seoCanonical}
 	origin={data.siteOrigin}
 	image={seoImage}
+	siteName={tenantSiteName}
 	type="website"
 	jsonLd={seoJsonLd}
 />
 
-<div class="page">
-	<SiteHeader />
-
+{#snippet playlistContent()}
 	<main id="main">
 		<header class="page-head">
 			<p class="eyebrow eyebrow-chip accent-text">Playlist</p>
@@ -69,7 +72,20 @@
 			</section>
 		{/if}
 	</main>
-</div>
+{/snippet}
+
+{#if page.data.tenantSite}
+	<TenantSiteChrome site={page.data.tenantSite}>
+		<div class="page">
+			{@render playlistContent()}
+		</div>
+	</TenantSiteChrome>
+{:else}
+	<div class="page">
+		<SiteHeader />
+		{@render playlistContent()}
+	</div>
+{/if}
 
 <style>
 	.page {

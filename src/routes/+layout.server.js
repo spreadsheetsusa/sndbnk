@@ -3,7 +3,8 @@ import { ORIGIN } from '$app/env/private';
 import { listAcceptedPeers } from '#lib/server/account-links';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { getPlatformSettings } from '#lib/server/platform-settings';
-import { getSitePublic, listNavSites } from '#lib/server/site';
+import { ensureSiteChrome, ensureSiteRow, getSitePublic, listNavSites } from '#lib/server/site';
+import { ensureRootPage } from '#lib/server/site-pages';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
@@ -24,13 +25,22 @@ const emptyNav = {
 	sites: emptySites
 };
 
-export const load = async ({ locals }) => {
+export const load = async ({ locals, url }) => {
 	const playThresholds = await getPlatformSettings();
 
 	if (locals.tenant) {
-		const site = await getSitePublic(locals.tenant.userId);
+		let site = await getSitePublic(locals.tenant.userId);
+		if (!site?.header || !site.footer) {
+			const row = await ensureSiteRow(
+				locals.tenant.userId,
+				locals.tenant.name || locals.tenant.username
+			);
+			await ensureRootPage(row.id);
+			await ensureSiteChrome(row.id);
+			site = await getSitePublic(locals.tenant.userId);
+		}
 		return {
-			siteOrigin,
+			siteOrigin: url.origin,
 			playThresholds,
 			nav: emptyNav,
 			tenantSite: site

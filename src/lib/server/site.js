@@ -127,6 +127,8 @@ export async function getSitePublic(userId) {
 		themePersona: normalizeThemePersona(row.themePersona),
 		themePalette: parseThemePalette(row.themePalette),
 		hideBranding: row.hideBranding,
+		header: parseChromeBlock(row.headerBlock, 'header'),
+		footer: parseChromeBlock(row.footerBlock, 'footer'),
 		sidebarEnabled: row.sidebarEnabled,
 		sidebarStats: row.sidebarStats,
 		sidebarFansAlsoLike: row.sidebarFansAlsoLike,
@@ -207,8 +209,9 @@ export function resolveSidebarVisibility(hostKind, site) {
 /**
  * Ensure a site row exists so subsequent updates/uploads can write columns.
  * @param {string} userId
+ * @param {string | null | undefined} [defaultName]
  */
-async function ensureSiteRow(userId) {
+export async function ensureSiteRow(userId, defaultName) {
 	const existing = await getSiteByUserId(userId);
 	if (existing) {
 		if (existing.id) return existing;
@@ -218,7 +221,11 @@ async function ensureSiteRow(userId) {
 	}
 
 	const id = crypto.randomUUID();
-	await db.insert(site).values({ userId, id });
+	try {
+		await db.insert(site).values({ userId, id, name: defaultName?.trim() || null });
+	} catch (err) {
+		if (!(err instanceof Error && err.message.includes('UNIQUE constraint failed'))) throw err;
+	}
 	const created = await getSiteByUserId(userId);
 	if (!created) throw new Error('Failed to create site row');
 	return created;

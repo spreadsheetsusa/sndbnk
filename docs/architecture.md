@@ -57,14 +57,17 @@ which Caddy sets) and resolves it:
 | `redirect`  | 302 to the apex path URL — Free cannot use a subdomain (Vault+) |
 | `rewrite`   | sets `event.locals.tenant`, then gates the path                 |
 
-On a tenant host the path allowlist is deliberately narrow:
+On a tenant host platform and account routes stay deliberately narrow:
 
 - **Passthrough:** `/_app`, `/api/auth`, `/favicon.*`, `/robots.txt`
-- **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/library`,
-  `/sites`, `/api/domain-tls-check` — account surfaces only exist on the apex
-- **Allowed:** `/`, `/tracks/*`, `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`,
+- **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`,
+  `/library`, `/sites`, `/plans`, `/admin`, `/dev`, `/users/*`, and unlisted `/api/*` — platform
+  surfaces only exist on the apex
+- **Platform public:** `/tracks/*`, `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`,
   `/api/site-og/*`, `/api/tracks/*`, `/api/playlists/*`, `/api/users/*`,
   `/playlists/*`
+- **Composed site:** `/` and flat `site_page` paths such as `/about`; the catch-all loader returns
+  404 when no page has that exact path
 - `/users/{own username}` redirects to `/` so a tenant host has one canonical profile URL
 
 ### `handleBetterAuth`
@@ -84,9 +87,10 @@ Declared in [`src/app.d.ts`](../src/app.d.ts). All three fields are optional —
 
 `locals.tenant` carries `{ userId, username, plan, name, customDomain, customDomainStatus, hostKind }`
 where `hostKind` is `'subdomain' | 'custom'`. Its presence is the single signal for "render in
-tenant mode": hide the apex site header, serve the profile from `/`, and apply optional `site`
-branding (name, logo, accent, appearance `light`/`dark`/`user`, theme persona, hide “Powered by
-SNDBNK”) from the root layout +
+tenant mode": hide apex chrome, resolve `/` or a flat path through
+[`loadTenantSitePage()`](../src/lib/server/site-page-public.js), and apply `site` branding (name,
+logo, accent, appearance `light`/`dark`/`user`, theme persona, hide “Powered by SNDBNK”). A
+`catalog.profile` block loads the creator's live profile through
 [`loadPublicProfilePage()`](../src/lib/server/profile-page.js). Locked tenant appearance overrides
 the listener theme preference; `user` resolves from site-scoped localStorage (or system).
 
@@ -111,8 +115,9 @@ One creator, three public URLs, gated by plan entitlements
 - anything else is a **custom** hostname, resolved against `profile.customDomain` (with
   `example.com` ↔ `www.example.com` pairing for simple apex names)
 
-Both the path route and the tenant `/` render from one loader,
-[`loadPublicProfilePage()`](../src/lib/server/profile-page.js), so the two surfaces cannot drift.
+The apex path route remains the standalone audio profile. Tenant hosts render persisted site chrome
+and `site_page` blocks; artists place `catalog.profile` wherever the live profile/catalog should
+appear.
 
 Custom domains need DNS proof before they go `active`: a TXT record at `_sndbnk-verify.{domain}`
 plus either a CNAME (or CNAME chain) to `{username}.{base}`, or A/AAAA addresses that match the

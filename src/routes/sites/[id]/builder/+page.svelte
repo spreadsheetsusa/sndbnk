@@ -13,6 +13,7 @@
 	import BlocksHud from '#lib/components/builder/BlocksHud.svelte';
 	import BuilderToolbar from '#lib/components/builder/BuilderToolbar.svelte';
 	import InspectorHud from '#lib/components/builder/InspectorHud.svelte';
+	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 	import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 
 	/** @typedef {import('#lib/components/blocks/types.js').PageBlockInstance} PageBlockInstance */
@@ -91,9 +92,19 @@
 	 *       sortOrder: number,
 	 *       updatedAt: number
 	 *     }>,
-	 *     currentPageId: string
+	 *     currentPageId: string,
+	 *     profileCatalog?: (Record<string, any> & {
+	 *       tab: 'tracks' | 'likes' | 'history',
+	 *       profile: { username: string },
+	 *       items: Array<Record<string, any>>,
+	 *       nextCursor: string | null
+	 *     }) | null
 	 *   },
 	 *   form?: {
+	 *     pagesMessage?: string,
+	 *     pagesSuccess?: string,
+	 *     createdPageId?: string,
+	 *     deletedPageId?: string,
 	 *     pageMessage?: string,
 	 *     pageSuccess?: string,
 	 *     pageId?: string,
@@ -112,6 +123,20 @@
 	let canvasEl = $state(null);
 	/** Inner content width of `.canvas` (padding box), used as the resize ceiling. */
 	let canvasWidth = $state(0);
+	const profileCatalog = $derived(data.profileCatalog ?? null);
+	const profileCatalogList = restorableList(
+		() => ({
+			scope:
+				profileCatalog?.tab === 'likes'
+					? 'likes'
+					: profileCatalog?.tab === 'history'
+						? 'history'
+						: 'profile',
+			username: profileCatalog?.profile.username ?? null
+		}),
+		() => profileCatalog ?? { items: [], nextCursor: null },
+		() => canvasEl
+	);
 
 	/**
 	 * @type {null | {
@@ -125,8 +150,8 @@
 	 */
 	let resizeDrag = $state(null);
 
-	$effect(() => {
-		builder.hydrate({
+	const hydrateBuilder = $derived.by(() => {
+		const state = {
 			siteId: data.site.id,
 			siteName: data.site.name,
 			accentColor: data.site.accentColor ?? '',
@@ -140,7 +165,9 @@
 			footer: data.site.footer,
 			pages: data.pages,
 			currentPageId: data.currentPageId
-		});
+		};
+		/** @type {import('svelte/attachments').Attachment} */
+		return () => builder.hydrate(state);
 	});
 
 	const previewStyle = $derived(
@@ -328,7 +355,7 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="page">
+<div class="page" {@attach hydrateBuilder}>
 	<main>
 		<!-- Canvas click clears selection; Escape is handled below for keyboard. -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -389,7 +416,15 @@
 								onclick={() => builder.selectInstance(instance.id)}
 							>
 								{#if Block}
-									<Block {...instance.props} />
+									{#if instance.type === 'catalog.profile'}
+										<Block
+											{...instance.props}
+											profileData={profileCatalog}
+											profileList={profileCatalog ? profileCatalogList.current : null}
+										/>
+									{:else}
+										<Block {...instance.props} />
+									{/if}
 								{:else}
 									<p class="missing">Unknown block: {instance.type}</p>
 								{/if}

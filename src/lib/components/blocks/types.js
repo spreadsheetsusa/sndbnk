@@ -9,6 +9,7 @@ export const BLOCK_TYPES = [
 	'header.logo-divider-nav',
 	'header.center-logo',
 	'header.logo-center-nav',
+	'catalog.profile',
 	'hero.split-copy-image',
 	'hero.centered-image',
 	'hero.split-image-copy',

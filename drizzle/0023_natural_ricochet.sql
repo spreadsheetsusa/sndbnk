@@ -1,0 +1,1 @@
+ALTER TABLE `site_page` ADD `catalog_seeded` integer DEFAULT false NOT NULL;

@@ -19,6 +19,34 @@ export const MAX_SEO_DESCRIPTION_LENGTH = 160;
 export const MAX_PAGE_BLOCKS = 80;
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const RESERVED_PAGE_SLUGS = new Set([
+	'_app',
+	'admin',
+	'api',
+	'billing',
+	'copyright',
+	'dev',
+	'feed',
+	'forgot-password',
+	'library',
+	'plans',
+	'playlists',
+	'privacy',
+	'reset-password',
+	'settings',
+	'signin',
+	'signup',
+	'sites',
+	'terms',
+	'tracks',
+	'users'
+]);
+
+const createCatalogBlock = () => ({
+	id: crypto.randomUUID(),
+	type: 'catalog.profile',
+	props: { showHero: true, showTabs: true, showSidebar: true }
+});
 
 /**
  * @typedef {import('#lib/components/blocks/types.js').PageBlockInstance} PageBlockInstance
@@ -65,21 +93,46 @@ export async function ensureRootPage(siteId) {
 		.from(sitePage)
 		.where(and(eq(sitePage.siteId, siteId), eq(sitePage.path, '/')))
 		.limit(1);
-	if (existing[0]) return serializeSitePage(existing[0]);
+	if (existing[0]) {
+		const row = existing[0];
+		if (row.catalogSeeded) return serializeSitePage(row);
+
+		const blocks = parsePageBlocks(row.blocks);
+		await db
+			.update(sitePage)
+			.set({
+				blocks: blocks.length ? row.blocks : stringifyPageBlocks([createCatalogBlock()]),
+				catalogSeeded: true,
+				updatedAt: new Date()
+			})
+			.where(eq(sitePage.id, row.id));
+
+		const updated = await db.select().from(sitePage).where(eq(sitePage.id, row.id)).limit(1);
+		return serializeSitePage(updated[0]);
+	}
 
 	const id = crypto.randomUUID();
-	await db.insert(sitePage).values({
-		id,
-		siteId,
-		parentId: null,
-		slug: '',
-		path: '/',
-		title: 'Home',
-		blocks: '[]',
-		sortOrder: 0
-	});
+	try {
+		await db.insert(sitePage).values({
+			id,
+			siteId,
+			parentId: null,
+			slug: '',
+			path: '/',
+			title: 'Home',
+			blocks: stringifyPageBlocks([createCatalogBlock()]),
+			catalogSeeded: true,
+			sortOrder: 0
+		});
+	} catch (err) {
+		if (!(err instanceof Error && err.message.includes('UNIQUE constraint failed'))) throw err;
+	}
 
-	const rows = await db.select().from(sitePage).where(eq(sitePage.id, id)).limit(1);
+	const rows = await db
+		.select()
+		.from(sitePage)
+		.where(and(eq(sitePage.siteId, siteId), eq(sitePage.path, '/')))
+		.limit(1);
 	return serializeSitePage(rows[0]);
 }
 
@@ -96,6 +149,109 @@ export async function getOwnedPage(userId, siteId, pageId) {
 		.where(and(eq(sitePage.id, pageId), eq(sitePage.siteId, siteId), eq(site.userId, userId)))
 		.limit(1);
 	return rows[0]?.page ?? null;
+}
+
+/**
+ * Public page lookup by an exact, normalized site path.
+ * @param {string} siteId
+ * @param {string} path
+ */
+export async function getSitePageByPath(siteId, path) {
+	const normalizedPath = path === '/' ? '/' : `/${path.replace(/^\/+|\/+$/g, '')}`;
+	const rows = await db
+		.select()
+		.from(sitePage)
+		.where(and(eq(sitePage.siteId, siteId), eq(sitePage.path, normalizedPath)))
+		.limit(1);
+	return rows[0] ? serializeSitePage(rows[0]) : null;
+}
+
+/**
+ * @param {string | null | undefined} raw
+ */
+function normalizePageSlug(raw) {
+	const slug = raw?.toString().trim().toLowerCase() ?? '';
+	if (
+		!slug ||
+		!SLUG_PATTERN.test(slug) ||
+		slug.length > MAX_PAGE_SLUG_LENGTH ||
+		RESERVED_PAGE_SLUGS.has(slug)
+	) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: RESERVED_PAGE_SLUGS.has(slug)
+				? 'That page address is reserved by SNDBNK.'
+				: 'Slug must be lowercase letters, numbers, and hyphens.'
+		};
+	}
+	return { ok: /** @type {const} */ (true), slug };
+}
+
+/**
+ * @param {{ userId: string, siteId: string, title: string, slug: string }} input
+ */
+export async function createSitePage(input) {
+	const owned = await db
+		.select({ id: site.id })
+		.from(site)
+		.where(and(eq(site.id, input.siteId), eq(site.userId, input.userId)))
+		.limit(1);
+	if (!owned[0]) return { ok: /** @type {const} */ (false), message: 'Site not found.' };
+
+	const title = input.title?.toString().trim() ?? '';
+	if (!title || title.length > MAX_PAGE_TITLE_LENGTH) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: `Title is required and must be ${MAX_PAGE_TITLE_LENGTH} characters or fewer.`
+		};
+	}
+
+	const slugResult = normalizePageSlug(input.slug);
+	if (!slugResult.ok) return slugResult;
+	const path = `/${slugResult.slug}`;
+	const clash = await getSitePageByPath(input.siteId, path);
+	if (clash) return { ok: /** @type {const} */ (false), message: 'That page already exists.' };
+
+	const rows = await db
+		.select({ sortOrder: sitePage.sortOrder })
+		.from(sitePage)
+		.where(eq(sitePage.siteId, input.siteId));
+	const id = crypto.randomUUID();
+	try {
+		await db.insert(sitePage).values({
+			id,
+			siteId: input.siteId,
+			parentId: null,
+			slug: slugResult.slug,
+			path,
+			title,
+			blocks: '[]',
+			catalogSeeded: true,
+			sortOrder: Math.max(-1, ...rows.map((row) => row.sortOrder)) + 1
+		});
+	} catch (err) {
+		if (err instanceof Error && err.message.includes('UNIQUE constraint failed')) {
+			return { ok: /** @type {const} */ (false), message: 'That page already exists.' };
+		}
+		throw err;
+	}
+
+	const created = await db.select().from(sitePage).where(eq(sitePage.id, id)).limit(1);
+	return { ok: /** @type {const} */ (true), page: serializeSitePage(created[0]) };
+}
+
+/**
+ * @param {{ userId: string, siteId: string, pageId: string }} input
+ */
+export async function deleteSitePage(input) {
+	const row = await getOwnedPage(input.userId, input.siteId, input.pageId);
+	if (!row) return { ok: /** @type {const} */ (false), message: 'Page not found.' };
+	if (row.path === '/') {
+		return { ok: /** @type {const} */ (false), message: 'The Home page cannot be deleted.' };
+	}
+
+	await db.delete(sitePage).where(eq(sitePage.id, row.id));
+	return { ok: /** @type {const} */ (true) };
 }
 
 /**
@@ -243,13 +399,9 @@ export async function updatePageProps(input) {
 	};
 
 	if (!isRoot) {
-		const slug = input.slug?.toString().trim().toLowerCase() ?? '';
-		if (!slug || !SLUG_PATTERN.test(slug) || slug.length > MAX_PAGE_SLUG_LENGTH) {
-			return {
-				ok: /** @type {const} */ (false),
-				message: 'Slug must be lowercase letters, numbers, and hyphens.'
-			};
-		}
+		const slugResult = normalizePageSlug(input.slug);
+		if (!slugResult.ok) return slugResult;
+		const { slug } = slugResult;
 		const path = `/${slug}`;
 		const clash = await db
 			.select({ id: sitePage.id })

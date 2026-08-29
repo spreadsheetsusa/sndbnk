@@ -188,6 +188,8 @@ export const sitePage = sqliteTable(
 		seoDescription: text('seo_description'),
 		/** JSON array of `{ id, type, props }` block instances for the page builder. */
 		blocks: text('blocks').notNull().default('[]'),
+		/** One-time guard for seeding legacy empty home pages with the live catalog block. */
+		catalogSeeded: integer('catalog_seeded', { mode: 'boolean' }).notNull().default(false),
 		sortOrder: integer('sort_order').notNull().default(0),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.$defaultFn(() => new Date())

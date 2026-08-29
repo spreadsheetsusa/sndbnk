@@ -26,32 +26,34 @@ Violating any of these breaks the app.
 
 ## Where things live
 
-| Area | Path |
-| --- | --- |
-| Hooks (tenant + auth) | `src/hooks.server.js` |
-| Routes, loads, actions, API | `src/routes/**` |
-| Server services | `src/lib/server/**` |
-| Schema | `src/lib/server/db/schema.js` (+ generated `auth.schema.js`) |
-| Components | `src/lib/components/**` |
-| Global player state | `src/lib/player/player.svelte.js` |
-| Design tokens and global CSS | `src/routes/layout.css` |
-| Schema migrations | `drizzle/` + `scripts/migrate-sqlite.js` |
+| Area                         | Path                                                             |
+| ---------------------------- | ---------------------------------------------------------------- |
+| Hooks (tenant + auth)        | `src/hooks.server.js`                                            |
+| Routes, loads, actions, API  | `src/routes/**`                                                  |
+| Server services              | `src/lib/server/**`                                              |
+| Schema                       | `src/lib/server/db/schema.js` (+ generated `auth.schema.js`)     |
+| Components                   | `src/lib/components/**`                                          |
+| Tenant site publishing       | `src/lib/server/site-page-public.js` + `src/routes/[...path]`    |
+| Site builder and blocks      | `src/routes/sites/[id]/builder` + `src/lib/components/blocks/**` |
+| Global player state          | `src/lib/player/player.svelte.js`                                |
+| Design tokens and global CSS | `src/routes/layout.css`                                          |
+| Schema migrations            | `drizzle/` + `scripts/migrate-sqlite.js`                         |
 
 Routes call `src/lib/server/*` services; services own `db`. Routes never query `db` directly, and
 components never import from `src/lib/server/`.
 
 ## Read the docs before non-trivial work
 
-| Task | Doc |
-| --- | --- |
-| Anything architectural | `docs/architecture.md` |
-| Tables, columns, queries, schema changes | `docs/data-model.md` |
-| Pages, loads, actions, endpoints | `docs/routing-and-forms.md` |
-| `.svelte` / `.svelte.js` files | `docs/reactivity.md` |
-| Styling, colors, dark mode | `docs/design-system.md` |
-| Uploads, waveforms, tags, storage | `docs/media-and-storage.md` |
-| Env, deploy, production debugging | `docs/operations.md` |
-| Something looks broken or dead | `docs/known-issues.md` |
+| Task                                     | Doc                         |
+| ---------------------------------------- | --------------------------- |
+| Anything architectural                   | `docs/architecture.md`      |
+| Tables, columns, queries, schema changes | `docs/data-model.md`        |
+| Pages, loads, actions, endpoints         | `docs/routing-and-forms.md` |
+| `.svelte` / `.svelte.js` files           | `docs/reactivity.md`        |
+| Styling, colors, dark mode               | `docs/design-system.md`     |
+| Uploads, waveforms, tags, storage        | `docs/media-and-storage.md` |
+| Env, deploy, production debugging        | `docs/operations.md`        |
+| Something looks broken or dead           | `docs/known-issues.md`      |
 
 ## Commands
 

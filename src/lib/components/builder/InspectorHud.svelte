@@ -5,6 +5,8 @@
 	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { tick } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import { THEME_PERSONA_OPTIONS } from '#lib/builder/theme-persona.js';
 	import {
@@ -21,6 +23,10 @@
 	 * @type {{
 	 *   siteId: string,
 	 *   form?: {
+	 *     pagesMessage?: string,
+	 *     pagesSuccess?: string,
+	 *     createdPageId?: string,
+	 *     deletedPageId?: string,
 	 *     pageMessage?: string,
 	 *     pageSuccess?: string,
 	 *     pageId?: string,
@@ -37,6 +43,7 @@
 
 	const current = $derived(builder.currentPage);
 	const isRoot = $derived(current?.path === '/');
+	const pagesForm = $derived(form?.pagesMessage || form?.pagesSuccess ? form : null);
 	const formForCurrent = $derived(form?.pageId && form.pageId === current?.id ? form : null);
 	const selected = $derived(builder.selectedInstance);
 	const selectedDef = $derived(selected ? getBlockDefinition(selected.type) : null);
@@ -46,13 +53,13 @@
 	/** Depth for folder indent; root = 0. */
 	const depthById = $derived.by(() => {
 		/** @type {Map<string, number>} */
-		const depths = new Map();
+		const depths = new SvelteMap();
 		/** @type {Map<string, string | null>} */
-		const parents = new Map(builder.pages.map((p) => [p.id, p.parentId]));
+		const parents = new SvelteMap(builder.pages.map((p) => [p.id, p.parentId]));
 		for (const page of builder.pages) {
 			let depth = 0;
 			let cursor = page.parentId;
-			const seen = new Set();
+			const seen = new SvelteSet();
 			while (cursor && !seen.has(cursor)) {
 				seen.add(cursor);
 				depth += 1;
@@ -92,9 +99,42 @@
 		};
 	}
 
+	function handlePagesSubmit() {
+		submitting = true;
+		return async ({ result, update }) => {
+			try {
+				await update({ reset: result.type === 'success' });
+				if (result.type !== 'success') return;
+				await tick();
+				const createdPageId = result.data?.createdPageId;
+				if (
+					typeof createdPageId === 'string' &&
+					builder.pages.some((page) => page.id === createdPageId)
+				) {
+					builder.selectPage(createdPageId);
+				}
+			} finally {
+				submitting = false;
+			}
+		};
+	}
+
+	/**
+	 * @param {string} title
+	 */
+	function handleDeleteSubmit(title) {
+		return ({ cancel }) => {
+			if (!confirm(`Delete “${title}”? This cannot be undone.`)) {
+				cancel();
+				return;
+			}
+			return handlePagesSubmit();
+		};
+	}
+
 	/**
 	 * @param {string} key
-	 * @param {string} value
+	 * @param {unknown} value
 	 */
 	function setProp(key, value) {
 		if (!selected) return;
@@ -241,6 +281,18 @@
 					{@render urlField(field.label, instance.props[field.key], (value) =>
 						builder.updateChromeProps(kind, { [field.key]: value })
 					)}
+				{:else if field.kind === 'boolean'}
+					<label class="boolean-field">
+						<input
+							type="checkbox"
+							checked={Boolean(instance.props[field.key])}
+							onchange={(e) =>
+								builder.updateChromeProps(kind, {
+									[field.key]: e.currentTarget.checked
+								})}
+						/>
+						<span>{field.label}</span>
+					</label>
 				{:else}
 					<label>
 						<span>{field.label}</span>
@@ -316,28 +368,94 @@
 
 		{#if builder.inspectorTab === 'pages'}
 			<div class="panel" role="tabpanel" aria-label="Pages">
+				<form
+					class="create-page"
+					method="POST"
+					action="?/createPage"
+					aria-label="Create flat page"
+					aria-busy={submitting}
+					use:enhance={handlePagesSubmit}
+				>
+					<label>
+						<span>Page title</span>
+						<input
+							name="title"
+							type="text"
+							value={pagesForm?.title ?? ''}
+							maxlength="120"
+							required
+						/>
+					</label>
+					<label>
+						<span>Slug</span>
+						<input
+							name="slug"
+							type="text"
+							value={pagesForm?.slug ?? ''}
+							placeholder="about"
+							maxlength="80"
+							required
+						/>
+					</label>
+					<button type="submit" class="save create" disabled={submitting}>
+						<IconPlus size={14} stroke={1.75} aria-hidden="true" />
+						{submitting ? 'Creating…' : 'Add page'}
+					</button>
+				</form>
+
+				{#if pagesForm?.pagesMessage && !submitting}
+					<p class="form-error pages-message" role="alert" aria-live="polite">
+						{pagesForm.pagesMessage}
+					</p>
+				{/if}
+				{#if pagesForm?.pagesSuccess && !submitting}
+					<p class="form-ok pages-message" role="status">{pagesForm.pagesSuccess}</p>
+				{/if}
+
 				<ul class="tree" aria-label="Site pages">
 					{#each builder.pages as page (page.id)}
 						{@const depth = depthById.get(page.id) ?? 0}
 						<li style:--depth={depth}>
-							<button
-								type="button"
-								class="tree-row"
-								class:active={builder.currentPageId === page.id}
-								onclick={() => openPage(page.id)}
-							>
-								{#if page.path === '/'}
-									<IconFolder size={15} stroke={1.75} aria-hidden="true" />
-								{:else}
-									<IconFile size={15} stroke={1.75} aria-hidden="true" />
+							<div class="tree-entry">
+								<button
+									type="button"
+									class="tree-row"
+									class:active={builder.currentPageId === page.id}
+									onclick={() => openPage(page.id)}
+								>
+									{#if page.path === '/'}
+										<IconFolder size={15} stroke={1.75} aria-hidden="true" />
+									{:else}
+										<IconFile size={15} stroke={1.75} aria-hidden="true" />
+									{/if}
+									<span class="tree-title">{page.title}</span>
+									<span class="tree-path">{page.path}</span>
+								</button>
+								{#if page.path !== '/'}
+									<form
+										class="delete-page"
+										method="POST"
+										action="?/deletePage"
+										aria-label="Delete {page.title}"
+										use:enhance={handleDeleteSubmit(page.title)}
+									>
+										<input type="hidden" name="pageId" value={page.id} />
+										<button
+											type="submit"
+											class="icon-btn delete-page-btn"
+											aria-label="Delete {page.title}"
+											title="Delete page"
+											disabled={submitting}
+										>
+											<IconTrash size={14} stroke={1.75} aria-hidden="true" />
+										</button>
+									</form>
 								{/if}
-								<span class="tree-title">{page.title}</span>
-								<span class="tree-path">{page.path}</span>
-							</button>
+							</div>
 						</li>
 					{/each}
 				</ul>
-				<p class="hint">Root page is ready. Nested pages come next.</p>
+				<p class="hint">Root is permanent. Other pages publish at a flat /slug path.</p>
 			</div>
 		{:else if builder.inspectorTab === 'page'}
 			<div class="panel" role="tabpanel" aria-label="Page properties">
@@ -598,6 +716,15 @@
 								{@render urlField(field.label, selected.props[field.key], (value) =>
 									setProp(field.key, value)
 								)}
+							{:else if field.kind === 'boolean'}
+								<label class="boolean-field">
+									<input
+										type="checkbox"
+										checked={Boolean(selected.props[field.key])}
+										onchange={(e) => setProp(field.key, e.currentTarget.checked)}
+									/>
+									<span>{field.label}</span>
+								</label>
 							{:else}
 								<label>
 									<span>{field.label}</span>
@@ -823,6 +950,29 @@
 		gap: 0.2rem;
 	}
 
+	.create-page {
+		margin-bottom: 0.75rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.create {
+		display: inline-flex;
+		gap: 0.35rem;
+		align-items: center;
+	}
+
+	.pages-message {
+		margin-bottom: 0.65rem;
+	}
+
+	.tree-entry {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 0.25rem;
+		align-items: center;
+	}
+
 	.tree-row {
 		display: grid;
 		grid-template-columns: auto 1fr auto;
@@ -836,6 +986,26 @@
 		color: var(--ink);
 		text-align: left;
 		cursor: pointer;
+	}
+
+	.delete-page {
+		display: block;
+	}
+
+	.delete-page-btn {
+		width: 1.9rem;
+		height: 1.9rem;
+		color: var(--muted);
+	}
+
+	.delete-page-btn:hover:not(:disabled) {
+		color: var(--ink);
+		background: color-mix(in srgb, var(--theme-error, var(--accent)) 12%, var(--paper));
+	}
+
+	.delete-page-btn:disabled {
+		opacity: 0.45;
+		cursor: wait;
 	}
 
 	.tree-row:hover {
@@ -899,6 +1069,26 @@
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		color: var(--muted);
+	}
+
+	.boolean-field {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		min-height: 2rem;
+		padding: 0.4rem 0.5rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		color: var(--ink);
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.boolean-field input {
+		width: auto;
+		margin: 0;
+		accent-color: var(--accent);
 	}
 
 	input,
@@ -967,7 +1157,7 @@
 	.form-error {
 		margin: 0;
 		color: var(--ink);
-		background: color-mix(in srgb, #c44 18%, var(--paper));
+		background: color-mix(in srgb, var(--theme-error, var(--accent)) 18%, var(--paper));
 		border: 1px solid var(--ink);
 		padding: 0.4rem 0.5rem;
 		font-size: 0.8rem;
