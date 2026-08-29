@@ -122,7 +122,11 @@ Steps, in order:
 5. Ensure `redis-server` and `ffmpeg` are on PATH (install via apt if missing); fail the deploy if
    ffmpeg is still absent.
 6. `bun install`, source `.env`, `bun run db:backup` (when the SQLite file exists),
-   `bun run db:migrate` (Drizzle SQL under `drizzle/` via the Bun migrator), `bun run build`.
+   `bun run db:migrate` (Drizzle SQL under `drizzle/` via the Bun migrator). Before the build,
+   ensure a 4G swapfile exists (Lightsail 2GB has none by default) and stop `sndbnk` +
+   `sndbnk-waveform-worker` so Vite + `svelte-adapter-bun` are not OOM-killed (`SIGKILL` /
+   exit 137). Build with `bun --smol run --bun vite build`. A failed build restarts the
+   previous units so the old `build/index.js` stays up.
 7. `systemctl restart sndbnk sndbnk-waveform-worker`, confirm both `is-active`, then wait for
    `GET http://127.0.0.1:3000/api/health` (`{ ok: true }` after `SELECT 1`) for up to 30s.
 8. Smoke-test auth: POST a bogus credential to `http://127.0.0.1:3000/api/auth/sign-in/email` with

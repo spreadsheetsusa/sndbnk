@@ -17,7 +17,7 @@ jobs:
           username: ${{ secrets.LIGHTSAIL_USERNAME }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: ${{ secrets.LIGHTSAIL_PORT }}
-          command_timeout: 15m
+          command_timeout: 25m
           script: |
             set -euo pipefail
             echo "Starting deployment process..."
@@ -316,8 +316,49 @@ jobs:
             echo "Applying Drizzle migrations..."
             bun run db:migrate
 
+            # Vite 8 + svelte-adapter-bun peak well above a 2GB Lightsail with the
+            # app still running. SIGKILL / exit 137 is the kernel OOM killer.
+            echo "Memory before build:"
+            free -h
+            swapon --show || true
+            swap_kb="$(awk '/SwapTotal:/ {print $2}' /proc/meminfo)"
+            if [ "${swap_kb:-0}" -eq 0 ]; then
+              if [ -f /swapfile ]; then
+                echo "Activating existing /swapfile..."
+                sudo chmod 600 /swapfile
+                sudo swapon /swapfile || sudo rm -f /swapfile
+              fi
+            fi
+            swap_kb="$(awk '/SwapTotal:/ {print $2}' /proc/meminfo)"
+            if [ "${swap_kb:-0}" -eq 0 ]; then
+              echo "Creating 4G /swapfile so bun run build is not OOM-killed..."
+              sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              if ! grep -qE '^/swapfile[[:space:]]' /etc/fstab; then
+                echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+              fi
+            fi
+            free -h
+
+            echo "Stopping app + worker for the build (frees RAM; old build stays on disk)..."
+            sudo systemctl stop sndbnk sndbnk-waveform-worker || true
+            start_app_units() {
+              sudo systemctl start sndbnk sndbnk-waveform-worker || true
+            }
+            trap start_app_units EXIT
+
             echo "Building the project..."
-            bun run build
+            # --smol: more frequent GC so peak RSS fits the box.
+            # Invoke vite directly so the flag applies to the compiler, not just the wrapper.
+            if ! bun --smol run --bun vite build; then
+              echo "build failed; memory at failure:" >&2
+              free -h
+              sudo dmesg -T 2>/dev/null | tail -n 40 || true
+              exit 1
+            fi
+            trap - EXIT
 
             echo "Restarting Bun app + waveform worker..."
             sudo systemctl restart sndbnk sndbnk-waveform-worker

@@ -63,6 +63,13 @@ is also the classic stale-`.env` example above.
 Caddy the app sees `http://localhost:3000` as its origin and better-auth rejects sign-ins. Local
 works; prod fails. Full troubleshooting: [operations.md](operations.md).
 
+### `bun run build` dies with SIGKILL / exit 137 on Lightsail
+
+The kernel OOM-killer, not Vite. The client rollup finishes, then `svelte-adapter-bun` spikes
+RSS past a 2GB box that is also running the app, the waveform worker, Redis, and Caddy.
+Deploy creates a 4G swapfile if none exists, stops the units for the compile, and runs
+`bun --smol`. Do not “fix” this by switching adapters or dropping `--bun`.
+
 ### `bun:sqlite` UNRESOLVED_IMPORT during `bun run build`
 
 Keep using Bun’s native driver. During the `svelte-adapter-bun` Rolldown pass you will see
