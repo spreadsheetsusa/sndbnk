@@ -287,6 +287,7 @@ export async function listMostLikedTracks(limit = 5) {
 		.select({
 			id: track.id,
 			title: track.title,
+			slug: track.slug,
 			uploaderName: user.name,
 			uploaderImage: user.image,
 			username: profile.username,
@@ -297,13 +298,22 @@ export async function listMostLikedTracks(limit = 5) {
 		.leftJoin(profile, eq(profile.userId, track.userId))
 		.leftJoin(user, eq(user.id, track.userId))
 		.where(trackListedCondition())
-		.groupBy(track.id, track.title, user.name, user.image, profile.username, track.createdAt)
+		.groupBy(
+			track.id,
+			track.title,
+			track.slug,
+			user.name,
+			user.image,
+			profile.username,
+			track.createdAt
+		)
 		.orderBy(desc(likeCount), desc(track.createdAt))
 		.limit(limit);
 
 	return rows.map((row) => ({
 		id: row.id,
 		title: row.title,
+		slug: row.slug,
 		uploaderName: row.uploaderName ?? row.username ?? 'Unknown',
 		uploaderImage: row.uploaderImage ?? null,
 		username: row.username ?? null,
@@ -357,6 +367,8 @@ export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 	const conditions = [trackListedCondition()];
 	if (creatorId) conditions.push(eq(track.userId, creatorId));
 
+	const ownerProfile = alias(profile, 'track_owner_profile');
+
 	const rows = await db
 		.select({
 			id: trackComment.id,
@@ -366,12 +378,15 @@ export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 			userImage: user.image,
 			username: profile.username,
 			trackId: track.id,
-			trackTitle: track.title
+			trackTitle: track.title,
+			trackSlug: track.slug,
+			trackUsername: ownerProfile.username
 		})
 		.from(trackComment)
 		.innerJoin(track, eq(trackComment.trackId, track.id))
 		.leftJoin(user, eq(user.id, trackComment.userId))
 		.leftJoin(profile, eq(profile.userId, trackComment.userId))
+		.leftJoin(ownerProfile, eq(ownerProfile.userId, track.userId))
 		.where(and(...conditions))
 		.orderBy(desc(trackComment.createdAt))
 		.limit(limit);
@@ -384,7 +399,9 @@ export async function listRecentComments({ limit = 5, creatorId = null } = {}) {
 		userImage: row.userImage ?? null,
 		username: row.username ?? null,
 		trackId: row.trackId,
-		trackTitle: row.trackTitle
+		trackTitle: row.trackTitle,
+		trackSlug: row.trackSlug,
+		trackUsername: row.trackUsername ?? null
 	}));
 }
 

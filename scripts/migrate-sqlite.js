@@ -15,6 +15,7 @@ import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import { SQLITE_PRAGMAS } from '../src/lib/server/db/pragmas.js';
+import { slugifyTitle, uniqueSlug } from '../src/lib/slugify.js';
 
 const dbPath = process.env.DATABASE_URL;
 if (!dbPath) throw new Error('DATABASE_URL is not set');
@@ -82,6 +83,42 @@ if (migrationRowCount() === 0 && hasAppTables()) {
 
 const db = drizzle(sqlite);
 migrate(db, { migrationsFolder, migrationsTable });
+
+/**
+ * Replace the migration placeholder (slug = id) with a title slug, unique per owner.
+ * Idempotent: already-rewritten slugs are left alone.
+ */
+function backfillTrackSlugs() {
+	const hasSlug = sqlite
+		.query("SELECT 1 AS ok FROM pragma_table_info('track') WHERE name = 'slug' LIMIT 1")
+		.get();
+	if (!hasSlug) return;
+
+	const rows = sqlite
+		.query('SELECT id, user_id, title, slug FROM track ORDER BY created_at ASC, id ASC')
+		.all();
+
+	/** @type {Map<string, Set<string>>} */
+	const takenByUser = new Map();
+	for (const row of rows) {
+		if (!takenByUser.has(row.user_id)) takenByUser.set(row.user_id, new Set());
+		if (row.slug && row.slug !== row.id) takenByUser.get(row.user_id).add(row.slug);
+	}
+
+	const update = sqlite.prepare('UPDATE track SET slug = ? WHERE id = ?');
+	let n = 0;
+	for (const row of rows) {
+		if (row.slug && row.slug !== row.id) continue;
+		const taken = takenByUser.get(row.user_id) ?? new Set();
+		const slug = uniqueSlug(slugifyTitle(row.title), taken);
+		taken.add(slug);
+		update.run(slug, row.id);
+		n++;
+	}
+	if (n) console.log(`Backfilled ${n} track slug(s)`);
+}
+
+backfillTrackSlugs();
 
 // Catalog cutover + idempotent seeds (safe on every deploy).
 const GIB = 1024 * 1024 * 1024;

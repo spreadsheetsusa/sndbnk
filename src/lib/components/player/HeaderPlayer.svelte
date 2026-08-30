@@ -20,6 +20,7 @@
 	import { eq } from '#lib/player/eq.svelte.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
+	import { trackPath } from '#lib/track-path.js';
 
 	/**
 	 * @typedef {Object} TimedComment
@@ -401,7 +402,7 @@
 							{/if}
 						</MarqueeLine>
 						<MarqueeLine resetKey="{track.id}-title">
-							<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+							<a class="now-title" href={trackPath(track)}>{track.title}</a>
 						</MarqueeLine>
 					</div>
 
@@ -413,7 +414,7 @@
 								<span class="now-artist">{artistLabel}</span>
 							{/if}
 							<span class="now-sep" aria-hidden="true"> — </span>
-							<a class="now-title" href="/tracks/{track.id}">{track.title}</a>
+							<a class="now-title" href={trackPath(track)}>{track.title}</a>
 						</MarqueeLine>
 					</div>
 

@@ -79,7 +79,7 @@ route at boot with `Invalid environment variables` — copy the missing line fro
 ## Smoke test
 
 `/signup` → `/library` (drop or pick an audio file; deck edit opens) → `/users/{username}` (play it,
-confirm the global player bar survives navigation) → `/tracks/{id}` (like and comment) → sign out
+confirm the global player bar survives navigation) → `/{username}/tracks/{slug}/` (like and comment) → sign out
 from the header → `/signin` back in. Check any visual change in both light and dark mode.
 
 ## Svelte MCP

@@ -15,6 +15,7 @@
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 	import { absoluteUrl, musicRecordingJsonLd } from '#lib/seo.js';
+	import { trackPath } from '#lib/track-path.js';
 
 	let { data } = $props();
 
@@ -28,7 +29,7 @@
 	const pageDescription = $derived(
 		data.description?.trim() || `Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
 	);
-	const seoCanonical = $derived(`${data.siteOrigin}/tracks/${data.track.id}`);
+	const seoCanonical = $derived(`${data.siteOrigin}${trackPath(data.track)}`);
 	const seoImage = $derived(
 		data.track.hasCover ? data.track.coverUrl || `/api/media/${data.track.id}/cover` : null
 	);

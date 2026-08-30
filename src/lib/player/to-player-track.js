@@ -5,6 +5,7 @@
  *
  * @param {{
  *   id: string,
+ *   slug?: string | null,
  *   title: string,
  *   artist?: string | null,
  *   username?: string | null,
@@ -27,6 +28,7 @@
 export function toPlayerTrack(track) {
 	return {
 		id: track.id,
+		slug: track.slug ?? null,
 		title: track.title,
 		artist: track.artist ?? null,
 		username: track.username ?? null,

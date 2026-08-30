@@ -17,11 +17,13 @@
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { trackPath } from '#lib/track-path.js';
 	import { claimRowMenu } from './library-row-menu.js';
 
 	/**
 	 * @typedef {Object} RowTrack
 	 * @property {string} id
+	 * @property {string} [slug]
 	 * @property {string} title
 	 * @property {string | null} artist
 	 * @property {string | null} genre
@@ -100,7 +102,7 @@
 	async function copyLink() {
 		closeMenu();
 		try {
-			await navigator.clipboard.writeText(`${location.origin}/tracks/${track.id}`);
+			await navigator.clipboard.writeText(`${location.origin}${trackPath(track)}`);
 			copied = true;
 			setTimeout(() => (copied = false), 2000);
 		} catch {
@@ -244,7 +246,7 @@
 
 		{#if menuOpen}
 			<div class="menu" id="library-menu-{track.id}" role="menu">
-				<a class="menu-item" role="menuitem" href="/tracks/{track.id}">
+				<a class="menu-item" role="menuitem" href={trackPath(track)}>
 					<span class="menu-icon" aria-hidden="true">
 						<IconExternalLink size={14} stroke={1.75} />
 					</span>

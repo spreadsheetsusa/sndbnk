@@ -18,9 +18,10 @@
 	import VizDockSlot from '#lib/components/player/VizDockSlot.svelte';
 	import ArtistRow from '#lib/components/profile/ArtistRow.svelte';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
+	import { trackPath } from '#lib/track-path.js';
 	/**
 	 * @typedef {import('#lib/components/profile/ArtistRow.svelte').Artist} Artist
-	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string }} RecentComment
+	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string, trackSlug?: string | null, trackUsername?: string | null }} RecentComment
 	 * @typedef {{ followerCount: number, followingCount: number, trackCount: number, likeCount: number, repostCount: number }} ProfileStats
 	 * @typedef {{ id: string, label: string, url: string }} ProfileLink
 	 */
@@ -131,7 +132,10 @@
 
 	/** @param {RecentComment} comment */
 	function commentHref(comment) {
-		return `/tracks/${comment.trackId}#comment-${comment.id}`;
+		return trackPath(
+			{ username: comment.trackUsername, slug: comment.trackSlug, id: comment.trackId },
+			`#comment-${comment.id}`
+		);
 	}
 
 	/**

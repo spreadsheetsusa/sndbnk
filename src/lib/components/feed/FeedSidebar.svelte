@@ -12,11 +12,12 @@
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import VizDockSlot from '#lib/components/player/VizDockSlot.svelte';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
+	import { trackPath } from '#lib/track-path.js';
 
 	/**
-	 * @typedef {{ id: string, title: string, uploaderName: string, uploaderImage: string | null, username: string | null, likeCount: number }} LikedTrack
+	 * @typedef {{ id: string, title: string, slug?: string | null, uploaderName: string, uploaderImage: string | null, username: string | null, likeCount: number }} LikedTrack
 	 * @typedef {{ username: string, name: string, image: string | null, isViewer?: boolean, followedByViewer?: boolean }} Artist
-	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string }} RecentComment
+	 * @typedef {{ id: string, body: string, createdAt: number, userName: string, userImage: string | null, username: string | null, trackId: string, trackTitle: string, trackSlug?: string | null, trackUsername?: string | null }} RecentComment
 	 * @typedef {{ genre: string, count: number }} GenreCount
 	 */
 
@@ -101,7 +102,10 @@
 
 	/** @param {RecentComment} comment */
 	function commentHref(comment) {
-		return `/tracks/${comment.trackId}#comment-${comment.id}`;
+		return trackPath(
+			{ username: comment.trackUsername, slug: comment.trackSlug, id: comment.trackId },
+			`#comment-${comment.id}`
+		);
 	}
 
 	/**
@@ -184,7 +188,7 @@
 						<ul class="item-list">
 							{#each mostLiked as item (item.id)}
 								<li style:view-transition-name="feed-pop-{vtName(item.id)}">
-									<a class="item avatar-row" href="/tracks/{item.id}">
+									<a class="item avatar-row" href={trackPath(item)}>
 										<Avatar src={item.uploaderImage} name={item.uploaderName} size="1.85rem" />
 										<span class="item-copy">
 											<span class="item-title">{item.title}</span>

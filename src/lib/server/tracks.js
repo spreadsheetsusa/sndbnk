@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import { normalizeGenreField } from '#lib/genres.js';
 import { DEFAULT_TRACK_MEDIA_TYPE, isTrackMediaType } from '#lib/media/track-media-type.js';
+import { slugifyTitle, uniqueSlug } from '#lib/slugify.js';
 import {
 	decodeCursor,
 	encodeCursor,
@@ -390,6 +391,7 @@ export async function createTrackFromForm(userId, formData) {
 	const id = crypto.randomUUID();
 	const folderKey = id;
 	const now = new Date();
+	const slug = await allocateTrackSlug(userId, metaResult.metadata.title);
 
 	const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
 
@@ -399,6 +401,7 @@ export async function createTrackFromForm(userId, formData) {
 		id,
 		userId,
 		...metaResult.metadata,
+		slug,
 		audioFilename: audioResult.filename,
 		audioMime: audioResult.mime,
 		audioBytes: audioResult.bytes,
@@ -1048,9 +1051,12 @@ export async function serializeTrackForPlayer(
 	}
 	const { audioUrl, coverUrl } = resolvePublicTrackMediaUrls(row, base ?? null);
 
+	const slug = await ensureTrackSlug(row);
+
 	return {
 		kind: /** @type {const} */ ('track'),
 		id: row.id,
+		slug,
 		title: row.title,
 		artist: row.artist,
 		genre: row.genre,
@@ -1368,6 +1374,57 @@ export async function listProfileItemsWithUploader(
 
 	rows.sort(keysetComparator(itemSortAt, itemSortId, direction));
 	return keysetPage(rows, limit, itemCursor, direction);
+}
+
+/**
+ * First unused title slug for this owner.
+ *
+ * @param {string} userId
+ * @param {string} title
+ * @param {string | null} [excludeTrackId]
+ */
+export async function allocateTrackSlug(userId, title, excludeTrackId = null) {
+	const rows = await db
+		.select({ id: track.id, slug: track.slug })
+		.from(track)
+		.where(eq(track.userId, userId));
+	const taken = new Set(
+		rows.filter((row) => row.slug && row.id !== excludeTrackId).map((row) => row.slug)
+	);
+	return uniqueSlug(slugifyTitle(title), taken);
+}
+
+/**
+ * Persist a title slug when the row still has the migration UUID placeholder.
+ *
+ * @param {typeof track.$inferSelect} row
+ */
+export async function ensureTrackSlug(row) {
+	if (row.slug && row.slug !== row.id) return row.slug;
+	const slug = await allocateTrackSlug(row.userId, row.title, row.id);
+	await db.update(track).set({ slug }).where(eq(track.id, row.id));
+	row.slug = slug;
+	return slug;
+}
+
+/**
+ * One track row with uploader profile info.
+ * @param {string} username
+ * @param {string} slug
+ */
+export async function getTrackByUsernameAndSlug(username, slug) {
+	const rows = await db
+		.select({
+			track: track,
+			username: profile.username,
+			uploaderName: user.name
+		})
+		.from(track)
+		.innerJoin(profile, eq(profile.userId, track.userId))
+		.leftJoin(user, eq(user.id, track.userId))
+		.where(and(eq(profile.username, username), eq(track.slug, slug)))
+		.limit(1);
+	return rows[0] ?? null;
 }
 
 /**

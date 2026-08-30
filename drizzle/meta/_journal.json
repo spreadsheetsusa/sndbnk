@@ -169,6 +169,13 @@
       "when": 1787959186872,
       "tag": "0023_natural_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1788110403589,
+      "tag": "0024_tan_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

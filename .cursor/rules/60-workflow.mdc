@@ -24,7 +24,7 @@ The end-to-end path that catches most regressions:
 2. `/library` → drop or pick an audio file; lands on `/library?track=&edit=1` with metadata and a waveform.
 3. `/users/{username}` → the track appears, plays, and the global player bar persists across
    navigation.
-4. `/tracks/{id}` → like and comment both work and survive a reload.
+4. `/{username}/tracks/{slug}/` → like and comment both work and survive a reload.
 5. Sign out from the header, then `/signin` back in.
 
 ## Git
