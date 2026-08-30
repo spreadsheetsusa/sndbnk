@@ -179,18 +179,23 @@ mirrors `sshRemotePath` for direct browser reads) — see [media-and-storage.md]
 
 Four groups of columns:
 
-| Group               | Columns                                                                                                                                                                                                                                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Editable metadata   | `title` (required), `description`, `artist`, `album`, `albumArtist`, `genre` (free text; comma-separated for multiple values), `mediaType` (`track` \| `mix` \| `sample` \| `loop` \| `podcast`, default `track`), `year`, `trackNumber`, `discNumber`, `bpm`, `isrc`, `composer`, `comment` |
-| Files               | `audioFilename`, `audioMime`, `audioBytes` (playback file the player serves), `originalFilename`, `originalMime`, `originalBytes` (preserved source when playback is a derivative, e.g. WAV kept after MP3 encode; null otherwise), `coverFilename`, `coverMime`, `coverBytes`               |
-| Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`, `encoder`, `tagTypes`, `trackGainDb`, `container`                                                                                                                                                                                |
-| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `isPrivate`, `storageAdapter`, `folderKey`                                                                                                                                                                                              |
+| Group               | Columns                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Editable metadata   | `title` (required), `slug` (URL-safe title, unique per owner; stable after create), `description`, `artist`, `album`, `albumArtist`, `genre` (free text; comma-separated for multiple values), `mediaType` (`track` \| `mix` \| `sample` \| `loop` \| `podcast`, default `track`), `year`, `trackNumber`, `discNumber`, `bpm`, `isrc`, `composer`, `comment` |
+| Files               | `audioFilename`, `audioMime`, `audioBytes` (playback file the player serves), `originalFilename`, `originalMime`, `originalBytes` (preserved source when playback is a derivative, e.g. WAV kept after MP3 encode; null otherwise), `coverFilename`, `coverMime`, `coverBytes`                                                                               |
+| Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`, `encoder`, `tagTypes`, `trackGainDb`, `container`                                                                                                                                                                                                                                                |
+| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `isPrivate`, `storageAdapter`, `folderKey`                                                                                                                                                                                                                                                              |
 
 `storageAdapter` is a **snapshot of the owner's adapter at upload time**, and `folderKey` equals the
 track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —
 so switching your storage setting never orphans existing tracks.
 
-`published` defaults to `1`; `isPrivate` defaults to `0`. Link access (`/tracks/[id]`, media) uses
+`slug` is generated from the title at upload (`slugifyTitle`, then `-2` / `-3` on collision) and
+does not change when the title is edited. Existing rows are backfilled the same way. Public detail
+URLs are `/{username}/tracks/{slug}/`; `/tracks/{id}` 301s there.
+
+`published` defaults to `1`; `isPrivate` defaults to `0`. Link access (`/{username}/tracks/{slug}/`,
+media) uses
 `published` — private published tracks stay reachable by URL. Public listings — profile pages, the
 feed, the landing hero, sitemap, likes tabs, playlists, and discover sidebars — require
 `published && !isPrivate`. The owner's library lists every track and carries Published + Private

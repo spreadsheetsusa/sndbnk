@@ -6,10 +6,12 @@
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
+	import { trackPath } from '#lib/track-path.js';
 
 	/**
 	 * @typedef {Object} HeroTrack
 	 * @property {string} id
+	 * @property {string} [slug]
 	 * @property {string} title
 	 * @property {string | null} artist
 	 * @property {string | null} genre
@@ -135,7 +137,7 @@
 
 		<div class="card-footer">
 			<span class="card-artist">{artistLabel}</span>
-			<a class="card-note" href="/tracks/{track.id}">{track.title}</a>
+			<a class="card-note" href={trackPath(track)}>{track.title}</a>
 		</div>
 	</div>
 {:else}

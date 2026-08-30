@@ -304,6 +304,8 @@ export const track = sqliteTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		title: text('title').notNull(),
+		/** URL segment under /{username}/tracks/{slug}/; unique per owner. */
+		slug: text('slug').notNull().default(''),
 		description: text('description'),
 		artist: text('artist'),
 		album: text('album'),
@@ -364,7 +366,8 @@ export const track = sqliteTable(
 	// the feed walks all tracks, library and profiles walk one user's.
 	(table) => [
 		index('track_createdAt_id_idx').on(table.createdAt, table.id),
-		index('track_userId_createdAt_idx').on(table.userId, table.createdAt, table.id)
+		index('track_userId_createdAt_idx').on(table.userId, table.createdAt, table.id),
+		uniqueIndex('track_userId_slug_uidx').on(table.userId, table.slug)
 	]
 );
 

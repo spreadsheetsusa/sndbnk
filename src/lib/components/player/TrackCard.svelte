@@ -17,6 +17,7 @@
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { trackPath } from '#lib/track-path.js';
 
 	/**
 	 * @typedef {Object} TimedComment
@@ -32,6 +33,7 @@
 	/**
 	 * @typedef {Object} CardTrack
 	 * @property {string} id
+	 * @property {string} [slug]
 	 * @property {string} [cursor] position in a paged listing
 	 * @property {string} title
 	 * @property {string | null} artist
@@ -275,7 +277,7 @@
 	}
 
 	async function copyLink() {
-		const url = `${location.origin}/tracks/${track.id}`;
+		const url = `${location.origin}${trackPath(track)}`;
 		try {
 			await navigator.clipboard.writeText(url);
 			copied = true;
@@ -438,7 +440,7 @@
 				{#if titleAsHeading}
 					<h1 class="title">{track.title}</h1>
 				{:else}
-					<a class="title" href="/tracks/{track.id}">{track.title}</a>
+					<a class="title" href={trackPath(track)}>{track.title}</a>
 				{/if}
 			</div>
 

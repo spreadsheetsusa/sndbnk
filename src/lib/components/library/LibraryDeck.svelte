@@ -23,10 +23,12 @@
 	import { player } from '#lib/player/player.svelte.js';
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
+	import { trackPath } from '#lib/track-path.js';
 
 	/**
 	 * @typedef {Object} DeckTrack
 	 * @property {string} id
+	 * @property {string} [slug]
 	 * @property {string} title
 	 * @property {string | null} artist
 	 * @property {string | null} genre
@@ -628,7 +630,7 @@
 								/>
 							{:else}
 								<span class="artist">{track.artist || track.uploaderName}</span>
-								<a class="title" href="/tracks/{track.id}">{track.title}</a>
+								<a class="title" href={trackPath(track)}>{track.title}</a>
 							{/if}
 						</div>
 

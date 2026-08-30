@@ -17,7 +17,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/library`                         | required               | owner track list; drop/picker upload via `?/create`; `?mediaType=` filters; `?track=` + `?edit=1` deck edit |
 | `/library/new`                     | required               | redirects to `/library` (former LOAD console)                                                               |
 | `/library/[id]`                    | owner only             | redirects to `/library?track={id}&edit=1`                                                                   |
-| `/tracks/[id]`                     | public                 | track detail with waveform and comments                                                                     |
+| `/[username]/tracks/[slug]`        | public                 | track detail with waveform and comments (`/{artist}/tracks/{slug}/`)                                        |
+| `/tracks/[id]`                     | public                 | 301 to `/{username}/tracks/{slug}/`                                                                         |
 | `/playlists/new`                   | required               | create a playlist                                                                                           |
 | `/playlists/[id]`                  | public                 | playlist detail (waveform + member list)                                                                    |
 | `/playlists/[id]/edit`             | owner only             | edit metadata, reorder/remove members                                                                       |

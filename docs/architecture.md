@@ -63,9 +63,9 @@ On a tenant host platform and account routes stay deliberately narrow:
 - **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`,
   `/library`, `/sites`, `/plans`, `/admin`, `/dev`, `/users/*`, and unlisted `/api/*` — platform
   surfaces only exist on the apex
-- **Platform public:** `/tracks/*`, `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`,
-  `/api/site-og/*`, `/api/tracks/*`, `/api/playlists/*`, `/api/users/*`,
-  `/playlists/*`
+- **Platform public:** `/{username}/tracks/{slug}/`, `/tracks/*` (legacy UUID 301), `/api/media/*`,
+  `/api/avatar/*`, `/api/site-logo/*`, `/api/site-og/*`, `/api/tracks/*`, `/api/playlists/*`,
+  `/api/users/*`, `/playlists/*`
 - **Composed site:** `/` and flat `site_page` paths such as `/about`; the catch-all loader returns
   404 when no page has that exact path
 - `/users/{own username}` redirects to `/` so a tenant host has one canonical profile URL

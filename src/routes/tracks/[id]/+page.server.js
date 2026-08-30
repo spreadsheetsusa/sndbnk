@@ -1,13 +1,9 @@
 import { error } from '@sveltejs/kit';
 
+import { safeRedirect } from '#lib/server/safe-redirect';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
-import {
-	canViewTrack,
-	getSocialForTracks,
-	getTrackWithUploader,
-	listCommentsForTrack,
-	serializeTrackForPlayer
-} from '#lib/server/tracks';
+import { canViewTrack, ensureTrackSlug, getTrackWithUploader } from '#lib/server/tracks';
+import { trackPath } from '#lib/track-path.js';
 
 export const load = async ({ locals, params }) => {
 	const row = await getTrackWithUploader(params.id);
@@ -19,41 +15,10 @@ export const load = async ({ locals, params }) => {
 		error(404, 'Track not found');
 	}
 
-	const social = await getSocialForTracks([row.track.id], locals.user?.id ?? null);
-	const comments = await listCommentsForTrack(row.track.id);
-	const timedComments = comments
-		.filter((comment) => comment.atMs != null)
-		.map((comment) => ({ ...comment, atMs: /** @type {number} */ (comment.atMs) }))
-		.sort((a, b) => a.atMs - b.atMs);
-	const track = await serializeTrackForPlayer(
-		row.track,
-		row,
-		social.get(row.track.id),
-		locals.user,
-		timedComments
-	);
+	const slug = await ensureTrackSlug(row.track);
+	if (!row.username || !slug) {
+		error(404, 'Track not found');
+	}
 
-	return {
-		track,
-		description: row.track.description,
-		meta: {
-			album: row.track.album ?? null,
-			albumArtist: row.track.albumArtist ?? null,
-			year: row.track.year ?? null,
-			trackNumber: row.track.trackNumber ?? null,
-			discNumber: row.track.discNumber ?? null,
-			bpm: row.track.bpm ?? null,
-			isrc: row.track.isrc ?? null,
-			composer: row.track.composer ?? null
-		},
-		comments,
-		viaTenantHost: Boolean(locals.tenant),
-		viewer: locals.user
-			? {
-					id: locals.user.id,
-					name: locals.user.name,
-					image: locals.user.image ?? null
-				}
-			: null
-	};
+	safeRedirect(301, trackPath({ username: row.username, slug }));
 };

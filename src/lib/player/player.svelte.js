@@ -8,6 +8,7 @@ import { getPlayThresholds } from '#lib/player/play-thresholds.js';
  *
  * @typedef {Object} PlayerTrack
  * @property {string} id
+ * @property {string} [slug]
  * @property {string} title
  * @property {string | null} artist
  * @property {string | null} username

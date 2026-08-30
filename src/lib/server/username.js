@@ -38,6 +38,7 @@ export const RESERVED_USERNAMES = new Set([
 	'robots',
 	'sitemap',
 	'library',
+	'tracks',
 	'media',
 	'plans',
 	'pricing',

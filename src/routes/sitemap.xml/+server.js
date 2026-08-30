@@ -39,6 +39,7 @@ export const GET = async () => {
 		db
 			.select({
 				id: track.id,
+				slug: track.slug,
 				userId: track.userId,
 				updatedAt: track.updatedAt,
 				createdAt: track.createdAt
@@ -64,12 +65,15 @@ export const GET = async () => {
 			? []
 			: await db
 					.select({
+						userId: profile.userId,
 						username: profile.username,
 						updatedAt: profile.updatedAt,
 						createdAt: profile.createdAt
 					})
 					.from(profile)
 					.where(inArray(profile.userId, activeUserIds));
+
+	const usernameByUserId = new Map(profiles.map((row) => [row.userId, row.username]));
 
 	const body = [
 		'<?xml version="1.0" encoding="UTF-8"?>',
@@ -82,7 +86,13 @@ export const GET = async () => {
 		...profiles.map((row) =>
 			urlEntry(`${origin}/users/${row.username}`, row.updatedAt ?? row.createdAt)
 		),
-		...tracks.map((row) => urlEntry(`${origin}/tracks/${row.id}`, row.updatedAt ?? row.createdAt)),
+		...tracks.flatMap((row) => {
+			const username = usernameByUserId.get(row.userId);
+			if (!username || !row.slug) return [];
+			return [
+				urlEntry(`${origin}/${username}/tracks/${row.slug}/`, row.updatedAt ?? row.createdAt)
+			];
+		}),
 		...playlists.map((row) =>
 			urlEntry(`${origin}/playlists/${row.id}`, row.updatedAt ?? row.createdAt)
 		),
