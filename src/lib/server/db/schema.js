@@ -325,10 +325,25 @@ export const track = sqliteTable(
 		audioFilename: text('audio_filename').notNull(),
 		audioMime: text('audio_mime').notNull(),
 		audioBytes: integer('audio_bytes').notNull(),
-		/** Preserved source when playback is a derivative (e.g. WAV kept after MP3 encode). */
+		/** Preserved source when playback is a derivative (e.g. WAV kept after MP3 encode). Deprecated — use master*. */
 		originalFilename: text('original_filename'),
 		originalMime: text('original_mime'),
 		originalBytes: integer('original_bytes'),
+		/** Race guard + revisioned object key. New on every audio replace. */
+		mediaRevision: text('media_revision').notNull().default(''),
+		/** Exact upload bytes. Immutable; never tagged or transcoded in place. */
+		masterFilename: text('master_filename').notNull().default(''),
+		masterMime: text('master_mime').notNull().default(''),
+		masterBytes: integer('master_bytes').notNull().default(0),
+		masterSha256: text('master_sha256').notNull().default(''),
+		/** Stream-friendly copy. Null when playback aliases a sane master. */
+		playbackFilename: text('playback_filename'),
+		playbackMime: text('playback_mime'),
+		playbackBytes: integer('playback_bytes'),
+		/** queued | ready | failed. Null when no derivative is needed (alias). */
+		playbackStatus: text('playback_status'),
+		playbackError: text('playback_error'),
+		playbackUpdatedAt: integer('playback_updated_at', { mode: 'timestamp_ms' }),
 		coverFilename: text('cover_filename'),
 		coverMime: text('cover_mime'),
 		coverBytes: integer('cover_bytes'),

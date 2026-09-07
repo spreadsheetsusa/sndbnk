@@ -1,9 +1,10 @@
 import { and, count, eq, inArray, sql } from 'drizzle-orm';
 
-import { db } from '#lib/server/db';
-import { profile, track } from '#lib/server/db/schema';
-import { planOrDefault } from '#lib/server/billing/plans';
-import { isHostedStorageAdapter } from '#lib/server/storage';
+import { db } from '#lib/server/db/index.js';
+import { profile, track } from '#lib/server/db/schema.js';
+import { planOrDefault } from '#lib/server/billing/plans.js';
+import { hostedCommittedBytesSql } from '#lib/server/media/assets.js';
+import { isHostedStorageAdapter } from '#lib/server/storage/index.js';
 
 /**
  * @typedef {{
@@ -29,7 +30,7 @@ export async function getUsage(userId) {
 		db.select({ tracks: count() }).from(track).where(eq(track.userId, userId)),
 		db
 			.select({
-				bytes: sql`coalesce(sum(${track.audioBytes} + coalesce(${track.originalBytes}, 0) + coalesce(${track.coverBytes}, 0)), 0)`
+				bytes: sql`coalesce(sum(${hostedCommittedBytesSql()}), 0)`
 			})
 			.from(track)
 			.where(and(eq(track.userId, userId), inArray(track.storageAdapter, ['local', 's3'])))

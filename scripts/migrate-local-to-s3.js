@@ -444,36 +444,40 @@ async function migrateOrphans() {
  */
 function trackObjects(row) {
 	/** @type {{ filename: string, expectedSize: number | null, contentType: string, required: boolean }[]} */
-	const objects = [
-		{
-			filename: row.audioFilename,
-			expectedSize: row.audioBytes,
-			contentType: row.audioMime || guessMime(row.audioFilename),
-			required: true
-		}
-	];
-	if (row.originalFilename) {
+	const seen = new Set();
+	/** @type {{ filename: string, expectedSize: number | null, contentType: string, required: boolean }[]} */
+	const objects = [];
+
+	/**
+	 * @param {string | null | undefined} filename
+	 * @param {number | null | undefined} expectedSize
+	 * @param {string | null | undefined} contentType
+	 * @param {boolean} required
+	 */
+	const add = (filename, expectedSize, contentType, required) => {
+		if (!filename || seen.has(filename)) return;
+		seen.add(filename);
 		objects.push({
-			filename: row.originalFilename,
-			expectedSize: row.originalBytes,
-			contentType: row.originalMime || guessMime(row.originalFilename),
-			required: true
+			filename,
+			expectedSize: expectedSize ?? null,
+			contentType: contentType || guessMime(filename),
+			required
 		});
+	};
+
+	add(row.masterFilename, row.masterBytes, row.masterMime, Boolean(row.masterFilename));
+	add(row.playbackFilename, row.playbackBytes, row.playbackMime, false);
+	add(row.audioFilename, row.audioBytes, row.audioMime, !row.masterFilename);
+	if (row.originalFilename) {
+		add(row.originalFilename, row.originalBytes, row.originalMime, false);
 	}
 	if (row.coverFilename) {
-		objects.push({
-			filename: row.coverFilename,
-			expectedSize: row.coverBytes,
-			contentType: row.coverMime || guessMime(row.coverFilename),
-			required: true
-		});
+		add(row.coverFilename, row.coverBytes, row.coverMime, true);
 	}
-	objects.push({
-		filename: WAVEFORM_FILENAME,
-		expectedSize: null,
-		contentType: 'application/json',
-		required: false
-	});
+	if (row.mediaRevision) {
+		add(`waveform-${row.mediaRevision}.json`, null, 'application/json', false);
+	}
+	add(WAVEFORM_FILENAME, null, 'application/json', false);
 	return objects;
 }
 

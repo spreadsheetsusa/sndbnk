@@ -13,6 +13,8 @@ export const AUDIO_FILE_ACCEPT = [
 	'.aac',
 	'.ogg',
 	'.m4a',
+	'.aiff',
+	'.aif',
 	'audio/mpeg',
 	'audio/mp3',
 	'audio/wav',
@@ -23,12 +25,16 @@ export const AUDIO_FILE_ACCEPT = [
 	'audio/aac',
 	'audio/ogg',
 	'audio/mp4',
-	'audio/x-m4a'
+	'audio/x-m4a',
+	'audio/aiff',
+	'audio/x-aiff'
 ].join(',');
 
 /**
  * @param {File} file
  */
 export function isAudioFile(file) {
-	return file.type.startsWith('audio/') || /\.(mp3|wav|flac|aac|ogg|m4a)$/i.test(file.name);
+	return (
+		file.type.startsWith('audio/') || /\.(mp3|wav|flac|aac|ogg|m4a|aiff|aif)$/i.test(file.name)
+	);
 }

@@ -165,7 +165,7 @@ src/
       site-pages.js       CMS pages + body block lists for the site builder
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats
-      media/              waveform.js (ffmpeg peaks), transcode.js (WAV→MP3), embed-tags.js (taglib)
+      media/              waveform.js (ffmpeg peaks), transcode.js (playback MP3), embed-tags.js (taglib)
       queue/              BullMQ waveform + transcode + embed-tags jobs (Redis); worker: bun run worker:waveform
       storage/            adapter interface, local, platform s3 (sndbnk-media in prod), ssh BYOS, crypto
       safe-redirect.js    adapter-safe redirect
@@ -183,7 +183,7 @@ scripts/backup-sqlite.js        SQLite file backup before prod applies
   resources and unauthorized API calls, `safeRedirect()` for navigation.
 - **Ownership is checked at the query.** `getOwnedTrack(userId, trackId)` for anything mutating,
   `getTrackById(trackId)` for public reads. There is no separate authorization layer to forget.
-- **Media side effects fail soft.** Waveform generation, WAV→MP3 transcode, and tag embedding return
+- **Media side effects fail soft.** Waveform generation, playback-MP3 transcode, and tag embedding return
   `null` or `{ ok: false }` rather than aborting an upload or track save that already succeeded.
   Write-tags is queued on the same worker; the save returns immediately with `queued` / `failed`.
 - **Env access goes through `$app/env/private` and `$app/env/public`**, declared in

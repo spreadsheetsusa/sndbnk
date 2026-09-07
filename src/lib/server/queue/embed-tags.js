@@ -130,9 +130,16 @@ export async function enqueueEmbedTagsJob(userId, trackId, { mode = 'gapfill' } 
 
 		await setTagEmbedStatus(userId, trackId, 'queued', queuedMessage);
 
+		const owned = await db
+			.select({ mediaRevision: track.mediaRevision })
+			.from(track)
+			.where(and(eq(track.id, trackId), eq(track.userId, userId)))
+			.limit(1);
+		const revision = owned[0]?.mediaRevision ?? null;
+
 		await queue.add(
 			'embed-tags',
-			{ trackId, userId, mode },
+			{ trackId, userId, mode, revision, role: 'embed-tags' },
 			{
 				jobId: trackId,
 				attempts: 3,
@@ -175,8 +182,9 @@ function doneMessage(result) {
  * @param {string} trackId
  * @param {string} userId
  * @param {TagEmbedMode} [mode]
+ * @param {string} [revision]
  */
-export async function processEmbedTagsJob(trackId, userId, mode = 'gapfill') {
+export async function processEmbedTagsJob(trackId, userId, mode = 'gapfill', revision) {
 	const rows = await db
 		.select({ id: track.id, userId: track.userId })
 		.from(track)
@@ -190,7 +198,7 @@ export async function processEmbedTagsJob(trackId, userId, mode = 'gapfill') {
 	await setTagEmbedStatus(userId, trackId, 'writing', 'Writing tags to the file…');
 
 	try {
-		const result = await embedTrackTags(userId, trackId, { mode });
+		const result = await embedTrackTags(userId, trackId, { mode, revision });
 		if (result.ok) {
 			await setTagEmbedStatus(userId, trackId, 'done', doneMessage(result));
 			console.log(`[embed-tags-queue] ${trackId} wrote ${result.written.length} tag(s) (${mode})`);

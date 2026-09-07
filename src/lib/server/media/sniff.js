@@ -68,6 +68,10 @@ export function sniffAudio(head) {
 	if (startsWithAscii(head, 'RIFF') && asciiAt(head, 8, 'WAVE')) {
 		return { ext: 'wav', mime: 'audio/wav' };
 	}
+	// AIFF / AIFC: FORM....AIFF or FORM....AIFC
+	if (startsWithAscii(head, 'FORM') && (asciiAt(head, 8, 'AIFF') || asciiAt(head, 8, 'AIFC'))) {
+		return { ext: 'aiff', mime: 'audio/aiff' };
+	}
 	if (startsWithAscii(head, 'fLaC')) {
 		return { ext: 'flac', mime: 'audio/flac' };
 	}

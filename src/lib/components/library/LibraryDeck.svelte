@@ -6,6 +6,7 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, slide } from 'svelte/transition';
 	import IconCamera from '@tabler/icons-svelte-runes/icons/camera';
+	import IconDownload from '@tabler/icons-svelte-runes/icons/download';
 	import IconPencil from '@tabler/icons-svelte-runes/icons/pencil';
 	import IconPlus from '@tabler/icons-svelte-runes/icons/plus';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
@@ -46,6 +47,9 @@
 	 * @property {string} [comment]
 	 * @property {number | null} durationMs
 	 * @property {number} [audioBytes]
+	 * @property {number} [masterBytes]
+	 * @property {string | null} [playbackStatus]
+	 * @property {string | null} [playbackError]
 	 * @property {boolean} hasCover
 	 * @property {string | null} [coverUrl]
 	 * @property {string | null} [audioUrl]
@@ -252,8 +256,9 @@
 		if (track.durationMs != null && Number.isFinite(track.durationMs)) {
 			rows.push({ key: 'duration', label: 'Duration', value: formatDuration(track.durationMs) });
 		}
-		if (track.audioBytes != null && Number.isFinite(track.audioBytes)) {
-			rows.push({ key: 'size', label: 'Size', value: formatBytes(track.audioBytes) });
+		const sizeBytes = track.masterBytes ?? track.audioBytes;
+		if (sizeBytes != null && Number.isFinite(sizeBytes)) {
+			rows.push({ key: 'size', label: 'Size', value: formatBytes(sizeBytes) });
 		}
 		if (track.bitrate != null && Number.isFinite(track.bitrate) && track.bitrate > 0) {
 			const kbps = Math.round(track.bitrate / 1000);
@@ -288,6 +293,17 @@
 		}
 		if (track.container) {
 			rows.push({ key: 'container', label: 'Container', value: track.container });
+		}
+		if (track.playbackStatus === 'queued') {
+			rows.push({ key: 'playback', label: 'Playback', value: 'Encoding 320k stream…' });
+		} else if (track.playbackStatus === 'failed') {
+			rows.push({
+				key: 'playback',
+				label: 'Playback',
+				value: track.playbackError || 'Encode failed. Original is still downloadable.'
+			});
+		} else if (track.playbackStatus === 'ready') {
+			rows.push({ key: 'playback', label: 'Playback', value: '320k stream ready' });
 		}
 		return rows;
 	});
@@ -568,6 +584,13 @@
 
 	<div class="deck-chrome">
 		{#if track}
+			{#snippet masterDownload()}
+				<a class="master-download" href="/api/media/{track.id}/master" download>
+					<IconDownload size={13} stroke={1.75} aria-hidden="true" />
+					Download original
+				</a>
+			{/snippet}
+
 			<div class="deck-body">
 				<div class="cover-wrap" class:editable={editUi}>
 					{#if coverPreviewUrl}
@@ -702,6 +725,7 @@
 								{#each displayGenres as g (g)}
 									<span class="genre"># {g}</span>
 								{/each}
+								{@render masterDownload()}
 								<button
 									type="button"
 									class="edit-btn"
@@ -926,6 +950,7 @@
 										{/each}
 									</dl>
 								{/if}
+								{@render masterDownload()}
 
 								<div class="console-foot">
 									<div class="foot-meta">
@@ -1514,6 +1539,33 @@
 		/* Align fields with deck-main (cover column + gap). */
 		display: block;
 		padding: 0.75rem 0 0 calc(var(--deck-cover-size) + 0.9rem);
+	}
+
+	.master-download {
+		display: inline-flex;
+		gap: 0.3rem;
+		align-items: center;
+		width: fit-content;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.master-download :global(svg) {
+		display: block;
+		flex-shrink: 0;
+	}
+
+	.master-download:hover {
+		color: var(--accent);
+	}
+
+	.master-download:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 3px;
 	}
 
 	.file-meta {

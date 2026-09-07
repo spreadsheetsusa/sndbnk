@@ -24,8 +24,9 @@ with no runtime class or base implementation:
 ```
 
 Five methods. `delete` wipes the whole track folder; `deleteObject` removes one filename (used when
-replacing audio/cover or clearing a superseded playback/original pair). No `list`, no `exists`, no
-`copy` — add one only when a feature actually needs it.
+replacing audio/cover or discarding a stale worker object after a lost CAS). No `list`, no `exists`,
+no `copy` — add one only when a feature actually needs it. Write-tags copy-on-write stages locally
+then `put`s a new `playback-*` name.
 
 `get()` returns `{ body, contentType, size }` where `body` is `Uint8Array | ReadableStream | Blob`
 and **`size` is always the full object length**. An optional third argument
@@ -45,17 +46,21 @@ normalize them onto disk). The `s3` adapter maps `{ start, end? }` to `GetObject
 | `ssh`   | `createSshAdapter(userId, config)` | Creator BYOS today. `ssh2` SFTP, a fresh connection per operation                                            |
 | `r2`    | —                                  | listed in `STORAGE_ADAPTERS` with `enabled: false`; user-BYOS R2 is not implemented                          |
 
-Layout is identical across adapters, which is what makes them interchangeable:
+Layout is identical across adapters, which is what makes them interchangeable.
+
+New uploads use revisioned names (`mediaRevision` on the track row). Slice 1 does **not** re-key
+existing objects — backfilled rows keep `audio.*` / `waveform.json` paths.
 
 ```
-{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/audio.{ext}     # playback (mp3 after WAV convert)
-{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/audio.wav       # preserved when WAV was uploaded
-{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/cover.{ext}     # optional
-{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/waveform.json   # peaks dual-write
+{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/
+  master-{revision}.{ext}      # exact upload bytes; never overwritten
+  playback-{revision}.mp3      # 320k CBR when master is not a sane stream format
+  waveform-{revision}.json     # peaks dual-write (avoids stale worker overwrite)
+  cover.{ext}                  # optional; still track-level
 ```
 
-`folderKey` is the track id, so a track's files are one directory and `delete(folderKey)` is a
-complete cleanup (playback audio, preserved original, cover, and `waveform.json` together).
+Pre-slice-1 files may still be `audio.{ext}`, `audio.wav`, and `waveform.json`. `folderKey` is the
+track id, so `delete(folderKey)` is a complete cleanup.
 
 ### SSH scenarios
 
@@ -124,12 +129,12 @@ flowchart TD
   insert --> put["storage.put audio + cover"]
   put -->|ok| coverCols["db.update cover columns"]
   coverCols --> enqueue["BullMQ enqueue waveform"]
-  coverCols --> xcode["if WAV: enqueue transcode"]
+  coverCols --> xcode["if needs playback: enqueue transcode"]
   enqueue --> done["return trackId + serialized item<br/>client opens /library?track=&edit=1"]
   put -->|throws| rollback["storage.delete + db.delete<br/>return ok:false"]
   enqueue --> worker["sndbnk-waveform-worker<br/>ffmpeg → track.waveform"]
   xcode --> worker
-  worker --> mp3["WAV→MP3: audio.mp3 + original* columns"]
+  worker --> mp3["master stays; playback-rev.mp3 + CAS"]
 ```
 
 Upload stays on `/library`: drop a file anywhere on the page (or use the Upload picker). The client
@@ -142,12 +147,17 @@ until after a successful cover put so feed/library do not request `/cover` while
 landing. Preserve that shape if you add another storage step — the rollback is the only thing
 standing between a failed upload and an orphaned row. Waveform jobs are enqueued **after** a
 successful put; enqueue failure is fail-soft (upload still succeeds, peaks stay placeholders until a
-later backfill). WAV uploads also enqueue a playback transcode (same worker process, separate
-BullMQ queue); until that finishes the player streams the WAV, then switches to `audio.mp3`.
+later backfill). Masters that are not a sane browser stream (MP3/AAC/M4A) also enqueue a 320k MP3
+transcode (same worker process, separate BullMQ queue). WAV/OGG can stream from the master while
+that runs; FLAC/AIFF wait until playback is ready. The worker CAS-publishes on `mediaRevision`.
 
 Validation limits live at the top of [`tracks.js`](../src/lib/server/tracks.js):
 `AUDIO_MAX_BYTES` 500MB, `COVER_MAX_BYTES` 5MB, with a MIME-plus-extension allowlist rather than
 trusting the browser's `Content-Type` alone.
+
+Validation is magic-byte sniff first (mp3/wav/flac/aac/ogg/m4a plus AIFF). If sniff fails, ffprobe
+confirms a decodable allowlisted stream or rejects with a clear error. The browser `accept` list
+stays concrete (including `.aiff` / `.aif`) so iOS opens the Files chooser.
 
 Those limits are only reachable if `BODY_SIZE_LIMIT` is above them. `svelte-adapter-bun` defaults to
 512K and answers `413` before any app code runs, so raising an app-side limit means raising that env
@@ -170,9 +180,10 @@ PCM into a coarse ~1 peak/sec envelope, then downsampling to `WAVEFORM_BUCKETS` 
 max-amplitude buckets (or fewer for very short files), normalizing against the loudest bucket, and
 quantizing to integers 0–100. The result is stored as a JSON string on `track.waveform` (~2–3 KB),
 so a profile page ships peaks inline with no extra request. The worker also dual-writes the same
-array to `waveform.json` in the track folder via the storage adapter (local, platform S3, and SSH),
-so peaks stay co-located with audio/cover. The DB column remains the serve path; `/api/media` does not
-expose the peaks file. A storage put failure is logged and never fails the job after DB peaks are
+array to `waveform-{revision}.json` in the track folder via the storage adapter (local, platform S3,
+and SSH), so peaks stay co-located with audio/cover and a stale job cannot overwrite a newer
+revision. Legacy rows may still have `waveform.json`. The DB column remains the serve path;
+`/api/media` does not expose the peaks file. A storage put failure is logged and never fails the job after DB peaks are
 saved. Re-running a job for a track that already has DB peaks skips ffmpeg and only refreshes the
 side file. Local-adapter jobs point ffmpeg at the file under `MEDIA_ROOT`; SSH and S3 tracks are
 staged to a temp file first (S3 `GetObject` → disk) because ffmpeg needs a seekable path.
@@ -200,25 +211,46 @@ Things to know:
 `Waveform.svelte` divides the stored 0–100 ints by 100 for wavesurfer, and falls back to a synthetic
 sine pattern when peaks are `null`.
 
-## WAV → MP3 playback copies
+## Master and playback copies
 
-WAV uploads are accepted and playable immediately. For streaming efficiency the media worker also
-encodes a 320 kbps MP3 (`libmp3lame`) and points the player at that copy while keeping the WAV:
+**Master** is the exact upload bytes. It is immutable, always owner-downloadable
+(`/api/media/{id}/master`), and never overwritten by tags or transcode. New objects are
+`master-{revision}.{ext}`.
 
-| Role                                          | Columns                                               | On-disk                   |
-| --------------------------------------------- | ----------------------------------------------------- | ------------------------- |
-| Playback (`/api/media/.../audio`, `audioUrl`) | `audioFilename` / `audioMime` / `audioBytes`          | `audio.mp3` after convert |
-| Preserved source                              | `originalFilename` / `originalMime` / `originalBytes` | `audio.wav`               |
+**Playback** is a 320k CBR MP3 (`libmp3lame`) when the master is not already a sane browser stream
+(MP3 / AAC / M4A). In that alias case `playback*` stays null and the player streams the master —
+no duplicate file. Otherwise the worker writes `playback-{revision}.mp3`.
 
-Before convert (and for non-WAV uploads) `original*` is null and `audio*` is the uploaded file.
-Needs-convert is inferred: WAV mime and `originalFilename` null. Encode runs in
-[`queue/transcode.js`](../src/lib/server/queue/transcode.js) on the same
+| Role                            | Columns                                                                         | On-disk (new uploads)                       |
+| ------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------- |
+| Master                          | `masterFilename` / `Mime` / `Bytes` / `Sha256`, `mediaRevision`                 | `master-{rev}.{ext}`                        |
+| Playback                        | `playbackFilename` / `Mime` / `Bytes`, `playbackStatus` / `Error` / `UpdatedAt` | `playback-{rev}.mp3` or null (alias)        |
+| Stream (`/api/media/.../audio`) | resolver; `audio*` kept in sync                                                 | playback when ready, else streamable master |
+
+Resolver rules ([`assets.js`](../src/lib/server/media/assets.js)):
+
+- Playback `ready` (or a backfilled filename with no status) → stream that file.
+- Playback null → stream master only if it is browser-streamable (MP3/AAC/M4A; WAV/OGG while a
+  derivative is still encoding).
+- Playback `failed` → never public-fallback to an unplayable master (FLAC/AIFF stay 404 for
+  listeners). The owner can still download the master.
+
+Encode runs in [`queue/transcode.js`](../src/lib/server/queue/transcode.js) on the same
 `bun run worker:waveform` / `sndbnk-waveform-worker` process (second BullMQ worker, concurrency 1).
-`ensureTrackPlaybackMp3(row)` enqueues backfill from serialize, fail-soft like waveforms — missing
-Redis/worker/ffmpeg/`libmp3lame` leaves playback on the WAV. Hosted-storage quota counts
-`audioBytes + originalBytes + coverBytes`. Tag write-back still targets `audioFilename` (the MP3
-once ready) and leaves the WAV untouched. Replacing audio clears prior `original*` and deletes
-superseded playback/original filenames via `deleteObject`.
+Job payload is `{ trackId, revision, role: 'playback' }`; job id is `trackId:revision:playback`.
+Before DB publish the worker CAS-updates on `mediaRevision`. A stale job discards its object
+best-effort. Encode fail leaves the master downloadable and sets `playbackStatus=failed`; retries
+are idempotent. `ensureTrackPlaybackMp3(row)` enqueues backfill from serialize.
+
+**Backfill** (`drizzle/0026_track-master-playback.sql`): if `original*` is present, master =
+original and playback = `audio*` (`ready`). If not, master = `audio*` and playback stays null.
+`original*` is deprecated going forward. Existing object keys are not rewritten.
+
+Hosted-storage quota (local + platform S3; SSH excluded) counts physical committed bytes:
+`master + generated playback (only if the filename differs from master) + cover`. Re-check quota
+before putting a mandatory MP3 derivative.
+
+FLAC artist-pack columns and listener FLAC are out of scope (slice 2).
 
 ## Tag embedding
 
@@ -241,10 +273,13 @@ run this on the request: `writeTags=1` enqueues a BullMQ `embed-tags` job (same
   alone). Used when the library deck Save has **Write tags to file** checked; the `?/update` action
   enqueues after a successful DB update and fails soft (track save still succeeds; UI gets
   `tagsStatus` + `tagsMessage` and polls until the worker finishes).
-- **Stage, then put.** The worker copies the live object to a temp file (local `copyFile`, S3/SSH
-  `stageAdapterObjectToFile`), tags that copy, verifies, then `storage.put`s the tagged bytes.
-  A failed verify or put leaves the stored object unchanged. `track.audioBytes` updates only after
-  a successful put.
+- **Never tag `master-*`.** The target is the playback file. If playback aliases a sane MP3/AAC/M4A
+  master, write-tags **copy-on-write**s `playback-{revision}.{ext}`, tags that copy, then
+  CAS-publishes on `mediaRevision`. A lost CAS discards the new object. Hosted quota is re-checked
+  before the extra file is committed.
+- **Stage, then put.** The worker copies the source object to a temp file (local `copyFile`, S3/SSH
+  `stageAdapterObjectToFile`), tags that copy, verifies, then `storage.put`s the tagged bytes to
+  the playback name. A failed verify or put leaves the stored master unchanged.
 - **Dedup.** `jobId = trackId`. An in-flight job is reused; a completed/failed job is removed so a
   later Save can run again.
 - **Format-aware.** `TAG_FIELDS` carries a separate `writeKey` and `readKey` per field because
@@ -263,10 +298,11 @@ queue (deploy already restarts it).
 
 ## Serving media
 
-Default path: `/api/media/[id]/[file]` where `file` is `audio` or `cover`:
+Default path: `/api/media/[id]/[file]` where `file` is `audio`, `cover`, or owner-only `master`:
 
-- **Public, no session check.** Tracks must play from public profiles, and that is documented inline
-  at the check site.
+- **Public, no session check** for `audio` and `cover`. Tracks must play from public profiles, and
+  that is documented inline at the check site. `master` is owner-only (`Content-Disposition:
+attachment`) so the immutable original can be downloaded from the library.
 - Sets `accept-ranges: bytes`. Published covers use `cache-control: public, max-age=3600`; audio and
   unpublished owner previews stay `private, max-age=3600`.
 - Parses a single `Range: bytes=a-b` header (including open-ended and suffix ranges) and answers
@@ -311,7 +347,8 @@ only.
 | `S3_ENDPOINT`                                                    | Optional custom API (MinIO / LocalStack).                                                                      |
 | `S3_FORCE_PATH_STYLE`                                            | `true` for most MinIO setups.                                                                                  |
 
-Hosted-storage quota counts `local` **and** `s3` tracks. SSH is excluded.
+Hosted-storage quota counts `local` **and** `s3` tracks as master + distinct playback + cover.
+SSH is excluded.
 
 ### Zero-loss local → S3 migration
 
@@ -325,9 +362,9 @@ copies SNDBNK-hosted objects from `MEDIA_ROOT` into `s3://$S3_BUCKET/{userId}/{f
   `Body`). Verifies the S3 object against **what was uploaded** (`HeadObject` size + single-part
   ETag/MD5) **before** flipping `track.storageAdapter` to `s3`. Fail-closed if the S3 object does
   not match the put.
-- A local file whose size disagrees with `audioBytes` / `coverBytes` / `originalBytes` is **copied
-  anyway** (prod has a small hosted set; the file on disk is the source of truth). The mismatch is
-  a warning, not a hard fail.
+- A local file whose size disagrees with `masterBytes` / `playbackBytes` / `audioBytes` /
+  `coverBytes` is **copied anyway** (prod has a small hosted set; the file on disk is the source of
+  truth). The mismatch is a warning, not a hard fail.
 - Multipart ETags (`<md5>-<parts>`) are never treated as an MD5 match. Existing multipart objects
   are re-uploaded (single put) when a local file is present; remote-only multipart objects fail
   closed instead of passing on size alone.
