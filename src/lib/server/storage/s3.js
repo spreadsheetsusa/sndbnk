@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 import {
 	DeleteObjectCommand,
@@ -205,7 +205,7 @@ export async function md5FileHex(filePath) {
 }
 
 /**
- * Stream a local file to S3 (migration path). Verifies ContentMD5 on put.
+ * Upload a local file to S3 (migration path). Verifies ContentMD5 on put.
  *
  * @param {string} key
  * @param {string} filePath
@@ -222,13 +222,16 @@ export async function putS3ObjectFromFile(key, filePath, contentType, config) {
 	const info = await stat(filePath);
 	const md5 = await md5FileHex(filePath);
 	const md5b64 = Buffer.from(md5, 'hex').toString('base64');
+	// Bun requires a buffered Body for PutObject; Node createReadStream fails as a
+	// non-retryable streaming request.
+	const body = await readFile(filePath);
 
 	try {
 		await getS3Client(config).send(
 			new PutObjectCommand({
 				Bucket: resolved.bucket,
 				Key: key,
-				Body: createReadStream(filePath),
+				Body: body,
 				ContentType: contentType || 'application/octet-stream',
 				ContentLength: info.size,
 				ContentMD5: md5b64
