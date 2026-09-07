@@ -687,9 +687,11 @@
 
 				{#if !data.billing.enabled}
 					<div class="banner error" role="alert">
-						Billing is not configured on this server, so plans cannot be changed here.
+						Billing is not configured on this server, so paid plans cannot be purchased yet.
 					</div>
-				{:else if data.billing.hasSubscription}
+				{/if}
+
+				{#if data.billing.enabled && data.billing.hasSubscription}
 					<div class="billing-actions">
 						<form method="POST" action="?/openPortal&tab=billing">
 							<button class="pressable" type="submit"
