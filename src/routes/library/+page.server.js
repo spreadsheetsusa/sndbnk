@@ -1,8 +1,8 @@
 import { fail } from '@sveltejs/kit';
 
 import { isTrackMediaType } from '#lib/media/track-media-type.js';
-import { embedTrackTags } from '#lib/server/media/embed-tags';
 import { listPlaylistsForOwner } from '#lib/server/playlists';
+import { enqueueEmbedTagsJob } from '#lib/server/queue/embed-tags';
 import { getUsage } from '#lib/server/quota';
 import { getStorageSettingPublic } from '#lib/server/storage';
 import { getProfileByUserId } from '#lib/server/tenant';
@@ -135,18 +135,17 @@ export const actions = {
 			});
 		}
 
-		/** @type {string[] | undefined} */
-		let tagsWritten;
 		/** @type {string | undefined} */
 		let tagsMessage;
+		/** @type {import('#lib/media/tag-embed-status.js').TagEmbedStatus | undefined} */
+		let tagsStatus;
 		if (formData.get('writeTags') === '1') {
-			const tags = await embedTrackTags(locals.user.id, trackId, { mode: 'overwrite' });
+			const tags = await enqueueEmbedTagsJob(locals.user.id, trackId, { mode: 'overwrite' });
 			if (tags.ok) {
-				tagsWritten = tags.written;
-				if (tags.written.length === 0) {
-					tagsMessage = 'Saved. No tags were written to the file.';
-				}
+				tagsStatus = tags.status;
+				tagsMessage = tags.message;
 			} else {
+				tagsStatus = 'failed';
 				tagsMessage = `Saved, but tags were not written: ${tags.message}`;
 			}
 		}
@@ -155,7 +154,7 @@ export const actions = {
 			success: 'Track updated.',
 			...echoEditorial(formData, trackId),
 			hasCover: Boolean(result.hasCover),
-			tagsWritten,
+			tagsStatus,
 			tagsMessage
 		};
 	}

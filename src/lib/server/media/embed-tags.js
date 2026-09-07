@@ -1,10 +1,15 @@
+import { copyFile, mkdtemp, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { and, eq } from 'drizzle-orm';
 import { PROPERTIES, TagLib } from 'taglib-wasm';
 
-import { db } from '#lib/server/db';
-import { track } from '#lib/server/db/schema';
-import { getStorageAdapter, parseStoredAdapter } from '#lib/server/storage';
-import { getOwnedTrack } from '#lib/server/tracks';
+import { db } from '#lib/server/db/index.js';
+import { track } from '#lib/server/db/schema.js';
+import { getStorageAdapter, parseStoredAdapter } from '#lib/server/storage/index.js';
+import { localTrackFilePath } from '#lib/server/storage/local-path.js';
+import { stageAdapterObjectToFile } from '#lib/server/storage/stage.js';
 
 /**
  * Track columns paired with their TagLib property keys.
@@ -67,19 +72,6 @@ function getTagLib() {
 }
 
 /**
- * Storage adapters hand back a BunFile (local) or a Uint8Array (ssh).
- * @param {import('#lib/server/storage/types.js').StorageObject['body']} body
- * @returns {Promise<Uint8Array>}
- */
-async function toBytes(body) {
-	if (body instanceof Uint8Array) return body;
-	if (typeof Blob !== 'undefined' && body instanceof Blob) {
-		return new Uint8Array(await body.arrayBuffer());
-	}
-	return new Uint8Array(await new Response(/** @type {ReadableStream} */ (body)).arrayBuffer());
-}
-
-/**
  * @param {string[] | undefined} values
  * @returns {boolean}
  */
@@ -100,7 +92,12 @@ function isBlankTag(values) {
  */
 export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {}) {
 	const overwrite = mode === 'overwrite';
-	const row = await getOwnedTrack(userId, trackId);
+	const rows = await db
+		.select()
+		.from(track)
+		.where(and(eq(track.id, trackId), eq(track.userId, userId)))
+		.limit(1);
+	const row = rows[0];
 	if (!row) {
 		return { ok: false, message: 'Track not found.' };
 	}
@@ -115,109 +112,136 @@ export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {})
 		};
 	}
 
-	/** @type {Uint8Array} */
-	let bytes;
+	/** @type {string | null} */
+	let tempDir = null;
 	try {
-		const object = await storage.get(row.folderKey, row.audioFilename);
-		bytes = await toBytes(object.body);
-	} catch (err) {
-		return {
-			ok: false,
-			message: err instanceof Error ? err.message : 'Could not read the audio file from storage.'
-		};
-	}
+		tempDir = await mkdtemp(path.join(tmpdir(), 'sndbnk-embed-tags-'));
+		const ext = path.extname(row.audioFilename).replace(/^\./, '') || 'bin';
+		const inputPath = path.join(tempDir, `input.${ext}`);
+		const outputPath = path.join(tempDir, `tagged.${ext}`);
 
-	const taglib = await getTagLib();
-
-	/** @type {{ label: string, readKey: string, value: string }[]} */
-	let planned = [];
-	/** @type {import('taglib-wasm').PropertyMap} */
-	let before;
-	/** @type {Uint8Array} */
-	let updated;
-
-	const file = await taglib.open(bytes);
-	try {
-		if (!file.isValid()) {
-			return { ok: false, message: 'This audio file does not support embedded tags.' };
+		try {
+			if (parseStoredAdapter(row.storageAdapter) === 'local') {
+				const livePath = localTrackFilePath(userId, row.folderKey, row.audioFilename);
+				if (!(await Bun.file(livePath).exists())) {
+					return { ok: false, message: 'Could not read the audio file from storage.' };
+				}
+				// Copy so a failed tag never mutates the live object.
+				await copyFile(livePath, inputPath);
+			} else {
+				await stageAdapterObjectToFile(storage, row.folderKey, row.audioFilename, inputPath);
+			}
+		} catch (err) {
+			return {
+				ok: false,
+				message: err instanceof Error ? err.message : 'Could not read the audio file from storage.'
+			};
 		}
 
-		before = file.properties();
+		const taglib = await getTagLib();
 
-		for (const { field, label, writeKey, readKey } of TAG_FIELDS) {
-			const raw = /** @type {Record<string, unknown>} */ (row)[field];
-			if (raw == null || raw === '') continue;
-			if (!overwrite && !isBlankTag(before[readKey])) continue;
+		/** @type {{ label: string, readKey: string, value: string }[]} */
+		let planned = [];
+		/** @type {import('taglib-wasm').PropertyMap} */
+		let before;
 
-			const value = String(raw);
-			file.setProperty(writeKey, value);
-			planned.push({ label, readKey, value });
+		const file = await taglib.open(inputPath);
+		try {
+			if (!file.isValid()) {
+				return { ok: false, message: 'This audio file does not support embedded tags.' };
+			}
+
+			before = file.properties();
+
+			for (const { field, label, writeKey, readKey } of TAG_FIELDS) {
+				const raw = /** @type {Record<string, unknown>} */ (row)[field];
+				if (raw == null || raw === '') continue;
+				if (!overwrite && !isBlankTag(before[readKey])) continue;
+
+				const value = String(raw);
+				file.setProperty(writeKey, value);
+				planned.push({ label, readKey, value });
+			}
+
+			if (planned.length === 0) {
+				return { ok: true, written: [] };
+			}
+
+			if (!file.save()) {
+				return { ok: false, message: 'Could not write tags into this audio file.' };
+			}
+
+			try {
+				await file.saveToFile(outputPath);
+			} catch {
+				// Path backends may refuse saveToFile; the in-memory buffer is the fallback.
+				const updated = file.getFileBuffer();
+				await Bun.write(outputPath, updated);
+			}
+		} finally {
+			file.dispose();
 		}
 
-		if (planned.length === 0) {
+		// Confirm against the saved copy rather than trusting the writes: formats
+		// silently drop or alias keys they cannot represent.
+		/** @type {string[]} */
+		const written = [];
+		const plannedValues = new Set(planned.map(({ value }) => value));
+		const verify = await taglib.open(outputPath);
+		try {
+			const after = verify.properties();
+
+			if (!overwrite) {
+				for (const key of Object.keys(before)) {
+					if (isBlankTag(before[key])) continue;
+					// Only a value we destroyed or replaced counts as a clobber; TagLib
+					// normalising its own encoding of a tag on rewrite is fine.
+					const lost = isBlankTag(after[key]);
+					const clobbered = after[key]?.some(
+						(value) => plannedValues.has(value) && !before[key].includes(value)
+					);
+					if (lost || clobbered) {
+						return {
+							ok: false,
+							message: `Aborted: writing tags would have replaced the existing ${key} tag.`
+						};
+					}
+				}
+			}
+
+			for (const { label, readKey, value } of planned) {
+				if (after[readKey]?.[0] === value) written.push(label);
+			}
+		} finally {
+			verify.dispose();
+		}
+
+		if (written.length === 0) {
 			return { ok: true, written: [] };
 		}
 
-		if (!file.save()) {
-			return { ok: false, message: 'Could not write tags into this audio file.' };
+		const taggedBytes = new Uint8Array(await Bun.file(outputPath).arrayBuffer());
+		try {
+			await storage.put(row.folderKey, row.audioFilename, taggedBytes, row.audioMime);
+		} catch (err) {
+			return {
+				ok: false,
+				message: err instanceof Error ? err.message : 'Could not save the tagged audio file.'
+			};
 		}
 
-		updated = file.getFileBuffer();
+		const taggedSize = (await stat(outputPath)).size;
+		await db
+			.update(track)
+			.set({ audioBytes: taggedSize, updatedAt: new Date() })
+			.where(and(eq(track.id, trackId), eq(track.userId, userId)));
+
+		return { ok: true, written };
 	} finally {
-		file.dispose();
-	}
-
-	// Confirm against the saved bytes rather than trusting the writes: formats
-	// silently drop or alias keys they cannot represent.
-	/** @type {string[]} */
-	const written = [];
-	const plannedValues = new Set(planned.map(({ value }) => value));
-	const verify = await taglib.open(updated);
-	try {
-		const after = verify.properties();
-
-		if (!overwrite) {
-			for (const key of Object.keys(before)) {
-				if (isBlankTag(before[key])) continue;
-				// Only a value we destroyed or replaced counts as a clobber; TagLib
-				// normalising its own encoding of a tag on rewrite is fine.
-				const lost = isBlankTag(after[key]);
-				const clobbered = after[key]?.some(
-					(value) => plannedValues.has(value) && !before[key].includes(value)
-				);
-				if (lost || clobbered) {
-					return {
-						ok: false,
-						message: `Aborted: writing tags would have replaced the existing ${key} tag.`
-					};
-				}
-			}
+		if (tempDir) {
+			await rm(tempDir, { recursive: true, force: true }).catch(() => {
+				// temp dir may already be gone
+			});
 		}
-
-		for (const { label, readKey, value } of planned) {
-			if (after[readKey]?.[0] === value) written.push(label);
-		}
-	} finally {
-		verify.dispose();
 	}
-
-	if (written.length === 0) {
-		return { ok: true, written: [] };
-	}
-
-	try {
-		await storage.put(row.folderKey, row.audioFilename, updated, row.audioMime);
-	} catch (err) {
-		return {
-			ok: false,
-			message: err instanceof Error ? err.message : 'Could not save the tagged audio file.'
-		};
-	}
-
-	await db
-		.update(track)
-		.set({ audioBytes: updated.byteLength, updatedAt: new Date() })
-		.where(and(eq(track.id, trackId), eq(track.userId, userId)));
-
-	return { ok: true, written };
 }

@@ -176,6 +176,13 @@
       "when": 1788110403589,
       "tag": "0024_tan_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1788756086860,
+      "tag": "0025_fresh_bastion",
+      "breakpoints": true
     }
   ]
 }

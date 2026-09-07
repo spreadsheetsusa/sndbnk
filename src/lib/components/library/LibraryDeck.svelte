@@ -529,8 +529,12 @@
 						comment: data.comment,
 						hasCover: data.hasCover ?? (Boolean(coverPreviewUrl) || (track?.hasCover ?? false)),
 						tagsMessage,
-						tagEmbedStatus: data.tagsStatus ?? null,
-						tagEmbedMessage: data.tagsMessage ?? null
+						...(data.tagsStatus
+							? {
+									tagEmbedStatus: data.tagsStatus,
+									tagEmbedMessage: tagsMessage
+								}
+							: {})
 					});
 					clearCoverPreview();
 					writeTags = false;
