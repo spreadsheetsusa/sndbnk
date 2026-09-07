@@ -1,5 +1,6 @@
 <script>
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
+	import IconDownload from '@tabler/icons-svelte-runes/icons/download';
 	import IconExternalLink from '@tabler/icons-svelte-runes/icons/external-link';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconLink from '@tabler/icons-svelte-runes/icons/link';
@@ -272,6 +273,18 @@
 					</span>
 					{copied ? 'Copied!' : 'Copy link'}
 				</button>
+				<a
+					class="menu-item"
+					role="menuitem"
+					href={`/api/media/${track.id}/master`}
+					download
+					onclick={closeMenu}
+				>
+					<span class="menu-icon" aria-hidden="true">
+						<IconDownload size={14} stroke={1.75} />
+					</span>
+					Download original
+				</a>
 				<div class="menu-sep" role="separator"></div>
 				<button type="button" role="menuitem" onclick={addToNextUp}>
 					<span class="menu-icon" aria-hidden="true">
