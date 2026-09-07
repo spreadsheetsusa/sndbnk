@@ -63,7 +63,10 @@
 
 	const selected = $derived(eq.selectedIndex != null ? (eq.nodes[eq.selectedIndex] ?? null) : null);
 	const curveQ = $derived(selected?.q ?? EQ_Q_DEFAULT);
-	const themeLabel = $derived(eq.theme === 'winamp' ? 'WA' : eq.theme === 'lcd' ? 'LCD' : 'DEF');
+	const themeName = $derived(
+		eq.theme === 'winamp' ? 'bezel' : eq.theme === 'lcd' ? 'lcd' : 'default'
+	);
+	const themeLabel = $derived(eq.theme === 'winamp' ? 'BEZ' : eq.theme === 'lcd' ? 'LCD' : 'DEF');
 	const volumePct = $derived(Math.round(audioGraph.volume * 100));
 
 	/** @type {HTMLDivElement | null} */
@@ -491,7 +494,7 @@
 				type="button"
 				class="eq-theme"
 				class:on={eq.theme !== 'default'}
-				aria-label={`EQ theme: ${eq.theme}`}
+				aria-label={`EQ theme: ${themeName}`}
 				onclick={() => eq.cycleTheme()}
 				onpointerdown={(e) => e.stopPropagation()}
 			>

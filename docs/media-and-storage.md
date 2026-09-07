@@ -70,7 +70,7 @@ SSH always writes and manages files over SFTP. Browser reads have two modes, con
    [`public-url.js`](../src/lib/server/storage/public-url.js)). Uploads, deletes, waveform jobs, tag
    embed, unpublished previews, and fallback still use SFTP / `/api/media`.
 
-The public base is not a secret. Trim trailing slashes on save. For Milkdrop, the public host should
+The public base is not a secret. Trim trailing slashes on save. For the visualizer, the public host should
 send `Access-Control-Allow-Origin` because the player sets `crossOrigin = 'anonymous'`.
 
 ### Resolving an adapter

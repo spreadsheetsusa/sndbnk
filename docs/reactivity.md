@@ -216,7 +216,7 @@ flowchart TD
   api -->|"authoritative JSON"| card
 ```
 
-Server data flows down as props. Playback state flows out of the singleton. Milkdrop is toggled from
+Server data flows down as props. Playback state flows out of the singleton. The visualizer is toggled from
 the header player; default `mode` is `window` — the floating panel mounts in the root layout
 (survives per-page `SiteHeader` remounts) and spawns stacked under the player strip (or under a
 strip-snapped EQ) at the strip’s width. Drag onto a `[data-viz-dock]` host (feed/profile sidebars,
