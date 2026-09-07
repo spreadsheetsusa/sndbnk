@@ -94,7 +94,7 @@
 			leftLabel="Their feed"
 			leftBody="You upload into someone else’s machine. They keep the chrome and the rules."
 			rightLabel="Your station"
-			rightBody="You host the files and the page. The address is yours to grow."
+			rightBody="You host the files and the page. The address is yours."
 			line="They have a feed. You have a station."
 		/>
 
