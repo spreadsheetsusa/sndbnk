@@ -809,7 +809,7 @@
 				</div>
 
 				{#if domainNeedsConnect && !form?.domainMessage}
-					<p class="banner quiet" role="status">Point your domain here to finish Studio.</p>
+					<p class="banner quiet" role="status">Point your domain here to finish setup.</p>
 				{/if}
 				{#if form?.domainMessage && !domainBusy}
 					<div class="banner error" role="alert">
