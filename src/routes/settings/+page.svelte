@@ -5,6 +5,12 @@
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { slide } from 'svelte/transition';
+	import {
+		STUDIO_CHECKOUT_HREF,
+		VAULT_CHECKOUT_HREF,
+		isAtTrackCap,
+		isNearTrackCap
+	} from '#lib/billing/ladder.js';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import BioEditor from '#lib/components/settings/BioEditor.svelte';
@@ -86,6 +92,12 @@
 	const canCustomDomain = $derived(data.billing.allowCustomDomain);
 	const canEditSite = $derived(data.billing.canEditSite);
 	const canRemoveBranding = $derived(data.billing.allowRemoveBranding);
+	const onFree = $derived(data.billing.planId === 'free');
+	const atTrackCap = $derived(isAtTrackCap(data.usage.trackCount, data.usage.maxTracks));
+	const nearTrackCap = $derived(isNearTrackCap(data.usage.trackCount, data.usage.maxTracks));
+	const tracksLeft = $derived(
+		data.usage.maxTracks != null ? Math.max(0, data.usage.maxTracks - data.usage.trackCount) : 0
+	);
 	const nameValue = $derived(form?.name ?? data.user.name);
 	const usernameValue = $derived(form?.username ?? data.profile.username);
 	const bioValue = $derived(form?.bio ?? data.profile.bio);
@@ -627,6 +639,16 @@
 									style="width: {fillPercent(data.usage.trackCount, data.usage.maxTracks)}%"
 								></span>
 							</div>
+							{#if atTrackCap}
+								<p class="hint">
+									Free holds one album. Vault unlocks unlimited tracks and you.sndbnk.com.
+								</p>
+							{:else if nearTrackCap}
+								<p class="hint">
+									{tracksLeft} tracks left on this album.
+									<a href={VAULT_CHECKOUT_HREF}>Get Vault</a>
+								</p>
+							{/if}
 						{/if}
 					</div>
 
@@ -701,11 +723,15 @@
 					</div>
 				{:else}
 					<div class="billing-actions">
-						<a class="cta pressable" href="/plans">See plans and upgrade</a>
+						<a class="cta pressable" href={onFree ? VAULT_CHECKOUT_HREF : '/plans'}>
+							{onFree ? 'Get Vault' : 'See plans and upgrade'}
+						</a>
 						<p class="hint">
 							{data.billing.status === 'grandfathered'
 								? 'Your plan is complimentary — no card on file and nothing to pay.'
-								: 'Vault adds a subdomain. Studio adds a custom domain and unbranded hosting. BYO storage is on every plan.'}
+								: onFree
+									? 'Free is one album (~15 tracks). Vault unlocks unlimited tracks and you.sndbnk.com.'
+									: 'Studio adds your domain, chrome-off hosting, and the full station builder.'}
 						</p>
 					</div>
 				{/if}
@@ -770,7 +796,7 @@
 							<span class="mono">{data.profile.username}.{data.baseDomain}</span>. Studio adds a
 							custom domain.
 						</p>
-						<a class="cta pressable" href="/plans">See plans</a>
+						<a class="cta pressable" href={VAULT_CHECKOUT_HREF}>Get Vault</a>
 					</div>
 				{/if}
 
@@ -881,7 +907,7 @@
 				{:else if canSubdomain}
 					<div class="locked">
 						<p>Studio unlocks a custom domain mapped to your profile.</p>
-						<a class="cta pressable" href="/plans">See plans</a>
+						<a class="cta pressable" href={STUDIO_CHECKOUT_HREF}>Get Studio</a>
 					</div>
 				{/if}
 			</div>
@@ -903,7 +929,7 @@
 							<span class="mono">{data.profile.username}.{data.baseDomain}</span>. Studio adds
 							custom domains and unbranded hosting.
 						</p>
-						<a class="cta pressable" href="/plans">See plans</a>
+						<a class="cta pressable" href={VAULT_CHECKOUT_HREF}>Get Vault</a>
 					</div>
 				{:else}
 					{#if form?.logoMessage && !logoBusy}
@@ -1117,7 +1143,7 @@
 						{:else}
 							<div class="locked branding-upsell">
 								<p>Studio unlocks unbranded hosting (hide SNDBNK chrome on your site).</p>
-								<a class="cta pressable" href="/plans">See plans</a>
+								<a class="cta pressable" href={STUDIO_CHECKOUT_HREF}>Get Studio</a>
 							</div>
 						{/if}
 
@@ -2136,6 +2162,16 @@
 		color: var(--muted);
 		font-size: 0.72rem;
 		line-height: 1.45;
+	}
+
+	.hint a {
+		color: var(--ink);
+		font-weight: 700;
+		text-underline-offset: 0.15em;
+	}
+
+	.hint a:hover {
+		color: var(--accent);
 	}
 
 	button.pressable,

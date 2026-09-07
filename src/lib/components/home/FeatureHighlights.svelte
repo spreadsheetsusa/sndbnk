@@ -11,13 +11,13 @@
 			id: 'domains',
 			icon: IconWorld,
 			title: 'Your own address',
-			description: 'Subdomain out of the box, custom domain when you are ready.'
+			description: 'Path profile on Free. you.sndbnk.com on Vault. Your domain on Studio.'
 		},
 		{
 			id: 'storage',
 			icon: IconServer,
 			title: 'Bring your own disks',
-			description: 'Point storage adapters at the kit you already run.'
+			description: 'Park files on disks you already run.'
 		},
 		{
 			id: 'viz',
@@ -34,8 +34,8 @@
 		{
 			id: 'any-sound',
 			icon: IconHeadphones,
-			title: 'Any sound, posted',
-			description: 'Tracks, mixes, loops, samples, podcasts — drop it in.'
+			title: 'The record, posted',
+			description: 'Tracks, mixes, loops, podcasts — drop the music in.'
 		},
 		{
 			id: 'player',

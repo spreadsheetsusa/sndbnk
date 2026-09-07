@@ -12,20 +12,10 @@ import { getPlans, planOrDefault } from '../billing/plans.js';
  */
 
 /**
- * Hosted-storage label for mail (avoids pulling quota.js → db into previews).
- * @param {number | null | undefined} bytes
- */
-function formatHosted(bytes) {
-	if (bytes == null) return 'Unlimited hosted';
-	const gib = bytes / 1024 ** 3;
-	const n = gib >= 10 ? Math.round(gib) : Number(gib.toFixed(1));
-	return `${n} GB`;
-}
-
-/**
- * One short line for a higher tier — storage + the unlock that matters.
+ * One short line for a higher tier — tracks and the unlock that matters.
+ * Hosted GiB stays off the lead; Free already has no hosted-byte cap.
  * @param {{
- *   maxLocalBytes: number | null,
+ *   maxTracks: number | null,
  *   allowCustomDomain: boolean,
  *   allowSubdomain: boolean,
  *   allowRemoveBranding: boolean,
@@ -36,10 +26,11 @@ function formatHosted(bytes) {
 function tierDetail(plan) {
 	/** @type {string[]} */
 	const bits = [];
-	if (plan.maxLocalBytes != null) bits.push(formatHosted(plan.maxLocalBytes));
+	if (plan.maxTracks == null) bits.push('unlimited tracks');
+	else bits.push(`one album (~${plan.maxTracks} tracks)`);
 	if (plan.allowCustomDomain) bits.push('your domain');
 	else if (plan.allowSubdomain) bits.push('you.sndbnk.com');
-	if (plan.allowRemoveBranding) bits.push('unbranded');
+	if (plan.allowRemoveBranding) bits.push('chrome off');
 	if (plan.maxTeamSeats > 0) bits.push('teams soon');
 	return bits.join(' · ') || plan.blurb;
 }
@@ -65,10 +56,15 @@ export function welcomePlanCopy({ planId = 'free', origin }) {
 			? current.features
 			: [
 					'Public profile',
-					...(current.maxTracks != null ? [`${current.maxTracks} tracks`] : ['Unlimited tracks']),
-					...(current.maxLocalBytes != null
-						? [`${formatHosted(current.maxLocalBytes)} hosted storage`]
-						: [])
+					...(current.maxTracks != null
+						? [`One album (~${current.maxTracks} tracks)`]
+						: ['Unlimited tracks']),
+					...(current.allowCustomDomain
+						? ['your domain']
+						: current.allowSubdomain
+							? ['you.sndbnk.com']
+							: []),
+					...(current.allowRemoveBranding ? ['chrome off'] : [])
 				],
 		nextTiers,
 		plansUrl: `${origin.replace(/\/$/, '')}/plans`

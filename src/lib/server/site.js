@@ -292,7 +292,7 @@ export async function completeSiteSetup(input) {
 	if (!canEditSite(input.plan)) {
 		return {
 			ok: /** @type {const} */ (false),
-			message: 'Site setup needs Vault or higher. Upgrade from Settings → Billing.'
+			message: 'Site setup needs Vault or higher. Get Vault from the plans page.'
 		};
 	}
 

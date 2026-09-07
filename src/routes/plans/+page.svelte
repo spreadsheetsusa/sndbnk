@@ -12,7 +12,7 @@
 	let { data } = $props();
 
 	const plansDescription =
-		'Host your sound on SNDBNK — a free profile, your own subdomain, or your own domain with unlimited tracks.';
+		'Host your sound on SNDBNK — one album on Free, unlimited tracks and you.sndbnk.com on Vault, or your domain and a chrome-off station on Studio.';
 
 	/** @type {'month' | 'year'} */
 	let interval = $state('month');
@@ -271,8 +271,8 @@
 			<p class="eyebrow accent-text eyebrow-chip">Pricing</p>
 			<h1 class="display-face">Pick your signal strength.</h1>
 			<p class="lede">
-				Fully usable on Free — especially with your own storage. Vault adds a subdomain. Studio is
-				the full-power tier: custom domain and unbranded hosting.
+				Free is one album (~15 tracks). Vault takes the limiter off and parks you at you.sndbnk.com.
+				Studio is your domain, chrome off, and the full station builder.
 			</p>
 
 			<div class="interval-toggle" role="group" aria-label="Billing interval">
@@ -308,15 +308,19 @@
 			{#each data.plans as tier (tier.id)}
 				{@const amount = priceFor(tier)}
 				{@const isCurrent = currentPlan === tier.id}
-				{@const isFeatured = tier.id === 'studio'}
+				{@const isFeatured = tier.id === 'vault'}
+				{@const isLabel = tier.id === 'label'}
 				<article
 					class="tier"
 					class:current={isCurrent}
 					class:picked={selectedPlan === tier.id}
 					class:featured={isFeatured}
+					class:soft={isLabel}
 				>
 					{#if isFeatured}
-						<p class="tier-badge">Full power</p>
+						<p class="tier-badge">Next step</p>
+					{:else if isLabel}
+						<p class="tier-badge soft-badge">Teams soon</p>
 					{/if}
 					<h2 class="display-face">{tier.label}</h2>
 					<p class="blurb">{tier.blurb}</p>
@@ -674,6 +678,15 @@
 	.tier.featured {
 		border-color: var(--accent);
 		box-shadow: 6px 6px 0 var(--hard-shadow);
+	}
+
+	.tier.soft {
+		opacity: 0.78;
+	}
+
+	.tier-badge.soft-badge {
+		color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 12%, transparent);
 	}
 
 	.tier-badge {
