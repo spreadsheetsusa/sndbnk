@@ -1,4 +1,5 @@
 import { browser } from '$app/env';
+import { deriveConsoleStatus, SAVED_HOLD_MS } from '#lib/builder/console-status.js';
 import { clampBounds, defaultSpawn, HUD_SPECS } from '#lib/builder/hud-bounds.js';
 import { resolveSiteAppearance } from '#lib/builder/site-appearance.js';
 import {
@@ -151,6 +152,12 @@ class Builder {
 	savingTheme = $state(false);
 	/** @type {string | null} */
 	themeError = $state(null);
+	/** Debounce armed — local edits queued, not yet flushing. */
+	#pendingBlocks = $state(false);
+	#pendingChrome = $state(false);
+	#pendingTheme = $state(false);
+	/** True after a successful persist until the SAVED hold expires. */
+	#savedHold = $state(false);
 	/** @type {Partial<Record<BuilderHudId, HudBounds>>} */
 	#hudBounds = {};
 	/** @type {ReturnType<typeof setTimeout> | null} */
@@ -159,12 +166,38 @@ class Builder {
 	#chromePersistTimer = null;
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	#themePersistTimer = null;
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	#savedHoldTimer = null;
 	/** Bump to ignore stale persist responses. */
 	#persistGen = 0;
 	/** @type {number} */
 	#chromePersistGen = 0;
 	/** @type {number} */
 	#themePersistGen = 0;
+
+	get pendingBlocks() {
+		return this.#pendingBlocks;
+	}
+
+	get pendingChrome() {
+		return this.#pendingChrome;
+	}
+
+	get pendingTheme() {
+		return this.#pendingTheme;
+	}
+
+	get savedHold() {
+		return this.#savedHold;
+	}
+
+	get consoleStatus() {
+		return deriveConsoleStatus({
+			saving: this.savingBlocks || this.savingChrome || this.savingTheme,
+			pending: this.#pendingBlocks || this.#pendingChrome || this.#pendingTheme,
+			savedHold: this.#savedHold
+		});
+	}
 
 	constructor() {
 		if (!browser) return;
@@ -552,16 +585,23 @@ class Builder {
 	 */
 	persistBlocks(opts = {}) {
 		if (!browser || !this.siteId || !this.currentPageId) return;
+		this.#clearSavedHold();
 		if (this.#persistTimer) {
 			clearTimeout(this.#persistTimer);
 			this.#persistTimer = null;
 		}
 		const run = () => {
 			this.#persistTimer = null;
+			this.#pendingBlocks = false;
 			void this.#flushBlocks();
 		};
-		if (opts.immediate) run();
-		else this.#persistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+		if (opts.immediate) {
+			this.#pendingBlocks = false;
+			run();
+		} else {
+			this.#pendingBlocks = true;
+			this.#persistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+		}
 	}
 
 	/**
@@ -569,16 +609,23 @@ class Builder {
 	 */
 	persistChrome(opts = {}) {
 		if (!browser || !this.siteId || !this.header || !this.footer) return;
+		this.#clearSavedHold();
 		if (this.#chromePersistTimer) {
 			clearTimeout(this.#chromePersistTimer);
 			this.#chromePersistTimer = null;
 		}
 		const run = () => {
 			this.#chromePersistTimer = null;
+			this.#pendingChrome = false;
 			void this.#flushChrome();
 		};
-		if (opts.immediate) run();
-		else this.#chromePersistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+		if (opts.immediate) {
+			this.#pendingChrome = false;
+			run();
+		} else {
+			this.#pendingChrome = true;
+			this.#chromePersistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+		}
 	}
 
 	/**
@@ -698,16 +745,40 @@ class Builder {
 	 */
 	persistTheme(opts = {}) {
 		if (!browser || !this.siteId) return;
+		this.#clearSavedHold();
 		if (this.#themePersistTimer) {
 			clearTimeout(this.#themePersistTimer);
 			this.#themePersistTimer = null;
 		}
 		const run = () => {
 			this.#themePersistTimer = null;
+			this.#pendingTheme = false;
 			void this.#flushTheme();
 		};
-		if (opts.immediate) run();
-		else this.#themePersistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+		if (opts.immediate) {
+			this.#pendingTheme = false;
+			run();
+		} else {
+			this.#pendingTheme = true;
+			this.#themePersistTimer = setTimeout(run, PERSIST_DEBOUNCE_MS);
+		}
+	}
+
+	#clearSavedHold() {
+		if (this.#savedHoldTimer) {
+			clearTimeout(this.#savedHoldTimer);
+			this.#savedHoldTimer = null;
+		}
+		this.#savedHold = false;
+	}
+
+	#markSaved() {
+		this.#clearSavedHold();
+		this.#savedHold = true;
+		this.#savedHoldTimer = setTimeout(() => {
+			this.#savedHoldTimer = null;
+			this.#savedHold = false;
+		}, SAVED_HOLD_MS);
 	}
 
 	async #flushBlocks() {
@@ -742,6 +813,7 @@ class Builder {
 					? { ...p, blocks: data.blocks, updatedAt: data.updatedAt ?? p.updatedAt }
 					: p
 			);
+			this.#markSaved();
 		} catch {
 			if (gen !== this.#persistGen) return;
 			this.blocksError = 'Could not save blocks.';
@@ -770,6 +842,7 @@ class Builder {
 			const data = await res.json();
 			if (data.header) this.header = cloneBlock(data.header);
 			if (data.footer) this.footer = cloneBlock(data.footer);
+			this.#markSaved();
 		} catch {
 			if (gen !== this.#chromePersistGen) return;
 			this.chromeError = 'Could not save site chrome.';
@@ -816,6 +889,7 @@ class Builder {
 				const same = THEME_SLOT_IDS.every((slot) => current[slot] === stored[slot]);
 				if (!same) this.themeChips = chipsFromSlotColors(stored);
 			}
+			this.#markSaved();
 		} catch {
 			if (gen !== this.#themePersistGen) return;
 			this.themeError = 'Could not save site theme.';

@@ -179,6 +179,8 @@
 		)
 	);
 
+	const consoleStatus = $derived(builder.consoleStatus);
+
 	/** @type {import('svelte/attachments').Attachment} */
 	const measureCanvas = (el) => {
 		canvasEl = el;
@@ -368,6 +370,10 @@
 			role="region"
 			{@attach measureCanvas}
 		>
+			<div class="console-status" role="status" aria-live="polite">
+				<span class="lamp" data-state={consoleStatus} aria-hidden="true"></span>
+				<span class="lcd-face label">{consoleStatus}</span>
+			</div>
 			<div class="preview" style={previewStyle}>
 				{#if builder.header && HeaderBlock}
 					<div class="chrome instance" class:selected={builder.selectedChrome === 'header'}>
@@ -473,7 +479,11 @@
 						ondrop={(e) => onDropAt(e, builder.blocks.length)}
 					>
 						{#if builder.blocks.length === 0}
-							<p class="placeholder">Drag a block from the Blocks HUD onto the canvas.</p>
+							<div class="station-boot">
+								<p class="boot-title lcd-face">STATION CONSOLE</p>
+								<p class="boot-line">awaiting first block</p>
+								<p class="boot-hint">drag from BLOCKS · or click a cartridge to append</p>
+							</div>
 						{/if}
 					</div>
 				</div>
@@ -533,8 +543,65 @@
 		align-content: start;
 		gap: 1.25rem;
 		padding: 1.5rem 1.25rem 4rem;
-		border: 1px dotted color-mix(in srgb, var(--ink) 32%, transparent);
+		border: 1px solid var(--hard-border);
+		border-radius: 0;
 		background: transparent;
+		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	.console-status {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		justify-self: start;
+		padding: 0.12rem 0.45rem 0.08rem;
+		border: 1px solid var(--hard-border);
+		border-radius: 0;
+		background: var(--inverse);
+		color: var(--on-inverse);
+	}
+
+	.lamp {
+		flex-shrink: 0;
+		width: 0.5rem;
+		height: 0.5rem;
+		border: 1px solid color-mix(in srgb, var(--on-inverse) 55%, transparent);
+		border-radius: 0;
+		background: color-mix(in srgb, var(--muted) 70%, var(--inverse));
+	}
+
+	.lamp[data-state='LIVE'] {
+		background: color-mix(in srgb, var(--accent) 42%, var(--inverse));
+	}
+
+	.lamp[data-state='DIRTY'] {
+		background: color-mix(in srgb, var(--on-inverse) 35%, var(--inverse));
+	}
+
+	.lamp[data-state='SAVED'] {
+		background: var(--accent);
+	}
+
+	.lamp[data-state='SAVING'] {
+		background: var(--accent);
+		animation: lamp-pulse 0.9s ease-in-out infinite;
+	}
+
+	.label {
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		font-size: 0.8rem;
+		line-height: 1;
+	}
+
+	@keyframes lamp-pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.32;
+		}
 	}
 
 	.width-guides {
@@ -566,6 +633,10 @@
 	@media (prefers-reduced-motion: reduce) {
 		.width-guides {
 			transition: none;
+		}
+
+		.lamp[data-state='SAVING'] {
+			animation: none;
 		}
 	}
 
@@ -612,12 +683,34 @@
 		background: color-mix(in srgb, var(--accent) 14%, var(--paper));
 	}
 
-	.placeholder {
+	.station-boot {
+		display: grid;
+		gap: 0.2rem;
+		justify-items: center;
 		margin: 0;
 		padding: 0.75rem 1rem;
-		color: var(--muted);
 		text-align: center;
-		font-size: 0.9rem;
+	}
+
+	.boot-title {
+		margin: 0;
+		color: var(--ink);
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		font-size: 1.15rem;
+		line-height: 1.1;
+	}
+
+	.boot-line,
+	.boot-hint {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.82rem;
+		line-height: 1.35;
+	}
+
+	.boot-hint {
+		margin-top: 0.45rem;
 	}
 
 	.instance {
