@@ -121,7 +121,7 @@
 	style:height="{visualizer.h}px"
 	style:z-index={floatStack.milkdrop}
 	onpointerdowncapture={() => floatStack.raise('milkdrop')}
-	aria-label="Milkdrop visualizer"
+	aria-label="Audio visualizer"
 >
 	<div class="chrome" role="toolbar" aria-label="Visualizer controls">
 		<button

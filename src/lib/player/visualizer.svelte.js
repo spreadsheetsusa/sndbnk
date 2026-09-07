@@ -411,7 +411,7 @@ class Visualizer {
 			this.ready = true;
 			this.error = null;
 		} catch (err) {
-			console.error('Milkdrop visualizer failed to start', err);
+			console.error('Visualizer failed to start', err);
 			// Keep the panel open with an error — auto-disabling looked like a flicker.
 			this.#teardownWindowButter();
 			this.ready = false;
@@ -450,7 +450,7 @@ class Visualizer {
 			this.#startLoop();
 			this.backdropReady = true;
 		} catch (err) {
-			console.error('Hero Milkdrop backdrop failed to start', err);
+			console.error('Hero visualizer backdrop failed to start', err);
 			this.#teardownBackdropButter();
 		}
 	}
@@ -531,7 +531,7 @@ class Visualizer {
 		this.#butterchurn = butterchurn;
 		this.#presets = presets;
 		this.#presetKeys = Object.keys(this.#presets);
-		if (this.#presetKeys.length === 0) throw new Error('No Milkdrop presets loaded');
+		if (this.#presetKeys.length === 0) throw new Error('No visualizer presets loaded');
 
 		const mellow = MELLOW_PRESET_KEYS.filter((key) => key in this.#presets);
 		this.#backdropPresetKeys = mellow.length > 0 ? mellow : this.#presetKeys;

@@ -22,7 +22,7 @@
 		{
 			id: 'viz',
 			icon: IconPlanet,
-			title: 'Milkdrop in the mix',
+			title: 'Viz in the mix',
 			description: 'Butterchurn viz rides the waveform while you listen.'
 		},
 		{

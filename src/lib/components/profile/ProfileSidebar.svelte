@@ -76,7 +76,7 @@
 	const panels = $derived.by(() => {
 		/** @type {{ key: string, label: string }[]} */
 		const list = [];
-		if (visualizer.showInline) list.push({ key: 'viz', label: 'Milkdrop' });
+		if (visualizer.showInline) list.push({ key: 'viz', label: 'Viz' });
 		if (showStats) list.push({ key: 'stats', label: 'Stats' });
 		if (links.length > 0) list.push({ key: 'links', label: 'Links' });
 		if (showFansAlsoLike) list.push({ key: 'fans', label: 'Fans Also Like' });

@@ -134,7 +134,7 @@ Global, defined in `layout.css`:
 | Class                                              | Effect                                                                           |
 | -------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `.display-face`                                    | Audiowide (`--font-display`), uppercase, tight tracking                          |
-| `.lcd-face`                                        | Jersey 20 (`--font-lcd`) for Winamp-style LCD readouts                           |
+| `.lcd-face`                                        | Jersey 20 (`--font-lcd`) for classic media-player LCD readouts                   |
 | `.eyebrow`                                         | uppercase micro-label                                                            |
 | `.eyebrow-chip`                                    | in light mode only, wraps accent text in an inverse chip via `box-shadow` spread |
 | `.accent-fill` / `.accent-text` / `.accent-border` | apply the accent to background / color / border                                  |

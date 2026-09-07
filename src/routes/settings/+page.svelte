@@ -1515,8 +1515,8 @@
 							Optional. When set, published tracks load audio/cover from this URL instead of through
 							SNDBNK. Path under the base must mirror
 							<code>{'{userId}/{trackId}/…'}</code>
-							(same tree as the remote path). Leave blank to always proxy via SSH. For Milkdrop, the host
-							should send
+							(same tree as the remote path). Leave blank to always proxy via SSH. For the visualizer,
+							the host should send
 							<code>Access-Control-Allow-Origin</code>
 							(the player uses
 							<code>crossOrigin=anonymous</code>).

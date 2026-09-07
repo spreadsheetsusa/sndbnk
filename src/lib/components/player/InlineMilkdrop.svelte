@@ -85,7 +85,7 @@
 	class:panel={isPanel}
 	class:backdrop={isBackdrop}
 	data-panel={isPanel ? 'viz' : undefined}
-	aria-label="Milkdrop visualizer"
+	aria-label="Audio visualizer"
 	transition:vizMotion
 >
 	<div class="stage">
@@ -124,7 +124,7 @@
 		</div>
 	</div>
 
-	<p class="collapsed-label" aria-hidden="true">Milkdrop</p>
+	<p class="collapsed-label" aria-hidden="true">Viz</p>
 </section>
 
 <style>

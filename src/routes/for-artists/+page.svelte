@@ -67,9 +67,9 @@
 		<ProofStrip
 			cells={[
 				{
-					id: 'winamp',
-					label: 'Winamp',
-					body: 'Built for artists who still remember Winamp.'
+					id: 'bezel',
+					label: 'Bezel',
+					body: 'Built for artists who still remember 90s computer chrome.'
 				},
 				{
 					id: 'diy',
