@@ -328,32 +328,35 @@ Do this **after** a deploy that includes the `s3` adapter, with `S3_BUCKET` alre
    bun run db:backup
    ```
 
-3. Dry-run. No S3 writes, no DB writes, no deletes:
+3. Dry-run (**default** — no `--apply` means no copy / flip / purge):
 
    ```sh
-   bun run media:migrate-s3 -- --dry-run --report /tmp/sndbnk-migrate-s3-dry-run.json
+   bun run media:migrate-s3 -- --report /tmp/sndbnk-migrate-s3-dry-run.json
    less /tmp/sndbnk-migrate-s3-dry-run.json
+   less /tmp/sndbnk-migrate-s3-inventory.json
    ```
 
-4. Optional canary (one user or one track):
+4. Optional canary (one user or one track). `--apply` is required to write:
 
    ```sh
-   bun run media:migrate-s3 -- --user <userId> --report /tmp/sndbnk-migrate-s3-canary.json
+   bun run media:migrate-s3 -- --apply --user <userId> --report /tmp/sndbnk-migrate-s3-canary.json
    # play a canary track on sndbnk.com (header player + /api/media Range)
-   # then: bun run media:migrate-s3 -- --track <trackId>
+   # then: bun run media:migrate-s3 -- --apply --track <trackId>
    ```
 
 5. Full lift. Local files stay on disk:
 
    ```sh
-   bun run media:migrate-s3 -- --report /tmp/sndbnk-migrate-s3.json
+   bun run media:migrate-s3 -- --apply --report /tmp/sndbnk-migrate-s3.json \
+     --progress /tmp/sndbnk-migrate-s3-progress.jsonl
    ```
 
    Watch progress lines (`uploaded` / `exists` / `track … storageAdapter → s3`). The process exits
    `1` if any object failed verify; already-migrated rows stay `s3`, failed rows stay `local`.
-   Re-run the same command to resume. A local file whose size disagrees with `audioBytes` /
-   `originalBytes` / `coverBytes` is a fail (not uploaded, row not flipped). Multipart S3 ETags
-   are not accepted as an MD5 pass.
+   Re-run the same `--apply` command to resume from the JSONL progress file (verified objects are
+   not re-copied). A local file whose size disagrees with `audioBytes` / `originalBytes` /
+   `coverBytes` is a fail (not uploaded, row not flipped). Multipart S3 ETags are not accepted as
+   an MD5 pass.
 
 6. Confirm the report's `failed` array is empty and spot-check playback (published track, draft
    preview, a WAV that has an `audio.mp3` + original, cover art, an avatar). `journalctl -u
@@ -362,17 +365,34 @@ sndbnk-waveform-worker` should still process S3 tracks (they stage to a temp fil
 7. **Only after** a clean report and playback checks, optionally purge local copies:
 
    ```sh
-   bun run media:migrate-s3 -- --purge-local --report /tmp/sndbnk-migrate-s3-purge.json
+   bun run media:migrate-s3 -- --apply --purge-local --report /tmp/sndbnk-migrate-s3-purge.json
    ```
 
-   Default without this flag never deletes `MEDIA_ROOT` files.
+   Default without `--purge-local` never deletes `MEDIA_ROOT` files. `--purge-local` without
+   `--apply` is rejected.
 
-8. Leave `MEDIA_ROOT` set. New hosted uploads go to S3; `local` remains for anything you have not
-   migrated and for a box that unsets `S3_BUCKET`.
+8. Leave `MEDIA_ROOT` set. New hosted uploads go to S3 (`track.storageAdapter = 's3'`); `local`
+   remains for anything you have not migrated and for a box that unsets `S3_BUCKET`.
 
-SSH BYOS users are out of scope — the script skips `storageAdapter = ssh`. Do not point
-`S3_BUCKET` at a different bucket than the one you verified; keys are `{userId}/{folderKey}/…`
-with no extra prefix.
+**Rollback:** if a flipped track misbehaves and the local copy is still on disk, set that row’s
+`storageAdapter` back to `local`. Do not require a purge.
+
+**Remaining durability P0:** after cutover, a disk watermark is less urgent for _new_ hosted
+media (those land on S3). Local leftovers plus the SQLite backup still matter until you
+intentionally `--purge-local`.
+
+### What is NOT migrated
+
+- SSH BYOS tracks (`storageAdapter = 'ssh'`) and their remote files — skip entirely.
+- Artist Settings S3/R2 / bucket / region / key fields (stubs stay `enabled: false`).
+- Optional missing `waveform.json` (never generated).
+- Redis, SQLite, backups, or anything outside hosted `MEDIA_ROOT` objects.
+- Public bucket ACL. `/api/media` stays the browser path.
+
+Prefer an IAM instance role on Lightsail over long-lived keys. Do not point `S3_BUCKET` at a
+different bucket than the one you verified; keys are `{userId}/{folderKey}/…` with no extra prefix.
+
+This script is **manual**. Deploy / CI must not run it against production.
 
 ## Repo hygiene
 

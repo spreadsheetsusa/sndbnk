@@ -41,7 +41,7 @@ export const STORAGE_ADAPTERS = [
 	{
 		id: 's3',
 		label: 'Amazon S3',
-		description: 'Bring your own S3 bucket. Not available yet.',
+		description: 'Bring your own S3 bucket. Not available — platform S3 is env-only.',
 		enabled: false
 	},
 	{

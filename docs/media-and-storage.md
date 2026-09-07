@@ -279,13 +279,13 @@ SNDBNK-hosted storage (Settings → Local) writes to the platform S3 bucket when
 This is **not** user-BYOS S3 — `STORAGE_ADAPTERS.s3` / `r2` stay `enabled: false`. SSH BYOS is
 unchanged.
 
-| Env                                                              | Role                                                                                     |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `S3_BUCKET`                                                      | On-switch. Empty → platform storage stays on `MEDIA_ROOT`. Prod example: `sndbnk-media`. |
-| `S3_REGION`                                                      | Defaults to `us-east-1` when the bucket is set.                                          |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | Optional. Empty → AWS SDK default chain.                                                 |
-| `S3_ENDPOINT`                                                    | Optional custom API (MinIO / LocalStack).                                                |
-| `S3_FORCE_PATH_STYLE`                                            | `true` for most MinIO setups.                                                            |
+| Env                                                              | Role                                                                                                           |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `S3_BUCKET`                                                      | On-switch. Empty → platform storage stays on `MEDIA_ROOT`. Prod example: `sndbnk-media`.                       |
+| `S3_REGION`                                                      | Defaults to `us-east-1` when the bucket is set.                                                                |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | Optional. Empty → AWS SDK default chain / Lightsail instance role. Never from Settings. Must be set as a pair. |
+| `S3_ENDPOINT`                                                    | Optional custom API (MinIO / LocalStack).                                                                      |
+| `S3_FORCE_PATH_STYLE`                                            | `true` for most MinIO setups.                                                                                  |
 
 Hosted-storage quota counts `local` **and** `s3` tracks. SSH is excluded.
 
@@ -305,11 +305,31 @@ copies SNDBNK-hosted objects from `MEDIA_ROOT` into `s3://$S3_BUCKET/{userId}/{f
 - Multipart ETags (`<md5>-<parts>`) are never treated as an MD5 match. Existing multipart objects
   are re-uploaded (single put) when a local file is present; remote-only multipart objects fail
   closed instead of passing on size alone.
-- Fail-closed per object: one miss does not abort the run, and a failed verify never flips the row.
+- Fail-closed per object: one miss does not abort the run. **Never flip a track if any of its
+  objects failed verify** (including a waveform.json that exists but does not match). A missing
+  optional `waveform.json` is a skip, not a fail.
+- Avatars / site logo / OG **are in scope**. When the DB has a filename, that object is required:
+  missing locally and missing on S3 fails the object (no silent orphan on a dying disk).
 - Idempotent: matching size + single-part ETag/MD5 is a skip. Re-run after a partial lift.
 - **Never deletes local files by default.** `--purge-local` removes a local copy only after that
-  object verified. Off unless you pass it.
-- `--dry-run` logs the plan with no writes. `--user`, `--track`, `--limit`, `--report` narrow a
-  canary. Default report: `/tmp/sndbnk-migrate-s3-report.json`.
+  object verified. Off unless you pass it, and it requires `--apply`.
+- **Default is a dry-run.** No copy / flip / purge until `--apply`. `--dry-run` is accepted as an
+  explicit alias of the default.
+- Durable JSONL progress (`--progress`, default `/tmp/sndbnk-migrate-s3-progress.jsonl`) so a killed
+  `--apply` resumes without re-copying objects already verified. Inventory snapshot:
+  `--inventory` (default `/tmp/sndbnk-migrate-s3-inventory.json`).
+- `--user`, `--track`, `--limit`, `--report` narrow a canary. Default report:
+  `/tmp/sndbnk-migrate-s3-report.json`.
 
-Exact production steps live in [operations.md](operations.md#platform-s3-prod-lift).
+### What is NOT migrated
+
+- `track.storageAdapter = 'ssh'` rows and their remote SFTP files (byte-identical SSH path stays).
+- Artist Settings credentials / bucket / region / key fields (none exist; BYOS S3/R2 stay disabled).
+- Optional `waveform.json` that was never generated (placeholder peaks in DB; file may be absent).
+- Redis, SQLite, DB backups, Caddy/TLS, or anything outside `MEDIA_ROOT` hosted objects.
+- Public ACL / public-read on the bucket. Browser path remains `/api/media`.
+- CI / deploy never runs this script against production.
+
+Exact production steps live in [operations.md](operations.md#platform-s3-prod-lift). After
+cutover, a disk watermark is less urgent for new hosted media; local leftovers and the SQLite
+backup still matter until an intentional `--apply --purge-local`.

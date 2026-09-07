@@ -1,18 +1,19 @@
 /**
  * Lift SNDBNK-hosted media from MEDIA_ROOT (local adapter) to platform S3.
- * SSH BYOS tracks are never touched. Local files are kept unless `--purge-local`.
+ * SSH BYOS tracks are never touched. Credentials come from env / IAM only.
  *
- *   bun run media:migrate-s3 -- --dry-run
+ * Default is a dry-run (inventory + plan, no copy / flip / purge):
  *   bun run media:migrate-s3
- *   bun run media:migrate-s3 -- --purge-local
+ *   bun run media:migrate-s3 -- --apply
+ *   bun run media:migrate-s3 -- --apply --purge-local
  *
- * Optional: `--user <userId>` `--limit <n>` `--track <trackId>` `--report <path>`
+ * Optional: `--user` `--limit` `--track` `--report` `--progress` `--inventory`
  *
- * Fail-closed per object: a verify miss never flips `track.storageAdapter`.
- * Local size must match DB byte columns when those are set; multipart ETags
- * are never an MD5 pass. Re-runs are idempotent (Head + size + single-part ETag).
+ * Phases: inventory → copy → verify → flip. `--purge-local` is opt-in and off
+ * by default. A durable JSONL progress file resumes a killed run without
+ * re-copying objects already verified.
  */
-import { readdir, rm, stat } from 'node:fs/promises';
+import { appendFile, readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { and, eq, inArray } from 'drizzle-orm';
@@ -23,6 +24,7 @@ import { profile, site, track } from '../src/lib/server/db/schema.js';
 import { WAVEFORM_FILENAME } from '../src/lib/server/media/waveform.js';
 import { parseStoredAdapter } from '../src/lib/server/storage/platform.js';
 import {
+	createS3Adapter,
 	headS3Object,
 	md5FileHex,
 	putS3ObjectFromFile,
@@ -38,12 +40,15 @@ const SITE_OG_FOLDER_KEY = 'site-og';
 const ASSET_FOLDERS = new Set([AVATAR_FOLDER_KEY, SITE_LOGO_FOLDER_KEY, SITE_OG_FOLDER_KEY]);
 
 const args = parseArgs(process.argv.slice(2));
-const dryRun = args.flags.has('--dry-run');
+const apply = args.flags.has('--apply');
+const dryRun = !apply;
 const purgeLocal = args.flags.has('--purge-local');
 const userFilter = args.opts.get('--user');
 const trackFilter = args.opts.get('--track');
 const limit = args.opts.has('--limit') ? Number.parseInt(args.opts.get('--limit') ?? '', 10) : null;
 const reportPath = args.opts.get('--report') || '/tmp/sndbnk-migrate-s3-report.json';
+const progressPath = args.opts.get('--progress') || '/tmp/sndbnk-migrate-s3-progress.jsonl';
+const inventoryPath = args.opts.get('--inventory') || '/tmp/sndbnk-migrate-s3-inventory.json';
 
 /** @type {{ key: string, reason: string, kind: string }[]} */
 const failures = [];
@@ -63,17 +68,37 @@ if (!s3) {
 if (limit != null && (!Number.isInteger(limit) || limit < 1)) {
 	die('--limit must be a positive integer.');
 }
+if (args.flags.has('--dry-run') && apply) {
+	die('Pass either --apply or --dry-run, not both.');
+}
+if (purgeLocal && !apply) {
+	die('--purge-local requires --apply (default is a dry-run with no writes).');
+}
+
+const progress = await loadProgress(progressPath);
+const verifiedKeys = progress.verifiedKeys;
+const flippedTracks = progress.flippedTracks;
 
 console.log(
-	`[migrate-s3] bucket=${s3.bucket} region=${s3.region} dryRun=${dryRun} purgeLocal=${purgeLocal}`
+	`[migrate-s3] bucket=${s3.bucket} region=${s3.region} dryRun=${dryRun} apply=${apply} purgeLocal=${purgeLocal}`
 );
 if (userFilter) console.log(`[migrate-s3] user=${userFilter}`);
 if (trackFilter) console.log(`[migrate-s3] track=${trackFilter}`);
 if (limit) console.log(`[migrate-s3] limit=${limit} tracks`);
+console.log(`[migrate-s3] progress ${path.resolve(progressPath)} (verified=${verifiedKeys.size})`);
+if (!apply) {
+	console.log('[migrate-s3] dry-run (default). Re-run with --apply to copy / verify / flip.');
+}
 
 const seenKeys = new Set();
 
 try {
+	const probe = await createS3Adapter('migrate-probe').testConnection();
+	if (!probe.ok) {
+		die(`S3 probe failed (HeadBucket): ${probe.message}`);
+	}
+
+	await writeInventory();
 	await migrateTracks();
 	if (!trackFilter) {
 		await migrateProfileAssets();
@@ -83,6 +108,7 @@ try {
 	const report = {
 		ok: failures.length === 0,
 		dryRun,
+		apply,
 		purgeLocal,
 		bucket: s3.bucket,
 		region: s3.region,
@@ -92,7 +118,9 @@ try {
 		dbUpdated,
 		purged,
 		failed: failures,
-		skipped
+		skipped,
+		progressPath,
+		inventoryPath
 	};
 	await Bun.write(reportPath, JSON.stringify(report, null, 2) + '\n');
 	console.log(`[migrate-s3] report ${path.resolve(reportPath)}`);
@@ -106,6 +134,104 @@ try {
 		}
 		process.exitCode = 1;
 	}
+}
+
+async function writeInventory() {
+	/** @type {import('drizzle-orm').SQL[]} */
+	const filters = [];
+	if (trackFilter) filters.push(eq(track.id, trackFilter));
+	else filters.push(inArray(track.storageAdapter, ['local', 's3']));
+	if (userFilter) filters.push(eq(track.userId, userFilter));
+
+	const rows = await db
+		.select()
+		.from(track)
+		.where(filters.length === 1 ? filters[0] : and(...filters));
+
+	const hosted = rows.filter((row) => {
+		const kind = parseStoredAdapter(row.storageAdapter);
+		return kind === 'local' || kind === 's3';
+	});
+	const slice = limit ? hosted.slice(0, limit) : hosted;
+
+	/** @type {Record<string, unknown>[]} */
+	const items = [];
+	for (const row of slice) {
+		for (const object of trackObjects(row)) {
+			items.push({
+				kind: 'track',
+				trackId: row.id,
+				userId: row.userId,
+				folderKey: row.folderKey,
+				filename: object.filename,
+				expectedSize: object.expectedSize,
+				required: object.required,
+				storageAdapter: row.storageAdapter
+			});
+		}
+	}
+
+	if (!trackFilter) {
+		const avatars = await db
+			.select({ userId: profile.userId, filename: profile.avatarFilename })
+			.from(profile)
+			.where(userFilter ? eq(profile.userId, userFilter) : undefined);
+		for (const row of avatars) {
+			if (!row.filename) continue;
+			items.push({
+				kind: 'avatar',
+				userId: row.userId,
+				folderKey: AVATAR_FOLDER_KEY,
+				filename: row.filename,
+				required: true
+			});
+		}
+
+		const sites = await db
+			.select({
+				userId: site.userId,
+				logoFilename: site.logoFilename,
+				ogImageFilename: site.ogImageFilename
+			})
+			.from(site)
+			.where(userFilter ? eq(site.userId, userFilter) : undefined);
+		for (const row of sites) {
+			if (row.logoFilename) {
+				items.push({
+					kind: 'site-logo',
+					userId: row.userId,
+					folderKey: SITE_LOGO_FOLDER_KEY,
+					filename: row.logoFilename,
+					required: true
+				});
+			}
+			if (row.ogImageFilename) {
+				items.push({
+					kind: 'site-og',
+					userId: row.userId,
+					folderKey: SITE_OG_FOLDER_KEY,
+					filename: row.ogImageFilename,
+					required: true
+				});
+			}
+		}
+	}
+
+	const payload = {
+		ts: new Date().toISOString(),
+		apply,
+		dryRun,
+		bucket: s3.bucket,
+		sshExcluded: true,
+		tracks: slice.length,
+		objects: items.length,
+		items
+	};
+	await Bun.write(inventoryPath, JSON.stringify(payload, null, 2) + '\n');
+	await appendProgress({ phase: 'inventory', status: 'ok', count: items.length });
+	console.log(
+		`[migrate-s3] inventory ${items.length} objects from ${slice.length} hosted tracks → ${path.resolve(inventoryPath)}`
+	);
 }
 
 async function migrateTracks() {
@@ -135,7 +261,7 @@ async function migrateTracks() {
 		const objects = trackObjects(row);
 		/** @type {{ key: string, localPath: string | null, expectedSize: number | null, contentType: string, required: boolean }[]} */
 		const plan = [];
-		let requiredFailed = false;
+		let objectFailed = false;
 
 		for (const object of objects) {
 			const result = await migrateObject({
@@ -147,7 +273,9 @@ async function migrateTracks() {
 				required: object.required,
 				kind: 'track'
 			});
-			if (result.status === 'failed' && object.required) requiredFailed = true;
+			// Missing optional waveform.json is a skip, not a fail. Any verify
+			// failure (required or optional-that-exists) blocks the flip.
+			if (result.status === 'failed') objectFailed = true;
 			if (result.key) {
 				plan.push({
 					key: result.key,
@@ -159,17 +287,19 @@ async function migrateTracks() {
 			}
 		}
 
-		if (requiredFailed) {
+		if (objectFailed) {
 			skipped.push({
 				key: `${row.userId}/${row.folderKey}`,
 				kind: 'track',
-				reason: 'required object failed verify; storageAdapter left unchanged'
+				reason: 'an object failed verify; storageAdapter left unchanged'
 			});
 			continue;
 		}
 
 		if (parseStoredAdapter(row.storageAdapter) === 'local') {
-			if (dryRun) {
+			if (flippedTracks.has(row.id)) {
+				console.log(`[migrate-s3] resume skip flip ${row.id} (already in progress log)`);
+			} else if (dryRun) {
 				console.log(`[migrate-s3] would update track ${row.id} storageAdapter local → s3`);
 			} else {
 				await db
@@ -177,6 +307,13 @@ async function migrateTracks() {
 					.set({ storageAdapter: 's3', updatedAt: new Date() })
 					.where(and(eq(track.id, row.id), eq(track.storageAdapter, 'local')));
 				dbUpdated += 1;
+				flippedTracks.add(row.id);
+				await appendProgress({
+					phase: 'flip',
+					status: 'ok',
+					trackId: row.id,
+					key: `${row.userId}/${row.folderKey}`
+				});
 				console.log(`[migrate-s3] track ${row.id} storageAdapter → s3`);
 			}
 		}
@@ -205,7 +342,7 @@ async function migrateProfileAssets() {
 			filename: row.filename,
 			expectedSize: null,
 			contentType: guessMime(row.filename),
-			required: false,
+			required: true,
 			kind: 'avatar'
 		});
 		if (purgeLocal && result.status !== 'failed') await maybePurge(result.localPath, result.key);
@@ -228,7 +365,7 @@ async function migrateProfileAssets() {
 				filename: row.logoFilename,
 				expectedSize: null,
 				contentType: guessMime(row.logoFilename),
-				required: false,
+				required: true,
 				kind: 'site-logo'
 			});
 			if (purgeLocal && result.status !== 'failed') await maybePurge(result.localPath, result.key);
@@ -240,7 +377,7 @@ async function migrateProfileAssets() {
 				filename: row.ogImageFilename,
 				expectedSize: null,
 				contentType: guessMime(row.ogImageFilename),
-				required: false,
+				required: true,
 				kind: 'site-og'
 			});
 			if (purgeLocal && result.status !== 'failed') await maybePurge(result.localPath, result.key);
@@ -363,6 +500,12 @@ async function migrateObject(input) {
 			kind: input.kind,
 			reason
 		});
+		await appendProgress({
+			phase: 'fail',
+			status: 'failed',
+			key: `${input.userId}/${input.folderKey}/${input.filename}`,
+			reason
+		});
 		return { status: 'failed', key: null, localPath: null };
 	}
 
@@ -376,6 +519,16 @@ async function migrateObject(input) {
 	seenKeys.add(key);
 	considered += 1;
 
+	if (verifiedKeys.has(key)) {
+		verifiedExisting += 1;
+		console.log(`[migrate-s3] resume skip ${key} (verified in progress log)`);
+		return {
+			status: 'ok',
+			key,
+			localPath: localPathFor(input.userId, input.folderKey, input.filename)
+		};
+	}
+
 	const localPath = localPathFor(input.userId, input.folderKey, input.filename);
 	const localInfo = await localFileInfo(localPath);
 
@@ -383,6 +536,7 @@ async function migrateObject(input) {
 		if (localInfo && hasExpectedSize(input.expectedSize) && localInfo.size !== input.expectedSize) {
 			const reason = `local size ${localInfo.size} != DB expectedSize ${input.expectedSize}; not uploading as truth`;
 			failures.push({ key, kind: input.kind, reason });
+			await appendProgress({ phase: 'fail', status: 'failed', key, kind: input.kind, reason });
 			console.error(`[migrate-s3] FAIL ${key}: ${reason}`);
 			return { status: 'failed', key, localPath };
 		}
@@ -398,6 +552,8 @@ async function migrateObject(input) {
 			const match = remote && objectMatches(remote, localInfo.size, localInfo.md5);
 			if (match) {
 				verifiedExisting += 1;
+				verifiedKeys.add(key);
+				await appendProgress({ phase: 'verify', status: 'ok', key, kind: input.kind });
 				console.log(`[migrate-s3] exists ${key} (${localInfo.size} bytes)`);
 				return { status: 'ok', key, localPath };
 			}
@@ -417,6 +573,9 @@ async function migrateObject(input) {
 				return { status: 'failed', key, localPath };
 			}
 			uploaded += 1;
+			verifiedKeys.add(key);
+			await appendProgress({ phase: 'copy', status: 'ok', key, kind: input.kind });
+			await appendProgress({ phase: 'verify', status: 'ok', key, kind: input.kind });
 			console.log(`[migrate-s3] uploaded ${key} (${put.size} bytes)`);
 			return { status: 'ok', key, localPath };
 		}
@@ -429,6 +588,8 @@ async function migrateObject(input) {
 				return { status: 'failed', key, localPath: null };
 			}
 			verifiedExisting += 1;
+			verifiedKeys.add(key);
+			await appendProgress({ phase: 'verify', status: 'ok', key, kind: input.kind });
 			console.log(`[migrate-s3] remote-only ${key} (${remote.size} bytes)`);
 			return { status: 'ok', key, localPath: null };
 		}
@@ -583,11 +744,18 @@ function parseArgs(argv) {
 	const opts = new Map();
 	for (let i = 0; i < argv.length; i++) {
 		const token = argv[i];
-		if (token === '--dry-run' || token === '--purge-local') {
+		if (token === '--dry-run' || token === '--purge-local' || token === '--apply') {
 			flags.add(token);
 			continue;
 		}
-		if (token === '--user' || token === '--limit' || token === '--track' || token === '--report') {
+		if (
+			token === '--user' ||
+			token === '--limit' ||
+			token === '--track' ||
+			token === '--report' ||
+			token === '--progress' ||
+			token === '--inventory'
+		) {
 			const value = argv[i + 1];
 			if (!value || value.startsWith('--')) die(`${token} needs a value.`);
 			opts.set(token, value);
@@ -596,13 +764,57 @@ function parseArgs(argv) {
 		}
 		if (token === '--help' || token === '-h') {
 			console.log(
-				`Usage: bun run media:migrate-s3 -- [--dry-run] [--purge-local] [--user id] [--track id] [--limit n] [--report path]`
+				`Usage: bun run media:migrate-s3 -- [--apply] [--dry-run] [--purge-local] [--user id] [--track id] [--limit n] [--report path] [--progress path] [--inventory path]\nDefault is a dry-run. --apply copies / verifies / flips. --purge-local is opt-in and requires --apply.`
 			);
 			process.exit(0);
 		}
 		die(`Unknown argument: ${token}`);
 	}
 	return { flags, opts };
+}
+
+/**
+ * @param {string} filePath
+ * @returns {Promise<{ verifiedKeys: Set<string>, flippedTracks: Set<string> }>}
+ */
+async function loadProgress(filePath) {
+	/** @type {Set<string>} */
+	const verified = new Set();
+	/** @type {Set<string>} */
+	const flipped = new Set();
+	try {
+		const text = await readFile(filePath, 'utf8');
+		for (const line of text.split('\n')) {
+			if (!line.trim()) continue;
+			try {
+				const event = JSON.parse(line);
+				if (event.phase === 'verify' && event.status === 'ok' && event.key) {
+					verified.add(event.key);
+				}
+				if (event.phase === 'flip' && event.status === 'ok' && event.trackId) {
+					flipped.add(event.trackId);
+				}
+			} catch {
+				console.warn(`[migrate-s3] ignoring malformed progress line`);
+			}
+		}
+		if (verified.size || flipped.size) {
+			console.log(
+				`[migrate-s3] resumed ${verified.size} verified objects, ${flipped.size} flipped tracks from ${filePath}`
+			);
+		}
+	} catch {
+		// First run — no progress file yet.
+	}
+	return { verifiedKeys: verified, flippedTracks: flipped };
+}
+
+/**
+ * @param {Record<string, unknown>} event
+ */
+async function appendProgress(event) {
+	const line = JSON.stringify({ ts: new Date().toISOString(), ...event }) + '\n';
+	await appendFile(progressPath, line);
 }
 
 /** @param {string} message */
