@@ -396,7 +396,7 @@ export const actions = {
 			.where(eq(profile.userId, locals.user.id));
 
 		return {
-			domainSuccess: 'Domain saved. Add the DNS records below, then verify.'
+			domainSuccess: 'Domain saved. Add the records, then verify.'
 		};
 	},
 
@@ -447,7 +447,7 @@ export const actions = {
 			})
 			.where(eq(profile.userId, locals.user.id));
 
-		return { domainSuccess: 'Domain verified and active.' };
+		return { domainSuccess: 'Domain is live.' };
 	},
 
 	removeDomain: async ({ locals }) => {

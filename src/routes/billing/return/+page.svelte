@@ -1,15 +1,25 @@
 <script>
-	import IconAlertCircle from '@tabler/icons-svelte-runes/icons/alert-circle';
-	import IconCircleCheck from '@tabler/icons-svelte-runes/icons/circle-check';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data } = $props();
 
 	const ownsDomain = $derived(data.status === 'active' && data.ownsCustomDomain);
+	const channel = $derived(data.status !== 'active' ? 'HOLD' : ownsDomain ? 'OWN IT' : 'ON AIR');
+	const eyebrow = $derived(data.status !== 'active' ? 'Billing' : (data.planLabel ?? 'Plan'));
+	const title = $derived(
+		data.status !== 'active'
+			? 'Still confirming.'
+			: ownsDomain
+				? 'Your name. Your domain.'
+				: 'Catalog unlocked.'
+	);
+	const pageTitle = $derived(
+		data.status === 'active' ? `${data.planLabel} is live` : 'Still confirming'
+	);
 </script>
 
 <svelte:head>
-	<title>{data.status === 'active' ? 'You are subscribed' : 'Finishing up'} | SNDBNK</title>
+	<title>{pageTitle} | SNDBNK</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -17,52 +27,49 @@
 	<SiteHeader />
 
 	<main class="shell">
-		<section class="card" aria-labelledby="return-title">
-			<span class="mark" class:ok={data.status === 'active'} aria-hidden="true">
-				{#if data.status === 'active'}
-					<IconCircleCheck size={22} stroke={1.75} />
-				{:else}
-					<IconAlertCircle size={22} stroke={1.75} />
-				{/if}
-			</span>
+		<section class="bezel" aria-labelledby="return-title">
+			<div class="titlebar">
+				<p class="eyebrow accent-text eyebrow-chip">{eyebrow}</p>
+				<span class="lcd-face channel" aria-hidden="true">{channel}</span>
+			</div>
 
-			{#if data.status === 'active'}
-				<p class="eyebrow accent-text eyebrow-chip">Payment received</p>
-				<h1 id="return-title" class="display-face">You're on {data.planLabel}.</h1>
-				{#if ownsDomain}
-					<p class="copy">
-						Connect your domain so the station lives on your name. Chrome-off and the builder stay
-						in Settings.
-					</p>
-					<div class="actions">
-						<a class="cta pressable" href="/settings?tab=domain">Set up your domain</a>
-						<a class="cta ghost pressable" href="/library">Library</a>
-						{#if data.siteHref}
-							<a class="cta ghost pressable" href={data.siteHref}>Station builder</a>
-						{/if}
-					</div>
+			<div class="body">
+				<h1 id="return-title" class="display-face">{title}</h1>
+
+				{#if data.status === 'active'}
+					{#if ownsDomain}
+						<p class="copy">
+							Point a domain at SNDBNK so listeners land on you. Chrome-off and the builder stay in
+							Settings.
+						</p>
+						<div class="actions">
+							<a class="cta pressable" href="/settings?tab=domain">Set up your domain</a>
+							<a class="cta ghost pressable" href="/library">Library</a>
+							{#if data.siteHref}
+								<a class="cta ghost pressable" href={data.siteHref}>Station builder</a>
+							{/if}
+						</div>
+					{:else}
+						<p class="copy">
+							Unlimited tracks and your subdomain are live. Invoices and cancellation live in
+							Settings → Billing.
+						</p>
+						<div class="actions">
+							<a class="cta pressable" href="/library">Go to your library</a>
+							<a class="cta ghost pressable" href="/settings?tab=billing">Billing settings</a>
+						</div>
+					{/if}
 				{:else}
-					<p class="copy">
-						Unlimited tracks and your subdomain are unlocked. Invoices and cancellation live in
-						Settings → Billing.
+					<p class="copy" role="status">
+						{data.message ??
+							'The bank has not finished authorizing. This page is safe to reload — the plan updates when Stripe confirms.'}
 					</p>
 					<div class="actions">
-						<a class="cta pressable" href="/library">Go to your library</a>
-						<a class="cta ghost pressable" href="/settings?tab=billing">Billing settings</a>
+						<a class="cta pressable" href="/settings?tab=billing">Check billing status</a>
+						<a class="cta ghost pressable" href="/plans">Back to plans</a>
 					</div>
 				{/if}
-			{:else}
-				<p class="eyebrow">Almost there</p>
-				<h1 id="return-title" class="display-face">We're still confirming.</h1>
-				<p class="copy" role="status">
-					{data.message ??
-						'Your bank has not finished authorizing the payment. This page is safe to reload — your plan updates as soon as Stripe confirms.'}
-				</p>
-				<div class="actions">
-					<a class="cta pressable" href="/settings?tab=billing">Check billing status</a>
-					<a class="cta ghost pressable" href="/plans">Back to plans</a>
-				</div>
-			{/if}
+			</div>
 		</section>
 	</main>
 </div>
@@ -80,34 +87,36 @@
 		margin: 0 auto;
 	}
 
-	.card {
+	.bezel {
 		max-width: 34rem;
-		padding: 2rem;
 		border: 1px solid var(--hard-border);
+		background: var(--paper);
 		box-shadow: 6px 6px 0 var(--hard-shadow);
 	}
 
-	.mark {
-		display: grid;
-		width: 2.75rem;
-		aspect-ratio: 1;
-		margin-bottom: 1.25rem;
-		place-items: center;
-		border: 1px solid var(--ink);
-		color: var(--ink);
-	}
-
-	.mark.ok {
-		color: var(--on-accent);
-		background: var(--accent);
-	}
-
-	.mark :global(svg) {
-		display: block;
+	.titlebar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.35rem 0.65rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+		background: color-mix(in srgb, var(--ink) 6%, var(--paper));
 	}
 
 	.eyebrow {
-		margin: 0 0 0.75rem;
+		margin: 0;
+	}
+
+	.channel {
+		color: var(--muted);
+		font-size: 0.85rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.body {
+		padding: 1.5rem 1.5rem 1.75rem;
 	}
 
 	h1 {
