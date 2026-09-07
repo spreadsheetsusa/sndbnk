@@ -574,6 +574,10 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			playbackStatus: nextNeedsPlayback ? 'queued' : null,
 			playbackError: null,
 			playbackUpdatedAt: nextNeedsPlayback ? new Date() : null,
+			// original* is deprecated; do not carry a prior generation forward.
+			originalFilename: null,
+			originalMime: null,
+			originalBytes: null,
 			...audioColumnsFromStream(
 				{
 					masterFilename: nextMasterFilename,
@@ -600,15 +604,8 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			addedBytes: (audioResult?.bytes ?? 0) + (coverResult?.bytes ?? 0),
 			adapter: existing.storageAdapter,
 			replacesBytes:
-				(audioResult
-					? hostedCommittedBytes({
-							masterBytes: existing.masterBytes || existing.audioBytes,
-							masterFilename: existing.masterFilename || existing.audioFilename,
-							playbackFilename: existing.playbackFilename || existing.originalFilename,
-							playbackBytes: existing.playbackBytes ?? existing.originalBytes,
-							coverBytes: 0
-						})
-					: 0) + (coverResult ? (existing.coverBytes ?? 0) : 0)
+				(audioResult ? hostedCommittedBytes({ ...existing, coverBytes: 0 }) : 0) +
+				(coverResult ? (existing.coverBytes ?? 0) : 0)
 		});
 		if (!quota.ok) return quota;
 	}
@@ -788,7 +785,8 @@ export async function ensureTrackWaveform(row) {
 }
 
 /**
- * Fail-soft backfill: enqueue WAV→MP3 when a track is still serving the original WAV.
+ * Fail-soft backfill: enqueue a 320k playback MP3 when the master is not a
+ * sane stream format and no ready derivative exists.
  *
  * @param {typeof track.$inferSelect} row
  */
