@@ -1,17 +1,23 @@
 /**
- * WAV → MP3 playback derivative via ffmpeg/libmp3lame.
+ * Lossless / obscure master → 320k CBR MP3 playback derivative via ffmpeg/libmp3lame.
  * Peaks stay on the waveform path; this only encodes a streaming-friendly copy.
  */
 
-/** Playback derivative filename written beside the preserved WAV. */
-export const PLAYBACK_MP3_FILENAME = 'audio.mp3';
+import { playbackObjectName, trackNeedsPlaybackMp3 } from '#lib/server/media/assets.js';
 
 export const PLAYBACK_MP3_MIME = 'audio/mpeg';
 
-/** Same ceiling as long-mix waveform jobs — large WAVs can take a while. */
+/** Same ceiling as long-mix waveform jobs — large lossless files can take a while. */
 export const TRANSCODE_WORKER_TIMEOUT_MS = 15 * 60 * 1000;
 
 const ENCODE_BITRATE = '320k';
+
+export { playbackObjectName, trackNeedsPlaybackMp3 };
+
+/**
+ * @deprecated Use playbackObjectName(revision). Kept for logs of pre-slice-1 files.
+ */
+export const PLAYBACK_MP3_FILENAME = 'audio.mp3';
 
 /**
  * @param {string | null | undefined} mime
@@ -20,15 +26,6 @@ export function isWavMime(mime) {
 	if (!mime) return false;
 	const normalized = mime.toLowerCase();
 	return normalized === 'audio/wav' || normalized === 'audio/x-wav' || normalized === 'audio/wave';
-}
-
-/**
- * Needs an MP3 playback copy: still serving WAV and no preserved original yet.
- *
- * @param {{ audioMime?: string | null, originalFilename?: string | null }} row
- */
-export function trackNeedsPlaybackMp3(row) {
-	return isWavMime(row.audioMime) && !row.originalFilename;
 }
 
 /**
@@ -50,7 +47,7 @@ function truncate(text, max = 240) {
 }
 
 /**
- * Encode a WAV (or any ffmpeg-decodable input) to a 320k MP3 file.
+ * Encode any ffmpeg-decodable input to a 320k CBR MP3 file.
  *
  * @param {string} inputPath
  * @param {string} outputPath

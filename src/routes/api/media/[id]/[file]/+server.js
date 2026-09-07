@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 
+import { resolveMasterSource, resolveStreamSource } from '#lib/server/media/assets';
 import { mediaCorsOrigin } from '#lib/server/request-origin';
 import { canViewTrack, getTrackById } from '#lib/server/tracks';
 import { getStorageAdapter, isMissingStorageObject, parseStoredAdapter } from '#lib/server/storage';
@@ -8,21 +9,35 @@ import { isTenantResourceAllowed } from '#lib/server/tenant';
 /**
  * @param {string} kind
  * @param {typeof import('#lib/server/db/schema').track.$inferSelect} row
+ * @param {string | null | undefined} viewerId
  */
-function resolveFilename(kind, row) {
-	if (kind === 'audio') return row.audioFilename;
-	if (kind === 'cover') return row.coverFilename;
+function resolveObject(kind, row, viewerId) {
+	if (kind === 'cover') {
+		if (!row.coverFilename) return null;
+		return { filename: row.coverFilename, mime: row.coverMime ?? 'application/octet-stream' };
+	}
+	if (kind === 'audio') {
+		const stream = resolveStreamSource(row);
+		if (!stream) return null;
+		return { filename: stream.filename, mime: stream.mime };
+	}
+	if (kind === 'master') {
+		if (row.userId !== viewerId) return null;
+		const master = resolveMasterSource(row);
+		if (!master) return null;
+		return { filename: master.filename, mime: master.mime, download: true };
+	}
 	return null;
 }
 
 /**
- * @param {string} kind
- * @param {typeof import('#lib/server/db/schema').track.$inferSelect} row
+ * @param {string} filename
+ * @param {string} title
  */
-function resolveMime(kind, row) {
-	if (kind === 'audio') return row.audioMime;
-	if (kind === 'cover') return row.coverMime ?? 'application/octet-stream';
-	return 'application/octet-stream';
+function attachmentFilename(filename, title) {
+	const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : '';
+	const base = (title || 'track').replace(/[^\w.\- ]+/g, '').trim() || 'track';
+	return `${base}${ext}`;
 }
 
 /**
@@ -101,24 +116,26 @@ function asBodyInit(body) {
 
 export async function GET({ locals, params, request, setHeaders, url }) {
 	const kind = params.file;
-	if (kind !== 'audio' && kind !== 'cover') {
+	if (kind !== 'audio' && kind !== 'cover' && kind !== 'master') {
 		error(404, 'Not found');
 	}
 
 	// Public read access: published tracks are playable from public profile pages.
+	// Master download is owner-only (immutable original bytes).
 	const row = await getTrackById(params.id);
 	if (!row || !isTenantResourceAllowed(locals, row.userId) || !canViewTrack(row, locals.user?.id)) {
 		error(404, 'Not found');
 	}
 
-	const filename = resolveFilename(kind, row);
-	if (!filename) {
+	const resolved = resolveObject(kind, row, locals.user?.id);
+	if (!resolved) {
 		error(404, 'Not found');
 	}
+	const filename = resolved.filename;
 
 	try {
 		const adapter = await getStorageAdapter(row.userId, parseStoredAdapter(row.storageAdapter));
-		const mimeHint = resolveMime(kind, row);
+		const mimeHint = resolved.mime;
 		const rangeReq = parseRangeRequest(request.headers.get('range'));
 
 		// ACAO so <audio crossOrigin="anonymous"> can feed MediaElementSource analysers
@@ -138,12 +155,17 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 		});
 
 		if (!rangeReq) {
-			const object = await getWithRetry(adapter, row.folderKey, filename);
-			const mime = mimeHint || object.contentType;
-			return new Response(asBodyInit(object.body), {
+			const stored = await getWithRetry(adapter, row.folderKey, filename);
+			const mime = mimeHint || stored.contentType;
+			return new Response(asBodyInit(stored.body), {
 				headers: {
 					'content-type': mime,
-					'content-length': String(object.size)
+					'content-length': String(stored.size),
+					...(resolved.download
+						? {
+								'content-disposition': `attachment; filename="${attachmentFilename(filename, row.title)}"`
+							}
+						: {})
 				}
 			});
 		}

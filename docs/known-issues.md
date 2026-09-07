@@ -77,17 +77,19 @@ Keep using Bun’s native driver. During the `svelte-adapter-bun` Rolldown pass 
 followed by `✔ done`. That is expected: the adapter leaves `bun:*` for the Bun runtime. It is not
 a build failure and does not mean you should switch to `better-sqlite3`.
 
-### Waveforms and WAV→MP3 are async and fail-soft
+### Waveforms and playback MP3 are async and fail-soft
 
 The request path only enqueues via
 [`enqueueWaveformJob`](../src/lib/server/queue/waveform.js) /
 [`enqueueTranscodeJob`](../src/lib/server/queue/transcode.js) /
 [`enqueueEmbedTagsJob`](../src/lib/server/queue/embed-tags.js) — it never shells out to ffmpeg or
-taglib on the HTTP process. Real peaks and MP3 playback copies need `REDIS_URL`, a running worker
+taglib on the HTTP process. Real peaks and 320k playback copies need `REDIS_URL`, a running worker
 (`bun run worker:waveform` locally; `sndbnk-waveform-worker` in prod), and ffmpeg with `libmp3lame`.
-Missing any of those leaves SoundCloud-style placeholder bars and/or WAV streaming as WAV; the
-upload itself still succeeded. Write-tags needs the same Redis + worker (not ffmpeg); without them
-the track save still succeeds and the library UI shows that tags were not written. Details:
+Missing any of those leaves SoundCloud-style placeholder bars and/or the master streaming only when
+it is browser-playable (MP3/AAC/M4A, WAV/OGG while encoding). An unplayable master (FLAC/AIFF) is
+never exposed publicly when playback is queued or failed — the original stays owner-downloadable.
+Write-tags needs the same Redis + worker (not ffmpeg); without them the track save still succeeds
+and the library UI shows that tags were not written. Details:
 [media-and-storage.md](media-and-storage.md).
 
 The worker runs raw Bun (not Vite). Bun’s package `imports` map does not resolve

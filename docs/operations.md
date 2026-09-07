@@ -9,8 +9,8 @@ bun run db:migrate
 bun run dev             # http://localhost:5174
 ```
 
-Install `ffmpeg` with `libmp3lame` too. Uploads shell out to it for waveform peaks and WAV→MP3
-playback copies; without it, tracks get placeholder bars and WAV uploads keep streaming as WAV.
+Install `ffmpeg` with `libmp3lame` too. Uploads shell out to it for waveform peaks and 320k
+playback copies; without it, tracks get placeholder bars and only browser-streamable masters play.
 Production deploy installs and verifies ffmpeg before restarting the service.
 
 ### Testing tenant hosts locally

@@ -13,9 +13,21 @@ import {
 } from '#lib/server/cursor';
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, trackRepost, user } from '#lib/server/db/schema';
+import {
+	audioColumnsFromStream,
+	createMediaRevision,
+	hostedCommittedBytes,
+	isBrowserStreamableMaster,
+	masterObjectName,
+	parsePlaybackStatus,
+	resolveStreamSource,
+	sha256Hex,
+	trackNeedsPlaybackMp3,
+	waveformObjectName
+} from '#lib/server/media/assets';
+import { probeAudioBytes } from '#lib/server/media/probe';
 import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
-import { isWavMime, trackNeedsPlaybackMp3 } from '#lib/server/media/transcode';
-import { parseWaveform } from '#lib/server/media/waveform';
+import { parseWaveform, WAVEFORM_FILENAME } from '#lib/server/media/waveform';
 import { checkUploadAllowed } from '#lib/server/quota';
 import { parseTagEmbedStatus } from '#lib/media/tag-embed-status.js';
 import { enqueueTranscodeJob } from '#lib/server/queue/transcode';
@@ -46,7 +58,10 @@ const AUDIO_EXT_BY_MIME = {
 	'audio/aac': 'aac',
 	'audio/ogg': 'ogg',
 	'audio/mp4': 'm4a',
-	'audio/x-m4a': 'm4a'
+	'audio/x-m4a': 'm4a',
+	'audio/aiff': 'aiff',
+	'audio/x-aiff': 'aiff',
+	'audio/aif': 'aiff'
 };
 
 /** @type {Record<string, string>} */
@@ -287,25 +302,31 @@ export async function validateAudioFile(file) {
 
 	const head = await readFileHead(file);
 	const sniffed = sniffAudio(head);
-	if (!sniffed) {
-		return {
-			ok: false,
-			message: 'Audio must be mp3, wav, flac, aac, ogg, or m4a.'
-		};
+	const rejectMessage = 'Audio must be mp3, wav, flac, aac, ogg, m4a, or aiff.';
+
+	/** @type {{ ext: string, mime: string } | null} */
+	let resolved = sniffed;
+	if (!resolved) {
+		const bytes = new Uint8Array(await file.arrayBuffer());
+		const probed = await probeAudioBytes(bytes, extFromName(file.name) || 'bin');
+		if (!probed.ok) {
+			return { ok: false, message: probed.message || rejectMessage };
+		}
+		resolved = { ext: probed.ext, mime: probed.mime };
 	}
 
-	// Extension hint may refine AAC vs M4A when magic is ambiguous; never trust MIME alone.
 	const extHint = extFromName(file.name);
-	let resolvedExt = sniffed.ext;
-	if (sniffed.ext === 'm4a' && extHint === 'aac') resolvedExt = 'aac';
-	if (sniffed.ext === 'mp3' && AUDIO_EXT_BY_MIME[(file.type || '').toLowerCase()] === 'mp3') {
+	let resolvedExt = resolved.ext;
+	if (resolved.ext === 'm4a' && extHint === 'aac') resolvedExt = 'aac';
+	if (resolved.ext === 'mp3' && AUDIO_EXT_BY_MIME[(file.type || '').toLowerCase()] === 'mp3') {
 		resolvedExt = 'mp3';
 	}
 
 	return {
 		ok: true,
+		ext: resolvedExt,
 		filename: `audio.${resolvedExt}`,
-		mime: sniffed.mime,
+		mime: resolved.mime,
 		bytes: file.size
 	};
 }
@@ -395,8 +416,12 @@ export async function createTrackFromForm(userId, formData) {
 	const folderKey = id;
 	const now = new Date();
 	const slug = await allocateTrackSlug(userId, metaResult.metadata.title);
-
+	const mediaRevision = createMediaRevision();
+	const masterFilename = masterObjectName(mediaRevision, audioResult.ext);
 	const audioBytes = new Uint8Array(await audioEntry.arrayBuffer());
+	const masterSha256 = sha256Hex(audioBytes);
+	const needsPlayback = !isBrowserStreamableMaster(audioResult.mime, masterFilename);
+	const stream = { filename: masterFilename, mime: audioResult.mime, bytes: audioResult.bytes };
 
 	// Insert before put (folderKey = id). Leave cover columns null until bytes
 	// land so listings do not advertise hasCover during the upload window.
@@ -405,9 +430,21 @@ export async function createTrackFromForm(userId, formData) {
 		userId,
 		...metaResult.metadata,
 		slug,
-		audioFilename: audioResult.filename,
-		audioMime: audioResult.mime,
-		audioBytes: audioResult.bytes,
+		mediaRevision,
+		masterFilename,
+		masterMime: audioResult.mime,
+		masterBytes: audioResult.bytes,
+		masterSha256,
+		playbackFilename: null,
+		playbackMime: null,
+		playbackBytes: null,
+		playbackStatus: needsPlayback ? 'queued' : null,
+		playbackError: null,
+		playbackUpdatedAt: needsPlayback ? now : null,
+		...audioColumnsFromStream(
+			{ masterFilename, masterMime: audioResult.mime, masterBytes: audioResult.bytes },
+			stream
+		),
 		coverFilename: null,
 		coverMime: null,
 		coverBytes: null,
@@ -420,7 +457,7 @@ export async function createTrackFromForm(userId, formData) {
 	});
 
 	try {
-		await storage.put(folderKey, audioResult.filename, audioBytes, audioResult.mime);
+		await storage.put(folderKey, masterFilename, audioBytes, audioResult.mime);
 
 		if (coverResult && isFile(coverEntry)) {
 			const coverBytes = new Uint8Array(await coverEntry.arrayBuffer());
@@ -448,10 +485,10 @@ export async function createTrackFromForm(userId, formData) {
 		};
 	}
 
-	// Peaks + WAV→MP3 playback copy are generated off-request (BullMQ).
-	await enqueueWaveformJob(id);
-	if (isWavMime(audioResult.mime)) {
-		await enqueueTranscodeJob(id);
+	// Peaks + playback MP3 (when needed) are generated off-request (BullMQ).
+	await enqueueWaveformJob(id, mediaRevision);
+	if (needsPlayback) {
+		await enqueueTranscodeJob(id, mediaRevision);
 	}
 
 	return { ok: true, trackId: id };
@@ -507,17 +544,49 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 	/** @type {{ filename: string, mime: string, bytes: number } | null} */
 	let coverResult = null;
 
+	/** @type {string | null} */
+	let nextRevision = null;
+	/** @type {string | null} */
+	let nextMasterFilename = null;
+	/** @type {boolean} */
+	let nextNeedsPlayback = false;
+
 	if (replaceAudio) {
 		const validated = await validateAudioFile(/** @type {File} */ (audioEntry));
 		if (!validated.ok) return validated;
 		audioResult = validated;
-		patch.audioFilename = validated.filename;
-		patch.audioMime = validated.mime;
-		patch.audioBytes = validated.bytes;
-		// New upload replaces any prior playback/original pair.
-		patch.originalFilename = null;
-		patch.originalMime = null;
-		patch.originalBytes = null;
+		nextRevision = createMediaRevision();
+		nextMasterFilename = masterObjectName(nextRevision, validated.ext);
+		nextNeedsPlayback = !isBrowserStreamableMaster(validated.mime, nextMasterFilename);
+		const stream = {
+			filename: nextMasterFilename,
+			mime: validated.mime,
+			bytes: validated.bytes
+		};
+		Object.assign(patch, {
+			mediaRevision: nextRevision,
+			masterFilename: nextMasterFilename,
+			masterMime: validated.mime,
+			masterBytes: validated.bytes,
+			playbackFilename: null,
+			playbackMime: null,
+			playbackBytes: null,
+			playbackStatus: nextNeedsPlayback ? 'queued' : null,
+			playbackError: null,
+			playbackUpdatedAt: nextNeedsPlayback ? new Date() : null,
+			// original* is deprecated; do not carry a prior generation forward.
+			originalFilename: null,
+			originalMime: null,
+			originalBytes: null,
+			...audioColumnsFromStream(
+				{
+					masterFilename: nextMasterFilename,
+					masterMime: validated.mime,
+					masterBytes: validated.bytes
+				},
+				stream
+			)
+		});
 	}
 
 	if (replaceCover) {
@@ -535,7 +604,7 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 			addedBytes: (audioResult?.bytes ?? 0) + (coverResult?.bytes ?? 0),
 			adapter: existing.storageAdapter,
 			replacesBytes:
-				(audioResult ? existing.audioBytes + (existing.originalBytes ?? 0) : 0) +
+				(audioResult ? hostedCommittedBytes({ ...existing, coverBytes: 0 }) : 0) +
 				(coverResult ? (existing.coverBytes ?? 0) : 0)
 		});
 		if (!quota.ok) return quota;
@@ -553,18 +622,26 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 		}
 
 		try {
-			if (audioResult && isFile(audioEntry)) {
+			if (audioResult && isFile(audioEntry) && nextMasterFilename) {
 				const bytes = new Uint8Array(await audioEntry.arrayBuffer());
-				await storage.put(existing.folderKey, audioResult.filename, bytes, audioResult.mime);
+				patch.masterSha256 = sha256Hex(bytes);
+				await storage.put(existing.folderKey, nextMasterFilename, bytes, audioResult.mime);
 				// Clear peaks until the worker regenerates them for the new audio.
 				patch.waveform = null;
 
-				const keep = new Set([audioResult.filename]);
-				if (existing.audioFilename && !keep.has(existing.audioFilename)) {
-					await deleteStoredObject(storage, existing.folderKey, existing.audioFilename);
-				}
-				if (existing.originalFilename && !keep.has(existing.originalFilename)) {
-					await deleteStoredObject(storage, existing.folderKey, existing.originalFilename);
+				const keep = new Set([nextMasterFilename]);
+				const stale = [
+					existing.masterFilename,
+					existing.audioFilename,
+					existing.originalFilename,
+					existing.playbackFilename,
+					existing.mediaRevision ? waveformObjectName(existing.mediaRevision) : null,
+					WAVEFORM_FILENAME
+				];
+				for (const name of stale) {
+					if (name && !keep.has(name)) {
+						await deleteStoredObject(storage, existing.folderKey, name);
+					}
 				}
 			}
 			if (coverResult && isFile(coverEntry)) {
@@ -587,10 +664,10 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 		.set(patch)
 		.where(and(eq(track.id, trackId), eq(track.userId, userId)));
 
-	if (replaceAudio) {
-		await enqueueWaveformJob(trackId);
-		if (audioResult && isWavMime(audioResult.mime)) {
-			await enqueueTranscodeJob(trackId);
+	if (replaceAudio && nextRevision) {
+		await enqueueWaveformJob(trackId, nextRevision);
+		if (nextNeedsPlayback) {
+			await enqueueTranscodeJob(trackId, nextRevision);
 		}
 	}
 
@@ -708,13 +785,25 @@ export async function ensureTrackWaveform(row) {
 }
 
 /**
- * Fail-soft backfill: enqueue WAV→MP3 when a track is still serving the original WAV.
+ * Fail-soft backfill: enqueue a 320k playback MP3 when the master is not a
+ * sane stream format and no ready derivative exists.
  *
  * @param {typeof track.$inferSelect} row
  */
 export async function ensureTrackPlaybackMp3(row) {
 	if (!trackNeedsPlaybackMp3(row)) return;
-	await enqueueTranscodeJob(row.id);
+	if (row.playbackStatus !== 'queued') {
+		await db
+			.update(track)
+			.set({
+				playbackStatus: 'queued',
+				playbackError: null,
+				playbackUpdatedAt: new Date(),
+				updatedAt: new Date()
+			})
+			.where(eq(track.id, row.id));
+	}
+	await enqueueTranscodeJob(row.id, row.mediaRevision);
 }
 
 /**
@@ -1046,7 +1135,14 @@ export async function serializeTrackForPlayer(
 		const map = await getSshPublicBaseUrls([row.userId]);
 		base = map.get(row.userId) ?? null;
 	}
-	const { audioUrl, coverUrl } = resolvePublicTrackMediaUrls(row, base ?? null);
+	const stream = resolveStreamSource(row);
+	const { audioUrl, coverUrl } = resolvePublicTrackMediaUrls(
+		{
+			...row,
+			audioFilename: stream?.filename ?? null
+		},
+		base ?? null
+	);
 
 	const slug = await ensureTrackSlug(row);
 
@@ -1152,7 +1248,10 @@ export async function serializeLibraryTrackRows(rows, viewer) {
 			isrc: row.isrc ?? '',
 			composer: row.composer ?? '',
 			comment: row.comment ?? '',
-			audioBytes: row.audioBytes,
+			audioBytes: row.masterBytes || row.audioBytes,
+			masterBytes: row.masterBytes || row.audioBytes,
+			playbackStatus: parsePlaybackStatus(row.playbackStatus),
+			playbackError: row.playbackError ?? null,
 			encoder: row.encoder ?? null,
 			tagTypes: row.tagTypes ?? null,
 			trackGainDb: row.trackGainDb ?? null,

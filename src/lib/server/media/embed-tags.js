@@ -7,7 +7,23 @@ import { PROPERTIES, TagLib } from 'taglib-wasm';
 
 import { db } from '#lib/server/db/index.js';
 import { track } from '#lib/server/db/schema.js';
-import { getStorageAdapter, parseStoredAdapter } from '#lib/server/storage/index.js';
+import {
+	audioColumnsFromStream,
+	casTrackMedia,
+	discardStaleObject,
+	extFromFilename,
+	isBrowserStreamableMaster,
+	isMasterObjectName,
+	playbackAliasesMaster,
+	playbackObjectName,
+	resolveMasterSource
+} from '#lib/server/media/assets.js';
+import { checkUploadAllowed } from '#lib/server/quota.js';
+import {
+	getStorageAdapter,
+	isHostedStorageAdapter,
+	parseStoredAdapter
+} from '#lib/server/storage/index.js';
 import { localTrackFilePath } from '#lib/server/storage/local-path.js';
 import { stageAdapterObjectToFile } from '#lib/server/storage/stage.js';
 
@@ -80,17 +96,82 @@ function isBlankTag(values) {
 }
 
 /**
- * Write the track's saved metadata into its audio file.
+ * Choose the file write-tags may mutate. Master is never the target.
  *
+ * @param {typeof track.$inferSelect} row
+ * @returns {{ ok: true, sourceName: string, sourceMime: string, destName: string, destMime: string, cow: boolean } | { ok: false, message: string }}
+ */
+function resolveTagTarget(row) {
+	const master = resolveMasterSource(row);
+	if (!master) {
+		return { ok: false, message: 'Master audio is missing.' };
+	}
+
+	if (row.playbackFilename && row.playbackFilename !== master.filename) {
+		if (isMasterObjectName(row.playbackFilename)) {
+			return { ok: false, message: 'Refusing to tag a master object.' };
+		}
+		return {
+			ok: true,
+			sourceName: row.playbackFilename,
+			sourceMime: row.playbackMime || 'audio/mpeg',
+			destName: row.playbackFilename,
+			destMime: row.playbackMime || 'audio/mpeg',
+			cow: false
+		};
+	}
+
+	if (playbackAliasesMaster(row) && isBrowserStreamableMaster(master.mime, master.filename)) {
+		const ext = extFromFilename(master.filename) || 'mp3';
+		const destName = playbackObjectName(row.mediaRevision, ext);
+		if (isMasterObjectName(destName)) {
+			return { ok: false, message: 'Refusing to tag a master object.' };
+		}
+		return {
+			ok: true,
+			sourceName: master.filename,
+			sourceMime: master.mime,
+			destName,
+			destMime: master.mime,
+			cow: true
+		};
+	}
+
+	if (row.playbackStatus === 'queued') {
+		return {
+			ok: false,
+			message: 'Playback is still encoding. Tags stay in the library until that finishes.'
+		};
+	}
+	if (row.playbackStatus === 'failed') {
+		return {
+			ok: false,
+			message:
+				'Playback encode failed, so tags were not written to a file. The original is unchanged.'
+		};
+	}
+
+	return {
+		ok: false,
+		message: 'Tags stay in the library. The original upload is never rewritten.'
+	};
+}
+
+/**
+ * Write the track's saved metadata into its playback file.
+ *
+ * - Never mutates `master-*`.
+ * - If playback aliases a sane MP3/AAC/M4A master, copy-on-write a playback
+ *   object, tag that, then CAS-publish.
  * - `gapfill` (default): only blank tags; aborts if a write would clobber existing tags.
  * - `overwrite`: replace tags for every non-empty DB field; blank DB fields are left alone.
  *
  * @param {string} userId
  * @param {string} trackId
- * @param {{ mode?: 'gapfill' | 'overwrite' }} [options]
+ * @param {{ mode?: 'gapfill' | 'overwrite', revision?: string }} [options]
  * @returns {Promise<{ ok: true, written: string[] } | { ok: false, message: string }>}
  */
-export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {}) {
+export async function embedTrackTags(userId, trackId, { mode = 'gapfill', revision } = {}) {
 	const overwrite = mode === 'overwrite';
 	const rows = await db
 		.select()
@@ -101,6 +182,16 @@ export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {})
 	if (!row) {
 		return { ok: false, message: 'Track not found.' };
 	}
+
+	if (revision && row.mediaRevision !== revision) {
+		return {
+			ok: false,
+			message: 'This track was replaced while tags were writing. Nothing was changed.'
+		};
+	}
+
+	const target = resolveTagTarget(row);
+	if (!target.ok) return target;
 
 	let storage;
 	try {
@@ -116,20 +207,20 @@ export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {})
 	let tempDir = null;
 	try {
 		tempDir = await mkdtemp(path.join(tmpdir(), 'sndbnk-embed-tags-'));
-		const ext = path.extname(row.audioFilename).replace(/^\./, '') || 'bin';
+		const ext = extFromFilename(target.sourceName) || 'bin';
 		const inputPath = path.join(tempDir, `input.${ext}`);
 		const outputPath = path.join(tempDir, `tagged.${ext}`);
 
 		try {
 			if (parseStoredAdapter(row.storageAdapter) === 'local') {
-				const livePath = localTrackFilePath(userId, row.folderKey, row.audioFilename);
+				const livePath = localTrackFilePath(userId, row.folderKey, target.sourceName);
 				if (!(await Bun.file(livePath).exists())) {
 					return { ok: false, message: 'Could not read the audio file from storage.' };
 				}
 				// Copy so a failed tag never mutates the live object.
 				await copyFile(livePath, inputPath);
 			} else {
-				await stageAdapterObjectToFile(storage, row.folderKey, row.audioFilename, inputPath);
+				await stageAdapterObjectToFile(storage, row.folderKey, target.sourceName, inputPath);
 			}
 		} catch (err) {
 			return {
@@ -220,9 +311,30 @@ export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {})
 			return { ok: true, written: [] };
 		}
 
+		const taggedSize = (await stat(outputPath)).size;
+
+		if (target.cow && isHostedStorageAdapter(parseStoredAdapter(row.storageAdapter))) {
+			const quota = await checkUploadAllowed(userId, {
+				newTrack: false,
+				addedBytes: taggedSize,
+				adapter: row.storageAdapter,
+				replacesBytes: 0
+			});
+			if (!quota.ok) {
+				return { ok: false, message: quota.message };
+			}
+		}
+
+		if (revision && row.mediaRevision !== revision) {
+			return {
+				ok: false,
+				message: 'This track was replaced while tags were writing. Nothing was changed.'
+			};
+		}
+
 		const taggedBytes = new Uint8Array(await Bun.file(outputPath).arrayBuffer());
 		try {
-			await storage.put(row.folderKey, row.audioFilename, taggedBytes, row.audioMime);
+			await storage.put(row.folderKey, target.destName, taggedBytes, target.destMime);
 		} catch (err) {
 			return {
 				ok: false,
@@ -230,11 +342,26 @@ export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {})
 			};
 		}
 
-		const taggedSize = (await stat(outputPath)).size;
-		await db
-			.update(track)
-			.set({ audioBytes: taggedSize, updatedAt: new Date() })
-			.where(and(eq(track.id, trackId), eq(track.userId, userId)));
+		const stream = { filename: target.destName, mime: target.destMime, bytes: taggedSize };
+		const published = await casTrackMedia(trackId, row.mediaRevision, {
+			playbackFilename: target.destName,
+			playbackMime: target.destMime,
+			playbackBytes: taggedSize,
+			playbackStatus: 'ready',
+			playbackError: null,
+			playbackUpdatedAt: new Date(),
+			...audioColumnsFromStream(row, stream)
+		});
+
+		if (!published) {
+			if (target.cow) {
+				await discardStaleObject(storage, row.folderKey, target.destName);
+			}
+			return {
+				ok: false,
+				message: 'This track was replaced while tags were writing. Nothing was changed.'
+			};
+		}
 
 		return { ok: true, written };
 	} finally {

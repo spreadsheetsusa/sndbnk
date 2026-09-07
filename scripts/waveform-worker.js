@@ -1,5 +1,5 @@
 /**
- * BullMQ worker: generate track.waveform peaks, WAV→MP3 playback copies,
+ * BullMQ worker: generate track.waveform peaks, playback MP3 encodes,
  * and write-tags embeds off the HTTP process.
  *
  *   bun run worker:waveform
@@ -78,8 +78,9 @@ const waveformWorker = startWorker(
 		if (typeof trackId !== 'string' || !trackId) {
 			throw new Error('Job missing trackId');
 		}
+		const revision = typeof job.data?.revision === 'string' ? job.data.revision : undefined;
 		console.log(`[waveform-worker] start ${trackId} (attempt ${job.attemptsMade + 1})`);
-		await processWaveformJob(trackId);
+		await processWaveformJob(trackId, revision);
 	},
 	WAVEFORM_QUEUE_NAME,
 	waveformConnection,
@@ -93,8 +94,9 @@ const transcodeWorker = startWorker(
 		if (typeof trackId !== 'string' || !trackId) {
 			throw new Error('Job missing trackId');
 		}
+		const revision = typeof job.data?.revision === 'string' ? job.data.revision : undefined;
 		console.log(`[transcode-worker] start ${trackId} (attempt ${job.attemptsMade + 1})`);
-		await processTranscodeJob(trackId);
+		await processTranscodeJob(trackId, revision);
 	},
 	TRANSCODE_QUEUE_NAME,
 	transcodeConnection,
@@ -113,8 +115,9 @@ const embedTagsWorker = startWorker(
 			throw new Error('Job missing userId');
 		}
 		const mode = parseTagEmbedMode(job.data?.mode);
+		const revision = typeof job.data?.revision === 'string' ? job.data.revision : undefined;
 		console.log(`[embed-tags-worker] start ${trackId} ${mode} (attempt ${job.attemptsMade + 1})`);
-		await processEmbedTagsJob(trackId, userId, mode);
+		await processEmbedTagsJob(trackId, userId, mode, revision);
 	},
 	EMBED_TAGS_QUEUE_NAME,
 	embedTagsConnection,
