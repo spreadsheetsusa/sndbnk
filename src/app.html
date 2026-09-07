@@ -45,7 +45,7 @@
 				} catch (e) {}
 			})();
 		</script>
-		<!-- Tokens in layout.css load with the bundle; keep splash self-contained. -->
+		<!-- Pre-bundle splash: paper/ink/accent hexes match layout.css tokens. -->
 		<style>
 			html {
 				background: #f2f0e8;
@@ -76,8 +76,8 @@
 			#boot-splash .boot-bezel {
 				display: grid;
 				justify-items: center;
-				gap: 0.85rem;
-				padding: 1.35rem 1.6rem 1.15rem;
+				gap: 0.75rem;
+				padding: 1.25rem 1.5rem 1.05rem;
 				border: 1px solid #11110f;
 				box-shadow: 5px 5px 0 #11110f;
 			}
@@ -86,7 +86,6 @@
 				box-shadow: 5px 5px 0 color-mix(in srgb, var(--accent, #c8ff3d) 30%, black);
 			}
 			#boot-splash .boot-mark {
-				position: relative;
 				margin: 0;
 				font-family: Audiowide, 'Helvetica Neue', sans-serif;
 				font-size: clamp(1.65rem, 8vw, 2.4rem);
@@ -98,54 +97,6 @@
 			}
 			html.dark #boot-splash .boot-mark {
 				filter: drop-shadow(-0.022em 0 0 #ff5a72) drop-shadow(0.022em 0 0 #57e9ff);
-			}
-			#boot-splash .boot-mark::before,
-			#boot-splash .boot-mark::after {
-				position: absolute;
-				top: 0;
-				left: 0;
-				content: attr(data-text);
-				opacity: 0;
-				mix-blend-mode: multiply;
-				pointer-events: none;
-				animation: boot-glitch 2.8s steps(1, end) infinite;
-			}
-			html.dark #boot-splash .boot-mark::before,
-			html.dark #boot-splash .boot-mark::after {
-				mix-blend-mode: screen;
-			}
-			#boot-splash .boot-mark::before {
-				color: #21e0ff;
-			}
-			#boot-splash .boot-mark::after {
-				color: #ff2f4f;
-				animation-delay: 80ms;
-			}
-			html.dark #boot-splash .boot-mark::before {
-				color: #57e9ff;
-			}
-			html.dark #boot-splash .boot-mark::after {
-				color: #ff5a72;
-			}
-			#boot-splash .boot-bars {
-				display: flex;
-				align-items: flex-end;
-				gap: 4px;
-				height: 1.1rem;
-			}
-			#boot-splash .boot-bars span {
-				display: block;
-				width: 5px;
-				height: 100%;
-				background: var(--accent, #c8ff3d);
-				transform-origin: center bottom;
-				animation: boot-bar 720ms ease-in-out infinite;
-			}
-			#boot-splash .boot-bars span:nth-child(2) {
-				animation-delay: 120ms;
-			}
-			#boot-splash .boot-bars span:nth-child(3) {
-				animation-delay: 240ms;
 			}
 			#boot-splash .boot-status {
 				margin: 0;
@@ -165,36 +116,6 @@
 				content: '_';
 				animation: boot-caret 1s steps(1, end) infinite;
 			}
-			@keyframes boot-bar {
-				0%,
-				100% {
-					transform: scaleY(0.32);
-					opacity: 0.4;
-				}
-				50% {
-					transform: scaleY(1);
-					opacity: 1;
-				}
-			}
-			@keyframes boot-glitch {
-				0%,
-				92%,
-				100% {
-					opacity: 0;
-					clip-path: inset(50% 0 50% 0);
-					transform: none;
-				}
-				4% {
-					opacity: 0.85;
-					clip-path: inset(8% 0 60% 0);
-					transform: translate(-0.12em, 0);
-				}
-				8% {
-					opacity: 0.85;
-					clip-path: inset(48% 0 18% 0);
-					transform: translate(0.12em, 0);
-				}
-			}
 			@keyframes boot-caret {
 				50% {
 					opacity: 0;
@@ -202,16 +123,9 @@
 			}
 			@media (prefers-reduced-motion: reduce) {
 				#boot-splash,
-				#boot-splash .boot-mark::before,
-				#boot-splash .boot-mark::after,
-				#boot-splash .boot-bars span,
 				#boot-splash .boot-status::after {
 					animation: none;
 					transition: none;
-				}
-				#boot-splash .boot-bars span {
-					transform: none;
-					opacity: 1;
 				}
 			}
 		</style>
@@ -221,8 +135,7 @@
 		<a class="skip-link" href="#main">Skip to content</a>
 		<div id="boot-splash" role="status" aria-live="polite" aria-label="Loading SNDBNK">
 			<div class="boot-bezel">
-				<p class="boot-mark" aria-hidden="true" data-text="SNDBNK">SNDBNK</p>
-				<div class="boot-bars" aria-hidden="true"><span></span><span></span><span></span></div>
+				<p class="boot-mark" aria-hidden="true">SNDBNK</p>
 				<p class="boot-status" aria-hidden="true">LOADING</p>
 			</div>
 		</div>
