@@ -1,8 +1,9 @@
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { profile, track } from '#lib/server/db/schema';
 import { planOrDefault } from '#lib/server/billing/plans';
+import { isHostedStorageAdapter } from '#lib/server/storage';
 
 /**
  * @typedef {{
@@ -16,8 +17,9 @@ import { planOrDefault } from '#lib/server/billing/plans';
  */
 
 /**
- * Byte totals only count tracks on the `local` adapter — storage a creator brings
- * themselves is theirs to fill, which is the point of paying for the feature.
+ * Byte totals only count SNDBNK-hosted tracks (`local` or platform `s3`) —
+ * storage a creator brings themselves is theirs to fill, which is the point of
+ * paying for the feature.
  * @param {string} userId
  * @returns {Promise<Usage>}
  */
@@ -30,7 +32,7 @@ export async function getUsage(userId) {
 				bytes: sql`coalesce(sum(${track.audioBytes} + coalesce(${track.originalBytes}, 0) + coalesce(${track.coverBytes}, 0)), 0)`
 			})
 			.from(track)
-			.where(and(eq(track.userId, userId), eq(track.storageAdapter, 'local')))
+			.where(and(eq(track.userId, userId), inArray(track.storageAdapter, ['local', 's3'])))
 	]);
 
 	const tier = planOrDefault(planRows[0]?.plan);
@@ -79,7 +81,7 @@ export async function checkUploadAllowed(
 		};
 	}
 
-	if (adapter === 'local' && usage.maxLocalBytes !== null) {
+	if (isHostedStorageAdapter(adapter) && usage.maxLocalBytes !== null) {
 		const projected = usage.localBytes - replacesBytes + addedBytes;
 		if (projected > usage.maxLocalBytes) {
 			return {

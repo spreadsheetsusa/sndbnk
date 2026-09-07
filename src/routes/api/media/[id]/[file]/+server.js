@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 
 import { mediaCorsOrigin } from '#lib/server/request-origin';
 import { canViewTrack, getTrackById } from '#lib/server/tracks';
-import { getStorageAdapter } from '#lib/server/storage';
+import { getStorageAdapter, isMissingStorageObject, parseStoredAdapter } from '#lib/server/storage';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
 
 /**
@@ -56,14 +56,11 @@ function parseRangeRequest(header) {
 }
 
 /**
- * Definite absence — do not retry (local missing file, SFTP ENOENT).
+ * Definite absence — do not retry (local miss, SFTP ENOENT, S3 NoSuchKey).
  * @param {unknown} err
  */
 function isMissingFileError(err) {
-	if (!(err instanceof Error)) return false;
-	if (err.message === 'File not found.') return true;
-	const code = /** @type {{ code?: number | string }} */ (err).code;
-	return code === 2 || code === 'ENOENT';
+	return isMissingStorageObject(err);
 }
 
 /**
@@ -120,10 +117,7 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 	}
 
 	try {
-		const adapter = await getStorageAdapter(
-			row.userId,
-			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
-		);
+		const adapter = await getStorageAdapter(row.userId, parseStoredAdapter(row.storageAdapter));
 		const mimeHint = resolveMime(kind, row);
 		const rangeReq = parseRangeRequest(request.headers.get('range'));
 

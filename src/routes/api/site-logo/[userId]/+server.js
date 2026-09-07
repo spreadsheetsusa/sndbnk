@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import { SITE_LOGO_FOLDER_KEY, getSiteLogoRecord } from '#lib/server/site';
-import { createLocalAdapter } from '#lib/server/storage/local.js';
+import { getPlatformObject } from '#lib/server/storage';
 
 export async function GET({ params, setHeaders }) {
 	const record = await getSiteLogoRecord(params.userId);
@@ -10,7 +10,8 @@ export async function GET({ params, setHeaders }) {
 	}
 
 	try {
-		const object = await createLocalAdapter(params.userId).get(
+		const object = await getPlatformObject(
+			params.userId,
 			SITE_LOGO_FOLDER_KEY,
 			record.logoFilename
 		);

@@ -4,12 +4,12 @@ import { auth } from '#lib/server/auth';
 import { db } from '#lib/server/db';
 import { profile, user } from '#lib/server/db/schema';
 import { readFileHead, sniffImage } from '#lib/server/media/sniff';
-import { createLocalAdapter } from '#lib/server/storage/local.js';
+import { createPlatformAdapter, deletePlatformFolder } from '#lib/server/storage';
 
 /**
- * Avatars always live on local disk rather than the user's configured storage
- * adapter: they are requested on nearly every page, and proxying each one
- * through someone's SFTP server would be far too slow.
+ * Avatars always live on SNDBNK-hosted storage (local disk or platform S3),
+ * never the user's SSH BYOS adapter: they are requested on nearly every page,
+ * and proxying each one through someone's SFTP server would be far too slow.
  */
 export const AVATAR_FOLDER_KEY = 'avatar';
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
@@ -81,12 +81,12 @@ export async function saveAvatar(userId, file, headers) {
 	const validated = await validateAvatarFile(file);
 	if (!validated.ok) return validated;
 
-	const storage = createLocalAdapter(userId);
+	const storage = createPlatformAdapter(userId);
 
 	try {
 		const bytes = new Uint8Array(await file.arrayBuffer());
 		// Replacing jpg with png would otherwise leave the old file as the match.
-		await storage.delete(AVATAR_FOLDER_KEY);
+		await deletePlatformFolder(userId, AVATAR_FOLDER_KEY);
 		await storage.put(AVATAR_FOLDER_KEY, validated.filename, bytes, validated.mime);
 	} catch (err) {
 		return {
@@ -117,7 +117,7 @@ export async function saveAvatar(userId, file, headers) {
  */
 export async function removeAvatar(userId, headers) {
 	try {
-		await createLocalAdapter(userId).delete(AVATAR_FOLDER_KEY);
+		await deletePlatformFolder(userId, AVATAR_FOLDER_KEY);
 	} catch {
 		// Nothing on disk is fine — clearing the record is what matters.
 	}

@@ -26,9 +26,11 @@
 		"createsuperuser": "bun ./scripts/createsuperuser.js",
 		"mail:preview": "bun ./scripts/preview-mail.js",
 		"worker:waveform": "bun ./scripts/waveform-worker.js",
+		"media:migrate-s3": "bun ./scripts/migrate-local-to-s3.js",
 		"auth:schema": "bun x --bun better-auth generate --config src/lib/server/auth.js --output src/lib/server/db/auth.schema.js --yes"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1127.0",
 		"@stripe/stripe-js": "^9.13.0",
 		"@tabler/icons-svelte-runes": "^3.46.0",
 		"better-auth": "^1.6.26",

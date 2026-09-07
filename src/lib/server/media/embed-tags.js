@@ -3,7 +3,7 @@ import { PROPERTIES, TagLib } from 'taglib-wasm';
 
 import { db } from '#lib/server/db';
 import { track } from '#lib/server/db/schema';
-import { getStorageAdapter } from '#lib/server/storage';
+import { getStorageAdapter, parseStoredAdapter } from '#lib/server/storage';
 import { getOwnedTrack } from '#lib/server/tracks';
 
 /**
@@ -107,7 +107,7 @@ export async function embedTrackTags(userId, trackId, { mode = 'gapfill' } = {})
 
 	let storage;
 	try {
-		storage = await getStorageAdapter(userId, /** @type {'local' | 'ssh'} */ (row.storageAdapter));
+		storage = await getStorageAdapter(userId, parseStoredAdapter(row.storageAdapter));
 	} catch (err) {
 		return {
 			ok: false,

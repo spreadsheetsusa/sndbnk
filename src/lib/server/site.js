@@ -23,7 +23,7 @@ import {
 	getRootPageRawBlocks,
 	stripChromeFromAllPages
 } from '#lib/server/site-pages';
-import { createLocalAdapter } from '#lib/server/storage/local.js';
+import { createPlatformAdapter, deletePlatformFolder } from '#lib/server/storage';
 import { buildPublicUrls } from '#lib/server/tenant';
 
 export const SITE_LOGO_FOLDER_KEY = 'site-logo';
@@ -715,11 +715,11 @@ export async function saveSiteLogo(userId, plan, file) {
 	const validated = await validateSiteImage(file, 'logo');
 	if (!validated.ok) return validated;
 
-	const storage = createLocalAdapter(userId);
+	const storage = createPlatformAdapter(userId);
 
 	try {
 		const bytes = new Uint8Array(await file.arrayBuffer());
-		await storage.delete(SITE_LOGO_FOLDER_KEY);
+		await deletePlatformFolder(userId, SITE_LOGO_FOLDER_KEY);
 		await storage.put(SITE_LOGO_FOLDER_KEY, validated.filename, bytes, validated.mime);
 	} catch (err) {
 		return {
@@ -754,7 +754,7 @@ export async function removeSiteLogo(userId, plan) {
 	}
 
 	try {
-		await createLocalAdapter(userId).delete(SITE_LOGO_FOLDER_KEY);
+		await deletePlatformFolder(userId, SITE_LOGO_FOLDER_KEY);
 	} catch {
 		// Nothing on disk is fine — clearing the record is what matters.
 	}
@@ -786,11 +786,11 @@ export async function saveSiteOgImage(userId, plan, file) {
 	const validated = await validateSiteImage(file, 'og');
 	if (!validated.ok) return validated;
 
-	const storage = createLocalAdapter(userId);
+	const storage = createPlatformAdapter(userId);
 
 	try {
 		const bytes = new Uint8Array(await file.arrayBuffer());
-		await storage.delete(SITE_OG_FOLDER_KEY);
+		await deletePlatformFolder(userId, SITE_OG_FOLDER_KEY);
 		await storage.put(SITE_OG_FOLDER_KEY, validated.filename, bytes, validated.mime);
 	} catch (err) {
 		return {
@@ -825,7 +825,7 @@ export async function removeSiteOgImage(userId, plan) {
 	}
 
 	try {
-		await createLocalAdapter(userId).delete(SITE_OG_FOLDER_KEY);
+		await deletePlatformFolder(userId, SITE_OG_FOLDER_KEY);
 	} catch {
 		// Nothing on disk is fine — clearing the record is what matters.
 	}

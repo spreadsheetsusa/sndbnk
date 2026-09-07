@@ -186,9 +186,11 @@ Four groups of columns:
 | Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`, `encoder`, `tagTypes`, `trackGainDb`, `container`                                                                                                                                                                                                                                                |
 | Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `isPrivate`, `storageAdapter`, `folderKey`                                                                                                                                                                                                                                                              |
 
-`storageAdapter` is a **snapshot of the owner's adapter at upload time**, and `folderKey` equals the
-track `id`. Reads pass the stored value back in — `getStorageAdapter(userId, row.storageAdapter)` —
-so switching your storage setting never orphans existing tracks.
+`storageAdapter` is a **snapshot of the owner's adapter at upload time** (`local`, `s3`, or `ssh`),
+and `folderKey` equals the track `id`. Reads pass the stored value back in —
+`getStorageAdapter(userId, row.storageAdapter)` — so switching your storage setting never orphans
+existing tracks. Platform S3 is snapshotted as `s3` when `S3_BUCKET` is set; `local` remains valid
+for unmigrated hosted files.
 
 `slug` is generated from the title at upload (`slugifyTitle`, then `-2` / `-3` on collision) and
 does not change when the title is edited. Existing rows are backfilled the same way. Public detail

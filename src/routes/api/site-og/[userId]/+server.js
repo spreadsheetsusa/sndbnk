@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import { SITE_OG_FOLDER_KEY, getSiteOgRecord } from '#lib/server/site';
-import { createLocalAdapter } from '#lib/server/storage/local.js';
+import { getPlatformObject } from '#lib/server/storage';
 
 export async function GET({ params, setHeaders }) {
 	const record = await getSiteOgRecord(params.userId);
@@ -10,7 +10,8 @@ export async function GET({ params, setHeaders }) {
 	}
 
 	try {
-		const object = await createLocalAdapter(params.userId).get(
+		const object = await getPlatformObject(
+			params.userId,
 			SITE_OG_FOLDER_KEY,
 			record.ogImageFilename
 		);

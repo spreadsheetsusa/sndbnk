@@ -5,18 +5,31 @@ import { db } from '#lib/server/db/index.js';
 import { profile, storageSetting } from '#lib/server/db/schema.js';
 import { decryptSecret, encryptSecret } from './crypto.js';
 import { createLocalAdapter } from './local.js';
+import { parseStoredAdapter } from './platform.js';
 import { normalizePublicBaseUrl, publicMediaUrl } from './public-url.js';
+import { createS3Adapter } from './s3.js';
+import { platformAdapterId } from './s3-config.js';
 import { assertPublicSshHost } from './ssh-host.js';
 import { createSshAdapter } from './ssh.js';
 
 export { publicMediaUrl } from './public-url.js';
+export { isMissingStorageObject } from './errors.js';
+export {
+	createPlatformAdapter,
+	deletePlatformFolder,
+	getPlatformObject,
+	isHostedStorageAdapter,
+	parseStoredAdapter
+} from './platform.js';
+export { platformAdapterId, isPlatformS3Configured } from './s3-config.js';
+export { wipeUserS3Media } from './s3.js';
 
 /** @type {import('./types.js').StorageAdapterMeta[]} */
 export const STORAGE_ADAPTERS = [
 	{
 		id: 'local',
 		label: 'Local (SNDBNK)',
-		description: 'Store uploads on SNDBNK’s server. Default and simplest.',
+		description: 'Store uploads on SNDBNK’s servers. Default and simplest.',
 		enabled: true
 	},
 	{
@@ -28,7 +41,7 @@ export const STORAGE_ADAPTERS = [
 	{
 		id: 's3',
 		label: 'Amazon S3',
-		description: 'Bring your own S3 bucket.',
+		description: 'Bring your own S3 bucket. Not available yet.',
 		enabled: false
 	},
 	{
@@ -262,31 +275,54 @@ function sshConfigFromRow(row) {
 }
 
 /**
- * Resolve the storage adapter for a user based on their preference.
+ * Resolve a storage adapter.
+ *
+ * Pass a stored snapshot (`track.storageAdapter`) on reads — that value is
+ * exact (`local` stays on disk, `s3` stays on the bucket). Omit it to use the
+ * owner's current preference: SSH when they chose BYOS, otherwise the platform
+ * backend (`s3` when `S3_BUCKET` is set, else `local`).
+ *
  * @param {string} userId
- * @param {'local' | 'ssh'} [forceAdapter]
+ * @param {string} [forceAdapter]
  * @returns {Promise<import('./types.js').StorageAdapter>}
  */
 export async function getStorageAdapter(userId, forceAdapter) {
 	const row = await getOrCreateStorageSetting(userId);
-	const adapterId = forceAdapter ?? row.adapter;
+	const adapterId = parseStoredAdapter(forceAdapter ?? row.adapter);
 
 	if (adapterId === 'ssh') {
 		return createSshAdapter(userId, sshConfigFromRow(row));
+	}
+
+	if (forceAdapter == null && adapterId === 'local') {
+		return platformAdapterId() === 's3' ? createS3Adapter(userId) : createLocalAdapter(userId);
+	}
+
+	if (adapterId === 's3') {
+		return createS3Adapter(userId);
+	}
+
+	if (adapterId === 'r2') {
+		throw new Error('Cloudflare R2 storage is not implemented.');
 	}
 
 	return createLocalAdapter(userId);
 }
 
 /**
- * Test the user's currently configured SSH connection (or local root).
+ * Test SSH, or the platform backend when the user picked SNDBNK-hosted storage.
  * @param {string} userId
  * @param {'local' | 'ssh'} [adapter]
  */
 export async function testStorageConnection(userId, adapter) {
 	try {
-		const resolved = await getStorageAdapter(userId, adapter);
-		return await resolved.testConnection();
+		if (
+			adapter === 'ssh' ||
+			(adapter == null && (await getOrCreateStorageSetting(userId)).adapter === 'ssh')
+		) {
+			return await (await getStorageAdapter(userId, 'ssh')).testConnection();
+		}
+		return await (await getStorageAdapter(userId, platformAdapterId())).testConnection();
 	} catch (err) {
 		return {
 			ok: false,
