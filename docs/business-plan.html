@@ -549,7 +549,18 @@
 							<td>Library &amp; media</td>
 							<td>
 								File-manager library, up to 500&nbsp;MB audio / 5&nbsp;MB cover, metadata autofill,
-								tag write-back, waveforms (async for big files), publish toggle, media types
+								async tag write-back (BullMQ <code>embed-tags</code> on the waveform-worker — not on
+								the HTTP request), waveforms (async for big files), publish toggle, media types.
+								Hosted files in prod live in private S3
+								<code>sndbnk-media</code> (<code>us-east-1</code>,
+								<code>storageAdapter = s3</code>). Creator BYOS is SSH/SFTP.
+							</td>
+						</tr>
+						<tr>
+							<td>Marketing funnels</td>
+							<td>
+								Live apex pages: <code>/for-artists</code>, <code>/vault</code>,
+								<code>/studio</code> — album wall → Vault, ownership → Studio
 							</td>
 						</tr>
 						<tr>
@@ -574,9 +585,10 @@
 				</table>
 				<div class="panel">
 					<strong>You already have a real product</strong>
-					The gap is not “can this exist?” — it’s finish the Free promise (cloud BYO), polish the
-					Studio conversion path, earn a handful of paying creators, and keep the box trustworthy
-					before you advertise hard.
+					The gap is not “can this exist?” — it’s polish the Studio conversion path, earn a handful
+					of paying creators, and keep the box trustworthy before you advertise hard. Trust and
+					Stripe plumbing are largely in place. Do not invent a Free-unlimited or “S3/R2 on Free”
+					promise to fill the week.
 				</div>
 			</section>
 
@@ -603,43 +615,55 @@
 							<td><strong>Free</strong></td>
 							<td>$0</td>
 							<td>$0</td>
-							<td>1&nbsp;GB</td>
-							<td>Path profile, unlimited tracks, BYO (SSH now; S3/R2 promised)</td>
+							<td>No byte cap</td>
+							<td>
+								Path profile, <strong>~15 tracks / one album wall</strong> → CTA to Vault. Not
+								unlimited. SSH BYOS allowed; creator S3/R2 is not shipped.
+							</td>
 						</tr>
 						<tr>
 							<td><strong>Vault</strong></td>
 							<td>$5</td>
 							<td>$48</td>
 							<td>30&nbsp;GB</td>
-							<td><code>you.sndbnk.com</code> + site edit</td>
+							<td>Unlimited tracks + <code>you.sndbnk.com</code> — capacity</td>
 						</tr>
 						<tr>
 							<td><strong>Studio</strong></td>
 							<td>$14</td>
 							<td>$134</td>
 							<td>150&nbsp;GB</td>
-							<td>Custom domain, remove branding — featured “full power” tier</td>
+							<td>
+								Custom domain, chrome-off / white-label, full station builder — ownership.
+								<strong>Economic center.</strong>
+							</td>
 						</tr>
 						<tr>
 							<td><strong>Label</strong></td>
 							<td>$35</td>
 							<td>$336</td>
 							<td>500&nbsp;GB</td>
-							<td>Teams (5 seats seeded; UI not built yet)</td>
+							<td>Soft-badge / teams soon (5 seats seeded; UI incomplete — do not hard-sell)</td>
 						</tr>
 					</tbody>
 				</table>
 				<ul>
 					<li>
-						Hosted quota meters <strong>local</strong> adapter bytes only — BYO is the Free escape
-						hatch.
+						Free’s limiter is <strong>track count</strong> (~15, all adapters). Hosted bytes on Free
+						are uncapped; paid tiers add hosted GiB. Hitting the album wall should send people to
+						Vault, not a fake unlimited-Free story.
 					</li>
 					<li>
-						BYO adapters are allowed on every seeded tier; track caps are unlimited by default.
+						Hosted quota meters <code>local</code> + platform <code>s3</code> bytes. SSH BYOS is
+						excluded — the creator’s disk, not yours.
 					</li>
 					<li>
-						Economic center of gravity: <strong>Studio</strong> (domain + unbranded). Vault is the
-						on-ramp. Label waits until Studio conversion is real.
+						Creator BYOS today is SSH/SFTP, on every seeded tier. Creator-owned S3/R2 adapters stay
+						<code>enabled: false</code>. Do not promise them as a shipped Free feature.
+					</li>
+					<li>
+						Economic center of gravity: <strong>Studio</strong> (domain + chrome-off + station
+						builder). Vault is the capacity on-ramp. Label waits until Studio conversion is real.
 					</li>
 				</ul>
 			</section>
@@ -663,11 +687,11 @@
 							<td>Platform-first URLs / marketplace framing</td>
 						</tr>
 						<tr>
-							<td>BYO storage (SSH live; S3/R2 next)</td>
+							<td>BYO storage (SSH/SFTP live; creator S3/R2 parked)</td>
 							<td>Files live on the platform only</td>
 						</tr>
 						<tr>
-							<td>15 tracks on Free + hosted uploads + BYO; paid unlocks catalog + hosted GiB</td>
+							<td>~15 tracks on Free (album wall → Vault); paid unlocks catalog + hosted GiB</td>
 							<td>Free tiers capped hard or ad-driven</td>
 						</tr>
 						<tr>
@@ -734,7 +758,12 @@
 						</tr>
 						<tr>
 							<td>Media &amp; jobs</td>
-							<td>Local <code>MEDIA_ROOT</code> + optional SSH; Redis + BullMQ waveform worker</td>
+							<td>
+								Production hosted media: private S3
+								<code>sndbnk-media</code> (<code>us-east-1</code>,
+								<code>storageAdapter = s3</code>). Creator BYOS: SSH/SFTP. <code>MEDIA_ROOT</code>
+								is local/dev leftovers. Redis + BullMQ worker (waveform, transcode, embed-tags).
+							</td>
 						</tr>
 						<tr>
 							<td>Mail</td>
@@ -742,7 +771,11 @@
 						</tr>
 						<tr>
 							<td>Deploy</td>
-							<td>GitHub Actions → SSH on push to <code>main</code></td>
+							<td>
+								GitHub Actions → SSH on push to <code>main</code>.
+								<strong>Merge to <code>main</code> is an auto prod deploy</strong> — treat it that
+								way.
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -788,14 +821,18 @@
 							</td>
 						</tr>
 						<tr>
-							<td>S3 / R2 adapters stubbed</td>
-							<td class="risk-careful">Medium</td>
-							<td>Marketed on Free; <code>enabled: false</code> — Free promise incomplete</td>
+							<td>Creator S3 / R2 BYOS stubbed</td>
+							<td class="risk-safe">Low (parked)</td>
+							<td>
+								<code>STORAGE_ADAPTERS.s3</code> / <code>r2</code> stay <code>enabled: false</code>.
+								Not a shipped Free feature. Don’t market it; don’t build it until a paying creator
+								pulls it.
+							</td>
 						</tr>
 						<tr>
 							<td>Label teams UI missing</td>
-							<td class="risk-safe">Low (for now)</td>
-							<td>Seats seeded; don’t sell Label hard until product exists</td>
+							<td class="risk-safe">Low (parked)</td>
+							<td>Seats seeded; soft-badge only. Don’t hard-sell Label until product exists</td>
 						</tr>
 					</tbody>
 				</table>
@@ -815,42 +852,25 @@
 			<section id="next">
 				<h2>8. Focus next</h2>
 				<p>
-					Ordered on purpose. Resist skipping ahead to Label teams or discovery science while Free
-					and Studio still have holes.
+					Ordered on purpose. Trust hygiene and Stripe checkout are largely done — keep them warm,
+					don’t rebuild them. Resist skipping ahead to Label teams or creator object-storage BYO
+					while Studio conversion still needs polish and paying humans.
 				</p>
 				<div class="flow">
 					<div class="flow-step">
 						<span class="flow-n">1</span>
 						<div>
-							<strong>Trust &amp; launch hygiene</strong>
+							<strong>Earn Studio</strong>
 							<p style="margin: 0.25rem 0 0">
-								Untrack/rotate secrets. Confirm Stripe + webhook in prod. Tighten CSP when
-								report-only is clean. Don’t pour traffic on a shaky trust story.
+								Polish custom-domain verify, chrome-off / white-label, and the full station builder
+								as the conversion path. Funnels already live at <code>/for-artists</code>,
+								<code>/vault</code>, <code>/studio</code>. Studio is the economic center — make that
+								flow feel inevitable.
 							</p>
 						</div>
 					</div>
 					<div class="flow-step">
 						<span class="flow-n">2</span>
-						<div>
-							<strong>Finish the Free promise</strong>
-							<p style="margin: 0.25rem 0 0">
-								Implement S3/R2 BYO adapters so Free isn’t “SSH or 1&nbsp;GB hosted only.” This is
-								the ownership wedge on the card people actually read.
-							</p>
-						</div>
-					</div>
-					<div class="flow-step">
-						<span class="flow-n">3</span>
-						<div>
-							<strong>Earn Studio</strong>
-							<p style="margin: 0.25rem 0 0">
-								Polish custom-domain verify, site branding, and unbranded as the conversion path.
-								Studio is the economic center — make that flow feel inevitable.
-							</p>
-						</div>
-					</div>
-					<div class="flow-step">
-						<span class="flow-n">4</span>
 						<div>
 							<strong>Grow with proof</strong>
 							<p style="margin: 0.25rem 0 0">
@@ -861,17 +881,27 @@
 						</div>
 					</div>
 					<div class="flow-step">
-						<span class="flow-n">5</span>
+						<span class="flow-n">3</span>
 						<div>
-							<strong>Then Label teams</strong>
+							<strong>Park Label teams</strong>
 							<p style="margin: 0.25rem 0 0">
-								Seats exist in the plan table; product doesn’t. Build teams only after Studio
-								conversion is real and someone is asking for seats.
+								Seats exist in the plan table; product doesn’t. Soft-badge only. Build teams only
+								after Studio conversion is real and someone is asking for seats.
 							</p>
 						</div>
 					</div>
 					<div class="flow-step">
-						<span class="flow-n">6</span>
+						<span class="flow-n">4</span>
+						<div>
+							<strong>Park creator BYO object storage</strong>
+							<p style="margin: 0.25rem 0 0">
+								SSH/SFTP is the shipped BYOS. Creator-owned S3/R2 stay <code>enabled: false</code>.
+								Don’t promise them on Free. Pull when a paying creator needs their own bucket.
+							</p>
+						</div>
+					</div>
+					<div class="flow-step">
+						<span class="flow-n">5</span>
 						<div>
 							<strong>Deliberately later</strong>
 							<p style="margin: 0.25rem 0 0">
@@ -880,6 +910,12 @@
 							</p>
 						</div>
 					</div>
+				</div>
+				<div class="panel">
+					<strong>Keep warm (already largely done)</strong>
+					Secret rotation before a hard ad push, Stripe bootstrap + webhook, production smoke-test.
+					CSP still report-only. Don’t make hygiene the next chapter — and don’t merge to
+					<code>main</code> unless you mean to ship to prod.
 				</div>
 			</section>
 
@@ -919,8 +955,8 @@
 						<li>A place for sound — punch it in, turn it up.</li>
 					</ul>
 					<p style="margin: 0.85rem 0 0">
-						You already shipped a real host. The next chapter is trust, Free BYO, Studio conversion,
-						and a few creators who never want to leave. That’s enough focus for a dream.
+						You already shipped a real host. The next chapter is Studio conversion and a few
+						creators who never want to leave. That’s enough focus for a dream.
 					</p>
 				</div>
 			</section>

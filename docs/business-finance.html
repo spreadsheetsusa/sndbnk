@@ -447,8 +447,9 @@
 				<div class="panel">
 					<strong>One sentence rule</strong>
 					Keep fixed ops under ~$50/mo until you have paying Studio customers. Spend discretionary
-					dollars only against a milestone (trust hygiene, Free BYO, first 5 paid, first 25 paid) —
-					never against vibes.
+					dollars only against a milestone (Studio conversion, first 5 paid, first 25 paid) — never
+					against vibes. Trust and Stripe plumbing are largely done; don’t reopen them as a spend
+					category.
 				</div>
 				<p>
 					Numbers below are <strong>planning ranges</strong> (USD, 2026 Lightsail list prices +
@@ -577,16 +578,19 @@
 				<div class="panel warn">
 					<strong>Time is the real burn</strong>
 					If you value your evenings at even $40/hr and ship 10 hours/week, that’s ~$1,600/mo of
-					opportunity cost. Protect that by killing low-leverage work (fantasy Label teams,
-					premature multi-region) and shipping the Free/Studio wedge from the founder plan.
+					opportunity cost. Protect that by killing low-leverage work (fantasy Label teams, creator
+					S3/R2 BYOS, premature multi-region) and shipping Studio conversion from the founder plan.
 				</div>
 			</section>
 
 			<section id="unit">
 				<h2>4. Unit economics</h2>
 				<p>
-					Seeded list prices (before tax). Net ≈ list − Stripe fees. Hosted storage cost is the main
-					variable COGS on Free/Vault; BYO storage pushes COGS near zero for that user.
+					Seeded list prices (before tax). Net ≈ list − Stripe fees. Hosted storage (platform S3
+					<code>sndbnk-media</code>, plus leftover local disk) is the main variable COGS on
+					Vault/Studio. Free’s limiter is ~15 tracks, not bytes — don’t model Free as “unlimited
+					catalog, tiny hosted cap.” SSH BYOS pushes hosted COGS near zero for that user’s remote
+					files; it does not lift the Free album wall.
 				</p>
 				<table>
 					<thead>
@@ -605,8 +609,8 @@
 							<td class="num">$0</td>
 							<td class="num">—</td>
 							<td class="num">$0</td>
-							<td>1&nbsp;GB</td>
-							<td>Acquisition + BYO wedge; not a revenue line</td>
+							<td>No byte cap</td>
+							<td>~15 tracks / album wall → Vault. Not unlimited. Not a revenue line</td>
 						</tr>
 						<tr>
 							<td><strong>Vault</strong></td>
@@ -614,7 +618,7 @@
 							<td class="num">~$0.45</td>
 							<td class="num">~$4.55</td>
 							<td>30&nbsp;GB</td>
-							<td>Subdomain on-ramp; thin margin if all bytes are hosted</td>
+							<td>Unlimited tracks + subdomain — capacity on-ramp; thin if all bytes are hosted</td>
 						</tr>
 						<tr>
 							<td><strong>Studio</strong></td>
@@ -622,7 +626,7 @@
 							<td class="num">~$0.71</td>
 							<td class="num">~$13.29</td>
 							<td>150&nbsp;GB</td>
-							<td>Economic center — domain + unbranded</td>
+							<td>Economic center — domain + chrome-off + station builder</td>
 						</tr>
 						<tr>
 							<td><strong>Label</strong></td>
@@ -630,7 +634,7 @@
 							<td class="num">~$1.32</td>
 							<td class="num">~$33.68</td>
 							<td>500&nbsp;GB</td>
-							<td>Don’t sell hard until teams UI exists</td>
+							<td>Soft-badge / teams soon — don’t hard-sell until UI exists</td>
 						</tr>
 					</tbody>
 				</table>
@@ -644,8 +648,10 @@
 						with more support surface.
 					</li>
 					<li>
-						BYO (SSH now; S3/R2 next) is a margin feature — heavy catalogs that stay on Free via BYO
-						are fine; they’re not free if they eat your disk.
+						SSH BYOS is a margin feature (creator disk, not yours). It does not make Free unlimited
+						— the album wall still applies. Creator S3/R2 stays parked. Platform hosted bytes live
+						in
+						<code>sndbnk-media</code>, not only the Lightsail disk.
 					</li>
 				</ul>
 			</section>
@@ -699,7 +705,7 @@
 				<h2>6. 12-month ramp</h2>
 				<p>
 					Milestones first, spend second. If a milestone slips, cut discretionary — don’t “buy”
-					progress with ads before the Free/Studio paths feel inevitable.
+					progress with ads before the Studio path feels inevitable.
 				</p>
 				<div class="flow">
 					<div class="flow-step">
@@ -716,10 +722,11 @@
 					<div class="flow-step">
 						<span class="flow-n">2</span>
 						<div>
-							<strong>Months 2–4 · Finish Free promise + Studio path</strong>
+							<strong>Months 2–4 · Studio path + first customers</strong>
 							<p style="margin: 0.25rem 0 0">
-								Spend cap: ≤$150/mo discretionary. Ship S3/R2 BYO; polish custom domain + unbranded.
-								Soft launch to people you know. Goal: 1–5 paying (Studio preferred).
+								Spend cap: ≤$150/mo discretionary. Polish custom domain, chrome-off, and the station
+								builder. Soft launch to people you know. Goal: 1–5 paying (Studio preferred). Park
+								Label teams and creator S3/R2.
 							</p>
 						</div>
 					</div>
@@ -863,6 +870,13 @@
 							<td class="risk-careful">Teams UI missing; overselling burns trust</td>
 						</tr>
 						<tr>
+							<td>Creator S3/R2 BYOS build-out</td>
+							<td class="risk-careful">
+								Adapters stay <code>enabled: false</code>. Park until a paying creator pulls it —
+								not a Free promise
+							</td>
+						</tr>
+						<tr>
 							<td>Stack of analytics/CRM/growth SaaS</td>
 							<td class="risk-safe">Stripe + a spreadsheet is enough through Stage&nbsp;1</td>
 						</tr>
@@ -901,9 +915,9 @@
 							<td>Studio share rising over time</td>
 						</tr>
 						<tr>
-							<td>Hosted GB used (local adapter)</td>
-							<td>Library quotas / disk</td>
-							<td>Not sneaking up on the Lightsail disk</td>
+							<td>Hosted GB used (<code>local</code> + platform <code>s3</code>)</td>
+							<td>Library quotas / S3 + leftover disk</td>
+							<td>Watch <code>sndbnk-media</code> spend; leftover <code>MEDIA_ROOT</code> too</td>
 						</tr>
 						<tr>
 							<td>Discretionary spend</td>
@@ -981,10 +995,11 @@
 					<div class="flow-step">
 						<span class="flow-n">5</span>
 						<div>
-							<strong>Ship margin features, not ad spend</strong>
+							<strong>Ship conversion, not ad spend</strong>
 							<p style="margin: 0.25rem 0 0">
-								S3/R2 BYO + Studio custom-domain polish (founder plan §8). These raise willingness
-								to pay without raising burn.
+								Studio custom-domain / chrome-off / station-builder polish (founder plan §8). That
+								raises willingness to pay without raising burn. Do not spend the month on creator
+								S3/R2 or Label teams.
 							</p>
 						</div>
 					</div>
@@ -1045,9 +1060,9 @@
 
 				<div class="panel">
 					<strong>If you’re overwhelmed, do only this</strong>
-					(1) Know your real AWS number. (2) Make sure Stripe can take a Studio payment. (3) Keep
-					monthly burn ≤ $90 until a stranger pays you. (4) Ship Free BYO + Studio polish.
-					Everything else is optional noise.
+					(1) Know your real AWS number (Lightsail + S3 <code>sndbnk-media</code>). (2) Make sure
+					Stripe can take a Studio payment. (3) Keep monthly burn ≤ $90 until a stranger pays you.
+					(4) Polish Studio conversion and land a paying creator. Everything else is optional noise.
 				</div>
 			</section>
 
