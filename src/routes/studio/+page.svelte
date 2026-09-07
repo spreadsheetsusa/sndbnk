@@ -84,7 +84,7 @@
 			leftBody="Vault is room. $5. Unlimited tracks. Same station — more of your shit fits."
 			rightLabel="Studio"
 			rightBody="Studio is yours. $14. Your domain. White-label. Looks like your label, not ours."
-			line="Not another SoundCloud. Your station."
+			line="Vault is room. Studio is yours."
 		/>
 
 		<ProofStrip
@@ -114,7 +114,7 @@
 
 		<section class="close" aria-labelledby="close-title">
 			<p class="lcd-face">Own it</p>
-			<h2 id="close-title">Not another SoundCloud. Your station.</h2>
+			<h2 id="close-title">Your name on the door.</h2>
 			<p>Choose Studio. Your domain. Chrome off.</p>
 			<CtaCartridge href="/plans?plan=studio" label="Choose Studio" />
 		</section>

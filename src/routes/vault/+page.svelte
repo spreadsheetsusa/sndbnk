@@ -91,7 +91,7 @@
 				{
 					id: 'archive',
 					label: 'Archive',
-					body: 'Keep masters and dumps on a domain you control.'
+					body: 'Keep masters and dumps on your station — room to stack, no ceiling.'
 				},
 				{
 					id: 'stacks',
