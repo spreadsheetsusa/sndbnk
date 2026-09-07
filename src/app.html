@@ -45,10 +45,133 @@
 				} catch (e) {}
 			})();
 		</script>
+		<!-- Pre-bundle splash: paper/ink/accent hexes match layout.css tokens. -->
+		<style>
+			html {
+				background: #f2f0e8;
+			}
+			html.dark {
+				background: #141410;
+			}
+			#boot-splash {
+				position: fixed;
+				inset: 0;
+				z-index: 9999;
+				display: grid;
+				place-items: center;
+				margin: 0;
+				color: #11110f;
+				background: #f2f0e8;
+				user-select: none;
+				transition: opacity 240ms ease;
+			}
+			html.dark #boot-splash {
+				color: #f2f0e8;
+				background: #141410;
+			}
+			#boot-splash.is-leaving {
+				opacity: 0;
+				pointer-events: none;
+			}
+			#boot-splash .boot-bezel {
+				display: grid;
+				justify-items: center;
+				gap: 0.75rem;
+				padding: 1.25rem 1.5rem 1.05rem;
+				border: 1px solid #11110f;
+				box-shadow: 5px 5px 0 #11110f;
+			}
+			html.dark #boot-splash .boot-bezel {
+				border-color: var(--accent, #c8ff3d);
+				box-shadow: 5px 5px 0 color-mix(in srgb, var(--accent, #c8ff3d) 30%, black);
+			}
+			#boot-splash .boot-mark {
+				margin: 0;
+				font-family: Audiowide, 'Helvetica Neue', sans-serif;
+				font-size: clamp(1.65rem, 8vw, 2.4rem);
+				font-weight: 400;
+				letter-spacing: -0.035em;
+				line-height: 1;
+				text-transform: uppercase;
+				filter: drop-shadow(-0.022em 0 0 #ff2f4f) drop-shadow(0.022em 0 0 #21e0ff);
+			}
+			html.dark #boot-splash .boot-mark {
+				filter: drop-shadow(-0.022em 0 0 #ff5a72) drop-shadow(0.022em 0 0 #57e9ff);
+			}
+			#boot-splash .boot-status {
+				margin: 0;
+				padding: 0.12rem 0.45rem;
+				font-family: 'Jersey 20', ui-monospace, monospace;
+				font-size: 1.05rem;
+				font-weight: 400;
+				letter-spacing: 0.22em;
+				line-height: 1.2;
+				color: var(--accent, #c8ff3d);
+				background: #11110f;
+			}
+			html.dark #boot-splash .boot-status {
+				background: #050504;
+			}
+			#boot-splash .boot-status::after {
+				content: '_';
+				animation: boot-caret 1s steps(1, end) infinite;
+			}
+			@keyframes boot-caret {
+				50% {
+					opacity: 0;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#boot-splash,
+				#boot-splash .boot-status::after {
+					animation: none;
+					transition: none;
+				}
+			}
+		</style>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
 		<a class="skip-link" href="#main">Skip to content</a>
+		<div id="boot-splash" role="status" aria-live="polite" aria-label="Loading SNDBNK">
+			<div class="boot-bezel">
+				<p class="boot-mark" aria-hidden="true">SNDBNK</p>
+				<p class="boot-status" aria-hidden="true">LOADING</p>
+			</div>
+		</div>
+		<script>
+			(function () {
+				var splash = document.getElementById('boot-splash');
+				if (!splash) return;
+				var done = false;
+				var hide = function () {
+					if (done) return;
+					done = true;
+					var reduce = false;
+					try {
+						reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+					} catch (e) {}
+					var remove = function () {
+						if (splash.parentNode) splash.parentNode.removeChild(splash);
+					};
+					if (reduce) {
+						remove();
+						return;
+					}
+					splash.classList.add('is-leaving');
+					setTimeout(remove, 280);
+				};
+				document.addEventListener('sndbnk:ready', hide, { once: true });
+				setTimeout(hide, 8000);
+			})();
+		</script>
+		<noscript>
+			<style>
+				#boot-splash {
+					display: none !important;
+				}
+			</style>
+		</noscript>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

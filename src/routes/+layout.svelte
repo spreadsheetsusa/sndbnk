@@ -36,6 +36,7 @@
 	});
 
 	onMount(() => {
+		document.dispatchEvent(new Event('sndbnk:ready'));
 		// Tenant hosts use site appearance; apex keeps the listener preference.
 		if (!data.tenantSite) initTheme();
 	});
