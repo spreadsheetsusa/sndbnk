@@ -352,6 +352,7 @@ export const track = sqliteTable(
 		published: integer('published', { mode: 'boolean' }).notNull().default(true),
 		/** When true with published, link-reachable but omitted from public listings. */
 		isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
+		/** Snapshot at upload: `local` | `s3` | `ssh`. */
 		storageAdapter: text('storage_adapter').notNull().default('local'),
 		folderKey: text('folder_key').notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })

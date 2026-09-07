@@ -47,18 +47,22 @@ touch `.env`, source, or `drizzle/` migration files. Afterward you may want
 Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` /
 `$app/env/public`. Anything not in that registry is invisible to the app.
 
-| Variable             | Visibility | Dev                     | Prod                     | Purpose                                                                 |
-| -------------------- | ---------- | ----------------------- | ------------------------ | ----------------------------------------------------------------------- |
-| `DATABASE_URL`       | private    | `local.db`              | `local.db`               | SQLite **file path**, not a URL                                         |
-| `ORIGIN`             | private    | `http://localhost:5174` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly            |
-| `PUBLIC_BASE_DOMAIN` | **public** | `localhost`             | `sndbnk.com`             | apex hostname for tenant classification                                 |
-| `BETTER_AUTH_SECRET` | private    | any                     | 32+ chars                | signs sessions; changing it logs everyone out                           |
-| `MEDIA_ROOT`         | private    | `./media`               | `./media`                | local upload root                                                       |
-| `BODY_SIZE_LIMIT`    | private    | `520M`                  | `520M`                   | max request body; the adapter default of 512K rejects uploads           |
-| `STORAGE_SECRET`     | private    | any                     | 32+ chars                | encrypts BYOS credentials; changing it invalidates every stored SSH key |
-| `REDIS_URL`          | private    | optional                | `redis://127.0.0.1:6379` | BullMQ waveform jobs; leave empty to skip async peaks                   |
-| `PROTOCOL_HEADER`    | adapter    | unset                   | `X-Forwarded-Proto`      | lets the Bun adapter rebuild URLs behind Caddy                          |
-| `HOST_HEADER`        | adapter    | unset                   | `X-Forwarded-Host`       | same                                                                    |
+| Variable                                                         | Visibility | Dev                     | Prod                     | Purpose                                                                 |
+| ---------------------------------------------------------------- | ---------- | ----------------------- | ------------------------ | ----------------------------------------------------------------------- |
+| `DATABASE_URL`                                                   | private    | `local.db`              | `local.db`               | SQLite **file path**, not a URL                                         |
+| `ORIGIN`                                                         | private    | `http://localhost:5174` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly            |
+| `PUBLIC_BASE_DOMAIN`                                             | **public** | `localhost`             | `sndbnk.com`             | apex hostname for tenant classification                                 |
+| `BETTER_AUTH_SECRET`                                             | private    | any                     | 32+ chars                | signs sessions; changing it logs everyone out                           |
+| `MEDIA_ROOT`                                                     | private    | `./media`               | `./media`                | local upload root (dev + migration source; still required)              |
+| `S3_BUCKET`                                                      | private    | empty                   | `sndbnk-media`           | platform media bucket; empty keeps hosted storage on `MEDIA_ROOT`       |
+| `S3_REGION`                                                      | private    | `us-east-1`             | `us-east-1`              | platform bucket region                                                  |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | private    | empty                   | instance keys or empty   | optional; empty uses the AWS SDK default chain                          |
+| `S3_ENDPOINT` / `S3_FORCE_PATH_STYLE`                            | private    | empty / `false`         | empty / `false`          | MinIO/LocalStack only; leave unset on AWS                               |
+| `BODY_SIZE_LIMIT`                                                | private    | `520M`                  | `520M`                   | max request body; the adapter default of 512K rejects uploads           |
+| `STORAGE_SECRET`                                                 | private    | any                     | 32+ chars                | encrypts BYOS credentials; changing it invalidates every stored SSH key |
+| `REDIS_URL`                                                      | private    | optional                | `redis://127.0.0.1:6379` | BullMQ waveform jobs; leave empty to skip async peaks                   |
+| `PROTOCOL_HEADER`                                                | adapter    | unset                   | `X-Forwarded-Proto`      | lets the Bun adapter rebuild URLs behind Caddy                          |
+| `HOST_HEADER`                                                    | adapter    | unset                   | `X-Forwarded-Host`       | same                                                                    |
 
 **Every variable in `src/env.js` is required** unless it declares a validator saying otherwise. A
 `.env` missing one makes the app return 500 on _every_ route at boot, not just on the feature that
@@ -113,7 +117,8 @@ Steps, in order:
    `PUBLIC_BASE_DOMAIN`, `PROTOCOL_HEADER`, and `HOST_HEADER` are forced to their production
    values. Missing secrets are generated, and `BODY_SIZE_LIMIT` is raised to `520M` if it is
    absent or parses below that. `REDIS_URL` is preserved when set, otherwise defaulted to
-   `redis://127.0.0.1:6379`.
+   `redis://127.0.0.1:6379`. `S3_*` keys are preserved when already set on the box; deploy does
+   not invent a bucket.
 3. Fix ownership and permissions on the SQLite file **and its `-wal` / `-shm` / `-journal`
    sidecars** — SQLite needs write access to all of them, and getting this wrong produces
    read-only-database errors at runtime.
@@ -292,6 +297,149 @@ Creator custom domains (after Studio+ verification):
 `.github/workflows/prod-auth-diagnose.yml` is a manually dispatchable diagnostic that probes env,
 permissions, systemd, the build, and both the API and public HTTPS surfaces. It is marked temporary
 but is the fastest way to inspect a broken production box.
+
+## Platform S3 (prod lift)
+
+Bucket `sndbnk-media` already exists in `us-east-1` with all public access blocked. The app never
+needs a public-read bucket — `/api/media` proxies ranged `GetObject`.
+
+IAM on the Lightsail role (or the keys in `.env`) needs at least:
+
+- `s3:HeadBucket`, `s3:ListBucket` on `arn:aws:s3:::sndbnk-media`
+- `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::sndbnk-media/*`
+
+Prefer the Lightsail instance role over long-lived keys. Keys, if used, live only in the server
+`.env` (never Settings, never git). Deploy preserves `S3_*`; it does not invent a bucket and does
+**not** run the migrate script.
+
+### When to run (pre-existing tracks)
+
+Prod has a small hosted set (~30 files). This script is for those **already on disk**
+(`track.storageAdapter = 'local'`), plus avatars / site logo / OG.
+
+Run it **after**:
+
+- A deploy that includes the `s3` adapter is live (`/var/www/sndbnk`)
+- Server `.env` has `S3_BUCKET=sndbnk-media` (and `S3_REGION=us-east-1`)
+- New hosted uploads already snapshot as `storageAdapter = 's3'`
+
+Run it **before**:
+
+- You rely on an empty `MEDIA_ROOT` (new host, disk replacement, or `--purge-local`)
+- You treat the Lightsail disk as disposable
+
+Do **not** run it from CI. Do **not** migrate SSH BYOS rows.
+
+### How (do not skip steps)
+
+The `--` after the script name is required so Bun forwards flags.
+
+1. SSH in and confirm env (do not print secrets):
+
+   ```sh
+   ssh ubuntu@sndbnk.com
+   cd /var/www/sndbnk
+   grep -E '^(S3_BUCKET|S3_REGION|S3_ENDPOINT|S3_FORCE_PATH_STYLE)=' .env
+   # expect S3_BUCKET=sndbnk-media and S3_REGION=us-east-1
+   ```
+
+2. Backup SQLite immediately before the lift:
+
+   ```sh
+   bun run db:backup
+   ```
+
+3. Dry-run (default; `--dry-run` is the explicit form). **No copy, no flip, no purge:**
+
+   ```sh
+   bun run media:migrate-s3 -- --dry-run --report /tmp/sndbnk-migrate-s3-dry-run.json
+   less /tmp/sndbnk-migrate-s3-dry-run.json
+   less /tmp/sndbnk-migrate-s3-inventory.json
+   ```
+
+   Expect `apply: false`, `dbUpdated: 0`, `purged: 0`, and an inventory of hosted `local`/`s3`
+   objects (`sshExcluded: true`).
+
+4. Optional canary (one user or one track). `--apply` is required to write:
+
+   ```sh
+   bun run media:migrate-s3 -- --apply --user <userId> --report /tmp/sndbnk-migrate-s3-canary.json
+   # play that user's track on sndbnk.com (header player + /api/media Range)
+   bun run media:migrate-s3 -- --apply --track <trackId> --report /tmp/sndbnk-migrate-s3-track.json
+   ```
+
+5. Full migrate **without** `--purge-local`. Local files stay on disk (rollback):
+
+   ```sh
+   bun run media:migrate-s3 -- --apply --report /tmp/sndbnk-migrate-s3.json \
+     --progress /tmp/sndbnk-migrate-s3-progress.jsonl
+   ```
+
+   Watch `uploaded` / `exists` / `track … storageAdapter → s3`. A killed run resumes from the
+   JSONL progress file (verified objects are not re-copied). After each put, HeadObject size +
+   single-part ETag/MD5 must match the uploaded bytes; if they do not, that object fails and the
+   track is **not** flipped. Local size vs DB `audioBytes` / `coverBytes` is a warning only — the
+   file on disk is copied.
+
+6. Verify playback **before** any purge: published track, draft preview, a WAV with `audio.mp3` +
+   original, cover art, an avatar. `journalctl -u sndbnk-waveform-worker` should still process S3
+   tracks (they stage to a temp file).
+
+7. **Only later**, after a clean report and playback checks, optionally purge local copies:
+
+   ```sh
+   bun run media:migrate-s3 -- --apply --purge-local --report /tmp/sndbnk-migrate-s3-purge.json
+   ```
+
+   `--purge-local` without `--apply` is rejected.
+
+### What success looks like
+
+- Report `ok: true`, `failed: []` / `failed=0`
+- Every **hosted** track (`local` that was in scope) now has `storageAdapter = 's3'`
+- SSH rows still `storageAdapter = 'ssh'`
+- Avatars / site logo / OG objects exist in the bucket
+- `/api/media/{id}/audio` returns 200 and `Range` returns 206
+- Local files still exist under `MEDIA_ROOT` until you opt into `--purge-local`
+
+Quick DB check on the box (after `--apply`, before purge):
+
+```sh
+sqlite3 local.db "SELECT storage_adapter, count(*) FROM track GROUP BY storage_adapter;"
+```
+
+Hosted should be `s3` only. `ssh` may remain. `local` should be `0` once the full lift finished.
+
+### Rollback
+
+Local files remain until purge. If a flipped track misbehaves:
+
+```sql
+UPDATE track SET storage_adapter = 'local', updated_at = datetime('now') WHERE id = '<trackId>';
+```
+
+Do not require `--purge-local`. Reads follow `row.storageAdapter`, so that row hits disk again.
+
+**Never unset `S3_BUCKET` after `--purge-local`.** New hosted writes and flipped rows expect the
+bucket. Unsetting it sends new uploads to an empty `MEDIA_ROOT` while existing `s3` rows still
+need the bucket — playback breaks and you cannot roll those rows back to disk.
+
+### What is NOT migrated
+
+- SSH BYOS tracks (`storageAdapter = 'ssh'`) and their remote SFTP files
+- Artist Settings S3/R2 / bucket / region / key fields (stubs stay `enabled: false`)
+- Optional `waveform.json` that was never generated
+- Redis, SQLite, backups, or anything outside hosted `MEDIA_ROOT` objects
+- Public bucket ACL — `/api/media` stays the browser path
+
+Do not point `S3_BUCKET` at a different bucket than the one you verified; keys are
+`{userId}/{folderKey}/…` with no extra prefix.
+
+**Remaining durability P0:** after cutover, a disk watermark is less urgent for _new_ hosted
+media (those land on S3). Local leftovers plus the SQLite backup still matter until you
+intentionally `--purge-local`.
+
+This script is **manual**. Deploy / CI must not run it against production.
 
 ## Repo hygiene
 

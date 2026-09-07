@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import { AVATAR_FOLDER_KEY, getAvatarRecord } from '#lib/server/avatar';
-import { createLocalAdapter } from '#lib/server/storage/local.js';
+import { getPlatformObject } from '#lib/server/storage';
 
 export async function GET({ params, setHeaders }) {
 	// Public read: avatars appear on public profiles, tracks, and comments.
@@ -11,10 +11,7 @@ export async function GET({ params, setHeaders }) {
 	}
 
 	try {
-		const object = await createLocalAdapter(params.userId).get(
-			AVATAR_FOLDER_KEY,
-			record.avatarFilename
-		);
+		const object = await getPlatformObject(params.userId, AVATAR_FOLDER_KEY, record.avatarFilename);
 
 		setHeaders({
 			// Safe to cache hard: the URL carries a `?v=` stamp that changes on upload.

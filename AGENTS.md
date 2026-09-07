@@ -61,8 +61,9 @@ apply goes through [`scripts/migrate-sqlite.js`](scripts/migrate-sqlite.js). Sta
 
 Variables are declared in [`src/env.js`](src/env.js) and read through `$app/env/private` /
 `$app/env/public`. `.env.example` lists them all: `DATABASE_URL`, `ORIGIN`, `PUBLIC_BASE_DOMAIN`,
-`BETTER_AUTH_SECRET`, `MEDIA_ROOT`, `BODY_SIZE_LIMIT`, `STORAGE_SECRET`, plus `PROTOCOL_HEADER` /
-`HOST_HEADER` that the Bun adapter needs behind a proxy.
+`BETTER_AUTH_SECRET`, `MEDIA_ROOT`, `BODY_SIZE_LIMIT`, `STORAGE_SECRET`, optional `S3_*` for
+platform-hosted media, plus `PROTOCOL_HEADER` / `HOST_HEADER` that the Bun adapter needs behind a
+proxy.
 
 For dev: `ORIGIN=http://localhost:5174`, `PUBLIC_BASE_DOMAIN=localhost`.
 

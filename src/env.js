@@ -81,5 +81,36 @@ export const variables = defineEnvVars({
 	SMTP_PASSWORD: {
 		schema: (value) => value || undefined,
 		description: 'SMTP password. Omit for an unauthenticated relay.'
+	},
+	S3_BUCKET: {
+		schema: (value) => value || undefined,
+		description:
+			'Platform media bucket (e.g. `sndbnk-media`). Empty keeps SNDBNK-hosted storage on local disk (`MEDIA_ROOT`).'
+	},
+	S3_REGION: {
+		schema: (value) => value || undefined,
+		description:
+			'AWS region for the platform media bucket. Defaults to `us-east-1` when the bucket is set.'
+	},
+	S3_ACCESS_KEY_ID: {
+		schema: (value) => value || undefined,
+		description:
+			'Optional access key for platform S3. When empty, the AWS SDK default credential chain is used.'
+	},
+	S3_SECRET_ACCESS_KEY: {
+		schema: (value) => value || undefined,
+		description: 'Optional secret key for platform S3. Pair with `S3_ACCESS_KEY_ID`.'
+	},
+	S3_SESSION_TOKEN: {
+		schema: (value) => value || undefined,
+		description: 'Optional session token for temporary platform S3 credentials.'
+	},
+	S3_ENDPOINT: {
+		schema: (value) => value || undefined,
+		description: 'Optional custom S3 API endpoint (MinIO / LocalStack). Leave empty for AWS.'
+	},
+	S3_FORCE_PATH_STYLE: {
+		schema: (value) => value === 'true',
+		description: 'Set `true` to force path-style S3 URLs (needed for most MinIO setups).'
 	}
 });

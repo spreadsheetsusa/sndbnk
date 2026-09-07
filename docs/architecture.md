@@ -165,7 +165,7 @@ src/
       social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg peaks), transcode.js (WAV→MP3), embed-tags.js (taglib)
       queue/              BullMQ waveform + transcode jobs (Redis); worker: bun run worker:waveform
-      storage/            adapter interface, local, ssh, crypto
+      storage/            adapter interface, local, s3, ssh, crypto
       safe-redirect.js    adapter-safe redirect
 drizzle/                        Drizzle SQL migrations + meta snapshots
 scripts/migrate-sqlite.js       Bun-native migrate + seeds

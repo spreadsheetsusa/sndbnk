@@ -4,7 +4,8 @@
  *
  *   bun run worker:waveform
  *
- * Requires REDIS_URL, DATABASE_URL, MEDIA_ROOT (and STORAGE_SECRET for SSH tracks).
+ * Requires REDIS_URL, DATABASE_URL, MEDIA_ROOT (plus S3_* when platform S3 is
+ * on, and STORAGE_SECRET for SSH tracks).
  * Runs under raw Bun (not Vite), so `#lib/…` imports in this dependency tree must
  * include `.js` / `index.js` — Bun’s package `imports` map does not resolve
  * extensionless specifiers the way Vite does.

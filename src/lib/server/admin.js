@@ -8,8 +8,9 @@ import { invalidatePlanCache, planOrDefault } from '#lib/server/billing/plans';
 import { billingEnabled, getStripe } from '#lib/server/billing/stripe';
 import { db } from '#lib/server/db';
 import { plan, profile, track, user } from '#lib/server/db/schema';
-import { getStorageAdapter } from '#lib/server/storage';
+import { getStorageAdapter, parseStoredAdapter } from '#lib/server/storage';
 import { wipeUserLocalMedia } from '#lib/server/storage/local.js';
+import { wipeUserS3Media } from '#lib/server/storage/s3.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -344,7 +345,7 @@ export async function searchUsers(query) {
 			localBytes: sql`(
 				select coalesce(sum(${track.audioBytes} + coalesce(${track.originalBytes}, 0) + coalesce(${track.coverBytes}, 0)), 0)
 				from ${track}
-				where ${track.userId} = ${user.id} and ${track.storageAdapter} = 'local'
+				where ${track.userId} = ${user.id} and ${track.storageAdapter} in ('local', 's3')
 			)`.mapWith(Number)
 		})
 		.from(user)
@@ -449,14 +450,17 @@ export async function deleteUserForAdmin(actorId, userId, headers) {
 
 	for (const row of tracks) {
 		try {
-			const storage = await getStorageAdapter(
-				userId,
-				/** @type {'local' | 'ssh'} */ (row.storageAdapter === 'ssh' ? 'ssh' : 'local')
-			);
+			const storage = await getStorageAdapter(userId, parseStoredAdapter(row.storageAdapter));
 			await storage.delete(row.folderKey);
 		} catch {
 			// Still remove the account if remote/local cleanup fails.
 		}
+	}
+
+	try {
+		await wipeUserS3Media(userId);
+	} catch {
+		// Orphan S3 objects are preferable to a stuck delete.
 	}
 
 	try {

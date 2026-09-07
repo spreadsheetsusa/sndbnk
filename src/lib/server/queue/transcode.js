@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -15,8 +15,9 @@ import {
 	TRANSCODE_WORKER_TIMEOUT_MS
 } from '#lib/server/media/transcode.js';
 import { createRedisConnection, getRedisUrl } from '#lib/server/queue/redis.js';
-import { getStorageAdapter } from '#lib/server/storage/index.js';
+import { getStorageAdapter, parseStoredAdapter } from '#lib/server/storage/index.js';
 import { localTrackFilePath } from '#lib/server/storage/local-path.js';
+import { stageAdapterObjectToFile } from '#lib/server/storage/stage.js';
 
 export const TRANSCODE_QUEUE_NAME = 'transcode';
 
@@ -110,26 +111,17 @@ export async function processTranscodeJob(trackId) {
 	let inputPath;
 
 	try {
-		if (row.storageAdapter === 'local') {
+		if (parseStoredAdapter(row.storageAdapter) === 'local') {
 			inputPath = localTrackFilePath(row.userId, row.folderKey, row.audioFilename);
 			if (!(await Bun.file(inputPath).exists())) {
 				throw new Error(`Local audio missing: ${inputPath}`);
 			}
 		} else {
-			const storage = await getStorageAdapter(
-				row.userId,
-				/** @type {'local' | 'ssh'} */ (row.storageAdapter)
-			);
-			const object = await storage.get(row.folderKey, row.audioFilename);
-			const bytes =
-				object.body instanceof Uint8Array
-					? object.body
-					: new Uint8Array(await new Response(/** @type {BodyInit} */ (object.body)).arrayBuffer());
-
+			const storage = await getStorageAdapter(row.userId, parseStoredAdapter(row.storageAdapter));
 			tempDir = await mkdtemp(path.join(tmpdir(), 'sndbnk-transcode-job-'));
 			const ext = path.extname(row.audioFilename).replace(/^\./, '') || 'wav';
 			inputPath = path.join(tempDir, `input.${ext}`);
-			await writeFile(inputPath, bytes);
+			await stageAdapterObjectToFile(storage, row.folderKey, row.audioFilename, inputPath);
 		}
 
 		if (!tempDir) {
@@ -144,10 +136,7 @@ export async function processTranscodeJob(trackId) {
 			throw new Error(encoded.message);
 		}
 
-		const storage = await getStorageAdapter(
-			row.userId,
-			/** @type {'local' | 'ssh'} */ (row.storageAdapter)
-		);
+		const storage = await getStorageAdapter(row.userId, parseStoredAdapter(row.storageAdapter));
 		const mp3Bytes = new Uint8Array(await Bun.file(outputPath).arrayBuffer());
 		await storage.put(row.folderKey, PLAYBACK_MP3_FILENAME, mp3Bytes, PLAYBACK_MP3_MIME);
 

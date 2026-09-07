@@ -31,23 +31,25 @@ and **`size` is always the full object length**. An optional third argument
 Local uses lazy `Bun.file` / `Blob.slice`; SSH uses `sftp.stat` + `createReadStream({ start, end })`
 so ranged proxy reads do not pull the whole remote file. Full `readFile` remains the no-range path.
 Callers must still handle all three body types (`toBytes()` in `embed-tags.js` is the normalizer to
-copy).
+copy). The `s3` adapter maps `{ start, end? }` to `GetObject` `Range: bytes=start-end` and reads
+the full object length from `Content-Range`.
 
 ### Implementations
 
-| Adapter    | Factory                            | Notes                                                               |
-| ---------- | ---------------------------------- | ------------------------------------------------------------------- |
-| `local`    | `createLocalAdapter(userId)`       | `Bun.write` / `Bun.file` under `MEDIA_ROOT`                         |
-| `ssh`      | `createSshAdapter(userId, config)` | `ssh2` SFTP, a fresh connection per operation                       |
-| `s3`, `r2` | —                                  | listed in `STORAGE_ADAPTERS` with `enabled: false`; not implemented |
+| Adapter | Factory                            | Notes                                                                               |
+| ------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
+| `local` | `createLocalAdapter(userId)`       | `Bun.write` / `Bun.file` under `MEDIA_ROOT` (dev / unmigrated hosted tracks)        |
+| `s3`    | `createS3Adapter(userId)`          | Platform bucket (`S3_BUCKET`). Private; served via `/api/media`. Not user-BYOS.     |
+| `ssh`   | `createSshAdapter(userId, config)` | `ssh2` SFTP, a fresh connection per operation                                       |
+| `r2`    | —                                  | listed in `STORAGE_ADAPTERS` with `enabled: false`; user-BYOS R2 is not implemented |
 
 Layout is identical across adapters, which is what makes them interchangeable:
 
 ```
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/audio.{ext}     # playback (mp3 after WAV convert)
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/audio.wav       # preserved when WAV was uploaded
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/cover.{ext}     # optional
-{MEDIA_ROOT or sshRemotePath}/{userId}/{folderKey}/waveform.json   # peaks dual-write
+{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/audio.{ext}     # playback (mp3 after WAV convert)
+{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/audio.wav       # preserved when WAV was uploaded
+{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/cover.{ext}     # optional
+{MEDIA_ROOT or sshRemotePath or s3://bucket}/{userId}/{folderKey}/waveform.json   # peaks dual-write
 ```
 
 `folderKey` is the track id, so a track's files are one directory and `delete(folderKey)` is a
@@ -80,10 +82,15 @@ const adapter = await getStorageAdapter(row.userId, row.storageAdapter);
 ```
 
 Always pass `row.storageAdapter` on reads. Omitting it silently looks in the wrong place for any
-creator who has since changed their setting.
+creator who has since changed their setting. Snapshot values are exact: `local` stays on disk, `s3`
+stays in the platform bucket, `ssh` stays on the creator's server.
 
 `getOrCreateStorageSetting()` inserts a default `local` row on first access, so no caller handles a
-missing setting.
+missing setting. Settings still store `local` vs `ssh` (user-BYOS). When the owner picks SNDBNK
+hosted storage and `S3_BUCKET` is set, **new** tracks are snapshotted as `s3`; existing `local`
+rows keep reading from `MEDIA_ROOT` until `bun run media:migrate-s3` flips them. Avatars and site
+images always use platform storage (never SSH): S3 when configured, with a local fallback on read
+so unmigrated files keep serving.
 
 ## Credential encryption
 
@@ -165,8 +172,8 @@ array to `waveform.json` in the track folder via the storage adapter (local and 
 stays co-located with audio/cover. The DB column remains the serve path; `/api/media` does not
 expose the peaks file. A storage put failure is logged and never fails the job after DB peaks are
 saved. Re-running a job for a track that already has DB peaks skips ffmpeg and only refreshes the
-side file. Local-adapter jobs point ffmpeg at the file under `MEDIA_ROOT`; SSH tracks are staged to
-a temp file first.
+side file. Local-adapter jobs point ffmpeg at the file under `MEDIA_ROOT`; SSH and S3 tracks are
+staged to a temp file first (S3 `GetObject` → disk) because ffmpeg needs a seekable path.
 
 Redis + worker pieces:
 
@@ -241,8 +248,9 @@ Default path: `/api/media/[id]/[file]` where `file` is `audio` or `cover`:
 - Sets `accept-ranges: bytes`. Published covers use `cache-control: public, max-age=3600`; audio and
   unpublished owner previews stay `private, max-age=3600`.
 - Parses a single `Range: bytes=a-b` header (including open-ended and suffix ranges) and answers
-  `206` with `content-range`. The parsed range is passed into `adapter.get` so local and SSH both
-  fetch only the requested window (future S3/R2 adapters map the same optional range arg).
+  `206` with `content-range`. The parsed range is passed into `adapter.get` so local, SSH, and S3
+  fetch only the requested window (S3 sends `Range` on `GetObject`). The platform bucket stays
+  private — no public-read ACL.
 - `storage.get` is tried up to three times with short backoff for transient failures (SSH connect
   blips). Clear missing-file errors (`File not found.`, SFTP/ENOENT) are not retried.
 - Any failure — bad `file` param, missing track, storage error after retries — is a flat `404` with
@@ -264,3 +272,65 @@ The player points an `HTMLAudioElement` at `track.audioUrl` when present, else
 tracks through [`toPlayerTrack()`](../src/lib/player/to-player-track.js) so `audioUrl` / `coverUrl`
 are never dropped at the boundary. While a load is in flight (or rebuffering), `player.loading` is
 true and play controls show an in-button spinner via `PlayPauseGlyph`.
+
+## Platform S3
+
+SNDBNK-hosted storage (Settings → Local) writes to the platform S3 bucket when `S3_BUCKET` is set.
+This is **not** user-BYOS S3 — `STORAGE_ADAPTERS.s3` / `r2` stay `enabled: false`. SSH BYOS is
+unchanged.
+
+| Env                                                              | Role                                                                                                           |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `S3_BUCKET`                                                      | On-switch. Empty → platform storage stays on `MEDIA_ROOT`. Prod example: `sndbnk-media`.                       |
+| `S3_REGION`                                                      | Defaults to `us-east-1` when the bucket is set.                                                                |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | Optional. Empty → AWS SDK default chain / Lightsail instance role. Never from Settings. Must be set as a pair. |
+| `S3_ENDPOINT`                                                    | Optional custom API (MinIO / LocalStack).                                                                      |
+| `S3_FORCE_PATH_STYLE`                                            | `true` for most MinIO setups.                                                                                  |
+
+Hosted-storage quota counts `local` **and** `s3` tracks. SSH is excluded.
+
+### Zero-loss local → S3 migration
+
+[`scripts/migrate-local-to-s3.js`](../scripts/migrate-local-to-s3.js) (`bun run media:migrate-s3`)
+copies SNDBNK-hosted objects from `MEDIA_ROOT` into `s3://$S3_BUCKET/{userId}/{folderKey}/…`.
+
+- Discovers `track.storageAdapter` in `local` / already-`s3` (resume), plus avatars, site logo/OG,
+  and leftover files under `MEDIA_ROOT`.
+- Skips SSH tracks entirely.
+- Uploads with streamed `PutObject` + `ContentMD5`. Verifies the S3 object against **what was
+  uploaded** (`HeadObject` size + single-part ETag/MD5) **before** flipping `track.storageAdapter`
+  to `s3`. Fail-closed if the S3 object does not match the put.
+- A local file whose size disagrees with `audioBytes` / `coverBytes` / `originalBytes` is **copied
+  anyway** (prod has a small hosted set; the file on disk is the source of truth). The mismatch is
+  a warning, not a hard fail.
+- Multipart ETags (`<md5>-<parts>`) are never treated as an MD5 match. Existing multipart objects
+  are re-uploaded (single put) when a local file is present; remote-only multipart objects fail
+  closed instead of passing on size alone.
+- Fail-closed per object: one miss does not abort the run. **Never flip a track if any of its
+  objects failed verify** (including a waveform.json that exists but does not match). A missing
+  optional `waveform.json` is a skip, not a fail.
+- Avatars / site logo / OG **are in scope**. When the DB has a filename, that object is required:
+  missing locally and missing on S3 fails the object (no silent orphan on a dying disk).
+- Idempotent: matching size + single-part ETag/MD5 is a skip. Re-run after a partial lift.
+- **Never deletes local files by default.** `--purge-local` removes a local copy only after that
+  object verified. Off unless you pass it, and it requires `--apply`.
+- **Default is a dry-run.** No copy / flip / purge until `--apply`. `--dry-run` is accepted as an
+  explicit alias of the default.
+- Durable JSONL progress (`--progress`, default `/tmp/sndbnk-migrate-s3-progress.jsonl`) so a killed
+  `--apply` resumes without re-copying objects already verified. Inventory snapshot:
+  `--inventory` (default `/tmp/sndbnk-migrate-s3-inventory.json`).
+- `--user`, `--track`, `--limit`, `--report` narrow a canary. Default report:
+  `/tmp/sndbnk-migrate-s3-report.json`.
+
+### What is NOT migrated
+
+- `track.storageAdapter = 'ssh'` rows and their remote SFTP files (byte-identical SSH path stays).
+- Artist Settings credentials / bucket / region / key fields (none exist; BYOS S3/R2 stay disabled).
+- Optional `waveform.json` that was never generated (placeholder peaks in DB; file may be absent).
+- Redis, SQLite, DB backups, Caddy/TLS, or anything outside `MEDIA_ROOT` hosted objects.
+- Public ACL / public-read on the bucket. Browser path remains `/api/media`.
+- CI / deploy never runs this script against production.
+
+Exact production steps live in [operations.md](operations.md#platform-s3-prod-lift). After
+cutover, a disk watermark is less urgent for new hosted media; local leftovers and the SQLite
+backup still matter until an intentional `--apply --purge-local`.

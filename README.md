@@ -6,7 +6,7 @@ comments pinned to a playback position. Every creator gets a public profile — 
 Vault+ at `{username}.sndbnk.com`, or on Studio+ with their own custom domain.
 
 Built with SvelteKit and Svelte 5 runes on Bun, Drizzle ORM over SQLite, and better-auth. Audio can
-live on SNDBNK's disk or on a server you own, over SFTP.
+live on SNDBNK-hosted storage (local disk in dev, S3 in prod) or on a server you own, over SFTP.
 
 ## Quickstart
 
@@ -52,6 +52,7 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 | `bun run db:migrate`              | apply pending Drizzle migrations (Bun)                       |
 | `bun run db:backup`               | copy SQLite (+ WAL/SHM) to a timestamped backup              |
 | `bun run nuke`                    | wipe DB + media + backups, then remigrate (confirms first)   |
+| `bun run media:migrate-s3`        | dry-run local→S3 (`-- --dry-run`; `-- --apply` to copy/flip) |
 | `bun run auth:schema`             | regenerate the better-auth Drizzle schema                    |
 | `bun run lint` / `bun run format` | Prettier check / write                                       |
 

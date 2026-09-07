@@ -23,6 +23,8 @@ import {
 	getOrCreateStorageSetting,
 	getSshPublicBaseUrls,
 	getStorageAdapter,
+	parseStoredAdapter,
+	platformAdapterId,
 	resolvePublicTrackMediaUrls
 } from '#lib/server/storage';
 
@@ -368,7 +370,7 @@ export async function createTrackFromForm(userId, formData) {
 	}
 
 	const setting = await getOrCreateStorageSetting(userId);
-	const adapterId = /** @type {'local' | 'ssh'} */ (setting.adapter === 'ssh' ? 'ssh' : 'local');
+	const adapterId = setting.adapter === 'ssh' ? 'ssh' : platformAdapterId();
 
 	const quota = await checkUploadAllowed(userId, {
 		newTrack: true,
@@ -541,10 +543,7 @@ export async function updateTrackFromForm(userId, trackId, formData) {
 	if (replaceAudio || replaceCover) {
 		let storage;
 		try {
-			storage = await getStorageAdapter(
-				userId,
-				/** @type {'local' | 'ssh'} */ (existing.storageAdapter)
-			);
+			storage = await getStorageAdapter(userId, parseStoredAdapter(existing.storageAdapter));
 		} catch (err) {
 			return {
 				ok: false,
@@ -647,10 +646,7 @@ export async function deleteTrackForUser(userId, trackId) {
 	}
 
 	try {
-		const storage = await getStorageAdapter(
-			userId,
-			/** @type {'local' | 'ssh'} */ (existing.storageAdapter)
-		);
+		const storage = await getStorageAdapter(userId, parseStoredAdapter(existing.storageAdapter));
 		await storage.delete(existing.folderKey);
 	} catch {
 		// Still remove DB row if storage cleanup fails (orphan files possible).
