@@ -61,7 +61,8 @@ On a tenant host platform and account routes stay deliberately narrow:
 
 - **Passthrough:** `/_app`, `/api/auth`, `/favicon.*`, `/robots.txt`
 - **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`,
-  `/library`, `/sites`, `/plans`, `/admin`, `/dev`, `/users/*`, and unlisted `/api/*` — platform
+  `/library`, `/sites`, `/plans`, `/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/users/*`,
+  and unlisted `/api/*` — platform
   surfaces only exist on the apex
 - **Platform public:** `/{username}/tracks/{slug}/`, `/tracks/*` (legacy UUID 301), `/api/media/*`,
   `/api/avatar/*`, `/api/site-logo/*`, `/api/site-og/*`, `/api/tracks/*`, `/api/playlists/*`,
