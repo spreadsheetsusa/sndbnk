@@ -258,6 +258,12 @@ async function migrateOrphans() {
 		return;
 	}
 
+	const sshRows = await db
+		.select({ userId: track.userId, folderKey: track.folderKey })
+		.from(track)
+		.where(eq(track.storageAdapter, 'ssh'));
+	const sshFolders = new Set(sshRows.map((row) => `${row.userId}/${row.folderKey}`));
+
 	for (const userId of users) {
 		if (userFilter && userId !== userFilter) continue;
 		if (!isSafeSegment(userId)) continue;
@@ -268,7 +274,8 @@ async function migrateOrphans() {
 		const folders = await readdir(userDir).catch(() => []);
 		for (const folderKey of folders) {
 			if (!isSafeSegment(folderKey)) continue;
-			const folderDir = path.join(userDir, folderKey);
+			if (sshFolders.has(`${userId}/${folderKey}`)) continue;
+			const folderDir = path.join(root, userId, folderKey);
 			const folderStat = await stat(folderDir).catch(() => null);
 			if (!folderStat?.isDirectory()) continue;
 
