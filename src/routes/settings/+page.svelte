@@ -11,6 +11,8 @@
 		isAtTrackCap,
 		isNearTrackCap
 	} from '#lib/billing/ladder.js';
+	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
+	import IconCopy from '@tabler/icons-svelte-runes/icons/copy';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import BioEditor from '#lib/components/settings/BioEditor.svelte';
@@ -134,13 +136,38 @@
 	/** @type {Record<string, string>} */
 	const DOMAIN_STATUS_COPY = {
 		active: 'Live',
-		pending: 'Pending',
-		none: 'Not set'
+		pending: 'Waiting on DNS',
+		none: 'Not connected'
 	};
 
 	const domainStatusLabel = $derived(
 		DOMAIN_STATUS_COPY[data.profile.customDomainStatus] ?? data.profile.customDomainStatus
 	);
+	const domainStatus = $derived(data.profile.customDomainStatus);
+	const domainNeedsConnect = $derived(
+		(data.billing.planId === 'studio' || data.billing.planId === 'label') &&
+			(domainStatus === 'none' || domainStatus === 'pending')
+	);
+	const domainFailedCheck = $derived(form?.domainFailedCheck ?? null);
+
+	/** @type {string | null} */
+	let copiedDnsKey = $state(null);
+
+	/**
+	 * @param {string} key
+	 * @param {string} value
+	 */
+	async function copyDnsValue(key, value) {
+		try {
+			await navigator.clipboard.writeText(value);
+			copiedDnsKey = key;
+			setTimeout(() => {
+				if (copiedDnsKey === key) copiedDnsKey = null;
+			}, 1600);
+		} catch {
+			// Clipboard unavailable (permissions/insecure context); ignore.
+		}
+	}
 
 	const dnsRecords = $derived.by(() => {
 		const domain = data.profile.customDomain;
@@ -740,6 +767,26 @@
 			</div>
 		{/if}
 
+		{#snippet dnsCopyCell(key, value, label)}
+			<div class="dns-copy">
+				<code class="dns-cell">{value}</code>
+				<button
+					type="button"
+					class="dns-copy-btn"
+					aria-label={label}
+					onclick={() => copyDnsValue(key, value)}
+				>
+					{#if copiedDnsKey === key}
+						<IconCheck size={14} stroke={1.75} />
+						<span>Copied</span>
+					{:else}
+						<IconCopy size={14} stroke={1.75} />
+						<span>Copy</span>
+					{/if}
+				</button>
+			</div>
+		{/snippet}
+
 		{#if activeTab === 'domain'}
 			<div class="block" role="tabpanel" id="panel-domain" aria-labelledby="tab-domain">
 				<div class="block-head">
@@ -756,8 +803,20 @@
 					</p>
 				</div>
 
+				{#if domainNeedsConnect && !form?.domainMessage}
+					<p class="banner quiet" role="status">Connect your domain to finish Studio.</p>
+				{/if}
 				{#if form?.domainMessage && !domainBusy}
-					<div class="banner error" role="alert">{form.domainMessage}</div>
+					<div class="banner error" role="alert">
+						{#if domainFailedCheck === 'txt'}
+							<span class="fail-check">Ownership TXT failed.</span>
+						{:else if domainFailedCheck === 'pointing'}
+							<span class="fail-check">A/CNAME pointing failed.</span>
+						{:else if domainFailedCheck === 'platform'}
+							<span class="fail-check">Platform DNS lookup failed.</span>
+						{/if}
+						{form.domainMessage}
+					</div>
 				{/if}
 				{#if form?.domainSuccess && !domainBusy}
 					<div class="banner ok" role="status">{form.domainSuccess}</div>
@@ -842,9 +901,39 @@
 								</p>
 							{:else}
 								<p class="dns-lead">
-									Add both records at your DNS host, then hit verify.
+									Saved, not live yet. Add the records below, then verify.
 									<span class="dns-note">Usually live within a few minutes.</span>
 								</p>
+								<ol class="dns-checks">
+									<li
+										class:fail={domainFailedCheck === 'txt'}
+										class:ok={domainFailedCheck === 'pointing' || domainFailedCheck === 'platform'}
+									>
+										Ownership TXT
+										{#if domainFailedCheck === 'txt'}
+											— missing
+										{:else if domainFailedCheck === 'pointing' || domainFailedCheck === 'platform'}
+											— found
+										{:else}
+											— waiting
+										{/if}
+									</li>
+									<li
+										class:fail={domainFailedCheck === 'pointing' ||
+											domainFailedCheck === 'platform'}
+									>
+										A/CNAME pointing
+										{#if domainFailedCheck === 'txt'}
+											— not checked yet
+										{:else if domainFailedCheck === 'pointing'}
+											— not pointing at SNDBNK
+										{:else if domainFailedCheck === 'platform'}
+											— platform host unresolved
+										{:else}
+											— waiting
+										{/if}
+									</li>
+								</ol>
 							{/if}
 
 							<table class="dns-table" aria-label="DNS records to add">
@@ -860,11 +949,15 @@
 										<tr class="dns-row">
 											<td class="dns-type">{row.type}</td>
 											<td>
-												<code class="dns-cell">{row.host}</code>
+												{@render dnsCopyCell(`${row.type}-host`, row.host, `Copy host ${row.host}`)}
 											</td>
 											<td class="dns-values">
-												{#each row.values as value (value)}
-													<code class="dns-cell">{value}</code>
+												{#each row.values as value, i (value)}
+													{@render dnsCopyCell(
+														`${row.type}-value-${i}`,
+														value,
+														`Copy value ${value}`
+													)}
 												{/each}
 											</td>
 										</tr>
@@ -2229,6 +2322,22 @@
 		background: var(--accent);
 	}
 
+	.banner.quiet {
+		border-color: var(--hard-border);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+		font-weight: 600;
+	}
+
+	.fail-check {
+		display: block;
+		margin-bottom: 0.35rem;
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
 	.current-plan {
 		margin-top: 1.5rem;
 		padding: 1.35rem;
@@ -2504,6 +2613,60 @@
 		line-height: 1.35;
 		word-break: break-all;
 		user-select: all;
+	}
+
+	.dns-checks {
+		margin: 0 0 1.1rem;
+		padding: 0 0 0 1.15rem;
+		color: var(--muted);
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1.5;
+	}
+
+	.dns-checks li.ok {
+		color: var(--ink);
+	}
+
+	.dns-checks li.fail {
+		color: var(--ink);
+	}
+
+	.dns-copy {
+		display: flex;
+		gap: 0.4rem;
+		align-items: flex-start;
+		min-width: 0;
+	}
+
+	.dns-copy .dns-cell {
+		flex: 1 1 auto;
+	}
+
+	.dns-copy-btn {
+		display: inline-flex;
+		flex: 0 0 auto;
+		gap: 0.25rem;
+		align-items: center;
+		margin: 0;
+		padding: 0.2rem 0.4rem;
+		border: 1px solid var(--ink);
+		color: var(--ink);
+		background: var(--paper);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.dns-copy-btn:hover {
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.dns-copy-btn :global(svg) {
+		display: block;
 	}
 
 	.dns-optional {

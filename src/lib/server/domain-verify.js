@@ -212,6 +212,9 @@ export async function hostPointsToPlatform(domain, cnameTarget, platformAddresse
 	return actual.some((address) => expected.has(address));
 }
 
+/** Which DNS check failed during custom-domain verify. */
+/** @typedef {'txt' | 'platform' | 'pointing'} DomainVerifyCheck */
+
 /**
  * @param {{
  *   domain: string,
@@ -219,14 +222,15 @@ export async function hostPointsToPlatform(domain, cnameTarget, platformAddresse
  *   cnameTarget: string,
  *   baseDomain?: string
  * }} input
- * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
+ * @returns {Promise<{ ok: true } | { ok: false, message: string, check: DomainVerifyCheck }>}
  */
 export async function verifyCustomDomain({ domain, token, cnameTarget, baseDomain }) {
 	const txtOk = await hasMatchingTxtRecord(domain, token);
 	if (!txtOk) {
 		return {
 			ok: false,
-			message: `Add a TXT record at _sndbnk-verify.${domain} (or the root) with value ${token}, then try again.`
+			check: 'txt',
+			message: `Ownership TXT is missing. Add a TXT record at _sndbnk-verify.${domain} (or the root) with value ${token}, then try again.`
 		};
 	}
 
@@ -234,6 +238,7 @@ export async function verifyCustomDomain({ domain, token, cnameTarget, baseDomai
 	if (platformAddresses.length === 0) {
 		return {
 			ok: false,
+			check: 'platform',
 			message: `Could not resolve ${cnameTarget} (or ${baseDomain ?? 'the site apex'}). Platform DNS may be misconfigured — try again shortly.`
 		};
 	}
@@ -243,7 +248,8 @@ export async function verifyCustomDomain({ domain, token, cnameTarget, baseDomai
 		const addressList = platformAddresses.join(', ');
 		return {
 			ok: false,
-			message: `Point ${domain} at SNDBNK: CNAME to ${cnameTarget}, or A/AAAA (or ALIAS/ANAME) to ${addressList}, then try again.`
+			check: 'pointing',
+			message: `Pointing is not live yet. Point ${domain} at SNDBNK: CNAME to ${cnameTarget}, or A/AAAA (or ALIAS/ANAME) to ${addressList}, then try again.`
 		};
 	}
 

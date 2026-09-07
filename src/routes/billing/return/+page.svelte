@@ -4,6 +4,8 @@
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 
 	let { data } = $props();
+
+	const ownsDomain = $derived(data.status === 'active' && data.ownsCustomDomain);
 </script>
 
 <svelte:head>
@@ -27,14 +29,28 @@
 			{#if data.status === 'active'}
 				<p class="eyebrow accent-text eyebrow-chip">Payment received</p>
 				<h1 id="return-title" class="display-face">You're on {data.planLabel}.</h1>
-				<p class="copy">
-					Your subdomain and storage options are unlocked. Invoices and cancellation live in
-					Settings → Billing.
-				</p>
-				<div class="actions">
-					<a class="cta pressable" href="/library">Go to your library</a>
-					<a class="cta ghost pressable" href="/settings?tab=billing">Billing settings</a>
-				</div>
+				{#if ownsDomain}
+					<p class="copy">
+						Connect your domain so the station lives on your name. Chrome-off and the builder stay
+						in Settings.
+					</p>
+					<div class="actions">
+						<a class="cta pressable" href="/settings?tab=domain">Set up your domain</a>
+						<a class="cta ghost pressable" href="/library">Library</a>
+						{#if data.siteHref}
+							<a class="cta ghost pressable" href={data.siteHref}>Station builder</a>
+						{/if}
+					</div>
+				{:else}
+					<p class="copy">
+						Unlimited tracks and your subdomain are unlocked. Invoices and cancellation live in
+						Settings → Billing.
+					</p>
+					<div class="actions">
+						<a class="cta pressable" href="/library">Go to your library</a>
+						<a class="cta ghost pressable" href="/settings?tab=billing">Billing settings</a>
+					</div>
+				{/if}
 			{:else}
 				<p class="eyebrow">Almost there</p>
 				<h1 id="return-title" class="display-face">We're still confirming.</h1>

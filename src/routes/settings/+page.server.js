@@ -427,7 +427,10 @@ export const actions = {
 			});
 
 			if (!result.ok) {
-				return fail(400, { domainMessage: result.message });
+				return fail(400, {
+					domainMessage: result.message,
+					domainFailedCheck: result.check
+				});
 			}
 		} catch {
 			return fail(500, {
