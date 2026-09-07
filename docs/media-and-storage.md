@@ -299,8 +299,14 @@ copies SNDBNK-hosted objects from `MEDIA_ROOT` into `s3://$S3_BUCKET/{userId}/{f
 - Skips SSH tracks entirely.
 - Uploads with streamed `PutObject` + `ContentMD5`. Verifies `HeadObject` size and ETag (MD5 of
   single-part puts) **before** updating `track.storageAdapter` to `s3`.
+- If the DB has `audioBytes` / `originalBytes` / `coverBytes` and the local file exists, the file
+  size must match that column. A mismatch is a **fail** (logged in the report) — the script does
+  not upload the file as truth and does not flip the row.
+- Multipart ETags (`<md5>-<parts>`) are never treated as an MD5 match. Existing multipart objects
+  are re-uploaded (single put) when a local file is present; remote-only multipart objects fail
+  closed instead of passing on size alone.
 - Fail-closed per object: one miss does not abort the run, and a failed verify never flips the row.
-- Idempotent: matching size + ETag is a skip. Re-run after a partial lift.
+- Idempotent: matching size + single-part ETag/MD5 is a skip. Re-run after a partial lift.
 - **Never deletes local files by default.** `--purge-local` removes a local copy only after that
   object verified. Off unless you pass it.
 - `--dry-run` logs the plan with no writes. `--user`, `--track`, `--limit`, `--report` narrow a

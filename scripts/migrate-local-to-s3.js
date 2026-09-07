@@ -9,7 +9,8 @@
  * Optional: `--user <userId>` `--limit <n>` `--track <trackId>` `--report <path>`
  *
  * Fail-closed per object: a verify miss never flips `track.storageAdapter`.
- * Re-runs are idempotent (Head + size/ETag skip).
+ * Local size must match DB byte columns when those are set; multipart ETags
+ * are never an MD5 pass. Re-runs are idempotent (Head + size + single-part ETag).
  */
 import { readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -379,9 +380,21 @@ async function migrateObject(input) {
 	const localInfo = await localFileInfo(localPath);
 
 	try {
+		if (localInfo && hasExpectedSize(input.expectedSize) && localInfo.size !== input.expectedSize) {
+			const reason = `local size ${localInfo.size} != DB expectedSize ${input.expectedSize}; not uploading as truth`;
+			failures.push({ key, kind: input.kind, reason });
+			console.error(`[migrate-s3] FAIL ${key}: ${reason}`);
+			return { status: 'failed', key, localPath };
+		}
+
 		const remote = await headS3Object(key);
 
 		if (localInfo) {
+			if (remote && isMultipartEtag(remote.etag)) {
+				console.warn(
+					`[migrate-s3] multipart ETag on ${key} (etag=${remote.etag}); cannot MD5-verify, will re-upload`
+				);
+			}
 			const match = remote && objectMatches(remote, localInfo.size, localInfo.md5);
 			if (match) {
 				verifiedExisting += 1;
@@ -398,7 +411,7 @@ async function migrateObject(input) {
 			const after = await headS3Object(key);
 			if (!after || !objectMatches(after, put.size, put.md5)) {
 				const reason = after
-					? `verify failed size=${after.size} etag=${after.etag} expected=${put.size}/${put.md5}`
+					? verifyFailureReason(after, put.size, put.md5)
 					: 'verify failed: object missing after put';
 				failures.push({ key, kind: input.kind, reason });
 				return { status: 'failed', key, localPath };
@@ -409,6 +422,12 @@ async function migrateObject(input) {
 		}
 
 		if (remote && (input.expectedSize == null || remote.size === input.expectedSize)) {
+			if (isMultipartEtag(remote.etag)) {
+				const reason = `remote-only object has multipart ETag (${remote.etag}); no local MD5 to verify`;
+				failures.push({ key, kind: input.kind, reason });
+				console.error(`[migrate-s3] FAIL ${key}: ${reason}`);
+				return { status: 'failed', key, localPath: null };
+			}
 			verifiedExisting += 1;
 			console.log(`[migrate-s3] remote-only ${key} (${remote.size} bytes)`);
 			return { status: 'ok', key, localPath: null };
@@ -434,15 +453,41 @@ async function migrateObject(input) {
 	}
 }
 
+/** @param {number | null | undefined} value */
+function hasExpectedSize(value) {
+	return typeof value === 'number' && Number.isFinite(value);
+}
+
+/** @param {string | null | undefined} etag */
+function isMultipartEtag(etag) {
+	return Boolean(etag && etag.includes('-'));
+}
+
 /**
+ * Size must match. When we have an MD5 (local file), ETag must be the
+ * single-part MD5 — multipart ETags (`…-N`) are never a checksum pass.
+ *
  * @param {{ size: number, etag: string | null }} remote
  * @param {number} size
  * @param {string} [md5]
  */
 function objectMatches(remote, size, md5) {
 	if (remote.size !== size) return false;
-	if (!md5 || !remote.etag || remote.etag.includes('-')) return true;
+	if (!md5) return !isMultipartEtag(remote.etag);
+	if (!remote.etag || isMultipartEtag(remote.etag)) return false;
 	return remote.etag.toLowerCase() === md5.toLowerCase();
+}
+
+/**
+ * @param {{ size: number, etag: string | null }} remote
+ * @param {number} size
+ * @param {string} md5
+ */
+function verifyFailureReason(remote, size, md5) {
+	if (isMultipartEtag(remote.etag)) {
+		return `verify failed: multipart ETag ${remote.etag} cannot be checked against MD5 ${md5}`;
+	}
+	return `verify failed size=${remote.size} etag=${remote.etag} expected=${size}/${md5}`;
 }
 
 /**

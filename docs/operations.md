@@ -351,7 +351,9 @@ Do this **after** a deploy that includes the `s3` adapter, with `S3_BUCKET` alre
 
    Watch progress lines (`uploaded` / `exists` / `track … storageAdapter → s3`). The process exits
    `1` if any object failed verify; already-migrated rows stay `s3`, failed rows stay `local`.
-   Re-run the same command to resume.
+   Re-run the same command to resume. A local file whose size disagrees with `audioBytes` /
+   `originalBytes` / `coverBytes` is a fail (not uploaded, row not flipped). Multipart S3 ETags
+   are not accepted as an MD5 pass.
 
 6. Confirm the report's `failed` array is empty and spot-check playback (published track, draft
    preview, a WAV that has an `audio.mp3` + original, cover art, an avatar). `journalctl -u
