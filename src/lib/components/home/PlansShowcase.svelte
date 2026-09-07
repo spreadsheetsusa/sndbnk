@@ -6,7 +6,8 @@
 	 *   blurb: string,
 	 *   features: string[],
 	 *   monthlyAmount: number,
-	 *   sortOrder: number
+	 *   sortOrder: number,
+	 *   purchasable?: boolean
 	 * }} ShowcasePlan
 	 */
 
@@ -49,6 +50,7 @@
 	 */
 	function ctaLabel(tier, index) {
 		if (signedIn && currentIndex >= 0 && index === currentIndex) return 'Current plan';
+		if (tier.monthlyAmount > 0 && tier.purchasable === false) return 'Not available yet';
 		if (signedIn && currentIndex >= 0 && index > currentIndex) return `Upgrade to ${tier.label}`;
 		if (tier.monthlyAmount === 0) return 'Start free';
 		return `Choose ${tier.label}`;
@@ -126,9 +128,9 @@
 					{#if showCta(i)}
 						<a
 							class="cta pressable"
-							class:ghost={isCurrent || tier.monthlyAmount === 0}
-							class:upgrade={isUpgrade(i)}
-							href="/plans?plan={tier.id}"
+							class:ghost={isCurrent || tier.monthlyAmount === 0 || tier.purchasable === false}
+							class:upgrade={isUpgrade(i) && tier.purchasable !== false}
+							href={tier.purchasable === false ? '/plans' : `/plans?plan=${tier.id}`}
 						>
 							{ctaLabel(tier, i)}
 						</a>

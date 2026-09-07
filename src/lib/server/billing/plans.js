@@ -179,3 +179,19 @@ export function isPaidPlan(planId) {
 	const row = getPlan(planId);
 	return Boolean(row && (row.monthlyAmount > 0 || row.yearlyAmount > 0));
 }
+
+/**
+ * Soft-gated until teams UI ships. Stripe product/price IDs stay on the `plan`
+ * row so checkout can flip back on by clearing this set.
+ */
+const CHECKOUT_DISABLED_PLAN_IDS = new Set(['label']);
+
+/**
+ * Paid plan with both Stripe prices, and not held back in product.
+ * @param {string | null | undefined} planId
+ */
+export function isPlanPurchasable(planId) {
+	if (!planId || CHECKOUT_DISABLED_PLAN_IDS.has(planId)) return false;
+	const row = getPlan(planId);
+	return Boolean(row?.stripePriceMonthlyId && row?.stripePriceYearlyId);
+}

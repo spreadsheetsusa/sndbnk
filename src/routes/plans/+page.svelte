@@ -104,10 +104,7 @@
 		const id = data.preselectPlan;
 		if (!id) return;
 
-		if (!canCheckoutPlan(id)) {
-			selectedPlan = id;
-			return;
-		}
+		if (!canCheckoutPlan(id)) return;
 
 		choose(id);
 
@@ -357,7 +354,7 @@
 						<a class="cta ghost pressable" href={signedIn ? '/settings?tab=billing' : '/signup'}>
 							{signedIn ? 'Manage plan' : 'Start free'}
 						</a>
-					{:else if data.account?.hasSubscription}
+					{:else if data.account?.hasSubscription && tier.purchasable}
 						<a class="cta pressable" href="/settings?tab=billing">Switch to {tier.label}</a>
 					{:else}
 						<button

@@ -96,9 +96,10 @@ extensionless `#lib/…` the way Vite does — imports in the worker dependency 
 
 ### Stripe env keys alone leave paid tiers unavailable
 
-`/plans` marks a tier purchasable only when `stripe_price_*` IDs exist on the `plan` row. Env
-publishable/secret keys alone show **Not available yet**. Run `bun run stripe:bootstrap` to sync
-Stripe products/prices into the database.
+`/plans` marks a tier purchasable when `stripe_price_*` IDs exist on the `plan` row **and** the
+plan is not in `CHECKOUT_DISABLED_PLAN_IDS` (`label` until teams UI ships). Env publishable/secret
+keys alone show **Not available yet**. Run `bun run stripe:bootstrap` to sync Stripe products/prices
+into the database. Do not clear Label's Stripe IDs to hide checkout — remove the gate instead.
 
 ### Rate limits are in-memory only
 

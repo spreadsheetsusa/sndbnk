@@ -14,7 +14,12 @@ import {
 import { auth } from '#lib/server/auth';
 import { removeAvatar, saveAvatar } from '#lib/server/avatar';
 import { changeSubscription } from '#lib/server/billing/checkout';
-import { canUseCustomDomain, getPlans, planOrDefault } from '#lib/server/billing/plans';
+import {
+	canUseCustomDomain,
+	getPlans,
+	isPlanPurchasable,
+	planOrDefault
+} from '#lib/server/billing/plans';
 import { createPortalSession } from '#lib/server/billing/portal';
 import { billingEnabled } from '#lib/server/billing/stripe';
 import { requestEmailChange } from '#lib/server/change-email';
@@ -149,7 +154,7 @@ export const load = async ({ locals }) => {
 			label: option.label,
 			monthlyAmount: option.monthlyAmount,
 			yearlyAmount: option.yearlyAmount,
-			purchasable: Boolean(option.stripePriceMonthlyId && option.stripePriceYearlyId)
+			purchasable: isPlanPurchasable(option.id)
 		})),
 		storageAdapters: STORAGE_ADAPTERS,
 		storage

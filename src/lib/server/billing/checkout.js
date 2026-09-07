@@ -6,7 +6,7 @@ import { db } from '#lib/server/db';
 import { profile } from '#lib/server/db/schema';
 import { isBillingInterval, STRIPE_APP_TAG } from './catalog';
 import { ensureStripeCustomer } from './customer';
-import { getPlan, isPaidPlan, priceIdFor } from './plans';
+import { getPlan, isPaidPlan, isPlanPurchasable, priceIdFor } from './plans';
 import { billingEnabled, getStripe } from './stripe';
 import { syncSubscription } from './sync';
 
@@ -33,6 +33,9 @@ export async function createSubscriptionCheckout({ userId, planId, interval }) {
 	if (!tier || !tier.active) return { ok: false, message: 'That plan is not available.' };
 	if (!isPaidPlan(planId))
 		return { ok: false, message: `${tier.label} is free — no payment needed.` };
+	if (!isPlanPurchasable(planId)) {
+		return { ok: false, message: `${tier.label} is not available yet.` };
+	}
 
 	const priceId = priceIdFor(planId, interval);
 	if (!priceId) {
@@ -106,6 +109,12 @@ export async function changeSubscription(userId, planId, interval) {
 	if (!billingEnabled) return { ok: false, message: 'Billing is not configured.' };
 	if (!isBillingInterval(interval))
 		return { ok: false, message: 'Choose monthly or yearly billing.' };
+
+	const tier = getPlan(planId);
+	if (!tier || !tier.active) return { ok: false, message: 'That plan is not available.' };
+	if (!isPlanPurchasable(planId)) {
+		return { ok: false, message: `${tier.label} is not available yet.` };
+	}
 
 	const priceId = priceIdFor(planId, interval);
 	if (!priceId) return { ok: false, message: 'That plan has no price configured.' };

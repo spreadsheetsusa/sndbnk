@@ -45,8 +45,8 @@
 				name: 'Label',
 				price: '$35',
 				features: 'Everything in Studio\nTeams (coming soon)\n5 seats',
-				ctaLabel: 'Choose Label',
-				ctaHref: '/plans?plan=label',
+				ctaLabel: 'Not available yet',
+				ctaHref: '/plans',
 				highlighted: ''
 			}
 		]
