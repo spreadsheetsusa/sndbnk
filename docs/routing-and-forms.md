@@ -25,6 +25,9 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/users/[username]`                | public                 | public profile by path                                                                                      |
 | `/admin`                           | admin only (apex)      | Plans, discounts, users, site play thresholds, business-planning docs                                       |
 | `/admin/docs/[slug]`               | admin only (apex)      | Serves `docs/*.html` briefs (plan, finance, migrations)                                                     |
+| `/for-artists`                     | public (apex)          | Artist marketing funnel — station pitch, SC contrast, Start free → `/signup`                                |
+| `/vault`                           | public (apex)          | Vault marketing funnel — 15-track wall, Choose Vault → `/plans?plan=vault`                                  |
+| `/studio`                          | public (apex)          | Studio marketing funnel — domain / white-label, Choose Studio → `/plans?plan=studio`                        |
 | `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                                                          |
 | `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                                                    |
 | `/api/tracks`                      | mixed                  | paged feed/library/profile/likes/history (`{ items, nextCursor }`)                                          |
@@ -40,7 +43,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                                                    |
 
 `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`, `/library`,
-`/sites`, `/plans`, `/admin`, `/dev`, `/users/*`, and unlisted `/api/*` 404 on tenant hosts. See
+`/sites`, `/plans`, `/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/users/*`, and unlisted
+`/api/*` 404 on tenant hosts. See
 [architecture.md](architecture.md).
 
 **Site builder** (`/sites/[id]/builder`): Vault+ owner only. Load ensures a root `site_page` and site
