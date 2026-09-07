@@ -297,11 +297,12 @@ copies SNDBNK-hosted objects from `MEDIA_ROOT` into `s3://$S3_BUCKET/{userId}/{f
 - Discovers `track.storageAdapter` in `local` / already-`s3` (resume), plus avatars, site logo/OG,
   and leftover files under `MEDIA_ROOT`.
 - Skips SSH tracks entirely.
-- Uploads with streamed `PutObject` + `ContentMD5`. Verifies `HeadObject` size and ETag (MD5 of
-  single-part puts) **before** updating `track.storageAdapter` to `s3`.
-- If the DB has `audioBytes` / `originalBytes` / `coverBytes` and the local file exists, the file
-  size must match that column. A mismatch is a **fail** (logged in the report) — the script does
-  not upload the file as truth and does not flip the row.
+- Uploads with streamed `PutObject` + `ContentMD5`. Verifies the S3 object against **what was
+  uploaded** (`HeadObject` size + single-part ETag/MD5) **before** flipping `track.storageAdapter`
+  to `s3`. Fail-closed if the S3 object does not match the put.
+- A local file whose size disagrees with `audioBytes` / `coverBytes` / `originalBytes` is **copied
+  anyway** (prod has a small hosted set; the file on disk is the source of truth). The mismatch is
+  a warning, not a hard fail.
 - Multipart ETags (`<md5>-<parts>`) are never treated as an MD5 match. Existing multipart objects
   are re-uploaded (single put) when a local file is present; remote-only multipart objects fail
   closed instead of passing on size alone.

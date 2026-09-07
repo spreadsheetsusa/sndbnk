@@ -3,7 +3,7 @@
  * SSH BYOS tracks are never touched. Credentials come from env / IAM only.
  *
  * Default is a dry-run (inventory + plan, no copy / flip / purge):
- *   bun run media:migrate-s3
+ *   bun run media:migrate-s3 -- --dry-run
  *   bun run media:migrate-s3 -- --apply
  *   bun run media:migrate-s3 -- --apply --purge-local
  *
@@ -534,11 +534,9 @@ async function migrateObject(input) {
 
 	try {
 		if (localInfo && hasExpectedSize(input.expectedSize) && localInfo.size !== input.expectedSize) {
-			const reason = `local size ${localInfo.size} != DB expectedSize ${input.expectedSize}; not uploading as truth`;
-			failures.push({ key, kind: input.kind, reason });
-			await appendProgress({ phase: 'fail', status: 'failed', key, kind: input.kind, reason });
-			console.error(`[migrate-s3] FAIL ${key}: ${reason}`);
-			return { status: 'failed', key, localPath };
+			console.warn(
+				`[migrate-s3] local size ${localInfo.size} != DB expectedSize ${input.expectedSize} for ${key}; copying local file`
+			);
 		}
 
 		const remote = await headS3Object(key);
@@ -580,7 +578,7 @@ async function migrateObject(input) {
 			return { status: 'ok', key, localPath };
 		}
 
-		if (remote && (input.expectedSize == null || remote.size === input.expectedSize)) {
+		if (remote) {
 			if (isMultipartEtag(remote.etag)) {
 				const reason = `remote-only object has multipart ETag (${remote.etag}); no local MD5 to verify`;
 				failures.push({ key, kind: input.kind, reason });

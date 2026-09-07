@@ -52,7 +52,7 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 | `bun run db:migrate`              | apply pending Drizzle migrations (Bun)                       |
 | `bun run db:backup`               | copy SQLite (+ WAL/SHM) to a timestamped backup              |
 | `bun run nuke`                    | wipe DB + media + backups, then remigrate (confirms first)   |
-| `bun run media:migrate-s3`        | dry-run local→S3 inventory (`--apply` to copy/flip)          |
+| `bun run media:migrate-s3`        | dry-run local→S3 (`-- --dry-run`; `-- --apply` to copy/flip) |
 | `bun run auth:schema`             | regenerate the better-auth Drizzle schema                    |
 | `bun run lint` / `bun run format` | Prettier check / write                                       |
 
