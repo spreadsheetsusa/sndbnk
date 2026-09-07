@@ -147,14 +147,14 @@ prod origin does.
 
 ## Dead and unfinished code
 
-| Item                                        | Status                                                                                                                        |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `task` table                                | Scaffolding from `sv create`. Defined in `schema.js`, queried by nothing. Safe to remove.                                     |
-| `resolveTenantHost().pathname`              | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                  |
-| User-BYOS `s3` / `r2` in `STORAGE_ADAPTERS` | Still `enabled: false`. Platform S3 (`S3_BUCKET`) is implemented; creators cannot attach their own bucket yet.                |
-| Old Basic/Premium/Business Stripe products  | Retired in app catalog (Free/Vault/Studio/Label). Archive leftover products in the Stripe Dashboard after `stripe:bootstrap`. |
-| `src/lib/index.js`                          | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                         |
-| `db:push` (retired stub)                    | Exits with instructions. Real path is `db:generate` + `db:migrate`. See [`drizzle-migrations.html`](drizzle-migrations.html). |
+| Item                                        | Status                                                                                                                                                         |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `task` table                                | Scaffolding from `sv create`. Defined in `schema.js`, queried by nothing. Safe to remove.                                                                      |
+| `resolveTenantHost().pathname`              | Computed and typed, never read. Tenant `/` renders the profile from `locals.tenant` instead.                                                                   |
+| User-BYOS `s3` / `r2` in `STORAGE_ADAPTERS` | Still `enabled: false` — parked, not a shipped Free feature. Platform S3 (`sndbnk-media`) is production hosted media; creators cannot attach their own bucket. |
+| Old Basic/Premium/Business Stripe products  | Retired in app catalog (Free/Vault/Studio/Label). Archive leftover products in the Stripe Dashboard after `stripe:bootstrap`.                                  |
+| `src/lib/index.js`                          | An empty stub. Real imports use `#lib/...` subpaths; nothing imports the bare `#lib`.                                                                          |
+| `db:push` (retired stub)                    | Exits with instructions. Real path is `db:generate` + `db:migrate`. See [`drizzle-migrations.html`](drizzle-migrations.html).                                  |
 
 ## Inconsistencies worth knowing
 

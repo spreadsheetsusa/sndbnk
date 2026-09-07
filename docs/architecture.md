@@ -144,6 +144,7 @@ src/
     forgot-password/      request password reset email
     reset-password/       set new password from emailed token
     settings/             profile, linked accounts, plan, domain, site, storage (tabbed)
+    for-artists/ vault/ studio/ marketing funnels (apex)
     library/              owner CRUD: list, new, [id] edit
     tracks/[id]/          public track detail
     users/[username]/     public profile by path
@@ -166,7 +167,7 @@ src/
       social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg peaks), transcode.js (WAV→MP3), embed-tags.js (taglib)
       queue/              BullMQ waveform + transcode + embed-tags jobs (Redis); worker: bun run worker:waveform
-      storage/            adapter interface, local, s3, ssh, crypto
+      storage/            adapter interface, local, platform s3 (sndbnk-media in prod), ssh BYOS, crypto
       safe-redirect.js    adapter-safe redirect
 drizzle/                        Drizzle SQL migrations + meta snapshots
 scripts/migrate-sqlite.js       Bun-native migrate + seeds

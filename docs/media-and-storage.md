@@ -1,8 +1,10 @@
 # Media and storage
 
-Every creator picks where their audio lives: SNDBNK's disk, or their own server over SFTP. The app
-talks to both through one narrow interface, and the choice is recorded per track so switching later
-never orphans anything.
+Every creator picks where their audio lives: SNDBNK-hosted storage, or their own server over SFTP.
+Production hosted tracks use the private S3 bucket `sndbnk-media` (`us-east-1`,
+`storageAdapter = s3`). Creator BYOS today is SSH/SFTP only — user-owned S3/R2 adapters stay
+`enabled: false` and are not a shipped Free feature. The app talks to each backend through one
+narrow interface, and the choice is recorded per track so switching later never orphans anything.
 
 ## The adapter interface
 
@@ -36,12 +38,12 @@ normalize them onto disk). The `s3` adapter maps `{ start, end? }` to `GetObject
 
 ### Implementations
 
-| Adapter | Factory                            | Notes                                                                               |
-| ------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
-| `local` | `createLocalAdapter(userId)`       | `Bun.write` / `Bun.file` under `MEDIA_ROOT` (dev / unmigrated hosted tracks)        |
-| `s3`    | `createS3Adapter(userId)`          | Platform bucket (`S3_BUCKET`). Private; served via `/api/media`. Not user-BYOS.     |
-| `ssh`   | `createSshAdapter(userId, config)` | `ssh2` SFTP, a fresh connection per operation                                       |
-| `r2`    | —                                  | listed in `STORAGE_ADAPTERS` with `enabled: false`; user-BYOS R2 is not implemented |
+| Adapter | Factory                            | Notes                                                                                                        |
+| ------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `local` | `createLocalAdapter(userId)`       | `Bun.write` / `Bun.file` under `MEDIA_ROOT` (dev / unmigrated hosted tracks)                                 |
+| `s3`    | `createS3Adapter(userId)`          | Platform bucket. Prod default: private `sndbnk-media` (`us-east-1`). Served via `/api/media`. Not user-BYOS. |
+| `ssh`   | `createSshAdapter(userId, config)` | Creator BYOS today. `ssh2` SFTP, a fresh connection per operation                                            |
+| `r2`    | —                                  | listed in `STORAGE_ADAPTERS` with `enabled: false`; user-BYOS R2 is not implemented                          |
 
 Layout is identical across adapters, which is what makes them interchangeable:
 
@@ -168,8 +170,8 @@ PCM into a coarse ~1 peak/sec envelope, then downsampling to `WAVEFORM_BUCKETS` 
 max-amplitude buckets (or fewer for very short files), normalizing against the loudest bucket, and
 quantizing to integers 0–100. The result is stored as a JSON string on `track.waveform` (~2–3 KB),
 so a profile page ships peaks inline with no extra request. The worker also dual-writes the same
-array to `waveform.json` in the track folder via the storage adapter (local and SSH), so BYO media
-stays co-located with audio/cover. The DB column remains the serve path; `/api/media` does not
+array to `waveform.json` in the track folder via the storage adapter (local, platform S3, and SSH),
+so peaks stay co-located with audio/cover. The DB column remains the serve path; `/api/media` does not
 expose the peaks file. A storage put failure is logged and never fails the job after DB peaks are
 saved. Re-running a job for a track that already has DB peaks skips ffmpeg and only refreshes the
 side file. Local-adapter jobs point ffmpeg at the file under `MEDIA_ROOT`; SSH and S3 tracks are
@@ -295,14 +297,16 @@ true and play controls show an in-button spinner via `PlayPauseGlyph`.
 
 ## Platform S3
 
-SNDBNK-hosted storage (Settings → Local) writes to the platform S3 bucket when `S3_BUCKET` is set.
-This is **not** user-BYOS S3 — `STORAGE_ADAPTERS.s3` / `r2` stay `enabled: false`. SSH BYOS is
-unchanged.
+Production default for SNDBNK-hosted media is the private bucket `sndbnk-media` in `us-east-1`.
+When `S3_BUCKET` is set, Settings → Local writes new hosted tracks with `storageAdapter = s3`.
+Empty `S3_BUCKET` keeps hosted storage on `MEDIA_ROOT` (dev / unmigrated leftovers). This is
+**not** user-BYOS S3 — `STORAGE_ADAPTERS.s3` / `r2` stay `enabled: false`. Creator BYOS is SSH/SFTP
+only.
 
 | Env                                                              | Role                                                                                                           |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `S3_BUCKET`                                                      | On-switch. Empty → platform storage stays on `MEDIA_ROOT`. Prod example: `sndbnk-media`.                       |
-| `S3_REGION`                                                      | Defaults to `us-east-1` when the bucket is set.                                                                |
+| `S3_BUCKET`                                                      | On-switch. Empty → platform storage stays on `MEDIA_ROOT`. Production: `sndbnk-media`.                         |
+| `S3_REGION`                                                      | Production: `us-east-1`. Defaults to that when the bucket is set.                                              |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | Optional. Empty → AWS SDK default chain / Lightsail instance role. Never from Settings. Must be set as a pair. |
 | `S3_ENDPOINT`                                                    | Optional custom API (MinIO / LocalStack).                                                                      |
 | `S3_FORCE_PATH_STYLE`                                            | `true` for most MinIO setups.                                                                                  |
