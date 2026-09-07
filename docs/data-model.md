@@ -165,8 +165,9 @@ Label. Admin edits copy, prices, and flags; Stripe price ids are filled by
 | `monthlyAmount` / `yearlyAmount`            | Display cents; Stripe remains charging authority                                                                                                                                   |
 
 Helpers: `canUseSubdomain`, `canUseCustomDomain`, `canUseStorageAdapters`, `canRemoveBranding`,
-`hasTeamSeats` in [`billing/plans.js`](../src/lib/server/billing/plans.js). Site edit gate lives in
-`canEditSite` ([`site.js`](../src/lib/server/site.js)).
+`hasTeamSeats`, `isPlanPurchasable` in [`billing/plans.js`](../src/lib/server/billing/plans.js).
+Site edit gate lives in `canEditSite` ([`site.js`](../src/lib/server/site.js)). Label stays in the
+ladder but checkout is soft-gated until teams UI ships.
 
 ### `storage_setting` — one per user, lazily created
 

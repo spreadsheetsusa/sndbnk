@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 
 import { auth } from '#lib/server/auth';
-import { getPlans } from '#lib/server/billing/plans';
+import { getPlans, isPlanPurchasable } from '#lib/server/billing/plans';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { getSiteStats, listLatestMembers, pickHeroTrack } from '#lib/server/showcase';
 import { loadTenantSitePage } from '#lib/server/site-page-public';
@@ -48,7 +48,8 @@ export const load = async ({ cookies, locals, url }) => {
 			blurb: tier.blurb,
 			features: tier.features,
 			monthlyAmount: tier.monthlyAmount,
-			sortOrder: tier.sortOrder
+			sortOrder: tier.sortOrder,
+			purchasable: isPlanPurchasable(tier.id)
 		})),
 		currentPlanId: profile?.plan ?? null
 	};

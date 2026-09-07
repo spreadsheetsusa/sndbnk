@@ -1,4 +1,4 @@
-import { getPlans } from '#lib/server/billing/plans';
+import { getPlans, isPlanPurchasable } from '#lib/server/billing/plans';
 import { billingEnabled } from '#lib/server/billing/stripe';
 import { issueFormGuard } from '#lib/server/form-guard';
 import { getUsage } from '#lib/server/quota';
@@ -15,7 +15,7 @@ export const load = async ({ locals, url }) => {
 		features: tier.features,
 		monthlyAmount: tier.monthlyAmount,
 		yearlyAmount: tier.yearlyAmount,
-		purchasable: Boolean(tier.stripePriceMonthlyId && tier.stripePriceYearlyId)
+		purchasable: isPlanPurchasable(tier.id)
 	}));
 	const requested = url.searchParams.get('plan');
 	const preselectPlan = plans.some((tier) => tier.id === requested) ? requested : null;
