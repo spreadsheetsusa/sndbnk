@@ -11,6 +11,8 @@
 		isAtTrackCap,
 		isNearTrackCap
 	} from '#lib/billing/ladder.js';
+	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
+	import IconCopy from '@tabler/icons-svelte-runes/icons/copy';
 	import Avatar from '#lib/components/Avatar.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import BioEditor from '#lib/components/settings/BioEditor.svelte';
@@ -134,13 +136,38 @@
 	/** @type {Record<string, string>} */
 	const DOMAIN_STATUS_COPY = {
 		active: 'Live',
-		pending: 'Pending',
-		none: 'Not set'
+		pending: 'Waiting',
+		none: 'Off'
 	};
 
 	const domainStatusLabel = $derived(
 		DOMAIN_STATUS_COPY[data.profile.customDomainStatus] ?? data.profile.customDomainStatus
 	);
+	const domainStatus = $derived(data.profile.customDomainStatus);
+	const domainNeedsConnect = $derived(
+		(data.billing.planId === 'studio' || data.billing.planId === 'label') &&
+			(domainStatus === 'none' || domainStatus === 'pending')
+	);
+	const domainFailedCheck = $derived(form?.domainFailedCheck ?? null);
+
+	/** @type {string | null} */
+	let copiedDnsKey = $state(null);
+
+	/**
+	 * @param {string} key
+	 * @param {string} value
+	 */
+	async function copyDnsValue(key, value) {
+		try {
+			await navigator.clipboard.writeText(value);
+			copiedDnsKey = key;
+			setTimeout(() => {
+				if (copiedDnsKey === key) copiedDnsKey = null;
+			}, 1600);
+		} catch {
+			// Clipboard unavailable (permissions/insecure context); ignore.
+		}
+	}
 
 	const dnsRecords = $derived.by(() => {
 		const domain = data.profile.customDomain;
@@ -740,24 +767,61 @@
 			</div>
 		{/if}
 
+		{#snippet dnsCopyCell(key, value, label)}
+			<div class="dns-copy">
+				<code class="dns-cell">{value}</code>
+				<button
+					type="button"
+					class="dns-copy-btn pressable"
+					aria-label={label}
+					onclick={() => copyDnsValue(key, value)}
+				>
+					{#if copiedDnsKey === key}
+						<IconCheck size={14} stroke={1.75} />
+						<span>Copied</span>
+					{:else}
+						<IconCopy size={14} stroke={1.75} />
+						<span>Copy</span>
+					{/if}
+				</button>
+			</div>
+		{/snippet}
+
 		{#if activeTab === 'domain'}
 			<div class="block" role="tabpanel" id="panel-domain" aria-labelledby="tab-domain">
 				<div class="block-head">
-					<h2>Domain</h2>
+					<div class="head-row">
+						<h2>Domain</h2>
+						{#if canCustomDomain}
+							<span class="lcd-face channel" aria-hidden="true">{domainStatusLabel}</span>
+						{/if}
+					</div>
 					<p>
 						{#if canCustomDomain}
-							Your subdomain is live. Optionally connect a custom domain (apex or subdomain).
+							Your subdomain is live. Point a custom domain here so listeners land on you.
 						{:else if canSubdomain}
-							Your subdomain is live. Studio unlocks a custom domain (apex or subdomain).
+							Your subdomain is live. Studio puts a custom domain on the station.
 						{:else}
-							Vault unlocks <strong>{data.profile.username}.{data.baseDomain}</strong>. Studio adds
-							custom domains.
+							Vault unlocks <strong>{data.profile.username}.{data.baseDomain}</strong>. Studio puts
+							your name on the address.
 						{/if}
 					</p>
 				</div>
 
+				{#if domainNeedsConnect && !form?.domainMessage}
+					<p class="banner quiet" role="status">Point your domain here to finish setup.</p>
+				{/if}
 				{#if form?.domainMessage && !domainBusy}
-					<div class="banner error" role="alert">{form.domainMessage}</div>
+					<div class="banner error" role="alert">
+						{#if domainFailedCheck === 'txt'}
+							<span class="fail-check">Ownership TXT failed.</span>
+						{:else if domainFailedCheck === 'pointing'}
+							<span class="fail-check">A/CNAME pointing failed.</span>
+						{:else if domainFailedCheck === 'platform'}
+							<span class="fail-check">Platform DNS lookup failed.</span>
+						{/if}
+						{form.domainMessage}
+					</div>
 				{/if}
 				{#if form?.domainSuccess && !domainBusy}
 					<div class="banner ok" role="status">{form.domainSuccess}</div>
@@ -766,7 +830,7 @@
 				{#if canSubdomain}
 					<div class="domain-panel">
 						<div class="url-row">
-							<span class="url-label">Subdomain</span>
+							<span class="url-label lcd-face">Subdomain</span>
 							{#if data.urls.subdomainUrl}
 								<a href={data.urls.subdomainUrl}
 									>{data.urls.subdomainUrl.replace(/^https?:\/\//, '')}</a
@@ -776,12 +840,12 @@
 							{/if}
 						</div>
 						<div class="url-row">
-							<span class="url-label">Path</span>
+							<span class="url-label lcd-face">Path</span>
 							<a href={data.urls.pathUrl}>{data.urls.pathUrl.replace(/^https?:\/\//, '')}</a>
 						</div>
 						{#if data.urls.customDomainUrl}
 							<div class="url-row">
-								<span class="url-label">Custom</span>
+								<span class="url-label lcd-face">Custom</span>
 								<a href={data.urls.customDomainUrl}
 									>{data.urls.customDomainUrl.replace(/^https?:\/\//, '')}</a
 								>
@@ -831,78 +895,121 @@
 
 					{#if data.profile.customDomain && data.profile.domainVerifyToken}
 						<div class="dns-box" aria-label="DNS instructions">
-							<div class="dns-head">
-								<h3>Connect your domain</h3>
-								<p class="status status-{data.profile.customDomainStatus}">{domainStatusLabel}</p>
+							<div class="dns-titlebar">
+								<p class="eyebrow">Domain</p>
+								<p class="lcd-face channel status-{data.profile.customDomainStatus}">
+									{domainStatusLabel}
+								</p>
 							</div>
 
-							{#if data.profile.customDomainStatus === 'active'}
-								<p class="dns-lead">
-									<strong class="mono">{data.profile.customDomain}</strong> is live on SNDBNK.
-								</p>
-							{:else}
-								<p class="dns-lead">
-									Add both records at your DNS host, then hit verify.
-									<span class="dns-note">Usually live within a few minutes.</span>
-								</p>
-							{/if}
+							<div class="dns-body">
+								{#if data.profile.customDomainStatus === 'active'}
+									<p class="dns-lead">
+										<strong class="mono">{data.profile.customDomain}</strong> is live.
+									</p>
+								{:else}
+									<p class="dns-lead">
+										Saved, not live yet. Add the records, then verify.
+										<span class="dns-note">Usually a few minutes.</span>
+									</p>
+									<ol class="dns-checks">
+										<li
+											class:fail={domainFailedCheck === 'txt'}
+											class:ok={domainFailedCheck === 'pointing' ||
+												domainFailedCheck === 'platform'}
+										>
+											Ownership TXT
+											{#if domainFailedCheck === 'txt'}
+												— missing
+											{:else if domainFailedCheck === 'pointing' || domainFailedCheck === 'platform'}
+												— found
+											{:else}
+												— waiting
+											{/if}
+										</li>
+										<li
+											class:fail={domainFailedCheck === 'pointing' ||
+												domainFailedCheck === 'platform'}
+										>
+											A/CNAME pointing
+											{#if domainFailedCheck === 'txt'}
+												— not checked yet
+											{:else if domainFailedCheck === 'pointing'}
+												— not pointing at SNDBNK
+											{:else if domainFailedCheck === 'platform'}
+												— platform host unresolved
+											{:else}
+												— waiting
+											{/if}
+										</li>
+									</ol>
+								{/if}
 
-							<table class="dns-table" aria-label="DNS records to add">
-								<thead>
-									<tr class="dns-row dns-row-head">
-										<th scope="col">Type</th>
-										<th scope="col">Host</th>
-										<th scope="col">Value</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each dnsRecords as row (row.type + row.host)}
-										<tr class="dns-row">
-											<td class="dns-type">{row.type}</td>
-											<td>
-												<code class="dns-cell">{row.host}</code>
-											</td>
-											<td class="dns-values">
-												{#each row.values as value (value)}
-													<code class="dns-cell">{value}</code>
-												{/each}
-											</td>
+								<table class="dns-table" aria-label="DNS records to add">
+									<thead>
+										<tr class="dns-row dns-row-head">
+											<th scope="col">Type</th>
+											<th scope="col">Host</th>
+											<th scope="col">Value</th>
 										</tr>
-									{/each}
-								</tbody>
-							</table>
+									</thead>
+									<tbody>
+										{#each dnsRecords as row (row.type + row.host)}
+											<tr class="dns-row">
+												<td class="dns-type">{row.type}</td>
+												<td>
+													{@render dnsCopyCell(
+														`${row.type}-host`,
+														row.host,
+														`Copy host ${row.host}`
+													)}
+												</td>
+												<td class="dns-values">
+													{#each row.values as value, i (value)}
+														{@render dnsCopyCell(
+															`${row.type}-value-${i}`,
+															value,
+															`Copy value ${value}`
+														)}
+													{/each}
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
 
-							{#if dnsIsApex}
-								<p class="hint dns-optional">
-									<code>@</code> is the apex for <code>{data.profile.customDomain}</code>. Want www
-									too? Same A values, or CNAME <code>www</code> →
-									<code>{data.urls.cnameTarget}</code> — we accept it automatically once you’re live.
-								</p>
-							{/if}
+								{#if dnsIsApex}
+									<p class="hint dns-optional">
+										<code>@</code> is the apex for <code>{data.profile.customDomain}</code>. Want
+										www too? Same A values, or CNAME <code>www</code> →
+										<code>{data.urls.cnameTarget}</code> — we accept it automatically once you’re live.
+									</p>
+								{/if}
 
-							<div class="dns-actions">
-								<form
-									method="POST"
-									action="?/verifyDomain&tab=domain"
-									use:enhance={busyHandler('domain')}
-								>
-									<button class="pressable" type="submit" disabled={domainBusy}>
-										{domainBusy
-											? 'Checking…'
-											: data.profile.customDomainStatus === 'active'
-												? 'Re-check DNS'
-												: 'Verify DNS'}
-									</button>
-								</form>
-								<form
-									method="POST"
-									action="?/removeDomain&tab=domain"
-									use:enhance={busyHandler('domain')}
-								>
-									<button class="pressable ghost danger" type="submit" disabled={domainBusy}>
-										Remove domain
-									</button>
-								</form>
+								<div class="dns-actions">
+									<form
+										method="POST"
+										action="?/verifyDomain&tab=domain"
+										use:enhance={busyHandler('domain')}
+									>
+										<button class="pressable" type="submit" disabled={domainBusy}>
+											{domainBusy
+												? 'Checking…'
+												: data.profile.customDomainStatus === 'active'
+													? 'Re-check DNS'
+													: 'Verify DNS'}
+										</button>
+									</form>
+									<form
+										method="POST"
+										action="?/removeDomain&tab=domain"
+										use:enhance={busyHandler('domain')}
+									>
+										<button class="pressable ghost danger" type="submit" disabled={domainBusy}>
+											Remove domain
+										</button>
+									</form>
+								</div>
 							</div>
 						</div>
 					{/if}
@@ -1665,6 +1772,20 @@
 		animation: rise 0.8s ease both;
 	}
 
+	.head-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.head-row .channel {
+		color: var(--muted);
+		font-size: 0.95rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
 	.block-head h2 {
 		margin: 0.25rem 0 0.35rem;
 		font-family: var(--font-editorial);
@@ -2229,6 +2350,22 @@
 		background: var(--accent);
 	}
 
+	.banner.quiet {
+		border-color: var(--hard-border);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+		font-weight: 600;
+	}
+
+	.fail-check {
+		display: block;
+		margin-bottom: 0.35rem;
+		font-size: 0.68rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
 	.current-plan {
 		margin-top: 1.5rem;
 		padding: 1.35rem;
@@ -2394,9 +2531,9 @@
 	}
 
 	.url-label {
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.1em;
+		font-size: 0.85rem;
+		font-weight: 400;
+		letter-spacing: 0.12em;
 		text-transform: uppercase;
 	}
 
@@ -2408,28 +2545,43 @@
 
 	.dns-box {
 		margin-top: 1.75rem;
-		padding: 1.35rem;
 		border: 1px solid var(--hard-border);
 		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		box-shadow: 6px 6px 0 var(--hard-shadow);
 	}
 
-	.dns-head {
+	.dns-titlebar {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem 1rem;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.85rem;
+		gap: 0.75rem;
+		padding: 0.35rem 0.75rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+		background: color-mix(in srgb, var(--ink) 6%, var(--paper));
 	}
 
-	.dns-head h3 {
+	.dns-titlebar .eyebrow {
 		margin: 0;
-		font-family: var(--font-editorial);
-		font-size: 1.35rem;
-		font-weight: 400;
-		letter-spacing: -0.02em;
-		line-height: 1.1;
+	}
+
+	.dns-titlebar .channel {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.85rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.dns-box .status-pending {
+		color: var(--ink);
+	}
+
+	.dns-box .status-active {
+		color: var(--accent);
+	}
+
+	.dns-body {
+		padding: 1.15rem 1.35rem 1.35rem;
 	}
 
 	.dns-lead {
@@ -2506,6 +2658,64 @@
 		user-select: all;
 	}
 
+	.dns-checks {
+		margin: 0 0 1.1rem;
+		padding: 0 0 0 1.15rem;
+		color: var(--muted);
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1.5;
+	}
+
+	.dns-checks li.ok {
+		color: var(--ink);
+	}
+
+	.dns-checks li.fail {
+		color: var(--ink);
+	}
+
+	.dns-copy {
+		display: flex;
+		gap: 0.4rem;
+		align-items: flex-start;
+		min-width: 0;
+	}
+
+	.dns-copy .dns-cell {
+		flex: 1 1 auto;
+	}
+
+	.dns-copy-btn,
+	button.dns-copy-btn.pressable {
+		display: inline-flex;
+		flex: 0 0 auto;
+		gap: 0.25rem;
+		align-items: center;
+		width: auto;
+		min-height: 0;
+		margin: 0;
+		padding: 0.2rem 0.4rem;
+		border: 1px solid var(--ink);
+		color: var(--ink);
+		background: var(--paper);
+		box-shadow: 3px 3px 0 var(--hard-shadow);
+		font-size: 0.62rem;
+		font-weight: 900;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.dns-copy-btn:hover {
+		color: var(--on-accent);
+		background: var(--accent);
+	}
+
+	.dns-copy-btn :global(svg) {
+		display: block;
+	}
+
 	.dns-optional {
 		margin: 0.85rem 0 0;
 	}
@@ -2519,15 +2729,8 @@
 		user-select: all;
 	}
 
-	.dns-box .status-pending {
-		border-color: var(--accent);
-		color: var(--ink);
-		background: color-mix(in srgb, var(--accent) 18%, transparent);
-	}
-
 	.dns-box .status-none {
 		color: var(--muted);
-		background: transparent;
 	}
 
 	.dns-actions {
