@@ -27,6 +27,7 @@ export const RESERVED_PAGE_SLUGS = new Set([
 	'copyright',
 	'dev',
 	'feed',
+	'for-artists',
 	'forgot-password',
 	'library',
 	'plans',
@@ -37,9 +38,11 @@ export const RESERVED_PAGE_SLUGS = new Set([
 	'signin',
 	'signup',
 	'sites',
+	'studio',
 	'terms',
 	'tracks',
-	'users'
+	'users',
+	'vault'
 ]);
 
 const createCatalogBlock = () => ({
