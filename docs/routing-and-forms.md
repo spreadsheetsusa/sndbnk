@@ -32,6 +32,7 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                                                    |
 | `/api/tracks`                      | mixed                  | paged feed/library/profile/likes/history (`{ items, nextCursor }`)                                          |
 | `/api/tracks/[id]`                 | required               | `DELETE` a track                                                                                            |
+| `/api/tracks/[id]/embed-tags`      | owner only             | `GET` write-tags job status (`queued` / `writing` / `done` / `failed`)                                      |
 | `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                                                       |
 | `/api/tracks/[id]/play`            | public                 | `POST` records a play (`{ playCount }`); history when signed in                                             |
 | `/api/tracks/[id]/comments`        | mixed                  | `GET` timed comments for markers; `POST` adds a comment (auth)                                              |
@@ -204,7 +205,9 @@ Both exist, and the split is deliberate:
 
 Library upload is a named form action (`?/create`) posted from the page drop/picker (no separate
 upload route). Track edit is `?/update` on the same page and expands the library deck; an optional
-`writeTags=1` field embeds form metadata into the audio file after a successful save.
+`writeTags=1` field enqueues a write-tags job after a successful save (overwrite mode). The action
+returns immediately with `tagsStatus` + `tagsMessage`; the media worker embeds tags and the library
+UI polls `GET /api/tracks/[id]/embed-tags`.
 Track deletion is `DELETE /api/tracks/[id]` from the library row / card menu (same
 `deleteTrackForUser()` service).
 

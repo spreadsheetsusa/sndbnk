@@ -30,9 +30,9 @@ and **`size` is always the full object length**. An optional third argument
 `{ start, end? }` (inclusive; omit `end` for through-EOF) returns only that byte slice in `body`.
 Local uses lazy `Bun.file` / `Blob.slice`; SSH uses `sftp.stat` + `createReadStream({ start, end })`
 so ranged proxy reads do not pull the whole remote file. Full `readFile` remains the no-range path.
-Callers must still handle all three body types (`toBytes()` in `embed-tags.js` is the normalizer to
-copy). The `s3` adapter maps `{ start, end? }` to `GetObject` `Range: bytes=start-end` and reads
-the full object length from `Content-Range`.
+Callers must still handle all three body types (`writeStorageBodyToFile()` / `stageAdapterObjectToFile()`
+normalize them onto disk). The `s3` adapter maps `{ start, end? }` to `GetObject`
+`Range: bytes=start-end` and reads the full object length from `Content-Range`.
 
 ### Implementations
 
@@ -221,23 +221,43 @@ superseded playback/original filenames via `deleteObject`.
 ## Tag embedding
 
 `embedTrackTags(userId, trackId, { mode })` writes the track's saved metadata into the audio file
-itself with `taglib-wasm`, so a downloaded file carries its tags.
+itself with `taglib-wasm`, so a downloaded file carries its tags. The library Save path does **not**
+run this on the request: `writeTags=1` enqueues a BullMQ `embed-tags` job (same
+`bun run worker:waveform` / `sndbnk-waveform-worker` process, concurrency 1, 15-minute lock).
+
+| Piece                                                          | Role                                                                |
+| -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [`queue/embed-tags.js`](../src/lib/server/queue/embed-tags.js) | `enqueueEmbedTagsJob` / `processEmbedTagsJob`                       |
+| `track.tagEmbedStatus` / `tagEmbedMessage`                     | durable `queued` \| `writing` \| `done` \| `failed` for the edit UI |
+| `GET /api/tracks/[id]/embed-tags`                              | owner poll of that status                                           |
 
 - **`gapfill` (default).** A field is written only if the file's existing tag is blank
-  (`isBlankTag(before[readKey])`). After save, the bytes are reopened; if any previously non-blank
-  tag went missing or got replaced, the operation aborts with `{ ok: false }` and nothing is
-  uploaded.
+  (`isBlankTag(before[readKey])`). After save, the tagged copy is reopened; if any previously
+  non-blank tag went missing or got replaced, the operation aborts with `{ ok: false }` and
+  nothing is uploaded.
 - **`overwrite`.** Every non-empty DB field is written into the file (blank DB fields are left
   alone). Used when the library deck Save has **Write tags to file** checked; the `?/update` action
-  calls this after a successful DB update and fails soft (track save still succeeds; UI gets
-  `tagsMessage`).
+  enqueues after a successful DB update and fails soft (track save still succeeds; UI gets
+  `tagsStatus` + `tagsMessage` and polls until the worker finishes).
+- **Stage, then put.** The worker copies the live object to a temp file (local `copyFile`, S3/SSH
+  `stageAdapterObjectToFile`), tags that copy, verifies, then `storage.put`s the tagged bytes.
+  A failed verify or put leaves the stored object unchanged. `track.audioBytes` updates only after
+  a successful put.
+- **Dedup.** `jobId = trackId`. An in-flight job is reused; a completed/failed job is removed so a
+  later Save can run again.
 - **Format-aware.** `TAG_FIELDS` carries a separate `writeKey` and `readKey` per field because
   TagLib returns properties under different keys than it accepts. `DESCRIPTION` is not modelled
   natively and aliases `COMMENT` on Vorbis formats.
 - **Single initialization.** `taglibPromise ??= TagLib.initialize()` — the WASM module is
   initialized once per process.
-- Files are always `dispose()`d in `finally`, and `track.audioBytes` is updated after a successful
-  `storage.put` since the file size changed.
+- Files are always `dispose()`d in `finally`. Missing Redis / worker returns a clear
+  `tagsMessage` instead of blocking the HTTP request.
+
+Local verify: set `REDIS_URL=redis://127.0.0.1:6379`, run `bun run worker:waveform` beside
+`bun run dev`, then Save a library track with **Write tags to file**. The banner should say
+“Writing tags to the file…” immediately and settle to wrote / nothing-to-write / failed without
+reloading. After deploy, restart `sndbnk-waveform-worker` so the existing unit picks up the new
+queue (deploy already restarts it).
 
 ## Serving media
 

@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import IconList from '@tabler/icons-svelte-runes/icons/list';
 	import IconUpload from '@tabler/icons-svelte-runes/icons/upload';
+	import { untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 
 	import { isAtTrackCap, upgradeHrefForQuota } from '#lib/billing/ladder.js';
@@ -17,6 +18,7 @@
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 	import { AUDIO_FILE_ACCEPT, isAudioFile } from '#lib/media/audio-accept.js';
 	import { extractAudioMetadata } from '#lib/media/audio-metadata.js';
+	import { isTagEmbedPending, tagEmbedNotice } from '#lib/media/tag-embed-status.js';
 	import {
 		DEFAULT_TRACK_MEDIA_TYPE,
 		TRACK_MEDIA_TYPE_OPTIONS
@@ -111,6 +113,8 @@
 			: (visibleItems[0]?.id ?? null)
 	);
 	const selected = $derived(visibleItems.find((track) => track.id === resolvedId) ?? null);
+	const selectedTrackId = $derived(selected?.id ?? null);
+	const selectedTagPending = $derived(isTagEmbedPending(selected?.tagEmbedStatus));
 
 	const activeMediaPlural = $derived(
 		data.mediaType
@@ -192,9 +196,55 @@
 	 */
 	function applyTrackPatch(patch) {
 		const id = mergeTrackPatch(patch);
-		saveNotice = typeof patch.tagsMessage === 'string' ? patch.tagsMessage : null;
+		saveNotice =
+			tagEmbedNotice(patch.tagEmbedStatus, patch.tagsMessage ?? patch.tagEmbedMessage) ??
+			(typeof patch.tagsMessage === 'string' ? patch.tagsMessage : null);
 		if (id) syncLibraryUrl({ trackId: id, edit: false });
 	}
+
+	$effect(() => {
+		const id = selectedTrackId;
+		const pending = selectedTagPending;
+		if (!id || !pending) return;
+
+		untrack(() => {
+			const notice = tagEmbedNotice(selected?.tagEmbedStatus, selected?.tagEmbedMessage);
+			if (notice) saveNotice = notice;
+		});
+
+		let cancelled = false;
+
+		const poll = async () => {
+			const res = await fetch(`/api/tracks/${id}/embed-tags`);
+			if (cancelled || !res.ok) return;
+			const data = await res.json();
+			if (cancelled) return;
+
+			const status = data.status ?? null;
+			const message = data.message ?? null;
+			const current = selected;
+			if (
+				current?.id === id &&
+				current.tagEmbedStatus === status &&
+				(current.tagEmbedMessage ?? null) === message
+			) {
+				return;
+			}
+
+			mergeTrackPatch({ id, tagEmbedStatus: status, tagEmbedMessage: message });
+			saveNotice = tagEmbedNotice(status, message);
+		};
+
+		void poll();
+		const interval = setInterval(() => {
+			void poll();
+		}, 2000);
+
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	});
 
 	/**
 	 * @param {string | null} mediaType

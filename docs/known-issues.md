@@ -81,11 +81,14 @@ a build failure and does not mean you should switch to `better-sqlite3`.
 
 The request path only enqueues via
 [`enqueueWaveformJob`](../src/lib/server/queue/waveform.js) /
-[`enqueueTranscodeJob`](../src/lib/server/queue/transcode.js) — it never shells out to ffmpeg.
-Real peaks and MP3 playback copies need `REDIS_URL`, a running worker (`bun run worker:waveform`
-locally; `sndbnk-waveform-worker` in prod), and ffmpeg with `libmp3lame`. Missing any of those
-leaves SoundCloud-style placeholder bars and/or WAV streaming as WAV; the upload itself still
-succeeded. Details: [media-and-storage.md](media-and-storage.md).
+[`enqueueTranscodeJob`](../src/lib/server/queue/transcode.js) /
+[`enqueueEmbedTagsJob`](../src/lib/server/queue/embed-tags.js) — it never shells out to ffmpeg or
+taglib on the HTTP process. Real peaks and MP3 playback copies need `REDIS_URL`, a running worker
+(`bun run worker:waveform` locally; `sndbnk-waveform-worker` in prod), and ffmpeg with `libmp3lame`.
+Missing any of those leaves SoundCloud-style placeholder bars and/or WAV streaming as WAV; the
+upload itself still succeeded. Write-tags needs the same Redis + worker (not ffmpeg); without them
+the track save still succeeds and the library UI shows that tags were not written. Details:
+[media-and-storage.md](media-and-storage.md).
 
 The worker runs raw Bun (not Vite). Bun’s package `imports` map does not resolve
 extensionless `#lib/…` the way Vite does — imports in the worker dependency tree must use

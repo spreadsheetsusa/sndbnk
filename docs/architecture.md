@@ -165,7 +165,7 @@ src/
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats
       media/              waveform.js (ffmpeg peaks), transcode.js (WAV→MP3), embed-tags.js (taglib)
-      queue/              BullMQ waveform + transcode jobs (Redis); worker: bun run worker:waveform
+      queue/              BullMQ waveform + transcode + embed-tags jobs (Redis); worker: bun run worker:waveform
       storage/            adapter interface, local, s3, ssh, crypto
       safe-redirect.js    adapter-safe redirect
 drizzle/                        Drizzle SQL migrations + meta snapshots
@@ -183,6 +183,7 @@ scripts/backup-sqlite.js        SQLite file backup before prod applies
 - **Ownership is checked at the query.** `getOwnedTrack(userId, trackId)` for anything mutating,
   `getTrackById(trackId)` for public reads. There is no separate authorization layer to forget.
 - **Media side effects fail soft.** Waveform generation, WAV→MP3 transcode, and tag embedding return
-  `null` or `{ ok: false }` rather than aborting an upload that already succeeded.
+  `null` or `{ ok: false }` rather than aborting an upload or track save that already succeeded.
+  Write-tags is queued on the same worker; the save returns immediately with `queued` / `failed`.
 - **Env access goes through `$app/env/private` and `$app/env/public`**, declared in
   [`src/env.js`](../src/env.js). `process.env` appears only in build-time config and scripts.

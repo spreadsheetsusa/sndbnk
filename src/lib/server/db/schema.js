@@ -355,6 +355,11 @@ export const track = sqliteTable(
 		/** Snapshot at upload: `local` | `s3` | `ssh`. */
 		storageAdapter: text('storage_adapter').notNull().default('local'),
 		folderKey: text('folder_key').notNull(),
+		/** Last write-tags job: queued | writing | done | failed. */
+		tagEmbedStatus: text('tag_embed_status'),
+		/** User-facing write-tags result or error. */
+		tagEmbedMessage: text('tag_embed_message'),
+		tagEmbedUpdatedAt: integer('tag_embed_updated_at', { mode: 'timestamp_ms' }),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.$defaultFn(() => new Date())
 			.notNull(),

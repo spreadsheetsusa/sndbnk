@@ -20,6 +20,7 @@
 		TRACK_MEDIA_TYPE_OPTIONS
 	} from '#lib/media/track-media-type.js';
 	import { formatBytes, formatDuration } from '#lib/media/audio-metadata.js';
+	import { isTagEmbedPending, tagEmbedNotice } from '#lib/media/tag-embed-status.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
@@ -62,6 +63,8 @@
 	 * @property {string | null} [tagTypes]
 	 * @property {number | null} [trackGainDb]
 	 * @property {string | null} [container]
+	 * @property {string | null} [tagEmbedStatus]
+	 * @property {string | null} [tagEmbedMessage]
 	 */
 
 	/**
@@ -84,7 +87,7 @@
 	 *   composer?: string,
 	 *   comment?: string,
 	 *   hasCover?: boolean,
-	 *   tagsWritten?: string[],
+	 *   tagsStatus?: string,
 	 *   tagsMessage?: string
 	 * }} EditForm
 	 */
@@ -172,6 +175,8 @@
 	let privateOverride = $state(null);
 	const published = $derived(publishOverride ?? track?.published ?? false);
 	const isPrivate = $derived(privateOverride ?? track?.isPrivate ?? false);
+	const writeTagsPending = $derived(isTagEmbedPending(track?.tagEmbedStatus));
+	const writeTagsNotice = $derived(tagEmbedNotice(track?.tagEmbedStatus, track?.tagEmbedMessage));
 
 	let fields = $state({
 		title: '',
@@ -505,9 +510,7 @@
 				await update({ reset: false });
 				if (result.type === 'success' && result.data) {
 					const data = /** @type {EditForm} */ (result.data);
-					const tagsMessage =
-						data.tagsMessage ??
-						(data.tagsWritten?.length ? `Wrote tags: ${data.tagsWritten.join(', ')}.` : null);
+					const tagsMessage = data.tagsMessage ?? null;
 					onupdated?.({
 						id: data.trackId,
 						title: data.title,
@@ -525,7 +528,13 @@
 						composer: data.composer,
 						comment: data.comment,
 						hasCover: data.hasCover ?? (Boolean(coverPreviewUrl) || (track?.hasCover ?? false)),
-						tagsMessage
+						tagsMessage,
+						...(data.tagsStatus
+							? {
+									tagEmbedStatus: data.tagsStatus,
+									tagEmbedMessage: tagsMessage
+								}
+							: {})
 					});
 					clearCoverPreview();
 					writeTags = false;
@@ -966,10 +975,15 @@
 												name="writeTags"
 												value="1"
 												bind:checked={writeTags}
-												disabled={busy}
+												disabled={busy || writeTagsPending}
 											/>
 											<span>Write tags to file</span>
 										</label>
+										{#if writeTagsNotice}
+											<p class="write-tags-status" role="status" aria-live="polite">
+												{writeTagsNotice}
+											</p>
+										{/if}
 									</div>
 									<div class="form-actions">
 										<button
@@ -1671,6 +1685,15 @@
 	.write-tags:has(input:disabled) {
 		opacity: 0.55;
 		cursor: default;
+	}
+
+	.write-tags-status {
+		margin: 0;
+		min-width: 0;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
 	}
 
 	.publish-field {

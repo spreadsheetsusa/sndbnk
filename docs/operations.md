@@ -47,22 +47,22 @@ touch `.env`, source, or `drizzle/` migration files. Afterward you may want
 Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` /
 `$app/env/public`. Anything not in that registry is invisible to the app.
 
-| Variable                                                         | Visibility | Dev                     | Prod                     | Purpose                                                                 |
-| ---------------------------------------------------------------- | ---------- | ----------------------- | ------------------------ | ----------------------------------------------------------------------- |
-| `DATABASE_URL`                                                   | private    | `local.db`              | `local.db`               | SQLite **file path**, not a URL                                         |
-| `ORIGIN`                                                         | private    | `http://localhost:5174` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly            |
-| `PUBLIC_BASE_DOMAIN`                                             | **public** | `localhost`             | `sndbnk.com`             | apex hostname for tenant classification                                 |
-| `BETTER_AUTH_SECRET`                                             | private    | any                     | 32+ chars                | signs sessions; changing it logs everyone out                           |
-| `MEDIA_ROOT`                                                     | private    | `./media`               | `./media`                | local upload root (dev + migration source; still required)              |
-| `S3_BUCKET`                                                      | private    | empty                   | `sndbnk-media`           | platform media bucket; empty keeps hosted storage on `MEDIA_ROOT`       |
-| `S3_REGION`                                                      | private    | `us-east-1`             | `us-east-1`              | platform bucket region                                                  |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | private    | empty                   | instance keys or empty   | optional; empty uses the AWS SDK default chain                          |
-| `S3_ENDPOINT` / `S3_FORCE_PATH_STYLE`                            | private    | empty / `false`         | empty / `false`          | MinIO/LocalStack only; leave unset on AWS                               |
-| `BODY_SIZE_LIMIT`                                                | private    | `520M`                  | `520M`                   | max request body; the adapter default of 512K rejects uploads           |
-| `STORAGE_SECRET`                                                 | private    | any                     | 32+ chars                | encrypts BYOS credentials; changing it invalidates every stored SSH key |
-| `REDIS_URL`                                                      | private    | optional                | `redis://127.0.0.1:6379` | BullMQ waveform jobs; leave empty to skip async peaks                   |
-| `PROTOCOL_HEADER`                                                | adapter    | unset                   | `X-Forwarded-Proto`      | lets the Bun adapter rebuild URLs behind Caddy                          |
-| `HOST_HEADER`                                                    | adapter    | unset                   | `X-Forwarded-Host`       | same                                                                    |
+| Variable                                                         | Visibility | Dev                     | Prod                     | Purpose                                                                                                        |
+| ---------------------------------------------------------------- | ---------- | ----------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                   | private    | `local.db`              | `local.db`               | SQLite **file path**, not a URL                                                                                |
+| `ORIGIN`                                                         | private    | `http://localhost:5174` | `https://sndbnk.com`     | better-auth `baseURL`; must match the browser origin exactly                                                   |
+| `PUBLIC_BASE_DOMAIN`                                             | **public** | `localhost`             | `sndbnk.com`             | apex hostname for tenant classification                                                                        |
+| `BETTER_AUTH_SECRET`                                             | private    | any                     | 32+ chars                | signs sessions; changing it logs everyone out                                                                  |
+| `MEDIA_ROOT`                                                     | private    | `./media`               | `./media`                | local upload root (dev + migration source; still required)                                                     |
+| `S3_BUCKET`                                                      | private    | empty                   | `sndbnk-media`           | platform media bucket; empty keeps hosted storage on `MEDIA_ROOT`                                              |
+| `S3_REGION`                                                      | private    | `us-east-1`             | `us-east-1`              | platform bucket region                                                                                         |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_SESSION_TOKEN` | private    | empty                   | instance keys or empty   | optional; empty uses the AWS SDK default chain                                                                 |
+| `S3_ENDPOINT` / `S3_FORCE_PATH_STYLE`                            | private    | empty / `false`         | empty / `false`          | MinIO/LocalStack only; leave unset on AWS                                                                      |
+| `BODY_SIZE_LIMIT`                                                | private    | `520M`                  | `520M`                   | max request body; the adapter default of 512K rejects uploads                                                  |
+| `STORAGE_SECRET`                                                 | private    | any                     | 32+ chars                | encrypts BYOS credentials; changing it invalidates every stored SSH key                                        |
+| `REDIS_URL`                                                      | private    | optional                | `redis://127.0.0.1:6379` | BullMQ waveform / transcode / write-tags jobs; leave empty to skip async peaks (write-tags then fails visible) |
+| `PROTOCOL_HEADER`                                                | adapter    | unset                   | `X-Forwarded-Proto`      | lets the Bun adapter rebuild URLs behind Caddy                                                                 |
+| `HOST_HEADER`                                                    | adapter    | unset                   | `X-Forwarded-Host`       | same                                                                                                           |
 
 **Every variable in `src/env.js` is required** unless it declares a validator saying otherwise. A
 `.env` missing one makes the app return 500 on _every_ route at boot, not just on the feature that
@@ -149,8 +149,11 @@ forge `X-Forwarded-Host` against the app port), and `EnvironmentFile=-/var/www/s
 also auto-loads `.env`; the `EnvironmentFile` makes the values visible to non-Bun helpers).
 
 [`systemd.waveform-worker.service`](../systemd.waveform-worker.service) runs the BullMQ consumer
-(`bun ./scripts/waveform-worker.js`) with concurrency 1 so one long mix cannot pile up ffmpeg on the
-box. It wants `redis-server.service`, `Nice=10`, and `TimeoutStopSec=60`.
+(`bun ./scripts/waveform-worker.js`) with concurrency 1 per queue (waveform, transcode, embed-tags)
+so one long mix or tag write cannot pile up work on the box. It wants `redis-server.service`,
+`Nice=10`, and `TimeoutStopSec=60`. After a deploy that adds a queue, restart this unit (deploy
+already does `systemctl restart sndbnk sndbnk-waveform-worker`) so the process loads the new
+worker.
 
 Useful commands on the box:
 
@@ -183,7 +186,8 @@ REDIS_URL=redis://127.0.0.1:6379
 Locally: `brew install redis && brew services start redis` (or Docker), then set the same
 `REDIS_URL` and run `bun run worker:waveform` in a second terminal beside `bun run dev`. The worker
 reads config from `process.env` via [`app-env.js`](../src/lib/server/app-env.js) so it can share
-storage/DB modules without SvelteKit’s `$app/env` virtual modules.
+storage/DB modules without SvelteKit’s `$app/env` virtual modules. Write-tags needs this worker
+too — without it, library Save still succeeds and the UI says tag writing is unavailable.
 
 ### Caddy
 

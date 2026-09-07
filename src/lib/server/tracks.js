@@ -17,6 +17,7 @@ import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
 import { isWavMime, trackNeedsPlaybackMp3 } from '#lib/server/media/transcode';
 import { parseWaveform } from '#lib/server/media/waveform';
 import { checkUploadAllowed } from '#lib/server/quota';
+import { parseTagEmbedStatus } from '#lib/media/tag-embed-status.js';
 import { enqueueTranscodeJob } from '#lib/server/queue/transcode';
 import { enqueueWaveformJob } from '#lib/server/queue/waveform';
 import {
@@ -1155,7 +1156,9 @@ export async function serializeLibraryTrackRows(rows, viewer) {
 			encoder: row.encoder ?? null,
 			tagTypes: row.tagTypes ?? null,
 			trackGainDb: row.trackGainDb ?? null,
-			container: row.container ?? null
+			container: row.container ?? null,
+			tagEmbedStatus: parseTagEmbedStatus(row.tagEmbedStatus),
+			tagEmbedMessage: row.tagEmbedMessage ?? null
 		};
 	});
 }
