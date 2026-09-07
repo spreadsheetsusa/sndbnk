@@ -11,32 +11,32 @@
 
 	const pageTitle = 'For artists | SNDBNK';
 	const pageDescription =
-		'Your music. Your station. Drop tracks and share a link — free up to 15, then Vault if you keep going.';
+		'A station for your music. Upload tracks, share a link. Free holds about fifteen — then Vault.';
 
 	const tiles = [
 		{
 			id: 'files',
 			label: 'Files',
 			title: 'Drop the record',
-			body: 'Drop tracks. Share a link that doesn’t feel like homework.'
+			body: 'Upload a track. Share the URL. The page is public the same day.'
 		},
 		{
 			id: 'station',
 			label: 'Station',
 			title: 'You run it',
-			body: 'A station you run — not a feed you rent.'
+			body: 'Path profile on Free. you.sndbnk.com on Vault. Your domain on Studio.'
 		},
 		{
-			id: 'diy',
-			label: 'DIY',
-			title: 'Underground energy',
-			body: 'Mod Archive / WFMU / Neocities energy. Files plus a real place to play.'
+			id: 'listen',
+			label: 'Listen',
+			title: 'Built to play',
+			body: 'Waveforms, comments, and a header player that stays with the listener.'
 		},
 		{
 			id: 'fifteen',
 			label: 'Free',
 			title: 'Up to 15',
-			body: 'Free up to 15 — then Vault if you keep going.'
+			body: 'About one album. Vault if the catalog grows.'
 		}
 	];
 </script>
@@ -55,8 +55,8 @@
 	<main id="main">
 		<FunnelHero
 			eyebrow="For artists"
-			title="Your music. Your station. Not someone else’s feed."
-			lede="Drop tracks. Share a link that doesn’t feel like homework. Free up to 15 — then Vault if you keep going."
+			title="A station you run."
+			lede="Upload tracks and share a link. Free holds about fifteen — one album. Vault when the catalog grows."
 			primaryHref="/signup"
 			primaryLabel="Start free"
 			secondaryHref="/plans"
@@ -67,34 +67,41 @@
 		<ProofStrip
 			cells={[
 				{
-					id: 'winamp',
-					label: 'Winamp',
-					body: 'Built for artists who still remember Winamp.'
+					id: 'files',
+					label: 'Files',
+					body: 'Upload audio. The page is public the same day.'
 				},
 				{
-					id: 'diy',
-					label: 'DIY',
-					body: 'Files + a real place to play, not a rented feed.'
+					id: 'station',
+					label: 'Station',
+					body: 'Listeners come to you — not a slot in someone else’s list.'
 				},
 				{
-					id: 'hooks',
-					label: 'Hooks',
-					body: 'Mod Archive / WFMU / Neocities energy.'
+					id: 'play',
+					label: 'Play',
+					body: 'Waveform, comments, a player that stays put.'
 				},
 				{
 					id: 'fifteen',
-					label: 'Fifteen',
-					body: 'Free up to 15. Same station when you keep going.'
+					label: 'Free',
+					body: 'Fifteen tracks. Same station when you keep going.'
 				}
 			]}
 		/>
 
-		<ScContrast />
+		<ScContrast
+			eyebrow="Contrast"
+			leftLabel="Their feed"
+			leftBody="You upload into someone else’s machine. They keep the chrome and the rules."
+			rightLabel="Your station"
+			rightBody="You host the files and the page. The address is yours to grow."
+			line="They have a feed. You have a station."
+		/>
 
 		<section class="tiles" aria-labelledby="tiles-title">
 			<div class="tiles-head">
 				<p class="eyebrow accent-text eyebrow-chip">Station</p>
-				<h2 id="tiles-title">Your music. Your station.</h2>
+				<h2 id="tiles-title">What you actually get.</h2>
 			</div>
 			<ol>
 				{#each tiles as tile (tile.id)}
@@ -109,8 +116,8 @@
 
 		<section class="close" aria-labelledby="close-title">
 			<p class="lcd-face">On air</p>
-			<h2 id="close-title">Your music. Your station.</h2>
-			<p>Start free. Fifteen tracks. A link that doesn’t feel like homework.</p>
+			<h2 id="close-title">Start with the files.</h2>
+			<p>Fifteen tracks. A public station. Open an account.</p>
 			<CtaCartridge href="/signup" label="Start free" />
 		</section>
 	</main>
