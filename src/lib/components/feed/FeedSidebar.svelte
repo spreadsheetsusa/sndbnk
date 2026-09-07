@@ -52,7 +52,7 @@
 	]);
 
 	const panels = $derived(
-		visualizer.showInline ? [{ key: 'viz', label: 'Milkdrop' }, ...BASE_PANELS] : [...BASE_PANELS]
+		visualizer.showInline ? [{ key: 'viz', label: 'Viz' }, ...BASE_PANELS] : [...BASE_PANELS]
 	);
 
 	let activePanel = $state(0);

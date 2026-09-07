@@ -137,7 +137,7 @@ src/
   env.js                 defineEnvVars — the env var registry
   hooks.server.js         tenant + auth handles
   routes/
-    +layout.svelte        app shell, theme + accent init, Milkdrop floating window mount
+    +layout.svelte        app shell, theme + accent init, visualizer floating window mount
     layout.css            design tokens + global utilities
     +page.svelte          marketing landing OR tenant profile
     signin/ signup/       auth forms
@@ -152,7 +152,7 @@ src/
   lib/
     components/           SiteHeader (hosts the player), ThemeToggle, PublicProfile, player/*
     player/player.svelte.js       rune-class audio singleton
-    player/visualizer.svelte.js   Milkdrop toggle, inline/window mode, Web Audio graph
+    player/visualizer.svelte.js   visualizer toggle, inline/window mode, Web Audio graph
     stores/               theme, brand (legacy writable stores)
     media/                client-side metadata probe
     server/
