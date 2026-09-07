@@ -18,9 +18,9 @@
 <style>
 	.cartridge {
 		display: inline-flex;
-		gap: 2rem;
+		gap: 0.65rem;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: center;
 		min-width: 13rem;
 		padding: 1rem;
 		border: 1px solid var(--ink);

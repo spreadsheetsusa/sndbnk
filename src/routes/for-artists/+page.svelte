@@ -69,7 +69,7 @@
 				{
 					id: 'winamp',
 					label: 'Winamp',
-					body: 'Built for artists who still remember Winamp — not another SoundCloud clone.'
+					body: 'Built for artists who still remember Winamp.'
 				},
 				{
 					id: 'diy',

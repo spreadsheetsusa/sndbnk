@@ -12,7 +12,7 @@
 	let {
 		eyebrow = 'Contrast',
 		leftLabel = 'The feed you rent',
-		leftBody = 'SC is a feed you rent. Their discovery is their product.',
+		leftBody = 'A rented feed. Their rules.',
 		rightLabel = 'The station you run',
 		rightBody = 'SNDBNK is a station you run. Your music is the product here.',
 		line = 'Not another SoundCloud. Your station. Your rules.'
