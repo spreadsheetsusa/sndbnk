@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { PLAN_MARKETING, RETIRED_PLAN_BLURBS } from '../src/lib/billing/ladder.js';
 import { SQLITE_PRAGMAS } from '../src/lib/server/db/pragmas.js';
 import { slugifyTitle, uniqueSlug } from '../src/lib/slugify.js';
 
@@ -153,12 +154,8 @@ const seeds = [
 	[
 		'free',
 		'Free',
-		'Fully usable forever — especially with your own storage.',
-		[
-			'Public profile at sndbnk.com/users/you',
-			'15 tracks',
-			'Bring your own storage (SSH now; S3 / R2 soon)'
-		],
+		PLAN_MARKETING.free.blurb,
+		PLAN_MARKETING.free.features,
 		15,
 		null,
 		true,
@@ -173,14 +170,8 @@ const seeds = [
 	[
 		'vault',
 		'Vault',
-		'Your own subdomain on sndbnk.com.',
-		[
-			'Everything in Free',
-			'Unlimited tracks',
-			'30 GB hosted storage',
-			'Subdomain at you.sndbnk.com',
-			'Bring your own storage'
-		],
+		PLAN_MARKETING.vault.blurb,
+		PLAN_MARKETING.vault.features,
 		null,
 		30 * GIB,
 		true,
@@ -195,14 +186,8 @@ const seeds = [
 	[
 		'studio',
 		'Studio',
-		'Your own domain. Your own design. Full power.',
-		[
-			'Everything in Vault',
-			'150 GB hosted storage',
-			'Custom domain via CNAME',
-			'Remove SNDBNK branding',
-			'Bring your own storage'
-		],
+		PLAN_MARKETING.studio.blurb,
+		PLAN_MARKETING.studio.features,
 		null,
 		150 * GIB,
 		true,
@@ -217,13 +202,8 @@ const seeds = [
 	[
 		'label',
 		'Label',
-		'Teams and scale for serious catalogs.',
-		[
-			'Everything in Studio',
-			'500 GB hosted storage',
-			'Teams (coming soon) — 5 seats',
-			'Bring your own storage'
-		],
+		PLAN_MARKETING.label.blurb,
+		PLAN_MARKETING.label.features,
 		null,
 		500 * GIB,
 		true,
@@ -292,6 +272,26 @@ INSERT OR REPLACE INTO plan (
 			now
 		);
 	}
+}
+
+// Refresh official ladder copy on rows that still carry the retired blurbs
+// or the old GB-led feature lists. Entitlements, prices, and Stripe ids stay put.
+const refreshPlanCopy = sqlite.prepare(`
+UPDATE plan SET blurb = ?, features = ?, updated_at = ?
+WHERE id = ?
+	AND (
+		blurb IN (${RETIRED_PLAN_BLURBS.map(() => '?').join(', ')})
+		OR features LIKE '%30 GB hosted storage%'
+		OR features LIKE '%150 GB hosted storage%'
+		OR features LIKE '%500 GB hosted storage%'
+		OR features LIKE '%Fully usable forever%'
+	)
+`);
+for (const row of seeds) {
+	const id = row[0];
+	const copy = PLAN_MARKETING[/** @type {keyof typeof PLAN_MARKETING} */ (id)];
+	if (!copy) continue;
+	refreshPlanCopy.run(copy.blurb, JSON.stringify(copy.features), now, id, ...RETIRED_PLAN_BLURBS);
 }
 
 // Admin-comped paid accounts without a Stripe subscription stay entitled.

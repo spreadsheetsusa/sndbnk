@@ -75,7 +75,10 @@ export async function checkUploadAllowed(
 	if (newTrack && usage.maxTracks !== null && usage.trackCount >= usage.maxTracks) {
 		return {
 			ok: false,
-			message: `${usage.planLabel} includes ${usage.maxTracks} tracks and you have ${usage.trackCount}. Upgrade your plan to add more.`
+			message:
+				usage.plan === 'free'
+					? `Free holds one album (${usage.maxTracks} tracks) and you already have ${usage.trackCount}. Vault unlocks unlimited tracks.`
+					: `${usage.planLabel} includes ${usage.maxTracks} tracks and you have ${usage.trackCount}. Upgrade your plan to add more.`
 		};
 	}
 

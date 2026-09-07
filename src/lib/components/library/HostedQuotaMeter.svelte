@@ -1,4 +1,11 @@
 <script>
+	import {
+		VAULT_CHECKOUT_HREF,
+		isAtTrackCap,
+		isNearTrackCap,
+		upgradeHrefForQuota
+	} from '#lib/billing/ladder.js';
+
 	/**
 	 * @type {{
 	 *   localBytes?: number,
@@ -21,9 +28,13 @@
 	const meterLabel = $derived(label.trim() || 'Hosted');
 	const showTracks = $derived(maxTracks !== null);
 	const showBytes = $derived(maxLocalBytes !== null);
-	const atTrackCap = $derived(maxTracks !== null && trackCount >= maxTracks);
+	const atTrackCap = $derived(isAtTrackCap(trackCount, maxTracks));
+	const nearTrackCap = $derived(isNearTrackCap(trackCount, maxTracks));
 	const atStorageCap = $derived(maxLocalBytes !== null && localBytes >= maxLocalBytes);
-	const atCap = $derived(atTrackCap || atStorageCap);
+	const tracksLeft = $derived(maxTracks != null ? Math.max(0, maxTracks - trackCount) : 0);
+	const trackUpgradeHref = $derived(
+		upgradeHrefForQuota({ trackCount, maxTracks, localBytes, maxLocalBytes })
+	);
 	const trackFill = $derived(
 		maxTracks ? Math.min(100, Math.round((trackCount / maxTracks) * 100)) : 0
 	);
@@ -48,17 +59,13 @@
 </script>
 
 {#if showTracks || showBytes}
-	{#if atCap}
-		<p class="quota-upsell">
-			{#if atTrackCap}
-				You've used all {maxTracks} tracks on {planLabel}.
-			{:else}
-				You've used the {bytes(maxLocalBytes)} of hosted storage on {planLabel}.
-			{/if}
-			<a href="/settings?tab=billing">Upgrade plan</a>
-		</p>
-	{:else if showTracks}
-		<div class="quota-meter" aria-label="Track quota">
+	{#if showTracks}
+		<div
+			class="quota-meter"
+			class:warn={nearTrackCap}
+			class:capped={atTrackCap}
+			aria-label="Track quota"
+		>
 			<div class="meter-head">
 				<span class="meter-label">Tracks</span>
 				<span class="meter-value">{trackCount} / {maxTracks}</span>
@@ -73,12 +80,28 @@
 			>
 				<span class="meter-fill" style="width: {trackFill}%"></span>
 			</div>
+			{#if atTrackCap}
+				<p class="quota-upsell">
+					Album's full on {planLabel}.
+					<a href={VAULT_CHECKOUT_HREF}>Get Vault</a>
+				</p>
+			{:else if nearTrackCap}
+				<p class="quota-upsell">
+					{tracksLeft} left on this album.
+					<a href={trackUpgradeHref}>Get Vault</a>
+				</p>
+			{/if}
 		</div>
+	{:else if atStorageCap}
+		<p class="quota-upsell">
+			You've used the {bytes(maxLocalBytes ?? 0)} of hosted storage on {planLabel}.
+			<a href="/plans">See plans</a>
+		</p>
 	{:else}
 		<div class="quota-meter" aria-label="{meterLabel} storage quota">
 			<div class="meter-head">
 				<span class="meter-label" title={meterLabel}>{meterLabel}</span>
-				<span class="meter-value">{bytes(localBytes)} / {bytes(maxLocalBytes)}</span>
+				<span class="meter-value">{bytes(localBytes)} / {bytes(maxLocalBytes ?? 0)}</span>
 			</div>
 			<div
 				class="meter-track"
@@ -140,14 +163,25 @@
 		background: var(--accent);
 	}
 
+	.quota-meter.warn .meter-fill,
+	.quota-meter.capped .meter-fill {
+		background: color-mix(in srgb, var(--accent) 72%, var(--ink));
+	}
+
 	.quota-upsell {
 		max-width: 14rem;
-		margin: 0;
+		margin: 0.35rem 0 0;
 		color: var(--muted);
 		font-size: 0.78rem;
 		line-height: 1.4;
 		text-align: right;
 		animation: rise 0.8s ease 0.08s both;
+	}
+
+	.quota-meter .quota-upsell {
+		max-width: none;
+		text-align: left;
+		animation: none;
 	}
 
 	.quota-upsell a {

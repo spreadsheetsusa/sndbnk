@@ -1350,33 +1350,33 @@ export const blockDefinitions = [
 				{
 					name: 'Free',
 					price: '$0',
-					features: '15 tracks\nWaveforms\nPublic profile',
+					features: 'One album (~15 tracks)\nPublic profile\nWaveforms',
 					ctaLabel: 'Start free',
 					ctaHref: '/plans',
 					highlighted: ''
 				},
 				{
 					name: 'Vault',
-					price: '$9',
-					features: 'Hosted storage\nSubdomain\nBYO storage',
+					price: '$5',
+					features: 'Unlimited tracks\nyou.sndbnk.com\nBYO storage',
 					ctaLabel: 'Choose Vault',
-					ctaHref: '/plans',
+					ctaHref: '/plans?plan=vault',
 					highlighted: 'yes'
 				},
 				{
 					name: 'Studio',
-					price: '$19',
-					features: 'Custom domain\nUnbranded site\nPriority support',
+					price: '$14',
+					features: 'Your domain\nChrome off\nFull station builder',
 					ctaLabel: 'Choose Studio',
-					ctaHref: '/plans',
+					ctaHref: '/plans?plan=studio',
 					highlighted: ''
 				},
 				{
 					name: 'Label',
-					price: '$49',
-					features: 'Team seats\nMerch blocks\nAdvanced analytics',
+					price: '$35',
+					features: 'Everything in Studio\nTeams (coming soon)\n5 seats',
 					ctaLabel: 'Choose Label',
-					ctaHref: '/plans',
+					ctaHref: '/plans?plan=label',
 					highlighted: ''
 				}
 			]
@@ -1409,11 +1409,12 @@ export const blockDefinitions = [
 			heading: 'Compare hosting tiers',
 			plans: [{ name: 'Free' }, { name: 'Vault' }, { name: 'Studio' }, { name: 'Label' }],
 			rows: [
-				{ feature: 'Published tracks', values: '15\nUnlimited\nUnlimited\nUnlimited' },
-				{ feature: 'Hosted storage', values: '—\n50 GB\n200 GB\n1 TB' },
-				{ feature: 'Subdomain', values: '—\n✓\n✓\n✓' },
-				{ feature: 'Custom domain', values: '—\n—\n✓\n✓' },
-				{ feature: 'Remove branding', values: '—\n—\n✓\n✓' }
+				{ feature: 'Tracks', values: 'One album (~15)\nUnlimited\nUnlimited\nUnlimited' },
+				{ feature: 'you.sndbnk.com', values: '—\n✓\n✓\n✓' },
+				{ feature: 'Your domain', values: '—\n—\n✓\n✓' },
+				{ feature: 'Chrome off', values: '—\n—\n✓\n✓' },
+				{ feature: 'Station builder', values: '—\n—\n✓\n✓' },
+				{ feature: 'Teams', values: '—\n—\n—\nSoon' }
 			],
 			ctaLabel: 'View plans',
 			ctaHref: '/plans'

@@ -6,6 +6,7 @@
 	import IconUpload from '@tabler/icons-svelte-runes/icons/upload';
 	import { MediaQuery } from 'svelte/reactivity';
 
+	import { isAtTrackCap, upgradeHrefForQuota } from '#lib/billing/ladder.js';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
@@ -46,13 +47,15 @@
 	let dropActive = $state(false);
 	let dragDepth = 0;
 
-	const BILLING_HREF = '/settings?tab=billing';
+	const atTrackCap = $derived(isAtTrackCap(data.usage.trackCount, data.usage.maxTracks));
 	const uploadBlockedByQuota = $derived(
-		(data.usage.maxTracks !== null && data.usage.trackCount >= data.usage.maxTracks) ||
+		atTrackCap ||
 			(data.storageAdapter === 'local' &&
 				data.usage.maxLocalBytes !== null &&
 				data.usage.localBytes >= data.usage.maxLocalBytes)
 	);
+	const uploadUpgradeHref = $derived(upgradeHrefForQuota(data.usage));
+	const uploadUpgradeLabel = $derived(atTrackCap ? 'Get Vault' : 'See plans');
 
 	/**
 	 * @typedef {{
@@ -333,7 +336,7 @@
 		dragDepth = 0;
 		dropActive = false;
 		if (uploadBlockedByQuota) {
-			void goto(BILLING_HREF);
+			void goto(uploadUpgradeHref);
 			return;
 		}
 		const file = [...(event.dataTransfer?.files ?? [])].find(isAudioFile) ?? null;
@@ -342,7 +345,7 @@
 
 	function openUploadPicker() {
 		if (uploadBlockedByQuota) {
-			void goto(BILLING_HREF);
+			void goto(uploadUpgradeHref);
 			return;
 		}
 		uploadInput?.click();
@@ -492,9 +495,9 @@
 					</div>
 				{/if}
 				{#if uploadBlockedByQuota}
-					<a class="pressable" href={BILLING_HREF}>
+					<a class="pressable" href={uploadUpgradeHref}>
 						<IconUpload size={16} stroke={1.75} aria-hidden="true" />
-						Upload
+						{uploadUpgradeLabel}
 					</a>
 				{:else}
 					<button class="pressable" type="button" disabled={uploading} onclick={openUploadPicker}>
@@ -578,9 +581,9 @@
 							<div class="empty" aria-live="polite">
 								<p>{emptyLibraryCopy}</p>
 								{#if uploadBlockedByQuota}
-									<a class="pressable" href={BILLING_HREF}>
+									<a class="pressable" href={uploadUpgradeHref}>
 										<IconUpload size={16} stroke={1.75} aria-hidden="true" />
-										Upload
+										{uploadUpgradeLabel}
 									</a>
 								{:else}
 									<button
@@ -852,6 +855,7 @@
 
 	.page-head-quota :global(.quota-upsell) {
 		max-width: none;
+		margin-top: 0.2rem;
 		font-size: 0.65rem;
 		line-height: 1.3;
 		text-align: left;

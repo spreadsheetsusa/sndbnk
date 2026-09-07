@@ -12,11 +12,12 @@
 		heading = 'Compare hosting tiers',
 		plans = [{ name: 'Free' }, { name: 'Vault' }, { name: 'Studio' }, { name: 'Label' }],
 		rows = [
-			{ feature: 'Published tracks', values: '15\nUnlimited\nUnlimited\nUnlimited' },
-			{ feature: 'Hosted storage', values: '—\n50 GB\n200 GB\n1 TB' },
-			{ feature: 'Subdomain', values: '—\n✓\n✓\n✓' },
-			{ feature: 'Custom domain', values: '—\n—\n✓\n✓' },
-			{ feature: 'Remove branding', values: '—\n—\n✓\n✓' }
+			{ feature: 'Tracks', values: 'One album (~15)\nUnlimited\nUnlimited\nUnlimited' },
+			{ feature: 'you.sndbnk.com', values: '—\n✓\n✓\n✓' },
+			{ feature: 'Your domain', values: '—\n—\n✓\n✓' },
+			{ feature: 'Chrome off', values: '—\n—\n✓\n✓' },
+			{ feature: 'Station builder', values: '—\n—\n✓\n✓' },
+			{ feature: 'Teams', values: '—\n—\n—\nSoon' }
 		],
 		ctaLabel = 'View plans',
 		ctaHref = '/plans'

@@ -31,8 +31,8 @@
 	const title = $derived(signedIn ? 'More signal when you need it' : 'Pick your signal strength');
 	const lede = $derived(
 		signedIn
-			? 'Keep Free forever, or step up for a subdomain, custom domain, and room to grow.'
-			: 'Fully usable on Free — especially with your own storage. Vault adds a subdomain. Studio is the full-power tier.'
+			? 'Free holds one album. Vault unlocks unlimited tracks and you.sndbnk.com.'
+			: 'Free is one album. Vault is unlimited tracks plus you.sndbnk.com. Studio is your domain and a chrome-off station.'
 	);
 
 	/**
@@ -85,18 +85,22 @@
 		<div class="tiers" role="list">
 			{#each plans as tier, i (tier.id)}
 				{@const isCurrent = signedIn && currentPlanId === tier.id}
-				{@const isFeatured = tier.id === 'studio'}
+				{@const isFeatured = tier.id === 'vault'}
+				{@const isLabel = tier.id === 'label'}
 				<article
 					class="tier"
 					class:current={isCurrent}
 					class:featured={isFeatured}
+					class:soft={isLabel}
 					style="--i: {i}"
 					role="listitem"
 				>
 					{#if isCurrent}
 						<p class="tier-badge">Current</p>
 					{:else if isFeatured}
-						<p class="tier-badge">Full power</p>
+						<p class="tier-badge">Next step</p>
+					{:else if isLabel}
+						<p class="tier-badge soft-badge">Teams soon</p>
 					{/if}
 
 					<div class="tier-top">
@@ -217,6 +221,15 @@
 	.tier.current {
 		background: color-mix(in srgb, var(--accent) 12%, transparent);
 		border-color: var(--hard-border);
+	}
+
+	.tier.soft {
+		opacity: 0.78;
+	}
+
+	.tier-badge.soft-badge {
+		color: var(--ink);
+		background: color-mix(in srgb, var(--ink) 12%, transparent);
 	}
 
 	.tier-badge {
