@@ -10,27 +10,26 @@
 	let { data } = $props();
 
 	const pageTitle = 'Studio | SNDBNK';
-	const pageDescription =
-		'Vault is room. Studio is yours — your domain, white-label, looks like your label.';
+	const pageDescription = 'Studio is $14 — your domain, chrome off, and the full station builder.';
 
 	const ownership = [
 		{
 			id: 'domain',
 			label: 'Domain',
-			title: 'Your name on the door',
-			body: 'Your domain. This isn’t “upgrade to Pro.”'
+			title: 'Your address',
+			body: 'Point a domain here. Listeners land on you, not a path on ours.'
 		},
 		{
 			id: 'chrome',
 			label: 'Chrome off',
-			title: 'White-label',
-			body: 'Looks like your label, not ours.'
+			title: 'Unbranded',
+			body: 'Platform chrome can go. The station reads as your project.'
 		},
 		{
-			id: 'byos',
-			label: 'BYOS',
-			title: 'Your disks',
-			body: 'BYOS if you want. Files stay on disks you already run.'
+			id: 'builder',
+			label: 'Builder',
+			title: 'Full station',
+			body: 'Pages and blocks — the public face you actually want, not a fixed profile.'
 		}
 	];
 </script>
@@ -49,8 +48,8 @@
 	<main id="main">
 		<FunnelHero
 			eyebrow="Studio"
-			title="Vault is room. Studio is yours."
-			lede="$14. Your domain. White-label. Looks like your label, not ours. BYOS if you want."
+			title="Your name. Your domain."
+			lede="$14. Custom domain, chrome off, full station builder. The public site reads as yours."
 			primaryHref="/plans?plan=studio"
 			primaryLabel="Choose Studio"
 			secondaryHref="/plans"
@@ -58,14 +57,14 @@
 			titleId="studio-title"
 		>
 			{#snippet support()}
-				<p>This isn’t “upgrade to Pro.” It’s your name on the door.</p>
+				<p>Vault holds the catalog. Studio puts your name on it.</p>
 			{/snippet}
 		</FunnelHero>
 
 		<section class="ownership" aria-labelledby="ownership-title">
 			<div class="head">
 				<p class="eyebrow accent-text eyebrow-chip">Yours</p>
-				<h2 id="ownership-title">Own the station under your domain.</h2>
+				<h2 id="ownership-title">What Studio adds.</h2>
 			</div>
 			<ol>
 				{#each ownership as panel (panel.id)}
@@ -79,43 +78,43 @@
 		</section>
 
 		<ScContrast
-			eyebrow="Room vs yours"
+			eyebrow="Capacity vs ownership"
 			leftLabel="Vault"
-			leftBody="Vault is room. $5. Unlimited tracks. Same station — more of your shit fits."
+			leftBody="$5. Unlimited tracks and you.sndbnk.com. Room for the catalog."
 			rightLabel="Studio"
-			rightBody="Studio is yours. $14. Your domain. White-label. Looks like your label, not ours."
-			line="Vault is room. Studio is yours."
+			rightBody="$14. Your domain, chrome off, the full builder."
+			line="Vault is capacity. Studio is ownership."
 		/>
 
 		<ProofStrip
 			cells={[
 				{
-					id: 'name',
-					label: 'Name',
-					body: 'This isn’t “upgrade to Pro.” It’s your name on the door.'
-				},
-				{
 					id: 'domain',
 					label: 'Domain',
-					body: 'Own a freeform station under your domain.'
+					body: 'Listeners type your name, not ours.'
 				},
 				{
-					id: 'signal',
-					label: 'Signal',
-					body: 'NTS / WFMU / dublab energy at personal scale.'
+					id: 'chrome',
+					label: 'Chrome',
+					body: 'Unbranded station. Your accent, your pages.'
 				},
 				{
-					id: 'byos',
-					label: 'BYOS',
-					body: 'Bring your own disks if you want.'
+					id: 'builder',
+					label: 'Builder',
+					body: 'Compose the public site — not a fixed profile.'
+				},
+				{
+					id: 'fourteen',
+					label: 'Fourteen',
+					body: '$14. Ownership, not a badge.'
 				}
 			]}
 		/>
 
 		<section class="close" aria-labelledby="close-title">
 			<p class="lcd-face">Own it</p>
-			<h2 id="close-title">Your name on the door.</h2>
-			<p>Choose Studio. Your domain. Chrome off.</p>
+			<h2 id="close-title">Put your name on it.</h2>
+			<p>Custom domain. Chrome off. The builder.</p>
 			<CtaCartridge href="/plans?plan=studio" label="Choose Studio" />
 		</section>
 	</main>

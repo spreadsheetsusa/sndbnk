@@ -10,26 +10,26 @@
 
 	const pageTitle = 'Vault | SNDBNK';
 	const pageDescription =
-		'You hit 15. Vault is $5 — unlimited tracks, same station, room to keep stacking.';
+		'Vault is $5 — unlimited tracks and you.sndbnk.com. The fifteen-track wall comes off.';
 
 	const ladder = [
 		{
 			id: 'free',
 			label: 'Free',
-			title: 'Fifteen tracks',
-			body: 'Drop in. Share a link. That’s the start — not a ceiling forever.'
+			title: 'One album',
+			body: 'About fifteen tracks and a path profile. Enough to put a record up.'
 		},
 		{
 			id: 'wall',
 			label: 'Wall',
-			title: 'You hit 15',
-			body: 'That’s the wall. The limiter, not a lecture.'
+			title: 'Album wall',
+			body: 'Free stops at fifteen. That’s the cap — Vault takes the count off.'
 		},
 		{
 			id: 'vault',
 			label: 'Vault',
-			title: '$5. No ceiling',
-			body: 'Unlimited tracks. Room to keep stacking. Same station — more of your shit fits.'
+			title: '$5. Capacity',
+			body: 'Unlimited tracks. you.sndbnk.com. Same station, room to keep adding.'
 		}
 	];
 </script>
@@ -48,8 +48,8 @@
 	<main id="main">
 		<FunnelHero
 			eyebrow="Vault"
-			title="You hit 15. That’s the wall."
-			lede="Vault is $5. Unlimited tracks. Room to keep stacking. Same station — more of your shit fits."
+			title="Fifteen tracks. Then Vault."
+			lede="$5. Unlimited tracks and you.sndbnk.com. Same station, no track cap."
 			primaryHref="/plans?plan=vault"
 			primaryLabel="Choose Vault"
 			secondaryHref="/signup"
@@ -57,9 +57,9 @@
 			titleId="vault-title"
 		>
 			{#snippet support()}
-				<p>Not a storage plan. Just no ceiling.</p>
+				<p>Vault is capacity. The catalog can grow.</p>
 				<p>
-					<a href="/studio">Vault is room. Studio is yours.</a>
+					<a href="/studio">Need a domain? That’s Studio.</a>
 				</p>
 			{/snippet}
 		</FunnelHero>
@@ -84,32 +84,32 @@
 		<ProofStrip
 			cells={[
 				{
-					id: 'ceiling',
-					label: 'Ceiling',
-					body: 'Not a storage plan. Just no ceiling.'
+					id: 'tracks',
+					label: 'Tracks',
+					body: 'The fifteen-track cap is gone.'
 				},
 				{
-					id: 'archive',
-					label: 'Archive',
-					body: 'Keep masters and dumps on your station — room to stack, no ceiling.'
+					id: 'host',
+					label: 'Host',
+					body: 'you.sndbnk.com — your name as a host, not a path.'
 				},
 				{
-					id: 'stacks',
-					label: 'Stacks',
-					body: 'Archive heads, noise walls, tape dumps.'
+					id: 'same',
+					label: 'Same',
+					body: 'Same library and player. More room.'
 				},
 				{
 					id: 'five',
 					label: 'Five',
-					body: 'Vault is $5. Unlimited tracks. Same station.'
+					body: '$5 a month. Capacity, not a new product.'
 				}
 			]}
 		/>
 
 		<section class="close" aria-labelledby="close-title">
 			<p class="lcd-face">Unlock</p>
-			<h2 id="close-title">Same station. More of your shit fits.</h2>
-			<p>Choose Vault. Not a storage plan. Just no ceiling.</p>
+			<h2 id="close-title">Take the limiter off.</h2>
+			<p>Unlimited tracks and you.sndbnk.com.</p>
 			<CtaCartridge href="/plans?plan=vault" label="Choose Vault" />
 		</section>
 	</main>
