@@ -575,7 +575,7 @@
 	}
 
 	.lamp[data-state='DIRTY'] {
-		background: color-mix(in srgb, var(--accent) 70%, var(--muted));
+		background: color-mix(in srgb, var(--on-inverse) 35%, var(--inverse));
 	}
 
 	.lamp[data-state='SAVED'] {
@@ -590,7 +590,7 @@
 	.label {
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
-		font-size: 0.95rem;
+		font-size: 0.8rem;
 		line-height: 1;
 	}
 
