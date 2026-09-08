@@ -1,5 +1,4 @@
 <script>
-	import { deserialize } from '$app/forms';
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import IconList from '@tabler/icons-svelte-runes/icons/list';
@@ -17,7 +16,8 @@
 	import LibraryTrackRow from '#lib/components/library/LibraryTrackRow.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 	import { AUDIO_FILE_ACCEPT, isAudioFile } from '#lib/media/audio-accept.js';
-	import { extractAudioMetadata } from '#lib/media/audio-metadata.js';
+	import { extractAudioMetadata, formatBytes } from '#lib/media/audio-metadata.js';
+	import { postFormAction } from '#lib/media/form-action-upload.js';
 	import { isTagEmbedPending, tagEmbedNotice } from '#lib/media/tag-embed-status.js';
 	import {
 		DEFAULT_TRACK_MEDIA_TYPE,
@@ -42,6 +42,27 @@
 	export const snapshot = paged.snapshot;
 
 	let uploading = $state(false);
+	/** @type {import('#lib/media/form-action-upload.js').UploadProgress | null} */
+	let uploadProgress = $state(null);
+	const uploadPercent = $derived(uploadProgress?.percent ?? null);
+	const uploadBusyLabel = $derived(
+		uploadPercent != null ? `Uploading ${uploadPercent}%` : 'Uploading…'
+	);
+	const uploadMeta = $derived.by(() => {
+		const progress = uploadProgress;
+		if (!progress) return '';
+		const parts = [];
+		if (progress.lengthComputable) {
+			parts.push(`${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}`);
+			if (progress.percent != null) parts.push(`${progress.percent}%`);
+		} else if (progress.loaded > 0) {
+			parts.push(formatBytes(progress.loaded));
+		}
+		if (progress.bytesPerSec != null) {
+			parts.push(`~${formatBytes(progress.bytesPerSec)}/s`);
+		}
+		return parts.join(' · ');
+	});
 	/** @type {string | null} */
 	let uploadError = $state(null);
 	/** @type {string | null} */
@@ -447,8 +468,9 @@
 			body.set('container', meta.technical.container ?? '');
 			if (meta.cover) body.set('cover', meta.cover);
 
-			const res = await fetch('?/create', { method: 'POST', body });
-			const result = deserialize(await res.text());
+			const result = await postFormAction('?/create', body, (progress) => {
+				uploadProgress = progress;
+			});
 
 			if (result.type === 'failure') {
 				const message =
@@ -485,11 +507,29 @@
 			uploadError = 'Upload failed. Try again.';
 		} finally {
 			uploading = false;
+			uploadProgress = null;
 		}
 	}
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
+
+{#snippet uploadBar()}
+	<div
+		class="upload-progress-track"
+		class:indeterminate={uploadPercent == null}
+		role="progressbar"
+		aria-valuemin="0"
+		aria-valuemax="100"
+		aria-valuenow={uploadPercent ?? undefined}
+		aria-label="Upload progress"
+	>
+		<span
+			class="upload-progress-fill"
+			style:width={uploadPercent != null ? `${uploadPercent}%` : undefined}
+		></span>
+	</div>
+{/snippet}
 
 <svelte:head>
 	<title>Music Library | SNDBNK</title>
@@ -509,7 +549,15 @@
 >
 	{#if dropActive}
 		<div class="drop-veil" aria-hidden="true">
-			<p class="drop-veil-copy">{uploading ? 'Uploading…' : 'Drop audio to upload'}</p>
+			<div class="drop-veil-card">
+				<p class="drop-veil-copy">{uploading ? uploadBusyLabel : 'Drop audio to upload'}</p>
+				{#if uploading}
+					{@render uploadBar()}
+					{#if uploadMeta}
+						<p class="upload-progress-meta">{uploadMeta}</p>
+					{/if}
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -552,13 +600,23 @@
 				{:else}
 					<button class="pressable" type="button" disabled={uploading} onclick={openUploadPicker}>
 						<IconUpload size={16} stroke={1.75} aria-hidden="true" />
-						{uploading ? 'Uploading…' : 'Upload'}
+						{uploading ? uploadBusyLabel : 'Upload'}
 					</button>
 				{/if}
 			</div>
 		</header>
 
-		{#if uploadError && !uploading}
+		{#if uploading}
+			<div class="upload-progress" role="status" aria-live="polite" aria-busy="true">
+				<div class="upload-progress-head">
+					<span class="upload-progress-label">{uploadBusyLabel}</span>
+					{#if uploadMeta}
+						<span class="upload-progress-meta">{uploadMeta}</span>
+					{/if}
+				</div>
+				{@render uploadBar()}
+			</div>
+		{:else if uploadError}
 			<p class="upload-error" role="alert" aria-live="polite">{uploadError}</p>
 		{:else if saveNotice}
 			<p class="save-notice" role="status" aria-live="polite">{saveNotice}</p>
@@ -643,7 +701,7 @@
 										onclick={openUploadPicker}
 									>
 										<IconUpload size={16} stroke={1.75} aria-hidden="true" />
-										{uploading ? 'Uploading…' : 'Upload'}
+										{uploading ? uploadBusyLabel : 'Upload'}
 									</button>
 								{/if}
 							</div>
@@ -785,16 +843,82 @@
 		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
 	}
 
-	.drop-veil-copy {
-		margin: 0;
+	.drop-veil-card {
+		display: grid;
+		gap: 0.55rem;
+		min-width: min(22rem, 86vw);
 		padding: 0.75rem 1.1rem;
 		border: 1px solid var(--ink);
 		background: var(--paper);
 		box-shadow: 4px 4px 0 var(--hard-shadow);
+	}
+
+	.drop-veil-copy {
+		margin: 0;
 		font-family: var(--font-lcd);
 		font-size: 1.35rem;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
+	}
+
+	.upload-progress {
+		display: grid;
+		gap: 0.35rem;
+		padding: 0.55rem 0.75rem;
+		border: 1px solid var(--ink);
+		background: color-mix(in srgb, var(--accent) 10%, var(--paper));
+	}
+
+	.upload-progress-head {
+		display: flex;
+		gap: 0.75rem;
+		align-items: baseline;
+		justify-content: space-between;
+		min-width: 0;
+	}
+
+	.upload-progress-label {
+		min-width: 0;
+		overflow: hidden;
+		font-family: var(--font-lcd);
+		font-size: 0.95rem;
+		letter-spacing: 0.06em;
+		text-overflow: ellipsis;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.upload-progress-meta {
+		margin: 0;
+		flex-shrink: 0;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.upload-progress-track {
+		height: 0.55rem;
+		overflow: hidden;
+		border: 1px solid var(--ink);
+		background: transparent;
+	}
+
+	.upload-progress-fill {
+		display: block;
+		height: 100%;
+		width: 0;
+		background: var(--accent);
+	}
+
+	.upload-progress-track.indeterminate .upload-progress-fill {
+		width: 32%;
+		animation: upload-indeterminate 1.1s ease-in-out infinite;
+	}
+
+	.drop-veil-card .upload-progress-track {
+		width: 100%;
 	}
 
 	.upload-error,
@@ -1158,6 +1282,12 @@
 		.media-aside {
 			transition: none;
 		}
+
+		.upload-progress-track.indeterminate .upload-progress-fill {
+			width: 100%;
+			opacity: 0.45;
+			animation: none;
+		}
 	}
 
 	@media (max-width: 640px) {
@@ -1213,6 +1343,15 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
+		}
+	}
+
+	@keyframes upload-indeterminate {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(350%);
 		}
 	}
 </style>
