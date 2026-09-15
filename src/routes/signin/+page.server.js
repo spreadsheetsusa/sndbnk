@@ -4,6 +4,7 @@ import { APIError } from 'better-auth/api';
 import { auth } from '#lib/server/auth';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
+import { resolveSignInEmail } from '#lib/server/signin';
 
 export const load = ({ locals, url }) => {
 	if (locals.user) {
@@ -17,23 +18,28 @@ export const actions = {
 	default: async (event) => {
 		const { cookies, request, url } = event;
 		const formData = await request.formData();
-		const email = formData.get('email')?.toString().trim() ?? '';
+		const identifier =
+			formData.get('identifier')?.toString().trim() ||
+			formData.get('email')?.toString().trim() ||
+			'';
 		const password = formData.get('password')?.toString() ?? '';
 
-		if (!email || !password) {
-			return fail(400, { message: 'Enter your email and password.', email });
+		if (!identifier || !password) {
+			return fail(400, { message: 'Enter your email or username and password.', identifier });
 		}
 
-		const limited = rateLimit(`signin:${clientIp(event)}:${email.toLowerCase()}`, {
+		const limited = rateLimit(`signin:${clientIp(event)}:${identifier.toLowerCase()}`, {
 			windowMs: 10 * 60 * 1000,
 			max: 20
 		});
 		if (!limited.ok) {
 			return fail(429, {
 				message: 'Too many sign-in attempts. Try again in a few minutes.',
-				email
+				identifier
 			});
 		}
+
+		const email = await resolveSignInEmail(identifier);
 
 		try {
 			await auth.api.signInEmail({
@@ -42,9 +48,9 @@ export const actions = {
 			});
 		} catch (error) {
 			if (error instanceof APIError) {
-				return fail(400, { message: error.message || 'We could not sign you in.', email });
+				return fail(400, { message: error.message || 'We could not sign you in.', identifier });
 			}
-			return fail(500, { message: 'Something went wrong. Please try again.', email });
+			return fail(500, { message: 'Something went wrong. Please try again.', identifier });
 		}
 
 		cookies.set('sndbnk-auth-notice', 'signed-in', {
