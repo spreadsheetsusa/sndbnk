@@ -8,7 +8,7 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `/`                                | optional               | Marketing landing on apex; the composed Home `site_page` on a tenant host                                   |
 | `/[...path]`                       | public (tenant only)   | Flat composed tenant page such as `/about`; exact `site_page.path` lookup or 404                            |
-| `/signin`, `/signup`               | redirects if signed in | email/password auth, then `303 → /`                                                                         |
+| `/signin`, `/signup`               | redirects if signed in | email or username + password auth, then `303 → /`                                                           |
 | `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                                                     |
 | `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`                                     |
 | `/settings`                        | required               | tabbed profile (incl. email change) / linked accounts / plan / domain / site / storage                      |
@@ -131,8 +131,8 @@ Single-form routes just use `message`.
 `fail()` carries the user's input so the form repopulates without client-side state:
 
 ```js
-if (!email || !password) {
-	return fail(400, { message: 'Enter your email and password.', email });
+if (!identifier || !password) {
+	return fail(400, { message: 'Enter your email or username and password.', identifier });
 }
 ```
 

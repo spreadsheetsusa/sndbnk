@@ -9,7 +9,7 @@
 	/**
 	 * @type {{
 	 *   data: { passwordReset: boolean },
-	 *   form: { message?: string, email?: string } | null | undefined
+	 *   form: { message?: string, identifier?: string, email?: string } | null | undefined
 	 * }}
 	 */
 	let { data, form } = $props();
@@ -77,13 +77,16 @@
 			{/if}
 
 			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
-				<label for="email">Email</label>
+				<label for="identifier">Email or username</label>
 				<input
-					id="email"
-					name="email"
-					type="email"
-					value={form?.email ?? ''}
-					autocomplete="email"
+					id="identifier"
+					name="identifier"
+					type="text"
+					value={form?.identifier ?? form?.email ?? ''}
+					placeholder="Email or username"
+					autocomplete="username"
+					autocapitalize="none"
+					spellcheck="false"
 					required
 					aria-invalid={form?.message && !submitting ? 'true' : undefined}
 					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
