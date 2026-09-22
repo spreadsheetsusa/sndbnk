@@ -2,7 +2,7 @@
 	import { browser } from '$app/env';
 	import { onMount } from 'svelte';
 	import './layout.css';
-	import favicon from '#lib/assets/favicon.svg';
+	import favicon from '#lib/assets/favicon.png';
 	import EqPanel from '#lib/components/player/EqPanel.svelte';
 	import MilkdropWindow from '#lib/components/player/MilkdropWindow.svelte';
 	import { eq } from '#lib/player/eq.svelte.js';
@@ -94,7 +94,7 @@
 		<link rel="icon" href={tenantLogo} />
 		<link rel="apple-touch-icon" href={tenantLogo} />
 	{:else}
-		<link rel="icon" href={favicon} />
+		<link rel="icon" type="image/png" sizes="64x64" href={favicon} />
 		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 	{/if}
 	<link rel="manifest" href="/manifest.webmanifest" />
