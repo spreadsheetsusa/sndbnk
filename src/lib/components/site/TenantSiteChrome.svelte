@@ -4,6 +4,7 @@
 		resolveSiteAppearance,
 		writeSiteVisitorAppearance
 	} from '#lib/builder/site-appearance.js';
+	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
 	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import HeaderPlayer from '#lib/components/player/HeaderPlayer.svelte';
@@ -21,15 +22,16 @@
 	 *     appearance?: 'light' | 'dark' | 'user',
 	 *     themePersona?: string,
 	 *     themePalette?: import('#lib/builder/theme-persona.js').ThemeSlotColors | null,
-	 *     hideBranding?: boolean,
+	 *     logoUrl?: string | null,
+	 *     headerAccent?: string | null,
+	 *     footerAccent?: string | null,
 	 *     header?: PageBlockInstance | null,
 	 *     footer?: PageBlockInstance | null
 	 *   },
-	 *   platformOrigin?: string,
 	 *   children: import('svelte').Snippet
 	 * }}
 	 */
-	let { site, platformOrigin = 'https://sndbnk.com', children } = $props();
+	let { site, children } = $props();
 
 	const appearanceMode = $derived(
 		site.appearance === 'dark' || site.appearance === 'user' ? site.appearance : 'light'
@@ -73,12 +75,15 @@
 
 <div class="tenant-site" style={themeStyle}>
 	{#if site.header && HeaderBlock}
-		<HeaderBlock
-			{...site.header.props}
-			showAppearanceToggle={appearanceMode === 'user'}
-			{resolvedAppearance}
-			onAppearanceToggle={toggleAppearance}
-		/>
+		<div class="chrome-accent" style={chromeAccentStyle(site.headerAccent)}>
+			<HeaderBlock
+				{...site.header.props}
+				logoUrl={site.logoUrl ?? ''}
+				showAppearanceToggle={appearanceMode === 'user'}
+				{resolvedAppearance}
+				onAppearanceToggle={toggleAppearance}
+			/>
+		</div>
 	{:else if player.current}
 		<div class="tenant-player">
 			<div class="player-shell">
@@ -90,13 +95,9 @@
 	{@render children()}
 
 	{#if site.footer && FooterBlock}
-		<FooterBlock {...site.footer.props} />
-	{/if}
-
-	{#if !site.hideBranding}
-		<footer class="powered">
-			<a href={platformOrigin} rel="noopener">Powered by SNDBNK</a>
-		</footer>
+		<div class="chrome-accent" style={chromeAccentStyle(site.footerAccent)}>
+			<FooterBlock {...site.footer.props} />
+		</div>
 	{/if}
 </div>
 
@@ -123,21 +124,7 @@
 		margin-inline: auto;
 	}
 
-	.powered {
-		padding: 1rem var(--site-shell-pad-x);
-		text-align: center;
-	}
-
-	.powered a {
-		color: var(--muted);
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.08em;
-		text-decoration: none;
-		text-transform: uppercase;
-	}
-
-	.powered a:hover {
-		color: var(--ink);
+	.chrome-accent {
+		display: contents;
 	}
 </style>

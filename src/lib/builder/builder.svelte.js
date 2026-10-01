@@ -130,6 +130,16 @@ class Builder {
 	siteName = $state('');
 	/** Site accent hex (`#RRGGBB`) or empty for default. @type {string} */
 	accentColor = $state('');
+	/** Navbar accent override; empty inherits the site accent. @type {string} */
+	headerAccent = $state('');
+	/** Footer accent override; empty inherits the site accent. @type {string} */
+	footerAccent = $state('');
+	/** Resolved logo URL (library cover or uploaded file). @type {string} */
+	logoUrl = $state('');
+	/** Library track whose cover is the logo. @type {string | null} */
+	logoTrackId = $state(/** @type {string | null} */ (null));
+	/** @type {string | null} */
+	logoError = $state(null);
 	/** Site appearance mode: locked light/dark or visitor choice. @type {SiteAppearanceMode} */
 	appearance = $state(/** @type {SiteAppearanceMode} */ ('light'));
 	/** Canvas light/dark (locked when appearance is light/dark). @type {ResolvedAppearance} */
@@ -228,6 +238,10 @@ class Builder {
 	 *   siteId: string,
 	 *   siteName?: string,
 	 *   accentColor?: string,
+	 *   headerAccent?: string,
+	 *   footerAccent?: string,
+	 *   logoUrl?: string | null,
+	 *   logoTrackId?: string | null,
 	 *   appearance?: SiteAppearanceMode,
 	 *   themePersona?: ThemePersona | string,
 	 *   themePalette?: ThemeSlotColors | null,
@@ -244,6 +258,11 @@ class Builder {
 		// Keep live theme/chrome across page-metadata reloads; only seed on site change / first load.
 		if (siteChanging) {
 			this.accentColor = data.accentColor ?? '';
+			this.headerAccent = data.headerAccent ?? '';
+			this.footerAccent = data.footerAccent ?? '';
+			this.logoUrl = data.logoUrl ?? '';
+			this.logoTrackId = data.logoTrackId ?? null;
+			this.logoError = null;
 			this.appearance = normalizeSiteAppearanceMode(data.appearance);
 			this.themePersona = normalizeThemePersona(data.themePersona);
 			const stored = parseThemePalette(data.themePalette);
@@ -631,6 +650,62 @@ class Builder {
 	/**
 	 * @param {string} value
 	 */
+	/**
+	 * @param {string} value
+	 */
+	setHeaderAccent(value) {
+		this.headerAccent = value;
+		const trimmed = value.trim();
+		if (!trimmed || /^#[0-9A-Fa-f]{6}$/.test(trimmed)) this.persistTheme();
+	}
+
+	clearHeaderAccent() {
+		this.headerAccent = '';
+		this.persistTheme({ immediate: true });
+	}
+
+	/**
+	 * @param {string} value
+	 */
+	setFooterAccent(value) {
+		this.footerAccent = value;
+		const trimmed = value.trim();
+		if (!trimmed || /^#[0-9A-Fa-f]{6}$/.test(trimmed)) this.persistTheme();
+	}
+
+	clearFooterAccent() {
+		this.footerAccent = '';
+		this.persistTheme({ immediate: true });
+	}
+
+	/**
+	 * @param {string | null} trackId
+	 */
+	async setLogoTrack(trackId) {
+		if (!browser || !this.siteId) return;
+		this.logoError = null;
+		try {
+			const res = await fetch(`/api/sites/${this.siteId}/logo`, {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ trackId })
+			});
+			if (!res.ok) {
+				this.logoError = (await res.text()) || 'Could not save the logo.';
+				return;
+			}
+			const data = await res.json();
+			this.logoTrackId = data.logoTrackId ?? null;
+			this.logoUrl = data.logoUrl ?? '';
+			this.#markSaved();
+		} catch {
+			this.logoError = 'Could not save the logo.';
+		}
+	}
+
+	/**
+	 * @param {string} value
+	 */
 	setAccentColor(value) {
 		this.accentColor = value;
 		const trimmed = value.trim();
@@ -864,7 +939,9 @@ class Builder {
 					accentColor: this.accentColor,
 					appearance: this.appearance,
 					themePersona: this.themePersona,
-					themePalette: this.themePaletteCustom ? slotColorsFromChips(this.themeChips) : null
+					themePalette: this.themePaletteCustom ? slotColorsFromChips(this.themeChips) : null,
+					headerAccent: this.headerAccent,
+					footerAccent: this.footerAccent
 				})
 			});
 			if (gen !== this.#themePersistGen) return;
@@ -875,6 +952,8 @@ class Builder {
 			}
 			const data = await res.json();
 			if (typeof data.accentColor === 'string') this.accentColor = data.accentColor;
+			if (typeof data.headerAccent === 'string') this.headerAccent = data.headerAccent;
+			if (typeof data.footerAccent === 'string') this.footerAccent = data.footerAccent;
 			if (data.appearance === 'light' || data.appearance === 'dark' || data.appearance === 'user') {
 				this.appearance = data.appearance;
 				this.#syncPreviewAppearance();

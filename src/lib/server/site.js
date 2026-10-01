@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 
 import {
 	DEFAULT_THEME_PERSONA,
@@ -16,7 +16,7 @@ import {
 } from '#lib/components/blocks/types.js';
 import { canRemoveBranding, canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
 import { db } from '#lib/server/db';
-import { site } from '#lib/server/db/schema';
+import { site, track } from '#lib/server/db/schema';
 import { readFileHead, sniffImage } from '#lib/server/media/sniff';
 import {
 	ensureRootPage,
@@ -64,6 +64,32 @@ export function canEditSite(planId) {
  */
 export function siteLogoUrl(userId, updatedAt) {
 	return `/api/site-logo/${userId}?v=${updatedAt.getTime()}`;
+}
+
+/**
+ * Cover URL when the site logo points at a library track that still has a cover.
+ * @param {string} userId
+ * @param {string | null | undefined} logoTrackId
+ */
+async function libraryCoverUrl(userId, logoTrackId) {
+	if (!logoTrackId) return null;
+	const rows = await db
+		.select({ coverFilename: track.coverFilename })
+		.from(track)
+		.where(and(eq(track.id, logoTrackId), eq(track.userId, userId)))
+		.limit(1);
+	if (!rows[0]?.coverFilename) return null;
+	return `/api/media/${logoTrackId}/cover`;
+}
+
+/**
+ * Library cover wins over an uploaded logo file.
+ * @param {typeof site.$inferSelect} row
+ */
+async function resolveLogoUrl(row) {
+	const library = await libraryCoverUrl(row.userId, row.logoTrackId);
+	if (library) return library;
+	return row.logoFilename ? siteLogoUrl(row.userId, row.updatedAt) : null;
 }
 
 /**
@@ -116,9 +142,12 @@ export async function getSitePublic(userId) {
 		id: row.id,
 		name: row.name ?? null,
 		description: row.description ?? null,
-		logoUrl: row.logoFilename ? siteLogoUrl(userId, row.updatedAt) : null,
+		logoUrl: await resolveLogoUrl(row),
+		logoTrackId: row.logoTrackId ?? null,
 		ogImageUrl: row.ogImageFilename ? siteOgImageUrl(userId, row.updatedAt) : null,
 		accentColor: row.accentColor ?? null,
+		headerAccent: row.headerAccent ?? null,
+		footerAccent: row.footerAccent ?? null,
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -148,7 +177,10 @@ export function serializeSiteOwner(row) {
 		name: row.name ?? '',
 		description: row.description ?? '',
 		logoUrl: row.logoFilename ? siteLogoUrl(row.userId, row.updatedAt) : null,
+		logoTrackId: row.logoTrackId ?? null,
 		accentColor: row.accentColor ?? '',
+		headerAccent: row.headerAccent ?? '',
+		footerAccent: row.footerAccent ?? '',
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -164,6 +196,39 @@ export function serializeSiteOwner(row) {
 		header: parseChromeBlock(row.headerBlock, 'header'),
 		footer: parseChromeBlock(row.footerBlock, 'footer')
 	};
+}
+
+/**
+ * Owner shape with the library logo resolved (cover wins over the uploaded file).
+ * @param {typeof site.$inferSelect} row
+ */
+export async function presentSiteOwner(row) {
+	const owner = serializeSiteOwner(row);
+	owner.logoUrl = await resolveLogoUrl(row);
+	return owner;
+}
+
+/**
+ * Covers the owner can pick as a site logo.
+ * @param {string} userId
+ */
+export async function listSiteLogoMedia(userId) {
+	const rows = await db
+		.select({
+			id: track.id,
+			title: track.title,
+			audioFilename: track.audioFilename
+		})
+		.from(track)
+		.where(and(eq(track.userId, userId), isNotNull(track.coverFilename)))
+		.orderBy(desc(track.createdAt))
+		.limit(100);
+
+	return rows.map((row) => ({
+		trackId: row.id,
+		filename: row.title.trim() || row.audioFilename || 'cover',
+		thumbUrl: `/api/media/${row.id}/cover`
+	}));
 }
 
 /**
@@ -409,7 +474,7 @@ export async function ensureSiteChrome(siteId) {
 	await stripChromeFromAllPages(siteId);
 
 	const updated = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
-	return updated[0] ? serializeSiteOwner(updated[0]) : null;
+	return updated[0] ? presentSiteOwner(updated[0]) : null;
 }
 
 /**
@@ -529,7 +594,9 @@ export function normalizeSiteThemePalette(raw) {
  *   accentColor: string,
  *   appearance: string,
  *   themePersona?: string,
- *   themePalette?: unknown
+ *   themePalette?: unknown,
+ *   headerAccent?: string | null,
+ *   footerAccent?: string | null
  * }} input
  */
 export async function updateSiteTheme(input) {
@@ -572,6 +639,17 @@ export async function updateSiteTheme(input) {
 			: null;
 	}
 
+	if (Object.prototype.hasOwnProperty.call(input, 'headerAccent')) {
+		const headerAccent = normalizeAccentColor(input.headerAccent);
+		if (!headerAccent.ok) return headerAccent;
+		patch.headerAccent = headerAccent.accentColor;
+	}
+	if (Object.prototype.hasOwnProperty.call(input, 'footerAccent')) {
+		const footerAccent = normalizeAccentColor(input.footerAccent);
+		if (!footerAccent.ok) return footerAccent;
+		patch.footerAccent = footerAccent.accentColor;
+	}
+
 	await db.update(site).set(patch).where(eq(site.id, row.id));
 
 	const themePalette =
@@ -584,7 +662,15 @@ export async function updateSiteTheme(input) {
 		accentColor: accentResult.accentColor ?? '',
 		appearance: appearanceResult.appearance,
 		themePersona: personaResult.themePersona,
-		themePalette
+		themePalette,
+		headerAccent:
+			'headerAccent' in patch
+				? /** @type {string | null} */ ((patch.headerAccent) ?? '')
+				: (row.headerAccent ?? ''),
+		footerAccent:
+			'footerAccent' in patch
+				? /** @type {string | null} */ ((patch.footerAccent) ?? '')
+				: (row.footerAccent ?? '')
 	};
 }
 
@@ -734,6 +820,7 @@ export async function saveSiteLogo(userId, plan, file) {
 		.set({
 			logoFilename: validated.filename,
 			logoMime: validated.mime,
+			logoTrackId: null,
 			updatedAt: new Date()
 		})
 		.where(eq(site.userId, userId));
@@ -763,11 +850,51 @@ export async function removeSiteLogo(userId, plan) {
 	if (existing) {
 		await db
 			.update(site)
-			.set({ logoFilename: null, logoMime: null, updatedAt: new Date() })
+			.set({ logoFilename: null, logoMime: null, logoTrackId: null, updatedAt: new Date() })
 			.where(eq(site.userId, userId));
 	}
 
 	return { ok: /** @type {const} */ (true) };
+}
+
+/**
+ * Point the site logo at a library cover, or clear that pick.
+ * @param {string} userId
+ * @param {string | null | undefined} plan
+ * @param {string} siteId
+ * @param {string | null} trackId
+ */
+export async function setSiteLogoTrack(userId, plan, siteId, trackId) {
+	if (!canEditSite(plan)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Site settings need Vault or higher. Upgrade from the Billing tab.'
+		};
+	}
+
+	const row = await getOwnedSite(userId, siteId);
+	if (!row) return { ok: /** @type {const} */ (false), message: 'Site not found.' };
+
+	if (trackId) {
+		const covers = await db
+			.select({ coverFilename: track.coverFilename })
+			.from(track)
+			.where(and(eq(track.id, trackId), eq(track.userId, userId)))
+			.limit(1);
+		if (!covers[0]?.coverFilename) {
+			return { ok: /** @type {const} */ (false), message: 'That file has no cover image.' };
+		}
+	}
+
+	const updatedAt = new Date();
+	await db.update(site).set({ logoTrackId: trackId, updatedAt }).where(eq(site.id, row.id));
+
+	const logoUrl = await resolveLogoUrl({ ...row, logoTrackId: trackId, updatedAt });
+	return {
+		ok: /** @type {const} */ (true),
+		logoTrackId: trackId,
+		logoUrl
+	};
 }
 
 /**

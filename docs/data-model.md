@@ -91,13 +91,15 @@ custom-domain hosts only; apex `/users/{username}` ignores it. Owner management 
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `id`                                        | UUID route key for `/sites/{id}` (unique; `userId` remains PK)                                                        |
 | `name` / `description`                      | Tenant title and meta description                                                                                     |
-| `logoFilename` / `logoMime`                 | Local-disk logo (`site-logo/`); also used as favicon when set                                                         |
+| `logoFilename` / `logoMime`                 | Uploaded logo (`site-logo/`); favicon fallback when no library cover is chosen                                        |
+| `logoTrackId`                               | Library track whose cover is the site logo; wins over `logoFilename` while that cover exists                          |
 | `ogImageFilename` / `ogImageMime`           | Social share image (`site-og/`); falls back to logo then avatar                                                       |
 | `accentColor`                               | `#RRGGBB` tenant accent; null keeps listener/default accent                                                           |
+| `headerAccent` / `footerAccent`             | `#RRGGBB` navbar and footer accents; null falls back to the site theme accent                                         |
 | `appearance`                                | `light` \| `dark` \| `user` — locked modes, or visitor toggle via header blocks                                       |
 | `themePersona`                              | Persona id (`mono` \| `analogous` \| `complementary` \| `split` \| `soft` \| `vivid`); seeds slot palette from accent |
 | `themePalette`                              | JSON `{ primary, secondary, tertiary, surface, success, error }` hex map; null = derive from accent + persona         |
-| `hideBranding`                              | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding`                                                     |
+| `hideBranding`                              | Legacy Studio flag. The footer no longer renders a platform credit                                                    |
 | `sidebarEnabled`                            | Master toggle for profile sidebar on **custom domains** only                                                          |
 | `sidebarStats`                              | Stats card (counts, Follow, reposts); default on                                                                      |
 | `sidebarFansAlsoLike`                       | Fans Also Like card; default on                                                                                       |
@@ -115,12 +117,12 @@ subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
 Site chrome (header/footer) is site-wide, not per-page. `ensureSiteChrome()` seeds defaults
 (`header.logo-links-cta` + `footer.minimal`, brand text from `site.name`) on setup complete and
 builder load; it also lifts any legacy header/footer instances out of page `blocks`. Edited via
-`PUT /api/sites/{id}/chrome`. Accent + appearance + theme persona edit via Inspector **Site** theme or
-`PUT /api/sites/{id}/theme` (also Settings → Site / setup wizard).
+`PUT /api/sites/{id}/chrome`. Accent, appearance, theme persona, and navbar/footer accents edit via
+Inspector **Site** or `PUT /api/sites/{id}/theme`. The library logo is `PUT /api/sites/{id}/logo`.
 
 Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,
 `/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
-`hideBranding` needs Studio+ (`canRemoveBranding`); sidebar toggles need Studio+
+sidebar toggles need Studio+
 (`canUseCustomDomain`).
 
 ### `site_page` — builder pages for a tenant site

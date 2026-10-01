@@ -501,6 +501,7 @@
 	// Re-resolve canvas colors when the theme or accent changes.
 	$effect(() => {
 		void sitePlayerAccent.hex;
+		void sitePlayerAccent.paint;
 		void $accentColor;
 		const theme = $resolvedTheme;
 		const accent = paintHex(container);

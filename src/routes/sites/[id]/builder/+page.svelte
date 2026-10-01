@@ -2,6 +2,7 @@
 	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
 	import { onDestroy } from 'svelte';
 	import { builder } from '#lib/builder/builder.svelte.js';
+	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
 	import {
@@ -153,6 +154,10 @@
 			siteId: data.site.id,
 			siteName: data.site.name,
 			accentColor: data.site.accentColor ?? '',
+			headerAccent: data.site.headerAccent ?? '',
+			footerAccent: data.site.footerAccent ?? '',
+			logoUrl: data.site.logoUrl ?? '',
+			logoTrackId: data.site.logoTrackId ?? null,
 			appearance:
 				data.site.appearance === 'dark' || data.site.appearance === 'user'
 					? data.site.appearance
@@ -181,6 +186,9 @@
 	// listener color: it is outside the preview, so its computed accent is the platform one.
 	$effect(() => {
 		sitePlayerAccent.hex = previewPalette.accent;
+		void builder.headerAccent;
+		void builder.footerAccent;
+		sitePlayerAccent.paint++;
 	});
 	onDestroy(() => {
 		sitePlayerAccent.hex = null;
@@ -384,9 +392,14 @@
 			<div class="preview" style={previewStyle}>
 				{#if builder.header && HeaderBlock}
 					<!-- Select overlay sits under the player so transport stays clickable. -->
-					<div class="chrome instance" class:selected={builder.selectedChrome === 'header'}>
+					<div
+						class="chrome instance"
+						class:selected={builder.selectedChrome === 'header'}
+						style={chromeAccentStyle(builder.headerAccent)}
+					>
 						<HeaderBlock
 							{...builder.header.props}
+							logoUrl={builder.logoUrl}
 							showAppearanceToggle={builder.appearance === 'user'}
 							resolvedAppearance={builder.previewAppearance}
 							onAppearanceToggle={() => builder.togglePreviewAppearance()}
@@ -429,7 +442,7 @@
 								onclick={() => builder.selectInstance(instance.id)}
 							>
 								{#if Block}
-									{#if instance.type === 'catalog.profile'}
+									{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
 										<Block
 											{...instance.props}
 											profileData={profileCatalog}
@@ -496,7 +509,11 @@
 				</div>
 
 				{#if builder.footer && FooterBlock}
-					<div class="chrome instance" class:selected={builder.selectedChrome === 'footer'}>
+					<div
+						class="chrome instance"
+						class:selected={builder.selectedChrome === 'footer'}
+						style={chromeAccentStyle(builder.footerAccent)}
+					>
 						<button
 							type="button"
 							class="instance-hit"
@@ -527,7 +544,7 @@
 	</main>
 
 	<BuilderToolbar />
-	<InspectorHud siteId={data.site.id} {form} />
+	<InspectorHud siteId={data.site.id} {form} logoMedia={data.logoMedia} />
 	<BlocksHud />
 </div>
 

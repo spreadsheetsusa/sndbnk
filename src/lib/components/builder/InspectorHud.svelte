@@ -14,14 +14,18 @@
 		getBlockDefinition,
 		headerBlockCatalog
 	} from '#lib/components/blocks/registry.js';
+	import ChromeAccentControl from '#lib/components/builder/ChromeAccentControl.svelte';
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
+	import LogoMediaSelect from '#lib/components/builder/LogoMediaSelect.svelte';
 	import PersonaPaletteEditor from '#lib/components/builder/PersonaPaletteEditor.svelte';
 	import ThemeControls from '#lib/components/ThemeControls.svelte';
 	import { isSafeHref } from '#lib/safe-href.js';
+	import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 
 	/**
 	 * @type {{
 	 *   siteId: string,
+	 *   logoMedia?: Array<{ trackId: string, filename: string, thumbUrl: string }>,
 	 *   form?: {
 	 *     pagesMessage?: string,
 	 *     pagesSuccess?: string,
@@ -37,7 +41,7 @@
 	 *   } | null
 	 * }}
 	 */
-	let { siteId, form = null } = $props();
+	let { siteId, form = null, logoMedia = [] } = $props();
 
 	let submitting = $state(false);
 
@@ -49,6 +53,7 @@
 	const selectedDef = $derived(selected ? getBlockDefinition(selected.type) : null);
 	const headerDef = $derived(builder.header ? getBlockDefinition(builder.header.type) : null);
 	const footerDef = $derived(builder.footer ? getBlockDefinition(builder.footer.type) : null);
+	const siteAccent = $derived(normalizeHex(builder.accentColor) ?? ACCENTS[0].value);
 
 	/** Depth for folder indent; root = 0. */
 	const depthById = $derived.by(() => {
@@ -590,6 +595,17 @@
 							<p class="chrome-type">{headerDef.label}</p>
 						{/if}
 					</header>
+					<LogoMediaSelect media={logoMedia} />
+					{#if builder.logoError}
+						<p class="form-error" role="alert">{builder.logoError}</p>
+					{/if}
+					<ChromeAccentControl
+						label="Nav accent"
+						value={builder.headerAccent}
+						fallback={siteAccent}
+						onChange={(hex) => builder.setHeaderAccent(hex)}
+						onClear={() => builder.clearHeaderAccent()}
+					/>
 					{@render chromePicker('header', headerBlockCatalog, builder.header?.type ?? null)}
 					{@render chromeFields('header', builder.header, headerDef)}
 				</section>
@@ -612,6 +628,13 @@
 							<p class="chrome-type">{footerDef.label}</p>
 						{/if}
 					</header>
+					<ChromeAccentControl
+						label="Footer accent"
+						value={builder.footerAccent}
+						fallback={siteAccent}
+						onChange={(hex) => builder.setFooterAccent(hex)}
+						onClear={() => builder.clearFooterAccent()}
+					/>
 					{@render chromePicker('footer', footerBlockCatalog, builder.footer?.type ?? null)}
 					{@render chromeFields('footer', builder.footer, footerDef)}
 				</section>

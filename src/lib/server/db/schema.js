@@ -43,7 +43,7 @@ export const plan = sqliteTable('plan', {
 		.default(false),
 	allowSubdomain: integer('allow_subdomain', { mode: 'boolean' }).notNull().default(false),
 	allowCustomDomain: integer('allow_custom_domain', { mode: 'boolean' }).notNull().default(false),
-	/** Studio+: allow hiding “Powered by SNDBNK” on tenant hosts. */
+	/** Legacy Studio flag. Tenant footers no longer render a platform credit. */
 	allowRemoveBranding: integer('allow_remove_branding', { mode: 'boolean' })
 		.notNull()
 		.default(false),
@@ -124,8 +124,14 @@ export const site = sqliteTable(
 		description: text('description'),
 		logoFilename: text('logo_filename'),
 		logoMime: text('logo_mime'),
+		/** Track whose cover is the site logo. Wins over `logoFilename` while that cover exists. */
+		logoTrackId: text('logo_track_id'),
 		/** `#RRGGBB`; null keeps the listener/default accent. */
 		accentColor: text('accent_color'),
+		/** `#RRGGBB` navbar accent. Null falls back to `accentColor`. */
+		headerAccent: text('header_accent'),
+		/** `#RRGGBB` footer accent. Null falls back to `accentColor`. */
+		footerAccent: text('footer_accent'),
 		/** `light` | `dark` | `user`; locked modes or visitor toggle via header. */
 		appearance: text('appearance').notNull().default('light'),
 		/** Builder persona id (`mono` | `analogous` | …); derives palette from accent. */

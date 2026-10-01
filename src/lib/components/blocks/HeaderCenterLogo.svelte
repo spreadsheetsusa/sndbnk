@@ -5,6 +5,7 @@
 	/**
 	 * @type {{
 	 *   logoText?: string,
+	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
@@ -15,6 +16,7 @@
 	 */
 	let {
 		logoText = 'SNDBNK',
+		logoUrl = '',
 		links = [
 			{ label: 'Listen', href: '/' },
 			{ label: 'Watch', href: '/' },
@@ -34,7 +36,13 @@
 			<a href={link.href}>{link.label}</a>
 		{/each}
 	</nav>
-	<a class="logo" href="/">{logoText}</a>
+	<a class="logo" href="/">
+		{#if logoUrl}
+			<img src={logoUrl} alt="" />
+		{:else}
+			{logoText}
+		{/if}
+	</a>
 	<div class="end">
 		{#if showAppearanceToggle}
 			<AppearanceToggle {resolvedAppearance} {onAppearanceToggle} />
@@ -84,6 +92,14 @@
 		color: var(--theme-4, var(--ink));
 		text-decoration: none;
 		justify-self: center;
+	}
+
+	.logo img {
+		display: block;
+		height: 1.75rem;
+		width: auto;
+		max-width: 8rem;
+		object-fit: contain;
 	}
 
 	.end {

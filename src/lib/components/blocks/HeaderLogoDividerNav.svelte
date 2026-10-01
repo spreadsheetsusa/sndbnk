@@ -6,6 +6,7 @@
 	/**
 	 * @type {{
 	 *   logoText?: string,
+	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
@@ -16,6 +17,7 @@
 	 */
 	let {
 		logoText = 'SNDBNK',
+		logoUrl = '',
 		links = [
 			{ label: 'Releases', href: '/' },
 			{ label: 'Mixes', href: '/' },
@@ -30,7 +32,13 @@
 </script>
 
 <header class="block-header" class:has-player={!!player.current}>
-	<a class="logo" href="/">{logoText}</a>
+	<a class="logo" href="/">
+		{#if logoUrl}
+			<img src={logoUrl} alt="" />
+		{:else}
+			{logoText}
+		{/if}
+	</a>
 	<SiteNavPlayer />
 	<span class="divider" aria-hidden="true"></span>
 	<nav aria-label="Primary">
@@ -72,6 +80,14 @@
 		font-size: 1rem;
 		color: var(--theme-4, var(--ink));
 		text-decoration: none;
+	}
+
+	.logo img {
+		display: block;
+		height: 1.75rem;
+		width: auto;
+		max-width: 8rem;
+		object-fit: contain;
 	}
 
 	.divider {

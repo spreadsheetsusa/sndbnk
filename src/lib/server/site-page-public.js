@@ -27,7 +27,9 @@ export async function loadTenantSitePage({ locals, url, path }) {
 	}
 	if (!site || !page) return null;
 
-	const needsCatalog = page.blocks.some((block) => block.type === 'catalog.profile');
+	const needsCatalog = page.blocks.some(
+		(block) => block.type === 'catalog.profile' || block.type === 'catalog.stream'
+	);
 	const catalog = needsCatalog
 		? await loadPublicProfilePage({
 				username: locals.tenant.username,

@@ -36,6 +36,12 @@ export async function PUT({ locals, params, request, url }) {
 		themePersona: body?.themePersona?.toString() ?? '',
 		...(Object.prototype.hasOwnProperty.call(body ?? {}, 'themePalette')
 			? { themePalette: body.themePalette }
+			: {}),
+		...(Object.prototype.hasOwnProperty.call(body ?? {}, 'headerAccent')
+			? { headerAccent: body.headerAccent?.toString() ?? '' }
+			: {}),
+		...(Object.prototype.hasOwnProperty.call(body ?? {}, 'footerAccent')
+			? { footerAccent: body.footerAccent?.toString() ?? '' }
 			: {})
 	});
 
@@ -47,6 +53,8 @@ export async function PUT({ locals, params, request, url }) {
 		accentColor: result.accentColor,
 		appearance: result.appearance,
 		themePersona: result.themePersona,
-		themePalette: result.themePalette
+		themePalette: result.themePalette,
+		headerAccent: result.headerAccent,
+		footerAccent: result.footerAccent
 	});
 }

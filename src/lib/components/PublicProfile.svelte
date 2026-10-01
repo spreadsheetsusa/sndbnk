@@ -7,7 +7,7 @@
 	 * @type {{
 	 *   data: Record<string, any> & {
 	 *     profile: { name: string },
-	 *     site?: { name?: string | null, logoUrl?: string | null, hideBranding?: boolean } | null,
+	 *     site?: { name?: string | null, logoUrl?: string | null } | null,
 	 *     viaTenantHost: boolean,
 	 *     siteOrigin: string
 	 *   },
@@ -17,7 +17,6 @@
 	let { data, list } = $props();
 
 	const siteName = $derived(data.site?.name?.trim() || data.profile.name);
-	const showPoweredBy = $derived(data.viaTenantHost && !data.site?.hideBranding);
 </script>
 
 <div class="profile-page" class:tenant-host={data.viaTenantHost}>
@@ -40,10 +39,6 @@
 
 	{#if !data.viaTenantHost}
 		<SiteFooter bordered />
-	{:else if showPoweredBy}
-		<footer class="tenant-footer">
-			<a href={data.siteOrigin} rel="noopener">Powered by SNDBNK</a>
-		</footer>
 	{/if}
 </div>
 
@@ -98,25 +93,6 @@
 
 	.profile-page.tenant-host main {
 		padding-top: 1.5rem;
-	}
-
-	.tenant-footer {
-		padding: 1.25rem 0 0.25rem;
-		text-align: center;
-	}
-
-	.tenant-footer a {
-		color: var(--muted);
-		font-size: 0.68rem;
-		font-weight: 900;
-		letter-spacing: 0.08em;
-		text-decoration: none;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.tenant-footer a:hover {
-		color: var(--ink);
 	}
 
 	@media (max-width: 640px) {
