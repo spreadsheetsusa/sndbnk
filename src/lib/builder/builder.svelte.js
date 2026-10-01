@@ -2,6 +2,7 @@ import { browser } from '$app/env';
 import { deriveConsoleStatus, SAVED_HOLD_MS } from '#lib/builder/console-status.js';
 import { clampBounds, defaultSpawn, HUD_SPECS } from '#lib/builder/hud-bounds.js';
 import { resolveSiteAppearance } from '#lib/builder/site-appearance.js';
+import { siteMediaLibrary } from '#lib/builder/site-media.svelte.js';
 import {
 	chipsFromSlotColors,
 	DEFAULT_THEME_PERSONA,
@@ -63,7 +64,18 @@ const STORAGE_KEY = 'sndbnk:builder-hud';
 const BLOCK_MIME = 'application/x-sndbnk-block';
 const PERSIST_DEBOUNCE_MS = 320;
 
-/** @typedef {null | 'block'} BuilderTool */
+/** @typedef {null | 'block' | 'media'} BuilderTool */
+
+/**
+ * Where a library pick should land.
+ * @typedef {{
+ *   scope: 'block' | 'header' | 'footer',
+ *   instanceId: string | null,
+ *   listKey: string | null,
+ *   itemIndex: number | null,
+ *   idKey: string,
+ *   kindKey: string
+ * }} MediaPickTarget */
 /** @typedef {'pages' | 'page' | 'site' | 'block'} InspectorTab */
 /** @typedef {null | 'header' | 'footer'} ChromeKind */
 
@@ -112,6 +124,8 @@ class Builder {
 	inspectorTab = $state(/** @type {InspectorTab} */ ('pages'));
 	/** @type {BuilderTool} */
 	tool = $state(/** @type {BuilderTool} */ (null));
+	/** Active library slot, set when a block field asks to pick. @type {MediaPickTarget | null} */
+	mediaPick = $state(/** @type {MediaPickTarget | null} */ (null));
 	/** Catalog highlight in Blocks HUD. @type {string | null} */
 	selectedCatalogType = $state(null);
 	/** Selected canvas instance. @type {string | null} */
@@ -208,6 +222,10 @@ class Builder {
 		return this.tool === 'block';
 	}
 
+	get mediaOpen() {
+		return this.tool === 'media';
+	}
+
 	get blockMime() {
 		return BLOCK_MIME;
 	}
@@ -240,6 +258,7 @@ class Builder {
 	hydrate(data) {
 		const siteChanging = this.siteId !== data.siteId;
 		this.siteId = data.siteId;
+		void siteMediaLibrary.ensure(data.siteId);
 		this.siteName = data.siteName ?? '';
 		// Keep live theme/chrome across page-metadata reloads; only seed on site change / first load.
 		if (siteChanging) {
@@ -311,10 +330,119 @@ class Builder {
 	setTool(next) {
 		this.tool = next;
 		if (next !== 'block') this.selectedCatalogType = null;
+		if (next !== 'media') this.mediaPick = null;
 	}
 
 	toggleBlockTool() {
 		this.setTool(this.tool === 'block' ? null : 'block');
+	}
+
+	toggleMediaTool() {
+		this.setTool(this.tool === 'media' ? null : 'media');
+	}
+
+	/**
+	 * @param {MediaPickTarget} target
+	 */
+	openMediaPicker(target) {
+		this.mediaPick = target;
+		this.tool = 'media';
+	}
+
+	/**
+	 * @param {{ id: string, kind: 'image' | 'video' }} asset
+	 */
+	assignMedia(asset) {
+		const target = this.mediaPick;
+		if (!target) return;
+		this.#writeMedia(target, asset.id, asset.kind);
+		this.mediaPick = null;
+	}
+
+	/**
+	 * @param {MediaPickTarget} target
+	 */
+	clearMedia(target) {
+		this.#writeMedia(target, '', '');
+		if (
+			this.mediaPick &&
+			this.mediaPick.idKey === target.idKey &&
+			this.mediaPick.listKey === target.listKey &&
+			this.mediaPick.itemIndex === target.itemIndex &&
+			this.mediaPick.instanceId === target.instanceId &&
+			this.mediaPick.scope === target.scope
+		) {
+			this.mediaPick = null;
+		}
+	}
+
+	/**
+	 * @param {MediaPickTarget} target
+	 * @param {string} id
+	 * @param {string} kind
+	 */
+	#writeMedia(target, id, kind) {
+		/** @type {Record<string, unknown>} */
+		const patch = { [target.idKey]: id, [target.kindKey]: kind };
+		if (target.scope === 'block' && target.instanceId) {
+			if (target.listKey != null && target.itemIndex != null) {
+				this.#patchBlockList(target.instanceId, target.listKey, target.itemIndex, patch);
+			} else {
+				this.updateBlockProps(target.instanceId, patch);
+			}
+			return;
+		}
+		if (target.scope !== 'header' && target.scope !== 'footer') return;
+		if (target.listKey != null && target.itemIndex != null) {
+			this.#patchChromeList(target.scope, target.listKey, target.itemIndex, patch);
+			return;
+		}
+		this.updateChromeProps(target.scope, patch);
+	}
+
+	/**
+	 * @param {string} instanceId
+	 * @param {string} listKey
+	 * @param {number} itemIndex
+	 * @param {Record<string, unknown>} patch
+	 */
+	#patchBlockList(instanceId, listKey, itemIndex, patch) {
+		this.blocks = this.blocks.map((b) => {
+			if (b.id !== instanceId) return b;
+			const list = Array.isArray(b.props[listKey]) ? [...b.props[listKey]] : [];
+			const item = {
+				...(typeof list[itemIndex] === 'object' && list[itemIndex] !== null
+					? /** @type {Record<string, unknown>} */ (list[itemIndex])
+					: {})
+			};
+			Object.assign(item, patch);
+			list[itemIndex] = item;
+			return { ...b, props: { ...b.props, [listKey]: list } };
+		});
+		this.persistBlocks();
+	}
+
+	/**
+	 * @param {'header' | 'footer'} kind
+	 * @param {string} listKey
+	 * @param {number} itemIndex
+	 * @param {Record<string, unknown>} patch
+	 */
+	#patchChromeList(kind, listKey, itemIndex, patch) {
+		const current = kind === 'header' ? this.header : this.footer;
+		if (!current) return;
+		const list = Array.isArray(current.props[listKey]) ? [...current.props[listKey]] : [];
+		const item = {
+			...(typeof list[itemIndex] === 'object' && list[itemIndex] !== null
+				? /** @type {Record<string, unknown>} */ (list[itemIndex])
+				: {})
+		};
+		Object.assign(item, patch);
+		list[itemIndex] = item;
+		const next = { ...current, props: { ...current.props, [listKey]: list } };
+		if (kind === 'header') this.header = next;
+		else this.footer = next;
+		this.persistChrome();
 	}
 
 	/**
@@ -940,7 +1068,12 @@ class Builder {
 			if (typeof parsed !== 'object' || parsed === null) return;
 			/** @type {Partial<Record<BuilderHudId, HudBounds>>} */
 			const next = {};
-			for (const id of /** @type {BuilderHudId[]} */ (['toolbar', 'inspector', 'blocks'])) {
+			for (const id of /** @type {BuilderHudId[]} */ ([
+				'toolbar',
+				'inspector',
+				'blocks',
+				'media'
+			])) {
 				if (isBounds(parsed[id])) next[id] = parsed[id];
 			}
 			this.#hudBounds = next;

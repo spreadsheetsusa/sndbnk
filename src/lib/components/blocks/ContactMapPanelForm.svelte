@@ -4,6 +4,8 @@
 	/**
 	 * @type {{
 	 *   mapLabel?: string,
+	 *   mapId?: string,
+	 *   mapKind?: string,
 	 *   panelTitle?: string,
 	 *   panelBody?: string,
 	 *   heading?: string,
@@ -15,6 +17,8 @@
 	 */
 	let {
 		mapLabel = 'Map',
+		mapId = '',
+		mapKind = '',
 		panelTitle = 'Studio hours',
 		panelBody = 'Mon–Fri · 10am–6pm CET\nWalk-ins welcome for mix feedback.',
 		heading = 'Visit or write in',
@@ -27,7 +31,7 @@
 
 <section class="contact">
 	<div class="map-wrap">
-		<MediaPlaceholder label={mapLabel} ratio="16 / 11" />
+		<MediaPlaceholder label={mapLabel} mediaId={mapId} kind={mapKind} ratio="16 / 11" />
 		<div class="panel">
 			<h3>{panelTitle}</h3>
 			{#each panelBody.split('\n').filter(Boolean) as line (line)}

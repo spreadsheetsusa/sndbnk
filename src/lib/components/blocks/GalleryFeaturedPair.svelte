@@ -4,13 +4,17 @@
 	/**
 	 * @type {{
 	 *   featuredImageLabel?: string,
+	 *   featuredImageId?: string,
+	 *   featuredImageKind?: string,
 	 *   featuredTitle?: string,
 	 *   featuredBody?: string,
-	 *   pair?: Array<{ imageLabel: string, title: string, body: string }>
+	 *   pair?: Array<{ imageLabel: string, imageId?: string, imageKind?: string, title: string, body: string }>
 	 * }}
 	 */
 	let {
 		featuredImageLabel = 'Headliner',
+		featuredImageId = '',
+		featuredImageKind = '',
 		featuredTitle = 'Summer tour film',
 		featuredBody = 'Behind the scenes from soundcheck to the last encore.',
 		pair = [
@@ -30,7 +34,12 @@
 
 <section class="content">
 	<article class="featured">
-		<MediaPlaceholder label={featuredImageLabel} ratio="21 / 9" />
+		<MediaPlaceholder
+			label={featuredImageLabel}
+			mediaId={featuredImageId}
+			kind={featuredImageKind}
+			ratio="21 / 9"
+		/>
 		<div class="overlay">
 			<h2>{featuredTitle}</h2>
 			<p>{featuredBody}</p>
@@ -39,7 +48,12 @@
 	<div class="pair">
 		{#each pair as item (item.title)}
 			<article>
-				<MediaPlaceholder label={item.imageLabel} ratio="16 / 10" />
+				<MediaPlaceholder
+					label={item.imageLabel}
+					mediaId={item.imageId}
+					kind={item.imageKind}
+					ratio="16 / 10"
+				/>
 				<div class="overlay">
 					<h3>{item.title}</h3>
 					<p>{item.body}</p>

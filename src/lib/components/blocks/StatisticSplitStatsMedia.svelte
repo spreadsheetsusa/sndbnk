@@ -6,7 +6,9 @@
 	 *   heading?: string,
 	 *   body?: string,
 	 *   stats?: Array<{ value: string, label: string }>,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -18,7 +20,9 @@
 			{ value: '4', label: 'Media types' },
 			{ value: '∞', label: 'Queue depth' }
 		],
-		imageLabel = 'Dashboard'
+		imageLabel = 'Dashboard',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 </script>
 
@@ -36,7 +40,7 @@
 		</div>
 	</div>
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="5 / 4" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="5 / 4" />
 	</div>
 </section>
 

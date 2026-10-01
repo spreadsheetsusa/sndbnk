@@ -13,6 +13,7 @@
 	import BlocksHud from '#lib/components/builder/BlocksHud.svelte';
 	import BuilderToolbar from '#lib/components/builder/BuilderToolbar.svelte';
 	import InspectorHud from '#lib/components/builder/InspectorHud.svelte';
+	import MediaHud from '#lib/components/builder/MediaHud.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 	import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 
@@ -522,6 +523,7 @@
 	<BuilderToolbar />
 	<InspectorHud siteId={data.site.id} {form} />
 	<BlocksHud />
+	<MediaHud />
 </div>
 
 <style>

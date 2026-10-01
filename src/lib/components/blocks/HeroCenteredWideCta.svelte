@@ -9,7 +9,9 @@
 	 *   primaryHref?: string,
 	 *   secondaryLabel?: string,
 	 *   secondaryHref?: string,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -19,13 +21,15 @@
 		primaryHref = '/',
 		secondaryLabel = 'Explore features',
 		secondaryHref = '/',
-		imageLabel = 'Featured release'
+		imageLabel = 'Featured release',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 </script>
 
 <section class="hero">
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="21 / 9" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="21 / 9" />
 	</div>
 	<div class="copy">
 		<h2>{headline}</h2>

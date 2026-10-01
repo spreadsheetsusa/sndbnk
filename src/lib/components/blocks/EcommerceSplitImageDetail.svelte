@@ -4,6 +4,8 @@
 	/**
 	 * @type {{
 	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string,
 	 *   title?: string,
 	 *   body?: string,
 	 *   price?: string,
@@ -13,6 +15,8 @@
 	 */
 	let {
 		imageLabel = 'Product',
+		imageId = '',
+		imageKind = '',
 		title = 'Waveform tee',
 		body = 'Soft cotton with a subtle waveform print — cut for studio sessions and late-night sets.',
 		price = '$32',
@@ -23,7 +27,7 @@
 
 <section class="product">
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="1 / 1" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="1 / 1" />
 	</div>
 	<div class="copy">
 		<p class="eyebrow">Merch drop</p>

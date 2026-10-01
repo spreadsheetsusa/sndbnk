@@ -30,6 +30,10 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/studio`                          | public (apex)          | Studio marketing funnel — domain / white-label, Choose Studio → `/plans?plan=studio`                        |
 | `/privacy`, `/terms`, `/copyright` | public (apex)          | Privacy Policy, Terms of Service, Copyright / DMCA                                                          |
 | `/api/media/[id]/[file]`           | public                 | audio/cover streaming with Range support                                                                    |
+| `/api/site-logo/[userId]`          | public                 | tenant logo                                                                                                 |
+| `/api/site-media/[assetId]`        | public                 | site-design image or video (Range); allowed on tenant hosts                                                 |
+| `/api/sites/[id]/media`            | owner (apex)           | `GET` library, `POST` multipart upload                                                                      |
+| `/api/sites/[id]/media/[assetId]`  | owner (apex)           | `PATCH` rename, `DELETE` file                                                                               |
 | `/api/tracks`                      | mixed                  | paged feed/library/profile/likes/history (`{ items, nextCursor }`)                                          |
 | `/api/tracks/[id]`                 | required               | `DELETE` a track                                                                                            |
 | `/api/tracks/[id]/embed-tags`      | owner only             | `GET` write-tags job status (`queued` / `writing` / `done` / `failed`)                                      |
@@ -50,8 +54,11 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 
 **Site builder** (`/sites/[id]/builder`): Vault+ owner only. Load ensures a root `site_page` and site
 chrome (`ensureSiteChrome`), returns `site` (with `header` / `footer`), `pages` + `currentPageId`
-(each page includes parsed body `blocks`), and mounts SNDBNK-styled draggable HUDs (toolbar,
-inspector, blocks palette). Named action `?/updatePage` saves page title / slug / SEO (root path
+(each page includes parsed body `blocks`), and mounts SNDBNK-styled draggable HUDs (toolbar, inspector, blocks palette, media library). The
+media HUD uploads, renames, and deletes design images and videos (`GET`/`POST /api/sites/[id]/media`,
+`PATCH`/`DELETE /api/sites/[id]/media/[assetId]`). Image slots in the inspector open that library
+and store `imageId` plus `imageKind` on the block; public pages render them from
+`/api/site-media/[assetId]`. Named action `?/updatePage` saves page title / slug / SEO (root path
 stays `/`). Canvas body blocks drag from the Blocks HUD — insertable categories are Blog, Contact,
 Content, CTA, Ecommerce, Feature, Gallery, Hero, Pricing, Statistic, Step, Team, and Testimonial
 (Header/Footer stay site chrome only). `PUT /api/sites/[id]/pages/[pageId]/blocks` persists the

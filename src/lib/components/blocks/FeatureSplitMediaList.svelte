@@ -4,11 +4,15 @@
 	/**
 	 * @type {{
 	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string,
 	 *   items?: Array<{ title: string, body: string }>
 	 * }}
 	 */
 	let {
 		imageLabel = 'Studio session',
+		imageId = '',
+		imageKind = '',
 		items = [
 			{ title: 'Drop and tag', body: 'Metadata autofills from the file so you edit less.' },
 			{ title: 'Publish when ready', body: 'Draft privately, then flip the switch for the feed.' },
@@ -19,7 +23,7 @@
 
 <section class="content">
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="4 / 5" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="4 / 5" />
 	</div>
 	<div class="list">
 		{#each items as item (item.title)}

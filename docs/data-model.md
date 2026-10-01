@@ -149,6 +149,28 @@ Service: [`site-pages.js`](../src/lib/server/site-pages.js). Edited from `/sites
 exclude `header.*` / `footer.*` (those live on `site` chrome). Allowlist:
 [`types.js`](../src/lib/components/blocks/types.js).
 
+### `site_media` — design images and videos
+
+Per-site library for the builder (not audio tracks). Rows cascade with the site and the user.
+Bytes live on platform storage at `{userId}/sm-{id}/file.{ext}` — one folder per asset, so accounts
+stay separated and a delete wipes a single folder. The display `name` is renameable and is not the
+storage key. `kind` is `image` | `video`. Caps: 8MB images, 32MB video, 200 files per site.
+
+| Column     | Purpose                                    |
+| ---------- | ------------------------------------------ |
+| `id`       | UUID; public URL is `/api/site-media/{id}` |
+| `siteId`   | Owner site (`site.id`)                     |
+| `userId`   | Storage owner (same as `site.userId`)      |
+| `name`     | Display name                               |
+| `kind`     | `image` \| `video`                         |
+| `filename` | Object name inside the asset folder        |
+| `mime`     | Sniffed content type                       |
+| `bytes`    | Size                                       |
+
+Service: [`site-media.js`](../src/lib/server/site-media.js). Builder HUD uploads, renames, and
+deletes. Blocks store `imageId` / `imageKind` (and the same pair on list items) and render through
+`MediaPlaceholder`.
+
 ### `plan` — entitlement catalog
 
 Seeded by [`scripts/migrate-sqlite.js`](../scripts/migrate-sqlite.js) as Free / Vault / Studio /
@@ -265,6 +287,7 @@ erDiagram
   user ||--o| profile : "1:1"
   user ||--o| site : "1:1"
   site ||--o{ site_page : "pages"
+  site ||--o{ site_media : "design files"
   user ||--o| storage_setting : "1:1"
   user ||--o{ track : owns
   user ||--o{ playlist : owns
