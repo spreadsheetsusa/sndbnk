@@ -4,7 +4,7 @@
 	/**
 	 * @type {{
 	 *   heading?: string,
-	 *   members?: Array<{ name: string, body: string, imageLabel: string }>
+	 *   members?: Array<{ name: string, body: string, imageLabel: string, imageId?: string, imageKind?: string }>
 	 * }}
 	 */
 	let {
@@ -39,7 +39,12 @@
 	<div class="grid">
 		{#each members as member (member.name)}
 			<article>
-				<MediaPlaceholder label={member.imageLabel} ratio="1 / 1" />
+				<MediaPlaceholder
+					label={member.imageLabel}
+					mediaId={member.imageId}
+					kind={member.imageKind}
+					ratio="1 / 1"
+				/>
 				<div>
 					<h3>{member.name}</h3>
 					<p>{member.body}</p>

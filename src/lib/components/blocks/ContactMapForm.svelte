@@ -4,6 +4,8 @@
 	/**
 	 * @type {{
 	 *   mapLabel?: string,
+	 *   mapId?: string,
+	 *   mapKind?: string,
 	 *   heading?: string,
 	 *   nameLabel?: string,
 	 *   emailLabel?: string,
@@ -13,6 +15,8 @@
 	 */
 	let {
 		mapLabel = 'Map',
+		mapId = '',
+		mapKind = '',
 		heading = 'Book a session',
 		nameLabel = 'Name',
 		emailLabel = 'Email',
@@ -23,7 +27,7 @@
 
 <section class="contact">
 	<div class="map">
-		<MediaPlaceholder label={mapLabel} ratio="4 / 3" />
+		<MediaPlaceholder label={mapLabel} mediaId={mapId} kind={mapKind} ratio="4 / 3" />
 	</div>
 	<form class="form" onsubmit={(e) => e.preventDefault()}>
 		<h2>{heading}</h2>

@@ -4,7 +4,7 @@
 	/**
 	 * @type {{
 	 *   heading?: string,
-	 *   images?: Array<{ imageLabel: string, caption: string }>
+	 *   images?: Array<{ imageLabel: string, imageId?: string, imageKind?: string, caption: string }>
 	 * }}
 	 */
 	let {
@@ -27,7 +27,12 @@
 	<div class="grid">
 		{#each images as image (image.imageLabel)}
 			<figure>
-				<MediaPlaceholder label={image.imageLabel} ratio="4 / 3" />
+				<MediaPlaceholder
+					label={image.imageLabel}
+					mediaId={image.imageId}
+					kind={image.imageKind}
+					ratio="4 / 3"
+				/>
 				<figcaption>{image.caption}</figcaption>
 			</figure>
 		{/each}

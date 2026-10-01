@@ -9,7 +9,9 @@
 	 *   price?: string,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -19,7 +21,9 @@
 		price = '$58',
 		ctaLabel = 'Add to cart',
 		ctaHref = '/',
-		imageLabel = 'Hoodie'
+		imageLabel = 'Hoodie',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 
 	const swatchMix = ['72%', '48%', '28%'];
@@ -44,7 +48,7 @@
 		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
 	</div>
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="1 / 1" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="1 / 1" />
 	</div>
 </section>
 

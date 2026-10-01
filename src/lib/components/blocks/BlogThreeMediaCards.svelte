@@ -3,7 +3,7 @@
 
 	/**
 	 * @type {{
-	 *   posts?: Array<{ title: string, body: string, linkLabel: string, linkHref: string, imageLabel: string }>
+	 *   posts?: Array<{ title: string, body: string, linkLabel: string, linkHref: string, imageLabel: string, imageId?: string, imageKind?: string }>
 	 * }}
 	 */
 	let {
@@ -37,7 +37,12 @@
 	<div class="grid">
 		{#each posts as post (post.title)}
 			<article>
-				<MediaPlaceholder label={post.imageLabel} ratio="16 / 10" />
+				<MediaPlaceholder
+					label={post.imageLabel}
+					mediaId={post.imageId}
+					kind={post.imageKind}
+					ratio="16 / 10"
+				/>
 				<h3>{post.title}</h3>
 				<p>{post.body}</p>
 				<a href={post.linkHref}>{post.linkLabel}</a>

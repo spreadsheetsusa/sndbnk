@@ -5,7 +5,7 @@
 	 * @type {{
 	 *   heading?: string,
 	 *   body?: string,
-	 *   cards?: Array<{ title: string, body: string, imageLabel: string }>
+	 *   cards?: Array<{ title: string, body: string, imageLabel: string, imageId?: string, imageKind?: string }>
 	 * }}
 	 */
 	let {
@@ -28,7 +28,12 @@
 	<div class="grid">
 		{#each cards as card (card.title)}
 			<article>
-				<MediaPlaceholder label={card.imageLabel} ratio="5 / 4" />
+				<MediaPlaceholder
+					label={card.imageLabel}
+					mediaId={card.imageId}
+					kind={card.imageKind}
+					ratio="5 / 4"
+				/>
 				<h3>{card.title}</h3>
 				<p>{card.body}</p>
 			</article>

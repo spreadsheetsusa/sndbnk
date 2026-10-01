@@ -131,13 +131,19 @@ import TestimonialTwoQuoteCards from '#lib/components/blocks/TestimonialTwoQuote
 import { BLOCK_TYPES } from '#lib/components/blocks/types.js';
 
 /**
- * @typedef {'text' | 'textarea' | 'url' | 'list' | 'boolean'} BlockFieldKind
+ * @typedef {'text' | 'textarea' | 'url' | 'list' | 'boolean' | 'media'} BlockFieldKind
  *
  * @typedef {{
  *   key: string,
  *   label: string,
  *   kind: BlockFieldKind,
- *   itemFields?: Array<{ key: string, label: string, kind: 'text' | 'textarea' | 'url' }>
+ *   kindKey?: string,
+ *   itemFields?: Array<{
+ *     key: string,
+ *     label: string,
+ *     kind: 'text' | 'textarea' | 'url' | 'media',
+ *     kindKey?: string
+ *   }>
  * }} BlockField
  *
  * @typedef {{
@@ -175,7 +181,8 @@ const HERO_FIELDS = [
 	{ key: 'primaryHref', label: 'Primary URL', kind: 'url' },
 	{ key: 'secondaryLabel', label: 'Secondary button', kind: 'text' },
 	{ key: 'secondaryHref', label: 'Secondary URL', kind: 'url' },
-	{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+	{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+	{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 ];
 
 /** @type {Record<string, unknown>} */
@@ -195,13 +202,14 @@ const TITLE_BODY_ITEMS = [
 	{ key: 'body', label: 'Body', kind: 'textarea' }
 ];
 
-/** @type {Array<{ key: string, label: string, kind: 'text' | 'textarea' | 'url' }>} */
+/** @type {Array<{ key: string, label: string, kind: 'text' | 'textarea' | 'url' | 'media', kindKey?: string }>} */
 const MEDIA_POST_FIELDS = [
 	{ key: 'title', label: 'Title', kind: 'text' },
 	{ key: 'body', label: 'Body', kind: 'textarea' },
 	{ key: 'linkLabel', label: 'Link label', kind: 'text' },
 	{ key: 'linkHref', label: 'Link URL', kind: 'url' },
-	{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+	{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+	{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 ];
 
 /** @type {BlockField[]} */
@@ -235,9 +243,10 @@ const QUOTE_FIELDS = [
 	{ key: 'role', label: 'Role', kind: 'text' }
 ];
 
-/** @type {Array<{ key: string, label: string, kind: 'text' | 'textarea' | 'url' }>} */
+/** @type {Array<{ key: string, label: string, kind: 'text' | 'textarea' | 'url' | 'media', kindKey?: string }>} */
 const IMAGE_CAPTION_FIELDS = [
-	{ key: 'imageLabel', label: 'Image label', kind: 'text' },
+	{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+	{ key: 'imageLabel', label: 'Alt text', kind: 'text' },
 	{ key: 'caption', label: 'Caption', kind: 'text' }
 ];
 
@@ -490,7 +499,8 @@ export const blockDefinitions = [
 				itemFields: [
 					{ key: 'title', label: 'Title', kind: 'text' },
 					{ key: 'body', label: 'Body', kind: 'textarea' },
-					{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+					{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+					{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 				]
 			}
 		]
@@ -584,7 +594,8 @@ export const blockDefinitions = [
 			{ key: 'name', label: 'Name', kind: 'text' },
 			{ key: 'role', label: 'Role', kind: 'text' },
 			{ key: 'bio', label: 'Bio', kind: 'textarea' },
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' },
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' },
 			{ key: 'heading', label: 'Heading', kind: 'text' },
 			{ key: 'body', label: 'Body', kind: 'textarea' },
 			...CTA_PAIR
@@ -613,12 +624,14 @@ export const blockDefinitions = [
 			{ key: 'leftBody', label: 'Left body', kind: 'textarea' },
 			{ key: 'leftCtaLabel', label: 'Left CTA', kind: 'text' },
 			{ key: 'leftCtaHref', label: 'Left CTA URL', kind: 'url' },
-			{ key: 'leftImageLabel', label: 'Left image label', kind: 'text' },
+			{ key: 'leftImageId', label: 'Left image', kind: 'media', kindKey: 'leftImageKind' },
+			{ key: 'leftImageLabel', label: 'Left alt text', kind: 'text' },
 			{ key: 'rightTitle', label: 'Right title', kind: 'text' },
 			{ key: 'rightBody', label: 'Right body', kind: 'textarea' },
 			{ key: 'rightCtaLabel', label: 'Right CTA', kind: 'text' },
 			{ key: 'rightCtaHref', label: 'Right CTA URL', kind: 'url' },
-			{ key: 'rightImageLabel', label: 'Right image label', kind: 'text' }
+			{ key: 'rightImageId', label: 'Right image', kind: 'media', kindKey: 'rightImageKind' },
+			{ key: 'rightImageLabel', label: 'Right alt text', kind: 'text' }
 		]
 	},
 	{
@@ -961,7 +974,11 @@ export const blockDefinitions = [
 			messageLabel: 'Message',
 			submitLabel: 'Send'
 		},
-		fields: [{ key: 'mapLabel', label: 'Map label', kind: 'text' }, ...CONTACT_FORM_FIELDS]
+		fields: [
+			{ key: 'mapId', label: 'Map image', kind: 'media', kindKey: 'mapKind' },
+			{ key: 'mapLabel', label: 'Alt text', kind: 'text' },
+			...CONTACT_FORM_FIELDS
+		]
 	},
 	{
 		type: 'contact.map-panel-form',
@@ -980,7 +997,8 @@ export const blockDefinitions = [
 			submitLabel: 'Send'
 		},
 		fields: [
-			{ key: 'mapLabel', label: 'Map label', kind: 'text' },
+			{ key: 'mapId', label: 'Map image', kind: 'media', kindKey: 'mapKind' },
+			{ key: 'mapLabel', label: 'Alt text', kind: 'text' },
 			{ key: 'panelTitle', label: 'Panel title', kind: 'text' },
 			{ key: 'panelBody', label: 'Panel body', kind: 'textarea' },
 			...CONTACT_FORM_FIELDS
@@ -1033,7 +1051,8 @@ export const blockDefinitions = [
 					{ key: 'title', label: 'Title', kind: 'text' },
 					{ key: 'meta', label: 'Meta', kind: 'text' },
 					{ key: 'price', label: 'Price', kind: 'text' },
-					{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+					{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+					{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 				]
 			}
 		]
@@ -1053,7 +1072,8 @@ export const blockDefinitions = [
 			ctaHref: '/'
 		},
 		fields: [
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' },
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' },
 			{ key: 'title', label: 'Title', kind: 'text' },
 			{ key: 'body', label: 'Body', kind: 'textarea' },
 			{ key: 'price', label: 'Price', kind: 'text' },
@@ -1086,7 +1106,8 @@ export const blockDefinitions = [
 			},
 			{ key: 'price', label: 'Price', kind: 'text' },
 			...CTA_PAIR,
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 		]
 	},
 	{
@@ -1148,7 +1169,8 @@ export const blockDefinitions = [
 			]
 		},
 		fields: [
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' },
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' },
 			{ key: 'items', label: 'Items', kind: 'list', itemFields: TITLE_BODY_ITEMS }
 		]
 	},
@@ -1311,7 +1333,13 @@ export const blockDefinitions = [
 			]
 		},
 		fields: [
-			{ key: 'featuredImageLabel', label: 'Featured image label', kind: 'text' },
+			{
+				key: 'featuredImageId',
+				label: 'Featured image',
+				kind: 'media',
+				kindKey: 'featuredImageKind'
+			},
+			{ key: 'featuredImageLabel', label: 'Featured alt text', kind: 'text' },
 			{ key: 'featuredTitle', label: 'Featured title', kind: 'text' },
 			{ key: 'featuredBody', label: 'Featured body', kind: 'textarea' },
 			{
@@ -1319,7 +1347,8 @@ export const blockDefinitions = [
 				label: 'Pair',
 				kind: 'list',
 				itemFields: [
-					{ key: 'imageLabel', label: 'Image label', kind: 'text' },
+					{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+					{ key: 'imageLabel', label: 'Alt text', kind: 'text' },
 					{ key: 'title', label: 'Title', kind: 'text' },
 					{ key: 'body', label: 'Body', kind: 'textarea' }
 				]
@@ -1487,7 +1516,8 @@ export const blockDefinitions = [
 			{ key: 'heading', label: 'Heading', kind: 'text' },
 			{ key: 'body', label: 'Body', kind: 'textarea' },
 			{ key: 'stats', label: 'Stats', kind: 'list', itemFields: STAT_FIELDS },
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 		]
 	},
 	{
@@ -1531,7 +1561,8 @@ export const blockDefinitions = [
 		},
 		fields: [
 			{ key: 'steps', label: 'Steps', kind: 'list', itemFields: TITLE_BODY_ITEMS },
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 		]
 	},
 	{
@@ -1578,7 +1609,8 @@ export const blockDefinitions = [
 				]
 			},
 			{ key: 'activeIndex', label: 'Active index', kind: 'text' },
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 		]
 	},
 	{
@@ -1598,7 +1630,8 @@ export const blockDefinitions = [
 		},
 		fields: [
 			{ key: 'steps', label: 'Steps', kind: 'list', itemFields: TITLE_BODY_ITEMS },
-			{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+			{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+			{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 		]
 	},
 	{
@@ -1674,7 +1707,8 @@ export const blockDefinitions = [
 				itemFields: [
 					{ key: 'name', label: 'Name', kind: 'text' },
 					{ key: 'body', label: 'Body', kind: 'textarea' },
-					{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+					{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+					{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 				]
 			}
 		]
@@ -1739,7 +1773,8 @@ export const blockDefinitions = [
 				itemFields: [
 					{ key: 'name', label: 'Name', kind: 'text' },
 					{ key: 'bio', label: 'Bio', kind: 'textarea' },
-					{ key: 'imageLabel', label: 'Image label', kind: 'text' }
+					{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
+					{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
 				]
 			}
 		]

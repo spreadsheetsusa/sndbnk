@@ -99,6 +99,11 @@ rows keep reading from `MEDIA_ROOT` until `bun run media:migrate-s3` flips them.
 images always use platform storage (never SSH): S3 when configured, with a local fallback on read
 so unmigrated files keep serving.
 
+Site-builder images and videos use the same platform adapter, never the creator's audio/SSH
+adapter. Each file is `{userId}/sm-{assetId}/file.{ext}` with a `site_media` row for the display
+name. Public reads are `GET /api/site-media/{id}` (including on tenant hosts). See
+[data-model.md](data-model.md).
+
 ## Credential encryption
 
 SSH private keys and passphrases are AES-256-GCM encrypted before they touch the database

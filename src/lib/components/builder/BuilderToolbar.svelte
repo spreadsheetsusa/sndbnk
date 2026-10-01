@@ -1,9 +1,11 @@
 <script>
 	import IconLayoutGrid from '@tabler/icons-svelte-runes/icons/layout-grid';
+	import IconPhoto from '@tabler/icons-svelte-runes/icons/photo';
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
 
 	const blockActive = $derived(builder.tool === 'block');
+	const mediaActive = $derived(builder.tool === 'media');
 </script>
 
 <FloatingHud id="toolbar" brandHref="/settings">
@@ -18,6 +20,17 @@
 		>
 			<IconLayoutGrid size={18} stroke={1.75} aria-hidden="true" />
 			<span>Block</span>
+		</button>
+		<button
+			type="button"
+			class="tool"
+			class:active={mediaActive}
+			aria-pressed={mediaActive}
+			title="Media library"
+			onclick={() => builder.toggleMediaTool()}
+		>
+			<IconPhoto size={18} stroke={1.75} aria-hidden="true" />
+			<span>Media</span>
 		</button>
 	</div>
 </FloatingHud>

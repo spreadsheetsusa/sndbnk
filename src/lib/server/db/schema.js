@@ -215,6 +215,41 @@ export const sitePage = sqliteTable(
 	]
 );
 
+/** @typedef {'image' | 'video'} SiteMediaKind */
+
+/**
+ * Design images and videos for a tenant site (not audio tracks).
+ * Bytes live in platform storage at `{userId}/sm-{id}/file.{ext}`.
+ */
+export const siteMedia = sqliteTable(
+	'site_media',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		siteId: text('site_id')
+			.notNull()
+			.references(() => site.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		/** `image` | `video` */
+		kind: text('kind').notNull(),
+		filename: text('filename').notNull(),
+		mime: text('mime').notNull(),
+		bytes: integer('bytes').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.$onUpdate(() => new Date())
+			.notNull()
+	},
+	(table) => [index('site_media_site_created_idx').on(table.siteId, table.createdAt)]
+);
+
 export const profileRelations = relations(profile, ({ one, many }) => ({
 	user: one(user, {
 		fields: [profile.userId],
@@ -236,7 +271,8 @@ export const siteRelations = relations(site, ({ one, many }) => ({
 		fields: [site.userId],
 		references: [profile.userId]
 	}),
-	pages: many(sitePage)
+	pages: many(sitePage),
+	media: many(siteMedia)
 }));
 
 export const sitePageRelations = relations(sitePage, ({ one, many }) => ({
@@ -250,6 +286,17 @@ export const sitePageRelations = relations(sitePage, ({ one, many }) => ({
 		relationName: 'sitePageHierarchy'
 	}),
 	children: many(sitePage, { relationName: 'sitePageHierarchy' })
+}));
+
+export const siteMediaRelations = relations(siteMedia, ({ one }) => ({
+	site: one(site, {
+		fields: [siteMedia.siteId],
+		references: [site.id]
+	}),
+	user: one(user, {
+		fields: [siteMedia.userId],
+		references: [user.id]
+	})
 }));
 
 export const profileLink = sqliteTable(
