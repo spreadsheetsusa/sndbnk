@@ -1,6 +1,6 @@
 <script>
 	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
-	import { onDestroy, untrack } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
@@ -182,14 +182,17 @@
 	);
 	const previewStyle = $derived(previewThemeStyle(previewPalette, builder.previewAppearance));
 
+	// Local counter so the effect can bump `paint` without reading it (a read would loop).
+	let paintGen = 0;
+
 	// Canvases re-read computed `--accent` when this changes. EQ stays on the
 	// listener color: it is outside the preview, so its computed accent is the platform one.
 	$effect(() => {
 		sitePlayerAccent.hex = previewPalette.accent;
 		void builder.headerAccent;
 		void builder.footerAccent;
-		// `++` would read `paint` and retrigger this effect.
-		sitePlayerAccent.paint = untrack(() => sitePlayerAccent.paint) + 1;
+		paintGen += 1;
+		sitePlayerAccent.paint = paintGen;
 	});
 	onDestroy(() => {
 		sitePlayerAccent.hex = null;
