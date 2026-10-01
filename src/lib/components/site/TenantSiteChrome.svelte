@@ -79,9 +79,7 @@
 			{resolvedAppearance}
 			onAppearanceToggle={toggleAppearance}
 		/>
-	{/if}
-
-	{#if player.current}
+	{:else if player.current}
 		<div class="tenant-player">
 			<div class="player-shell">
 				<HeaderPlayer />

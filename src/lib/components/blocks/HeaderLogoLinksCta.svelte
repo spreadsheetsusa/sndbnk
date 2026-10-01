@@ -1,5 +1,7 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
+	import { player } from '#lib/player/player.svelte.js';
 
 	/**
 	 * @type {{
@@ -28,8 +30,9 @@
 	} = $props();
 </script>
 
-<header class="block-header">
+<header class="block-header" class:has-player={!!player.current}>
 	<a class="logo" href="/">{logoText}</a>
+	<SiteNavPlayer />
 	<nav aria-label="Primary">
 		{#each links as link (link.label)}
 			<a href={link.href}>{link.label}</a>
@@ -45,7 +48,11 @@
 
 <style>
 	.block-header {
+		position: sticky;
+		top: 0;
+		z-index: 30;
 		display: flex;
+		flex-wrap: nowrap;
 		align-items: center;
 		gap: 1rem;
 		padding: 0.85rem 1.25rem;
@@ -72,6 +79,17 @@
 		gap: 0.85rem;
 		margin-left: auto;
 		font-size: 0.9rem;
+	}
+
+	.block-header.has-player nav {
+		margin-left: 0;
+		flex: 0 0 auto;
+	}
+
+	@media (max-width: 960px) {
+		.block-header.has-player {
+			flex-wrap: wrap;
+		}
 	}
 
 	nav a {

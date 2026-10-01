@@ -1,5 +1,7 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
+	import { player } from '#lib/player/player.svelte.js';
 
 	/**
 	 * @type {{
@@ -28,8 +30,9 @@
 	} = $props();
 </script>
 
-<header class="block-header">
+<header class="block-header" class:has-player={!!player.current}>
 	<a class="logo" href="/">{logoText}</a>
+	<SiteNavPlayer />
 	<nav aria-label="Primary">
 		{#each links as link (link.label)}
 			<a href={link.href}>{link.label}</a>
@@ -45,6 +48,9 @@
 
 <style>
 	.block-header {
+		position: sticky;
+		top: 0;
+		z-index: 30;
 		display: grid;
 		grid-template-columns: auto 1fr auto;
 		align-items: center;
@@ -52,6 +58,18 @@
 		padding: 0.85rem 1.25rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 40%, transparent);
 		background: color-mix(in srgb, var(--theme-1, var(--paper)) 40%, var(--paper));
+	}
+
+	/* Player takes the flexible middle, same as the platform header. */
+	.block-header.has-player {
+		display: flex;
+		flex-wrap: nowrap;
+	}
+
+	.block-header.has-player .logo,
+	.block-header.has-player nav,
+	.block-header.has-player .end {
+		flex: 0 0 auto;
 	}
 
 	.logo {
@@ -90,5 +108,11 @@
 		color: var(--on-accent);
 		text-decoration: none;
 		font-size: 0.85rem;
+	}
+
+	@media (max-width: 960px) {
+		.block-header.has-player {
+			flex-wrap: wrap;
+		}
 	}
 </style>

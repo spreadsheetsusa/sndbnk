@@ -1,5 +1,6 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
 
 	/**
 	 * @type {{
@@ -40,17 +41,25 @@
 		{/if}
 		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
 	</div>
+	<SiteNavPlayer />
 </header>
 
 <style>
 	.block-header {
+		position: sticky;
+		top: 0;
+		z-index: 30;
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.75rem 1rem;
 		padding: 0.85rem 1.25rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 40%, transparent);
 		background: color-mix(in srgb, var(--theme-5, var(--paper)) 50%, var(--paper));
+	}
+
+	.block-header :global(.site-nav-player) {
+		grid-column: 1 / -1;
 	}
 
 	.left {
@@ -91,5 +100,16 @@
 		color: var(--on-accent);
 		text-decoration: none;
 		font-size: 0.85rem;
+	}
+
+	@media (max-width: 960px) {
+		.block-header:has(:global(.header-player)) {
+			display: flex;
+			flex-wrap: wrap;
+		}
+
+		.block-header :global(.site-nav-player) {
+			grid-column: auto;
+		}
 	}
 </style>

@@ -1,5 +1,6 @@
 <script>
-	import { accentColor } from '#lib/stores/brand.js';
+	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
+	import { accentColor, normalizeHex } from '#lib/stores/brand.js';
 	import { resolvedTheme } from '#lib/stores/theme.js';
 	import { audioGraph } from '#lib/player/audio-graph.svelte.js';
 	import { EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_GAIN_MIN } from '#lib/player/eq-bands.js';
@@ -11,6 +12,8 @@
 	 * @type {{ active?: boolean }}
 	 */
 	let { active = true } = $props();
+
+	const paintAccent = $derived(normalizeHex(sitePlayerAccent.hex) ?? $accentColor);
 
 	/** @type {HTMLCanvasElement | null} */
 	let canvas = $state.raw(null);
@@ -59,7 +62,7 @@
 
 	$effect(() => {
 		// Theme / accent / nodes / enabled — redraw deps for the paint loop.
-		void $accentColor;
+		void paintAccent;
 		void $resolvedTheme;
 		void eq.theme;
 		void eq.nodes;
@@ -112,7 +115,8 @@
 		const styles = getComputedStyle(el);
 		const ink = styles.getPropertyValue('--ink').trim() || '#11110f';
 		const muted = styles.getPropertyValue('--muted').trim() || ink;
-		const accent = $accentColor || styles.getPropertyValue('--accent').trim() || '#c8ff00';
+		const cssAccent = normalizeHex(styles.getPropertyValue('--accent'));
+		const accent = cssAccent ?? paintAccent;
 		const palette = spectrumPalette(eq.theme, { ink, muted, accent });
 		const plot = plotRect(cssW, cssH);
 

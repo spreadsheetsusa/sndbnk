@@ -1,7 +1,8 @@
 <script>
 	import { onMount, untrack } from 'svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
-	import { accentColor } from '#lib/stores/brand.js';
+	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
+	import { accentColor, normalizeHex } from '#lib/stores/brand.js';
 	import { resolvedTheme } from '#lib/stores/theme.js';
 
 	/**
@@ -42,6 +43,16 @@
 		onscrub,
 		onhover
 	} = $props();
+
+	/**
+	 * Prefer the accent inherited by this element (site theme inside a preview or
+	 * tenant host). Fall back to the listener store on sndbnk.com.
+	 * @param {HTMLElement | null | undefined} el
+	 */
+	function paintHex(el) {
+		const css = el ? normalizeHex(getComputedStyle(el).getPropertyValue('--accent')) : null;
+		return css ?? $accentColor;
+	}
 
 	const KEYBOARD_STEP_SECONDS = 5;
 
@@ -206,7 +217,7 @@
 		const progress = wavesurfer.getWrapper().querySelector('.progress');
 		if (!progress) return;
 
-		const { hoverColor } = resolveColors($accentColor);
+		const { hoverColor } = resolveColors(paintHex(container));
 		layer.replaceChildren();
 
 		for (const containerEl of progress.children) {
@@ -413,7 +424,7 @@
 			if (destroyed) return;
 
 			const resolvedHeight = resolveHeight();
-			const colors = resolveColors($accentColor);
+			const colors = resolveColors(paintHex(container));
 			const useBars = variant === 'bars';
 			audioReady = false;
 			wavesurfer = WaveSurfer.create({
@@ -489,8 +500,10 @@
 
 	// Re-resolve canvas colors when the theme or accent changes.
 	$effect(() => {
+		void sitePlayerAccent.hex;
+		void $accentColor;
 		const theme = $resolvedTheme;
-		const accent = $accentColor;
+		const accent = paintHex(container);
 		if (wavesurfer && theme) {
 			const colors = resolveColors(accent);
 			wavesurfer.setOptions({

@@ -10,6 +10,7 @@
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { resolveSiteAppearance } from '#lib/builder/site-appearance.js';
 	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
+	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
 	import { ACCENTS, initAccent, normalizeHex } from '#lib/stores/brand.js';
 	import { applyTheme, initTheme } from '#lib/stores/theme.js';
 
@@ -52,31 +53,30 @@
 		tenantResolvedAppearance = resolveSiteAppearance(mode, tenantSiteId);
 	});
 
-	// Tenant site accent + persona overrides the listener store only while on a tenant host.
+	// Published sites paint with the site theme, including when accentColor is unset
+	// (the builder default). The listener accent store stays for sndbnk.com.
 	$effect(() => {
 		if (!browser) return;
 
-		const hex = tenantAccent;
 		const root = document.documentElement;
-
-		if (!hex) {
+		if (!data.tenantSite) {
 			initAccent();
-			for (const key of ['--theme-1', '--theme-2', '--theme-3', '--theme-4', '--theme-5']) {
-				root.style.removeProperty(key);
-			}
 			return;
 		}
 
-		const accent = normalizeHex(hex) ?? ACCENTS[0].value;
-		const palette = buildPersonaPalette(accent, tenantPersona, tenantPalette);
+		const seed = normalizeHex(tenantAccent) ?? ACCENTS[0].value;
+		const palette = buildPersonaPalette(seed, tenantPersona, tenantPalette);
+		sitePlayerAccent.hex = palette.accent;
 		for (const [key, value] of Object.entries(palette.cssVars)) {
 			root.style.setProperty(key, value);
 		}
 
 		return () => {
+			sitePlayerAccent.hex = null;
 			for (const key of Object.keys(palette.cssVars)) {
 				root.style.removeProperty(key);
 			}
+			initAccent();
 		};
 	});
 
