@@ -18,6 +18,7 @@
 	import PersonaPaletteEditor from '#lib/components/builder/PersonaPaletteEditor.svelte';
 	import ThemeControls from '#lib/components/ThemeControls.svelte';
 	import { isSafeHref } from '#lib/safe-href.js';
+	import { siteMediaUrl } from '#lib/site-media-url.js';
 
 	/**
 	 * @type {{
@@ -159,6 +160,40 @@
 	function hrefInvalid(value) {
 		return !isSafeHref(typeof value === 'string' ? value : String(value ?? ''));
 	}
+
+	/**
+	 * @param {{ key: string, kindKey?: string }} field
+	 * @param {'block' | 'header' | 'footer'} scope
+	 * @param {string | null} instanceId
+	 * @param {string | null} [listKey]
+	 * @param {number | null} [itemIndex]
+	 * @returns {import('#lib/builder/builder.svelte.js').MediaPickTarget}
+	 */
+	function mediaTarget(field, scope, instanceId, listKey = null, itemIndex = null) {
+		return {
+			scope,
+			instanceId,
+			listKey,
+			itemIndex,
+			idKey: field.key,
+			kindKey: field.kindKey ?? 'imageKind'
+		};
+	}
+
+	/**
+	 * @param {import('#lib/builder/builder.svelte.js').MediaPickTarget} target
+	 */
+	function pickIsActive(target) {
+		const pick = builder.mediaPick;
+		if (!pick) return false;
+		return (
+			pick.scope === target.scope &&
+			pick.instanceId === target.instanceId &&
+			pick.listKey === target.listKey &&
+			pick.itemIndex === target.itemIndex &&
+			pick.idKey === target.idKey
+		);
+	}
 </script>
 
 {#snippet urlField(label, value, oninput)}
@@ -176,6 +211,28 @@
 			<span class="field-error" role="alert">Use a /path, http(s) URL, or mailto: address.</span>
 		{/if}
 	</label>
+{/snippet}
+
+{#snippet mediaSlot(label, idValue, kindValue, picking, onpick, onclear)}
+	{@const src = siteMediaUrl(idValue)}
+	<div class="media-slot" class:picking>
+		<span>{label}</span>
+		<div class="media-slot-row">
+			{#if src}
+				{#if kindValue === 'video'}
+					<video {src} muted playsinline preload="metadata"></video>
+				{:else}
+					<img {src} alt="" />
+				{/if}
+			{:else}
+				<span class="media-slot-empty">None</span>
+			{/if}
+			<button type="button" class="media-btn" onclick={onpick}>Library</button>
+			{#if src}
+				<button type="button" class="media-btn" onclick={onclear}>Clear</button>
+			{/if}
+		</div>
+	</div>
 {/snippet}
 
 {#snippet chromePicker(kind, catalog, activeType)}
@@ -242,6 +299,22 @@
 										{@render urlField(itemField.label, item[itemField.key], (value) =>
 											builder.updateChromeListItem(kind, field.key, itemIndex, itemField.key, value)
 										)}
+									{:else if itemField.kind === 'media'}
+										{@const target = mediaTarget(
+											itemField,
+											kind,
+											instance.id,
+											field.key,
+											itemIndex
+										)}
+										{@render mediaSlot(
+											itemField.label,
+											item[itemField.key],
+											item[itemField.kindKey ?? 'imageKind'],
+											pickIsActive(target),
+											() => builder.openMediaPicker(target),
+											() => builder.clearMedia(target)
+										)}
 									{:else}
 										<label>
 											<span>{itemField.label}</span>
@@ -280,6 +353,16 @@
 				{:else if field.kind === 'url'}
 					{@render urlField(field.label, instance.props[field.key], (value) =>
 						builder.updateChromeProps(kind, { [field.key]: value })
+					)}
+				{:else if field.kind === 'media'}
+					{@const target = mediaTarget(field, kind, instance.id)}
+					{@render mediaSlot(
+						field.label,
+						instance.props[field.key],
+						instance.props[field.kindKey ?? 'imageKind'],
+						pickIsActive(target),
+						() => builder.openMediaPicker(target),
+						() => builder.clearMedia(target)
 					)}
 				{:else if field.kind === 'boolean'}
 					<label class="boolean-field">
@@ -677,6 +760,22 @@
 															value
 														)
 													)}
+												{:else if itemField.kind === 'media'}
+													{@const target = mediaTarget(
+														itemField,
+														'block',
+														selected.id,
+														field.key,
+														itemIndex
+													)}
+													{@render mediaSlot(
+														itemField.label,
+														item[itemField.key],
+														item[itemField.kindKey ?? 'imageKind'],
+														pickIsActive(target),
+														() => builder.openMediaPicker(target),
+														() => builder.clearMedia(target)
+													)}
 												{:else}
 													<label>
 														<span>{itemField.label}</span>
@@ -715,6 +814,16 @@
 							{:else if field.kind === 'url'}
 								{@render urlField(field.label, selected.props[field.key], (value) =>
 									setProp(field.key, value)
+								)}
+							{:else if field.kind === 'media'}
+								{@const target = mediaTarget(field, 'block', selected.id)}
+								{@render mediaSlot(
+									field.label,
+									selected.props[field.key],
+									selected.props[field.kindKey ?? 'imageKind'],
+									pickIsActive(target),
+									() => builder.openMediaPicker(target),
+									() => builder.clearMedia(target)
 								)}
 							{:else if field.kind === 'boolean'}
 								<label class="boolean-field">
@@ -1151,6 +1260,54 @@
 		border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
 		background: transparent;
 		color: var(--ink);
+		cursor: pointer;
+	}
+
+	.media-slot {
+		display: grid;
+		gap: 0.3rem;
+		font-size: 0.7rem;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	.media-slot.picking .media-btn:first-of-type {
+		border-color: var(--ink);
+		background: var(--accent);
+		color: var(--on-accent);
+	}
+
+	.media-slot-row {
+		display: flex;
+		gap: 0.35rem;
+		align-items: center;
+	}
+
+	.media-slot-row img,
+	.media-slot-row video,
+	.media-slot-empty {
+		width: 3.2rem;
+		height: 2.4rem;
+		object-fit: cover;
+		border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+		background: color-mix(in srgb, var(--ink) 6%, var(--paper));
+	}
+
+	.media-slot-empty {
+		display: grid;
+		place-items: center;
+		font-size: 0.6rem;
+	}
+
+	.media-btn {
+		padding: 0.3rem 0.45rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+		background: transparent;
+		color: var(--ink);
+		font-size: 0.65rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
 		cursor: pointer;
 	}
 

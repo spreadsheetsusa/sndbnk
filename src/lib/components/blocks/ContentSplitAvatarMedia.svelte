@@ -7,6 +7,8 @@
 	 *   role?: string,
 	 *   bio?: string,
 	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string,
 	 *   heading?: string,
 	 *   body?: string,
 	 *   ctaLabel?: string,
@@ -18,6 +20,8 @@
 		role = 'Producer · Berlin',
 		bio = 'Writes late-night techno and labels that stay out of the way.',
 		imageLabel = 'Portrait',
+		imageId = '',
+		imageKind = '',
 		heading = 'From the desk',
 		body = 'A short note on the release, the room it was made in, and where to hear it next.',
 		ctaLabel = 'Read more',
@@ -35,7 +39,7 @@
 		</div>
 	</aside>
 	<div class="main">
-		<MediaPlaceholder label={imageLabel} ratio="16 / 10" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="16 / 10" />
 		<h2>{heading}</h2>
 		<p>{body}</p>
 		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>

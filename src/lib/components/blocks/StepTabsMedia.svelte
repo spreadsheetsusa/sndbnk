@@ -5,7 +5,9 @@
 	 * @type {{
 	 *   tabs?: Array<{ label: string, title: string, body: string }>,
 	 *   activeIndex?: number | string,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -32,7 +34,9 @@
 			}
 		],
 		activeIndex = 0,
-		imageLabel = 'Step preview'
+		imageLabel = 'Step preview',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 
 	const index = $derived(Math.max(0, Number(activeIndex) || 0));
@@ -48,7 +52,7 @@
 		{/each}
 	</div>
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="16 / 10" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="16 / 10" />
 	</div>
 	<div class="copy">
 		<h2>{active.title}</h2>

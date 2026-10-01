@@ -3,7 +3,7 @@
 
 	/**
 	 * @type {{
-	 *   products?: Array<{ title: string, meta: string, price: string, imageLabel: string }>
+	 *   products?: Array<{ title: string, meta: string, price: string, imageLabel: string, imageId?: string, imageKind?: string }>
 	 * }}
 	 */
 	let {
@@ -24,7 +24,12 @@
 	<div class="grid">
 		{#each products as product (product.title)}
 			<article>
-				<MediaPlaceholder label={product.imageLabel} ratio="1 / 1" />
+				<MediaPlaceholder
+					label={product.imageLabel}
+					mediaId={product.imageId}
+					kind={product.imageKind}
+					ratio="1 / 1"
+				/>
 				<h3>{product.title}</h3>
 				<p class="meta">{product.meta}</p>
 				<p class="price">{product.price}</p>

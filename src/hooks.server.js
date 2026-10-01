@@ -45,6 +45,7 @@ const TENANT_ALLOWED_PREFIXES = [
 	'/api/avatar',
 	'/api/site-logo',
 	'/api/site-og',
+	'/api/site-media',
 	'/api/tracks',
 	'/api/playlists',
 	'/api/users'

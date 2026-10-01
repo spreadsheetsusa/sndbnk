@@ -4,7 +4,9 @@
 	/**
 	 * @type {{
 	 *   steps?: Array<{ title: string, body: string }>,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -14,7 +16,9 @@
 			{ title: 'Customize', body: 'Set accent, header, and blocks in the site builder.' },
 			{ title: 'Launch', body: 'Point a domain and share the player with the world.' }
 		],
-		imageLabel = 'Onboarding'
+		imageLabel = 'Onboarding',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 </script>
 
@@ -31,7 +35,7 @@
 		{/each}
 	</ol>
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="4 / 5" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="4 / 5" />
 	</div>
 </section>
 

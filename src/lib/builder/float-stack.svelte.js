@@ -10,6 +10,7 @@ class BuilderFloatStack {
 	toolbar = $state(BASE_Z);
 	inspector = $state(BASE_Z + 1);
 	blocks = $state(BASE_Z + 2);
+	media = $state(BASE_Z + 3);
 
 	/**
 	 * @param {BuilderHudId} id

@@ -9,7 +9,9 @@
 	 *   primaryHref?: string,
 	 *   secondaryLabel?: string,
 	 *   secondaryHref?: string,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -19,7 +21,9 @@
 		primaryHref = '/',
 		secondaryLabel = 'How hosting works',
 		secondaryHref = '/',
-		imageLabel = 'Catalog visual'
+		imageLabel = 'Catalog visual',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 </script>
 
@@ -33,7 +37,7 @@
 		</div>
 	</div>
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="5 / 4" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="5 / 4" />
 	</div>
 </section>
 

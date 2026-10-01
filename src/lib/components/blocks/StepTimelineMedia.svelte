@@ -4,7 +4,9 @@
 	/**
 	 * @type {{
 	 *   steps?: Array<{ title: string, body: string }>,
-	 *   imageLabel?: string
+	 *   imageLabel?: string,
+	 *   imageId?: string,
+	 *   imageKind?: string
 	 * }}
 	 */
 	let {
@@ -15,7 +17,9 @@
 			{ title: 'Share the link', body: 'Send your profile, subdomain, or custom domain.' },
 			{ title: 'Watch it play', body: 'Counted plays and comments roll in from the feed.' }
 		],
-		imageLabel = 'Workflow'
+		imageLabel = 'Workflow',
+		imageId = '',
+		imageKind = ''
 	} = $props();
 </script>
 
@@ -32,7 +36,7 @@
 		{/each}
 	</ol>
 	<div class="media">
-		<MediaPlaceholder label={imageLabel} ratio="4 / 5" />
+		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="4 / 5" />
 	</div>
 </section>
 

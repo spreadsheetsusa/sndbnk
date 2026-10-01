@@ -8,11 +8,15 @@
 	 *   leftCtaLabel?: string,
 	 *   leftCtaHref?: string,
 	 *   leftImageLabel?: string,
+	 *   leftImageId?: string,
+	 *   leftImageKind?: string,
 	 *   rightTitle?: string,
 	 *   rightBody?: string,
 	 *   rightCtaLabel?: string,
 	 *   rightCtaHref?: string,
-	 *   rightImageLabel?: string
+	 *   rightImageLabel?: string,
+	 *   rightImageId?: string,
+	 *   rightImageKind?: string
 	 * }}
 	 */
 	let {
@@ -21,23 +25,37 @@
 		leftCtaLabel = 'Go to library',
 		leftCtaHref = '/',
 		leftImageLabel = 'Artist tools',
+		leftImageId = '',
+		leftImageKind = '',
 		rightTitle = 'For listeners',
 		rightBody = 'Follow profiles, queue mixes, and keep the player with you.',
 		rightCtaLabel = 'Open the feed',
 		rightCtaHref = '/',
-		rightImageLabel = 'Listener tools'
+		rightImageLabel = 'Listener tools',
+		rightImageId = '',
+		rightImageKind = ''
 	} = $props();
 </script>
 
 <section class="content">
 	<article>
-		<MediaPlaceholder label={leftImageLabel} ratio="16 / 10" />
+		<MediaPlaceholder
+			label={leftImageLabel}
+			mediaId={leftImageId}
+			kind={leftImageKind}
+			ratio="16 / 10"
+		/>
 		<h3>{leftTitle}</h3>
 		<p>{leftBody}</p>
 		<a href={leftCtaHref}>{leftCtaLabel}</a>
 	</article>
 	<article>
-		<MediaPlaceholder label={rightImageLabel} ratio="16 / 10" />
+		<MediaPlaceholder
+			label={rightImageLabel}
+			mediaId={rightImageId}
+			kind={rightImageKind}
+			ratio="16 / 10"
+		/>
 		<h3>{rightTitle}</h3>
 		<p>{rightBody}</p>
 		<a href={rightCtaHref}>{rightCtaLabel}</a>

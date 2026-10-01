@@ -54,6 +54,39 @@ export function sniffImage(head) {
 }
 
 /**
+ * Design-library video. Rejects audio-only MP4 brands (m4a/m4b).
+ * @param {Uint8Array} head
+ * @returns {{ ext: string, mime: string } | null}
+ */
+export function sniffVideo(head) {
+	if (
+		head.length >= 4 &&
+		head[0] === 0x1a &&
+		head[1] === 0x45 &&
+		head[2] === 0xdf &&
+		head[3] === 0xa3
+	) {
+		return { ext: 'webm', mime: 'video/webm' };
+	}
+	if (!asciiAt(head, 4, 'ftyp') || head.length < 12) return null;
+	const brand = String.fromCharCode(head[8], head[9], head[10], head[11]).toLowerCase();
+	if (brand === 'm4a ' || brand === 'm4b ' || brand === 'm4p ') return null;
+	if (brand === 'qt  ') return { ext: 'mov', mime: 'video/quicktime' };
+	const video =
+		brand === 'isom' ||
+		brand === 'iso2' ||
+		brand === 'mp41' ||
+		brand === 'mp42' ||
+		brand === 'avc1' ||
+		brand === 'mp4v' ||
+		brand === 'm4v ' ||
+		brand.startsWith('mp4') ||
+		brand.startsWith('avc');
+	if (!video) return null;
+	return { ext: 'mp4', mime: 'video/mp4' };
+}
+
+/**
  * @param {Uint8Array} head
  * @returns {{ ext: string, mime: string } | null}
  */
