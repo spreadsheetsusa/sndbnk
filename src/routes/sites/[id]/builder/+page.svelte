@@ -1,6 +1,6 @@
 <script>
 	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
@@ -188,7 +188,8 @@
 		sitePlayerAccent.hex = previewPalette.accent;
 		void builder.headerAccent;
 		void builder.footerAccent;
-		sitePlayerAccent.paint++;
+		// `++` would read `paint` and retrigger this effect.
+		sitePlayerAccent.paint = untrack(() => sitePlayerAccent.paint) + 1;
 	});
 	onDestroy(() => {
 		sitePlayerAccent.hex = null;
