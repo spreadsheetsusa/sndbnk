@@ -1,26 +1,30 @@
 <script>
 	/**
-	 * Library cover picker. The same list serves the site logo and the site background.
+	 * Site-library image picker. The same list serves the site logo and the background.
+	 * `fallback` is a saved track cover that is not in the library list.
 	 * @type {{
-	 *   media?: Array<{ trackId: string, filename: string, thumbUrl: string }>,
+	 *   media?: Array<{ id: string, filename: string, thumbUrl: string }>,
 	 *   label?: string,
 	 *   selectedId?: string | null,
-	 *   onPick: (trackId: string | null) => void
+	 *   fallback?: { id: string, filename: string, thumbUrl: string } | null,
+	 *   onPick: (id: string | null) => void
 	 * }}
 	 */
-	let { media = [], label = 'Logo', selectedId = null, onPick } = $props();
+	let { media = [], label = 'Logo', selectedId = null, fallback = null, onPick } = $props();
 
 	const labelId = $props.id();
 	let open = $state(false);
 
-	const selected = $derived(media.find((item) => item.trackId === selectedId) ?? null);
+	const selected = $derived(
+		media.find((item) => item.id === selectedId) ?? (fallback?.id === selectedId ? fallback : null)
+	);
 
 	/**
-	 * @param {string | null} trackId
+	 * @param {string | null} id
 	 */
-	function pick(trackId) {
+	function pick(id) {
 		open = false;
-		onPick(trackId);
+		onPick(id);
 	}
 
 	/** @param {MouseEvent} event */
@@ -62,13 +66,13 @@
 					<span>No image</span>
 				</button>
 			</li>
-			{#each media as item (item.trackId)}
+			{#each media as item (item.id)}
 				<li>
 					<button
 						type="button"
 						role="option"
-						aria-selected={item.trackId === selectedId}
-						onclick={() => pick(item.trackId)}
+						aria-selected={item.id === selectedId}
+						onclick={() => pick(item.id)}
 					>
 						<img src={item.thumbUrl} alt="" />
 						<span>{item.filename}</span>
@@ -76,7 +80,7 @@
 				</li>
 			{/each}
 			{#if media.length === 0}
-				<li class="none">No covers in the library yet.</li>
+				<li class="none">No images in the library yet.</li>
 			{/if}
 		</ul>
 	{/if}

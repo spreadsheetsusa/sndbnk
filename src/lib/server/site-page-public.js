@@ -1,7 +1,12 @@
 import { resolveBackground } from '#lib/builder/site-background.js';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { loadPublicProfilePage } from '#lib/server/profile-page';
-import { ensureSiteChrome, ensureSiteRow, getSitePublic, libraryCoverUrl } from '#lib/server/site';
+import {
+	ensureSiteChrome,
+	ensureSiteRow,
+	getSitePublic,
+	resolvePickedImageUrl
+} from '#lib/server/site';
 import { ensureRootPage, getSitePageByPath } from '#lib/server/site-pages';
 
 /**
@@ -30,7 +35,7 @@ export async function loadTenantSitePage({ locals, url, path }) {
 
 	const background = resolveBackground(site.background, page.background);
 	const backgroundUrl = background?.trackId
-		? await libraryCoverUrl(locals.tenant.userId, background.trackId)
+		? await resolvePickedImageUrl(locals.tenant.userId, row.id, background.trackId)
 		: null;
 
 	const needsCatalog = page.blocks.some(

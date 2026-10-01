@@ -124,7 +124,7 @@ export const site = sqliteTable(
 		description: text('description'),
 		logoFilename: text('logo_filename'),
 		logoMime: text('logo_mime'),
-		/** Track whose cover is the site logo. Wins over `logoFilename` while that cover exists. */
+		/** Site-media image id. Older rows may be a track id; that cover is used when it is not a site image. */
 		logoTrackId: text('logo_track_id'),
 		/** `#RRGGBB`; null keeps the listener/default accent. */
 		accentColor: text('accent_color'),
@@ -132,7 +132,7 @@ export const site = sqliteTable(
 		headerAccent: text('header_accent'),
 		/** `#RRGGBB` footer accent. Null falls back to `accentColor`. */
 		footerAccent: text('footer_accent'),
-		/** JSON `{ trackId, size, position, attachment }` site-wide background. Null = none. */
+		/** JSON `{ trackId, size, position, attachment }`. `trackId` is a site-media image, or a legacy track cover. */
 		background: text('background'),
 		/** `light` | `dark` | `user`; locked modes or visitor toggle via header. */
 		appearance: text('appearance').notNull().default('light'),

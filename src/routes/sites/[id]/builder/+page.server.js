@@ -2,7 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 
 import { loadPublicProfilePage } from '#lib/server/profile-page';
 import { safeRedirect } from '#lib/server/safe-redirect';
-import { canEditSite, ensureSiteChrome, getOwnedSite, listSiteLogoMedia } from '#lib/server/site';
+import { canEditSite, ensureSiteChrome, getOwnedSite, listSiteImagePicks } from '#lib/server/site';
 import {
 	createSitePage,
 	deleteSitePage,
@@ -40,7 +40,7 @@ export const load = async ({ locals, params, url }) => {
 		pages,
 		currentPageId: root.id,
 		profileCatalog: catalog,
-		logoMedia: await listSiteLogoMedia(locals.user.id)
+		logoMedia: await listSiteImagePicks(row.id)
 	};
 };
 

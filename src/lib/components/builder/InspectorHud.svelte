@@ -27,7 +27,7 @@
 	/**
 	 * @type {{
 	 *   siteId: string,
-	 *   logoMedia?: Array<{ trackId: string, filename: string, thumbUrl: string }>,
+	 *   logoMedia?: Array<{ id: string, filename: string, thumbUrl: string }>,
 	 *   form?: {
 	 *     pagesMessage?: string,
 	 *     pagesSuccess?: string,
@@ -44,6 +44,25 @@
 	 * }}
 	 */
 	let { siteId, form = null, logoMedia = [] } = $props();
+
+	const logoFallback = $derived(
+		builder.logoTrackId &&
+			builder.logoUrl &&
+			!logoMedia.some((item) => item.id === builder.logoTrackId)
+			? { id: builder.logoTrackId, filename: 'Saved image', thumbUrl: builder.logoUrl }
+			: null
+	);
+	const backgroundFallback = $derived(
+		builder.backgroundTrackId &&
+			builder.backgroundUrl &&
+			!logoMedia.some((item) => item.id === builder.backgroundTrackId)
+			? {
+					id: builder.backgroundTrackId,
+					filename: 'Saved image',
+					thumbUrl: builder.backgroundUrl
+				}
+			: null
+	);
 
 	let submitting = $state(false);
 
@@ -661,7 +680,7 @@
 					{/if}
 				</section>
 
-				<SiteBackgroundControls media={logoMedia} />
+				<SiteBackgroundControls media={logoMedia} fallback={backgroundFallback} />
 
 				<section
 					class="chrome-section"
@@ -683,8 +702,9 @@
 					</header>
 					<LogoMediaSelect
 						media={logoMedia}
+						fallback={logoFallback}
 						selectedId={builder.logoTrackId}
-						onPick={(trackId) => builder.setLogoTrack(trackId)}
+						onPick={(id) => builder.setLogoTrack(id)}
 					/>
 					{#if builder.logoError}
 						<p class="form-error" role="alert">{builder.logoError}</p>

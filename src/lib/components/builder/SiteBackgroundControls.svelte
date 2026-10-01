@@ -12,10 +12,11 @@
 
 	/**
 	 * @type {{
-	 *   media?: Array<{ trackId: string, filename: string, thumbUrl: string }>
+	 *   media?: Array<{ id: string, filename: string, thumbUrl: string }>,
+	 *   fallback?: { id: string, filename: string, thumbUrl: string } | null
 	 * }}
 	 */
-	let { media = [] } = $props();
+	let { media = [], fallback = null } = $props();
 
 	/**
 	 * @param {'size' | 'position' | 'attachment'} key
@@ -47,9 +48,10 @@
 	<h3 id="site-bg-heading">Background</h3>
 	<LogoMediaSelect
 		{media}
+		{fallback}
 		label="Image"
 		selectedId={builder.backgroundTrackId}
-		onPick={(trackId) => builder.setBackground({ trackId })}
+		onPick={(id) => builder.setBackground({ trackId: id })}
 	/>
 	{#if builder.backgroundTrackId}
 		<div class="opts">

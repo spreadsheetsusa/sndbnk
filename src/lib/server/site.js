@@ -1,6 +1,7 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 
 import { normalizeSiteBackground, parseSiteBackground } from '#lib/builder/site-background.js';
+import { siteMediaUrl } from '#lib/site-media-url.js';
 import {
 	DEFAULT_THEME_PERSONA,
 	normalizeThemePersona,
@@ -17,7 +18,7 @@ import {
 } from '#lib/components/blocks/types.js';
 import { canRemoveBranding, canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
 import { db } from '#lib/server/db';
-import { site, track } from '#lib/server/db/schema';
+import { site, siteMedia, track } from '#lib/server/db/schema';
 import { readFileHead, sniffImage } from '#lib/server/media/sniff';
 import {
 	ensureRootPage,
@@ -68,28 +69,49 @@ export function siteLogoUrl(userId, updatedAt) {
 }
 
 /**
- * Cover URL when the site logo points at a library track that still has a cover.
+ * Cover URL when an older pick still points at a library track that has a cover.
  * @param {string} userId
- * @param {string | null | undefined} logoTrackId
+ * @param {string | null | undefined} trackId
  */
-export async function libraryCoverUrl(userId, logoTrackId) {
-	if (!logoTrackId) return null;
+export async function libraryCoverUrl(userId, trackId) {
+	if (!trackId) return null;
 	const rows = await db
 		.select({ coverFilename: track.coverFilename })
 		.from(track)
-		.where(and(eq(track.id, logoTrackId), eq(track.userId, userId)))
+		.where(and(eq(track.id, trackId), eq(track.userId, userId)))
 		.limit(1);
 	if (!rows[0]?.coverFilename) return null;
-	return `/api/media/${logoTrackId}/cover`;
+	return `/api/media/${trackId}/cover`;
 }
 
 /**
- * Library cover wins over an uploaded logo file.
+ * Site-library image first. A track cover is only used when the id is not a site image
+ * (picks saved before the site media library).
+ * @param {string} userId
+ * @param {string} siteId
+ * @param {string | null | undefined} imageId
+ */
+export async function resolvePickedImageUrl(userId, siteId, imageId) {
+	if (!imageId) return null;
+	const rows = await db
+		.select({ kind: siteMedia.kind })
+		.from(siteMedia)
+		.where(
+			and(eq(siteMedia.id, imageId), eq(siteMedia.siteId, siteId), eq(siteMedia.userId, userId))
+		)
+		.limit(1);
+	if (rows[0]?.kind === 'image') return siteMediaUrl(imageId);
+	if (rows[0]) return null;
+	return libraryCoverUrl(userId, imageId);
+}
+
+/**
+ * Picked image wins over an uploaded logo file.
  * @param {typeof site.$inferSelect} row
  */
 async function resolveLogoUrl(row) {
-	const library = await libraryCoverUrl(row.userId, row.logoTrackId);
-	if (library) return library;
+	const picked = await resolvePickedImageUrl(row.userId, row.id, row.logoTrackId);
+	if (picked) return picked;
 	return row.logoFilename ? siteLogoUrl(row.userId, row.updatedAt) : null;
 }
 
@@ -152,7 +174,9 @@ export async function getSitePublic(userId) {
 		headerAccent: row.headerAccent ?? null,
 		footerAccent: row.footerAccent ?? null,
 		background,
-		backgroundUrl: background?.trackId ? await libraryCoverUrl(userId, background.trackId) : null,
+		backgroundUrl: background?.trackId
+			? await resolvePickedImageUrl(userId, row.id, background.trackId)
+			: null,
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -205,39 +229,58 @@ export function serializeSiteOwner(row) {
 }
 
 /**
- * Owner shape with the library logo resolved (cover wins over the uploaded file).
+ * Owner shape with the picked logo and background image resolved.
  * @param {typeof site.$inferSelect} row
  */
 export async function presentSiteOwner(row) {
 	const owner = serializeSiteOwner(row);
 	owner.logoUrl = await resolveLogoUrl(row);
 	owner.backgroundUrl = owner.background?.trackId
-		? await libraryCoverUrl(row.userId, owner.background.trackId)
+		? await resolvePickedImageUrl(row.userId, row.id, owner.background.trackId)
 		: null;
 	return owner;
 }
 
 /**
- * Covers the owner can pick as a site logo.
- * @param {string} userId
+ * Site-library images the logo and background pickers can choose.
+ * @param {string} siteId
  */
-export async function listSiteLogoMedia(userId) {
+export async function listSiteImagePicks(siteId) {
 	const rows = await db
-		.select({
-			id: track.id,
-			title: track.title,
-			audioFilename: track.audioFilename
-		})
-		.from(track)
-		.where(and(eq(track.userId, userId), isNotNull(track.coverFilename)))
-		.orderBy(desc(track.createdAt))
+		.select({ id: siteMedia.id, name: siteMedia.name })
+		.from(siteMedia)
+		.where(and(eq(siteMedia.siteId, siteId), eq(siteMedia.kind, 'image')))
+		.orderBy(desc(siteMedia.createdAt))
 		.limit(100);
 
 	return rows.map((row) => ({
-		trackId: row.id,
-		filename: row.title.trim() || row.audioFilename || 'cover',
-		thumbUrl: `/api/media/${row.id}/cover`
+		id: row.id,
+		filename: row.name,
+		thumbUrl: siteMediaUrl(row.id)
 	}));
+}
+
+/**
+ * New picks must be a site-library image. An existing track cover is still accepted
+ * so a saved value can be written back unchanged.
+ * @param {string} userId
+ * @param {string} siteId
+ * @param {string | null} imageId
+ * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
+ */
+async function assertPickerImage(userId, siteId, imageId) {
+	if (!imageId) return { ok: true };
+	const rows = await db
+		.select({ kind: siteMedia.kind })
+		.from(siteMedia)
+		.where(
+			and(eq(siteMedia.id, imageId), eq(siteMedia.siteId, siteId), eq(siteMedia.userId, userId))
+		)
+		.limit(1);
+	if (rows[0]?.kind === 'image') return { ok: true };
+	if (rows[0]) return { ok: false, message: 'Choose an image.' };
+	if (await libraryCoverUrl(userId, imageId)) return { ok: true };
+	return { ok: false, message: 'Choose an image from the site library.' };
 }
 
 /**
@@ -867,7 +910,7 @@ export async function removeSiteLogo(userId, plan) {
 }
 
 /**
- * Point the site logo at a library cover, or clear that pick.
+ * Point the site logo at a site-library image, or clear that pick.
  * @param {string} userId
  * @param {string | null | undefined} plan
  * @param {string} siteId
@@ -884,16 +927,8 @@ export async function setSiteLogoTrack(userId, plan, siteId, trackId) {
 	const row = await getOwnedSite(userId, siteId);
 	if (!row) return { ok: /** @type {const} */ (false), message: 'Site not found.' };
 
-	if (trackId) {
-		const covers = await db
-			.select({ coverFilename: track.coverFilename })
-			.from(track)
-			.where(and(eq(track.id, trackId), eq(track.userId, userId)))
-			.limit(1);
-		if (!covers[0]?.coverFilename) {
-			return { ok: /** @type {const} */ (false), message: 'That file has no cover image.' };
-		}
-	}
+	const allowed = await assertPickerImage(userId, siteId, trackId);
+	if (!allowed.ok) return allowed;
 
 	const updatedAt = new Date();
 	await db.update(site).set({ logoTrackId: trackId, updatedAt }).where(eq(site.id, row.id));
@@ -928,10 +963,8 @@ export async function setSiteBackground(userId, plan, siteId, input) {
 	if (!normalized.ok) return normalized;
 
 	if (normalized.background?.trackId) {
-		const cover = await libraryCoverUrl(userId, normalized.background.trackId);
-		if (!cover) {
-			return { ok: /** @type {const} */ (false), message: 'That file has no cover image.' };
-		}
+		const allowed = await assertPickerImage(userId, siteId, normalized.background.trackId);
+		if (!allowed.ok) return allowed;
 	}
 
 	await db
@@ -943,7 +976,7 @@ export async function setSiteBackground(userId, plan, siteId, input) {
 		.where(eq(site.id, row.id));
 
 	const backgroundUrl = normalized.background?.trackId
-		? await libraryCoverUrl(userId, normalized.background.trackId)
+		? await resolvePickedImageUrl(userId, row.id, normalized.background.trackId)
 		: null;
 
 	return {
