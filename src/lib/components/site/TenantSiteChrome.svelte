@@ -5,6 +5,7 @@
 		writeSiteVisitorAppearance
 	} from '#lib/builder/site-appearance.js';
 	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
+	import { backgroundStyle } from '#lib/builder/site-background.js';
 	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import HeaderPlayer from '#lib/components/player/HeaderPlayer.svelte';
@@ -25,6 +26,8 @@
 	 *     logoUrl?: string | null,
 	 *     headerAccent?: string | null,
 	 *     footerAccent?: string | null,
+	 *     background?: import('#lib/builder/site-background.js').SiteBackground | null,
+	 *     backgroundUrl?: string | null,
 	 *     header?: PageBlockInstance | null,
 	 *     footer?: PageBlockInstance | null
 	 *   },
@@ -49,8 +52,13 @@
 		)
 	);
 	const themeStyle = $derived(
-		Object.entries(palette.cssVars)
-			.map(([key, value]) => `${key}: ${value}`)
+		[
+			Object.entries(palette.cssVars)
+				.map(([key, value]) => `${key}: ${value}`)
+				.join('; '),
+			backgroundStyle(site.background, site.backgroundUrl)
+		]
+			.filter(Boolean)
 			.join('; ')
 	);
 	const headerDef = $derived(site.header ? getBlockDefinition(site.header.type) : null);

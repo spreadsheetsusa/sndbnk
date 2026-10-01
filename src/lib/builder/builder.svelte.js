@@ -1,5 +1,6 @@
 import { browser } from '$app/env';
 import { deriveConsoleStatus, SAVED_HOLD_MS } from '#lib/builder/console-status.js';
+import { EMPTY_BACKGROUND } from '#lib/builder/site-background.js';
 import { clampBounds, defaultSpawn, HUD_SPECS } from '#lib/builder/hud-bounds.js';
 import { resolveSiteAppearance } from '#lib/builder/site-appearance.js';
 import {
@@ -140,6 +141,18 @@ class Builder {
 	logoTrackId = $state(/** @type {string | null} */ (null));
 	/** @type {string | null} */
 	logoError = $state(null);
+	/** Library track whose cover is the site background. @type {string | null} */
+	backgroundTrackId = $state(/** @type {string | null} */ (null));
+	/** @type {import('#lib/builder/site-background.js').BackgroundSize} */
+	backgroundSize = $state(EMPTY_BACKGROUND.size);
+	/** @type {import('#lib/builder/site-background.js').BackgroundPosition} */
+	backgroundPosition = $state(EMPTY_BACKGROUND.position);
+	/** @type {import('#lib/builder/site-background.js').BackgroundAttachment} */
+	backgroundAttachment = $state(EMPTY_BACKGROUND.attachment);
+	/** Resolved background image URL. @type {string} */
+	backgroundUrl = $state('');
+	/** @type {string | null} */
+	backgroundError = $state(null);
 	/** Site appearance mode: locked light/dark or visitor choice. @type {SiteAppearanceMode} */
 	appearance = $state(/** @type {SiteAppearanceMode} */ ('light'));
 	/** Canvas light/dark (locked when appearance is light/dark). @type {ResolvedAppearance} */
@@ -242,6 +255,8 @@ class Builder {
 	 *   footerAccent?: string,
 	 *   logoUrl?: string | null,
 	 *   logoTrackId?: string | null,
+	 *   background?: import('#lib/builder/site-background.js').SiteBackground | null,
+	 *   backgroundUrl?: string | null,
 	 *   appearance?: SiteAppearanceMode,
 	 *   themePersona?: ThemePersona | string,
 	 *   themePalette?: ThemeSlotColors | null,
@@ -263,6 +278,12 @@ class Builder {
 			this.logoUrl = data.logoUrl ?? '';
 			this.logoTrackId = data.logoTrackId ?? null;
 			this.logoError = null;
+			this.backgroundTrackId = data.background?.trackId ?? null;
+			this.backgroundSize = data.background?.size ?? EMPTY_BACKGROUND.size;
+			this.backgroundPosition = data.background?.position ?? EMPTY_BACKGROUND.position;
+			this.backgroundAttachment = data.background?.attachment ?? EMPTY_BACKGROUND.attachment;
+			this.backgroundUrl = data.backgroundUrl ?? '';
+			this.backgroundError = null;
 			this.appearance = normalizeSiteAppearanceMode(data.appearance);
 			this.themePersona = normalizeThemePersona(data.themePersona);
 			const stored = parseThemePalette(data.themePalette);
@@ -701,6 +722,54 @@ class Builder {
 		} catch {
 			this.logoError = 'Could not save the logo.';
 		}
+	}
+
+	/**
+	 * @param {Partial<import('#lib/builder/site-background.js').SiteBackground>} patch
+	 */
+	async setBackground(patch) {
+		if (!browser || !this.siteId) return;
+		const next = {
+			trackId: patch.trackId === undefined ? this.backgroundTrackId : patch.trackId,
+			size: patch.size ?? this.backgroundSize,
+			position: patch.position ?? this.backgroundPosition,
+			attachment: patch.attachment ?? this.backgroundAttachment
+		};
+		this.backgroundTrackId = next.trackId;
+		this.backgroundSize = next.size;
+		this.backgroundPosition = next.position;
+		this.backgroundAttachment = next.attachment;
+		if (!next.trackId) this.backgroundUrl = '';
+		this.backgroundError = null;
+		try {
+			const res = await fetch(`/api/sites/${this.siteId}/background`, {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(next)
+			});
+			if (!res.ok) {
+				this.backgroundError = (await res.text()) || 'Could not save the background.';
+				return;
+			}
+			const data = await res.json();
+			this.backgroundTrackId = data.background?.trackId ?? null;
+			if (data.background?.size) this.backgroundSize = data.background.size;
+			if (data.background?.position) this.backgroundPosition = data.background.position;
+			if (data.background?.attachment) this.backgroundAttachment = data.background.attachment;
+			this.backgroundUrl = data.backgroundUrl ?? '';
+			this.#markSaved();
+		} catch {
+			this.backgroundError = 'Could not save the background.';
+		}
+	}
+
+	clearBackground() {
+		void this.setBackground({
+			trackId: null,
+			size: EMPTY_BACKGROUND.size,
+			position: EMPTY_BACKGROUND.position,
+			attachment: EMPTY_BACKGROUND.attachment
+		});
 	}
 
 	/**

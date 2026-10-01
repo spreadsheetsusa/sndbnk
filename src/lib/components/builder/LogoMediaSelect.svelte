@@ -1,41 +1,44 @@
 <script>
-	import { builder } from '#lib/builder/builder.svelte.js';
-
 	/**
+	 * Library cover picker. The same list serves the site logo and the site background.
 	 * @type {{
-	 *   media?: Array<{ trackId: string, filename: string, thumbUrl: string }>
+	 *   media?: Array<{ trackId: string, filename: string, thumbUrl: string }>,
+	 *   label?: string,
+	 *   selectedId?: string | null,
+	 *   onPick: (trackId: string | null) => void
 	 * }}
 	 */
-	let { media = [] } = $props();
+	let { media = [], label = 'Logo', selectedId = null, onPick } = $props();
 
+	const labelId = $props.id();
 	let open = $state(false);
 
-	const selected = $derived(media.find((item) => item.trackId === builder.logoTrackId) ?? null);
+	const selected = $derived(media.find((item) => item.trackId === selectedId) ?? null);
 
 	/**
 	 * @param {string | null} trackId
 	 */
 	function pick(trackId) {
 		open = false;
-		void builder.setLogoTrack(trackId);
+		onPick(trackId);
 	}
 
 	/** @param {MouseEvent} event */
 	function onWindowClick(event) {
 		const target = /** @type {HTMLElement | null} */ (event.target);
-		if (target?.closest('[data-logo-select]')) return;
+		if (target?.closest(`[data-media-select="${labelId}"]`)) return;
 		open = false;
 	}
 </script>
 
 <svelte:window onclick={onWindowClick} />
 
-<div class="logo-select" data-logo-select>
-	<span class="label" id="site-logo-label">Logo</span>
+<div class="logo-select" data-media-select={labelId}>
+	<span class="label" id={labelId}>{label}</span>
 	<button
 		type="button"
 		class="trigger"
-		aria-labelledby="site-logo-label"
+		aria-labelledby={labelId}
 		aria-expanded={open}
 		aria-haspopup="listbox"
 		onclick={() => (open = !open)}
@@ -48,12 +51,12 @@
 		{/if}
 	</button>
 	{#if open}
-		<ul class="menu" role="listbox" aria-labelledby="site-logo-label">
+		<ul class="menu" role="listbox" aria-labelledby={labelId}>
 			<li>
 				<button
 					type="button"
 					role="option"
-					aria-selected={builder.logoTrackId == null}
+					aria-selected={selectedId == null}
 					onclick={() => pick(null)}
 				>
 					<span>No image</span>
@@ -64,7 +67,7 @@
 					<button
 						type="button"
 						role="option"
-						aria-selected={item.trackId === builder.logoTrackId}
+						aria-selected={item.trackId === selectedId}
 						onclick={() => pick(item.trackId)}
 					>
 						<img src={item.thumbUrl} alt="" />

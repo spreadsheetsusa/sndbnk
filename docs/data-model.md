@@ -109,6 +109,7 @@ custom-domain hosts only; apex `/users/{username}` ignores it. Owner management 
 | `siteIntent`                                | `tracks` \| `mixes` \| `podcast` \| `label` \| `other` (prefs)                                                        |
 | `wantBlog` / `wantEvents` / `wantEcommerce` | Feature interest flags from the wizard (prefs only)                                                                   |
 | `headerBlock` / `footerBlock`               | JSON `{ id, type, props }` site chrome (nullable until seeded)                                                        |
+| `background`                                | JSON `{ trackId, size, position, attachment }` site-wide background image; null = none                                |
 
 Sidebar defaults: master off, cards on (so enabling the master restores a full sidebar). Apex and
 subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
@@ -119,6 +120,9 @@ Site chrome (header/footer) is site-wide, not per-page. `ensureSiteChrome()` see
 builder load; it also lifts any legacy header/footer instances out of page `blocks`. Edited via
 `PUT /api/sites/{id}/chrome`. Accent, appearance, theme persona, and navbar/footer accents edit via
 Inspector **Site** or `PUT /api/sites/{id}/theme`. The library logo is `PUT /api/sites/{id}/logo`.
+The site-wide background is `PUT /api/sites/{id}/background` (same library covers). `site_page.background`
+uses the same JSON shape so a page can override the site image later; the builder edits the site-wide
+value only. `resolveBackground()` prefers a page image when one is set.
 
 Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,
 `/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
@@ -142,6 +146,7 @@ the current UI creates flat sibling pages only.
 | `title`                       | Page title (default `Home`)                                              |
 | `seoTitle` / `seoDescription` | Optional SEO fields                                                      |
 | `blocks`                      | JSON body blocks only (`{ id, type, props, layout? }`; no header/footer) |
+| `background`                  | Same JSON as `site.background`; null keeps the site-wide image           |
 | `catalogSeeded`               | One-time legacy Home catalog seed guard                                  |
 | `sortOrder`                   | Sibling order                                                            |
 

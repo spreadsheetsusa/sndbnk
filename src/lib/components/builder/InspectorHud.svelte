@@ -17,6 +17,7 @@
 	import ChromeAccentControl from '#lib/components/builder/ChromeAccentControl.svelte';
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
 	import LogoMediaSelect from '#lib/components/builder/LogoMediaSelect.svelte';
+	import SiteBackgroundControls from '#lib/components/builder/SiteBackgroundControls.svelte';
 	import PersonaPaletteEditor from '#lib/components/builder/PersonaPaletteEditor.svelte';
 	import ThemeControls from '#lib/components/ThemeControls.svelte';
 	import { isSafeHref } from '#lib/safe-href.js';
@@ -577,6 +578,8 @@
 					{/if}
 				</section>
 
+				<SiteBackgroundControls media={logoMedia} />
+
 				<section
 					class="chrome-section"
 					class:focused={builder.selectedChrome === 'header'}
@@ -595,7 +598,11 @@
 							<p class="chrome-type">{headerDef.label}</p>
 						{/if}
 					</header>
-					<LogoMediaSelect media={logoMedia} />
+					<LogoMediaSelect
+						media={logoMedia}
+						selectedId={builder.logoTrackId}
+						onPick={(trackId) => builder.setLogoTrack(trackId)}
+					/>
 					{#if builder.logoError}
 						<p class="form-error" role="alert">{builder.logoError}</p>
 					{/if}

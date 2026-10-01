@@ -132,6 +132,8 @@ export const site = sqliteTable(
 		headerAccent: text('header_accent'),
 		/** `#RRGGBB` footer accent. Null falls back to `accentColor`. */
 		footerAccent: text('footer_accent'),
+		/** JSON `{ trackId, size, position, attachment }` site-wide background. Null = none. */
+		background: text('background'),
 		/** `light` | `dark` | `user`; locked modes or visitor toggle via header. */
 		appearance: text('appearance').notNull().default('light'),
 		/** Builder persona id (`mono` | `analogous` | …); derives palette from accent. */
@@ -194,6 +196,8 @@ export const sitePage = sqliteTable(
 		seoDescription: text('seo_description'),
 		/** JSON array of `{ id, type, props }` block instances for the page builder. */
 		blocks: text('blocks').notNull().default('[]'),
+		/** Same JSON shape as `site.background`. Null uses the site-wide image. */
+		background: text('background'),
 		/** One-time guard for seeding legacy empty home pages with the live catalog block. */
 		catalogSeeded: integer('catalog_seeded', { mode: 'boolean' }).notNull().default(false),
 		sortOrder: integer('sort_order').notNull().default(0),

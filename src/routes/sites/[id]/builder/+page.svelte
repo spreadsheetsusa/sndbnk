@@ -3,6 +3,7 @@
 	import { onDestroy } from 'svelte';
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
+	import { backgroundStyle, resolveBackground } from '#lib/builder/site-background.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
 	import {
@@ -158,6 +159,8 @@
 			footerAccent: data.site.footerAccent ?? '',
 			logoUrl: data.site.logoUrl ?? '',
 			logoTrackId: data.site.logoTrackId ?? null,
+			background: data.site.background ?? null,
+			backgroundUrl: data.site.backgroundUrl ?? '',
 			appearance:
 				data.site.appearance === 'dark' || data.site.appearance === 'user'
 					? data.site.appearance
@@ -181,6 +184,18 @@
 		)
 	);
 	const previewStyle = $derived(previewThemeStyle(previewPalette, builder.previewAppearance));
+	const previewBackground = $derived(
+		resolveBackground(
+			{
+				trackId: builder.backgroundTrackId,
+				size: builder.backgroundSize,
+				position: builder.backgroundPosition,
+				attachment: builder.backgroundAttachment
+			},
+			builder.pages.find((page) => page.id === builder.currentPageId)?.background ?? null
+		)
+	);
+	const previewBackgroundCss = $derived(backgroundStyle(previewBackground, builder.backgroundUrl));
 
 	// Local counter so the effect can bump `paint` without reading it (a read would loop).
 	let paintGen = 0;
@@ -393,7 +408,10 @@
 				<span class="lamp" data-state={consoleStatus} aria-hidden="true"></span>
 				<span class="lcd-face label">{consoleStatus}</span>
 			</div>
-			<div class="preview" style={previewStyle}>
+			<div
+				class="preview"
+				style="{previewStyle}{previewBackgroundCss ? `;${previewBackgroundCss}` : ''}"
+			>
 				{#if builder.header && HeaderBlock}
 					<!-- Select overlay sits under the player so transport stays clickable. -->
 					<div
@@ -676,7 +694,7 @@
 		min-width: 0;
 		/* Site theme tokens applied inline; isolate from listener dark/light on <html>. */
 		border: 0;
-		background: var(--paper);
+		background-color: var(--paper);
 	}
 
 	.stack {

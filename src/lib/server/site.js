@@ -1,5 +1,6 @@
 import { and, desc, eq, isNotNull } from 'drizzle-orm';
 
+import { normalizeSiteBackground, parseSiteBackground } from '#lib/builder/site-background.js';
 import {
 	DEFAULT_THEME_PERSONA,
 	normalizeThemePersona,
@@ -71,7 +72,7 @@ export function siteLogoUrl(userId, updatedAt) {
  * @param {string} userId
  * @param {string | null | undefined} logoTrackId
  */
-async function libraryCoverUrl(userId, logoTrackId) {
+export async function libraryCoverUrl(userId, logoTrackId) {
 	if (!logoTrackId) return null;
 	const rows = await db
 		.select({ coverFilename: track.coverFilename })
@@ -138,6 +139,8 @@ export async function getSitePublic(userId) {
 	const row = await getSiteByUserId(userId);
 	if (!row) return null;
 
+	const background = parseSiteBackground(row.background);
+
 	return {
 		id: row.id,
 		name: row.name ?? null,
@@ -148,6 +151,8 @@ export async function getSitePublic(userId) {
 		accentColor: row.accentColor ?? null,
 		headerAccent: row.headerAccent ?? null,
 		footerAccent: row.footerAccent ?? null,
+		background,
+		backgroundUrl: background?.trackId ? await libraryCoverUrl(userId, background.trackId) : null,
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -181,6 +186,7 @@ export function serializeSiteOwner(row) {
 		accentColor: row.accentColor ?? '',
 		headerAccent: row.headerAccent ?? '',
 		footerAccent: row.footerAccent ?? '',
+		background: parseSiteBackground(row.background),
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -205,6 +211,9 @@ export function serializeSiteOwner(row) {
 export async function presentSiteOwner(row) {
 	const owner = serializeSiteOwner(row);
 	owner.logoUrl = await resolveLogoUrl(row);
+	owner.backgroundUrl = owner.background?.trackId
+		? await libraryCoverUrl(row.userId, owner.background.trackId)
+		: null;
 	return owner;
 }
 
@@ -665,11 +674,11 @@ export async function updateSiteTheme(input) {
 		themePalette,
 		headerAccent:
 			'headerAccent' in patch
-				? /** @type {string | null} */ ((patch.headerAccent) ?? '')
+				? /** @type {string | null} */ (patch.headerAccent ?? '')
 				: (row.headerAccent ?? ''),
 		footerAccent:
 			'footerAccent' in patch
-				? /** @type {string | null} */ ((patch.footerAccent) ?? '')
+				? /** @type {string | null} */ (patch.footerAccent ?? '')
 				: (row.footerAccent ?? '')
 	};
 }
@@ -894,6 +903,53 @@ export async function setSiteLogoTrack(userId, plan, siteId, trackId) {
 		ok: /** @type {const} */ (true),
 		logoTrackId: trackId,
 		logoUrl
+	};
+}
+
+/**
+ * Site-wide background image and how it paints. Null background clears the image.
+ * @param {string} userId
+ * @param {string | null | undefined} plan
+ * @param {string} siteId
+ * @param {unknown} input
+ */
+export async function setSiteBackground(userId, plan, siteId, input) {
+	if (!canEditSite(plan)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Site settings need Vault or higher. Upgrade from the Billing tab.'
+		};
+	}
+
+	const row = await getOwnedSite(userId, siteId);
+	if (!row) return { ok: /** @type {const} */ (false), message: 'Site not found.' };
+
+	const normalized = normalizeSiteBackground(input);
+	if (!normalized.ok) return normalized;
+
+	if (normalized.background?.trackId) {
+		const cover = await libraryCoverUrl(userId, normalized.background.trackId);
+		if (!cover) {
+			return { ok: /** @type {const} */ (false), message: 'That file has no cover image.' };
+		}
+	}
+
+	await db
+		.update(site)
+		.set({
+			background: normalized.background ? JSON.stringify(normalized.background) : null,
+			updatedAt: new Date()
+		})
+		.where(eq(site.id, row.id));
+
+	const backgroundUrl = normalized.background?.trackId
+		? await libraryCoverUrl(userId, normalized.background.trackId)
+		: null;
+
+	return {
+		ok: /** @type {const} */ (true),
+		background: normalized.background,
+		backgroundUrl
 	};
 }
 
