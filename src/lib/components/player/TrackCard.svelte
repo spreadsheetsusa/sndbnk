@@ -74,6 +74,7 @@
 	 *   showCommentForm?: boolean,
 	 *   linkBase?: string,
 	 *   titleAsHeading?: boolean,
+	 *   hideArtist?: boolean,
 	 *   feedTracks?: import('#lib/player/player.svelte.js').PlayerTrack[] | null,
 	 *   feedIndex?: number,
 	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
@@ -90,6 +91,7 @@
 		showCommentForm = true,
 		linkBase = '',
 		titleAsHeading = false,
+		hideArtist = false,
 		feedTracks = null,
 		feedIndex = -1,
 		oncommented,
@@ -430,12 +432,14 @@
 			</button>
 
 			<div class="titles">
-				{#if track.username}
-					<a class="artist" href="{linkBase}/users/{track.username}">
-						{track.artist || track.uploaderName}
-					</a>
-				{:else}
-					<span class="artist">{track.artist || track.uploaderName}</span>
+				{#if !hideArtist}
+					{#if track.username}
+						<a class="artist" href="{linkBase}/users/{track.username}">
+							{track.artist || track.uploaderName}
+						</a>
+					{:else}
+						<span class="artist">{track.artist || track.uploaderName}</span>
+					{/if}
 				{/if}
 				{#if titleAsHeading}
 					<h1 class="title">{track.title}</h1>

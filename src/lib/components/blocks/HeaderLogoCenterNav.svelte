@@ -1,9 +1,12 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
+	import { player } from '#lib/player/player.svelte.js';
 
 	/**
 	 * @type {{
 	 *   logoText?: string,
+	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
@@ -14,6 +17,7 @@
 	 */
 	let {
 		logoText = 'SNDBNK',
+		logoUrl = '',
 		links = [
 			{ label: 'Home', href: '/' },
 			{ label: 'Music', href: '/' },
@@ -28,8 +32,15 @@
 	} = $props();
 </script>
 
-<header class="block-header">
-	<a class="logo" href="/">{logoText}</a>
+<header class="block-header" class:has-player={!!player.current}>
+	<a class="logo" href="/">
+		{#if logoUrl}
+			<img src={logoUrl} alt="" />
+		{:else}
+			{logoText}
+		{/if}
+	</a>
+	<SiteNavPlayer />
 	<nav aria-label="Primary">
 		{#each links as link (link.label)}
 			<a href={link.href}>{link.label}</a>
@@ -45,6 +56,9 @@
 
 <style>
 	.block-header {
+		position: sticky;
+		top: 0;
+		z-index: 30;
 		display: grid;
 		grid-template-columns: auto 1fr auto;
 		align-items: center;
@@ -54,11 +68,31 @@
 		background: color-mix(in srgb, var(--theme-1, var(--paper)) 40%, var(--paper));
 	}
 
+	/* Player takes the flexible middle, same as the platform header. */
+	.block-header.has-player {
+		display: flex;
+		flex-wrap: nowrap;
+	}
+
+	.block-header.has-player .logo,
+	.block-header.has-player nav,
+	.block-header.has-player .end {
+		flex: 0 0 auto;
+	}
+
 	.logo {
 		font-family: var(--font-display);
 		font-size: 1rem;
 		color: var(--theme-4, var(--ink));
 		text-decoration: none;
+	}
+
+	.logo img {
+		display: block;
+		height: 1.75rem;
+		width: auto;
+		max-width: 8rem;
+		object-fit: contain;
 	}
 
 	nav {
@@ -90,5 +124,11 @@
 		color: var(--on-accent);
 		text-decoration: none;
 		font-size: 0.85rem;
+	}
+
+	@media (max-width: 960px) {
+		.block-header.has-player {
+			flex-wrap: wrap;
+		}
 	}
 </style>

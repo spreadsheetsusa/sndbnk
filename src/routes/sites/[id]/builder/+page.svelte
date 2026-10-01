@@ -1,7 +1,11 @@
 <script>
 	import IconTrash from '@tabler/icons-svelte-runes/icons/trash';
+	import { onDestroy } from 'svelte';
 	import { builder } from '#lib/builder/builder.svelte.js';
+	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
+	import { backgroundStyle, resolveBackground } from '#lib/builder/site-background.js';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
+	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
 	import {
 		BLOCK_MIN_WIDTH_PX,
 		clampBlockMaxWidth,
@@ -22,15 +26,11 @@
 	const DEFAULT_SITE_ACCENT = ACCENTS[0].value;
 
 	/**
-	 * Scope site accent + persona + light/dark tokens on the canvas so HUDs keep platform theme.
-	 * @param {string} accentHex
+	 * Scope site accent + persona + light/dark tokens on the preview so HUDs keep platform theme.
+	 * @param {ReturnType<typeof buildPersonaPalette>} palette
 	 * @param {'light' | 'dark'} previewAppearance
-	 * @param {string} themePersona
-	 * @param {import('#lib/builder/theme-persona.js').ThemeSlotColors | null} slotColors
 	 */
-	function previewThemeStyle(accentHex, previewAppearance, themePersona, slotColors) {
-		const seed = normalizeHex(accentHex) ?? DEFAULT_SITE_ACCENT;
-		const palette = buildPersonaPalette(seed, themePersona, slotColors);
+	function previewThemeStyle(palette, previewAppearance) {
 		const accent = palette.accent;
 		const onAccent = palette.onAccent;
 		const dark = previewAppearance === 'dark';
@@ -156,6 +156,12 @@
 			siteId: data.site.id,
 			siteName: data.site.name,
 			accentColor: data.site.accentColor ?? '',
+			headerAccent: data.site.headerAccent ?? '',
+			footerAccent: data.site.footerAccent ?? '',
+			logoUrl: data.site.logoUrl ?? '',
+			logoTrackId: data.site.logoTrackId ?? null,
+			background: data.site.background ?? null,
+			backgroundUrl: data.site.backgroundUrl ?? '',
 			appearance:
 				data.site.appearance === 'dark' || data.site.appearance === 'user'
 					? data.site.appearance
@@ -171,14 +177,42 @@
 		return () => builder.hydrate(state);
 	});
 
-	const previewStyle = $derived(
-		previewThemeStyle(
-			builder.accentColor,
-			builder.previewAppearance,
+	const previewPalette = $derived(
+		buildPersonaPalette(
+			normalizeHex(builder.accentColor) ?? DEFAULT_SITE_ACCENT,
 			builder.themePersona,
 			builder.themeSlotColors
 		)
 	);
+	const previewStyle = $derived(previewThemeStyle(previewPalette, builder.previewAppearance));
+	const previewBackground = $derived(
+		resolveBackground(
+			{
+				trackId: builder.backgroundTrackId,
+				size: builder.backgroundSize,
+				position: builder.backgroundPosition,
+				attachment: builder.backgroundAttachment
+			},
+			builder.pages.find((page) => page.id === builder.currentPageId)?.background ?? null
+		)
+	);
+	const previewBackgroundCss = $derived(backgroundStyle(previewBackground, builder.backgroundUrl));
+
+	// Local counter so the effect can bump `paint` without reading it (a read would loop).
+	let paintGen = 0;
+
+	// Canvases re-read computed `--accent` when this changes. EQ stays on the
+	// listener color: it is outside the preview, so its computed accent is the platform one.
+	$effect(() => {
+		sitePlayerAccent.hex = previewPalette.accent;
+		void builder.headerAccent;
+		void builder.footerAccent;
+		paintGen += 1;
+		sitePlayerAccent.paint = paintGen;
+	});
+	onDestroy(() => {
+		sitePlayerAccent.hex = null;
+	});
 
 	const consoleStatus = $derived(builder.consoleStatus);
 
@@ -375,23 +409,31 @@
 				<span class="lamp" data-state={consoleStatus} aria-hidden="true"></span>
 				<span class="lcd-face label">{consoleStatus}</span>
 			</div>
-			<div class="preview" style={previewStyle}>
+			<div
+				class="preview"
+				style="{previewStyle}{previewBackgroundCss ? `;${previewBackgroundCss}` : ''}"
+			>
 				{#if builder.header && HeaderBlock}
-					<div class="chrome instance" class:selected={builder.selectedChrome === 'header'}>
+					<!-- Select overlay sits under the player so transport stays clickable. -->
+					<div
+						class="chrome instance"
+						class:selected={builder.selectedChrome === 'header'}
+						style={chromeAccentStyle(builder.headerAccent)}
+					>
+						<HeaderBlock
+							{...builder.header.props}
+							logoUrl={builder.logoUrl}
+							showAppearanceToggle={builder.appearance === 'user'}
+							resolvedAppearance={builder.previewAppearance}
+							onAppearanceToggle={() => builder.togglePreviewAppearance()}
+						/>
 						<button
 							type="button"
-							class="instance-hit"
+							class="chrome-select"
 							aria-label="Select site header"
 							aria-pressed={builder.selectedChrome === 'header'}
 							onclick={() => builder.selectChrome('header')}
-						>
-							<HeaderBlock
-								{...builder.header.props}
-								showAppearanceToggle={builder.appearance === 'user'}
-								resolvedAppearance={builder.previewAppearance}
-								onAppearanceToggle={() => builder.togglePreviewAppearance()}
-							/>
-						</button>
+						></button>
 					</div>
 				{/if}
 
@@ -423,7 +465,7 @@
 								onclick={() => builder.selectInstance(instance.id)}
 							>
 								{#if Block}
-									{#if instance.type === 'catalog.profile'}
+									{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
 										<Block
 											{...instance.props}
 											profileData={profileCatalog}
@@ -490,7 +532,11 @@
 				</div>
 
 				{#if builder.footer && FooterBlock}
-					<div class="chrome instance" class:selected={builder.selectedChrome === 'footer'}>
+					<div
+						class="chrome instance"
+						class:selected={builder.selectedChrome === 'footer'}
+						style={chromeAccentStyle(builder.footerAccent)}
+					>
 						<button
 							type="button"
 							class="instance-hit"
@@ -521,7 +567,7 @@
 	</main>
 
 	<BuilderToolbar />
-	<InspectorHud siteId={data.site.id} {form} />
+	<InspectorHud siteId={data.site.id} {form} logoMedia={data.logoMedia} />
 	<BlocksHud />
 	<MediaHud />
 </div>
@@ -545,10 +591,11 @@
 		align-content: start;
 		gap: 1.25rem;
 		padding: 1.5rem 1.25rem 4rem;
-		border: 1px solid var(--hard-border);
+		/* Editor frame only — not the platform accent. HUDs keep SNDBNK chrome. */
+		border: 1px dotted color-mix(in srgb, var(--ink) 28%, transparent);
 		border-radius: 0;
 		background: transparent;
-		box-shadow: 5px 5px 0 var(--hard-shadow);
+		box-shadow: none;
 	}
 
 	.console-status {
@@ -648,7 +695,8 @@
 		width: 100%;
 		min-width: 0;
 		/* Site theme tokens applied inline; isolate from listener dark/light on <html>. */
-		border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		border: 0;
+		background-color: var(--paper);
 	}
 
 	.stack {
@@ -777,7 +825,33 @@
 	}
 
 	.chrome {
+		position: relative;
 		margin-bottom: 0;
+	}
+
+	.chrome-select {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	/* Clicks on the nav select the header. The player sits above that overlay. */
+	.chrome :global(.block-header) {
+		pointer-events: none;
+	}
+
+	.chrome :global(.header-player),
+	.chrome :global(.header-player *) {
+		pointer-events: auto;
+	}
+
+	.chrome :global(.header-player) {
+		position: relative;
+		z-index: 4;
 	}
 
 	.chrome + .stack {

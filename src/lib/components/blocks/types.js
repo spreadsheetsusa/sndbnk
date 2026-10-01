@@ -10,6 +10,7 @@ export const BLOCK_TYPES = [
 	'header.center-logo',
 	'header.logo-center-nav',
 	'catalog.profile',
+	'catalog.stream',
 	'hero.split-copy-image',
 	'hero.centered-image',
 	'hero.split-image-copy',

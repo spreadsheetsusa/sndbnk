@@ -90,8 +90,8 @@ Declared in [`src/app.d.ts`](../src/app.d.ts). All three fields are optional —
 where `hostKind` is `'subdomain' | 'custom'`. Its presence is the single signal for "render in
 tenant mode": hide apex chrome, resolve `/` or a flat path through
 [`loadTenantSitePage()`](../src/lib/server/site-page-public.js), and apply `site` branding (name,
-logo, accent, appearance `light`/`dark`/`user`, theme persona, hide “Powered by SNDBNK”). A
-`catalog.profile` block loads the creator's live profile through
+logo, accent, appearance `light`/`dark`/`user`, theme persona, navbar/footer accents). A
+`catalog.profile` or `catalog.stream` block loads the creator's live profile through
 [`loadPublicProfilePage()`](../src/lib/server/profile-page.js). Locked tenant appearance overrides
 the listener theme preference; `user` resolves from site-scoped localStorage (or system).
 

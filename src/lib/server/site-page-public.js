@@ -1,6 +1,12 @@
+import { resolveBackground } from '#lib/builder/site-background.js';
 import { canRemoveBranding } from '#lib/server/billing/plans';
 import { loadPublicProfilePage } from '#lib/server/profile-page';
-import { ensureSiteChrome, ensureSiteRow, getSitePublic } from '#lib/server/site';
+import {
+	ensureSiteChrome,
+	ensureSiteRow,
+	getSitePublic,
+	resolvePickedImageUrl
+} from '#lib/server/site';
 import { ensureRootPage, getSitePageByPath } from '#lib/server/site-pages';
 
 /**
@@ -27,7 +33,14 @@ export async function loadTenantSitePage({ locals, url, path }) {
 	}
 	if (!site || !page) return null;
 
-	const needsCatalog = page.blocks.some((block) => block.type === 'catalog.profile');
+	const background = resolveBackground(site.background, page.background);
+	const backgroundUrl = background?.trackId
+		? await resolvePickedImageUrl(locals.tenant.userId, row.id, background.trackId)
+		: null;
+
+	const needsCatalog = page.blocks.some(
+		(block) => block.type === 'catalog.profile' || block.type === 'catalog.stream'
+	);
 	const catalog = needsCatalog
 		? await loadPublicProfilePage({
 				username: locals.tenant.username,
@@ -41,7 +54,9 @@ export async function loadTenantSitePage({ locals, url, path }) {
 		site: {
 			...site,
 			name: site.name || locals.tenant.name || locals.tenant.username,
-			hideBranding: site.hideBranding && canRemoveBranding(locals.tenant.plan)
+			hideBranding: site.hideBranding && canRemoveBranding(locals.tenant.plan),
+			background,
+			backgroundUrl
 		},
 		page,
 		catalog,

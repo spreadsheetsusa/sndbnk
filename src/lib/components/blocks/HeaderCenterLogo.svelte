@@ -1,9 +1,11 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
 
 	/**
 	 * @type {{
 	 *   logoText?: string,
+	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
@@ -14,6 +16,7 @@
 	 */
 	let {
 		logoText = 'SNDBNK',
+		logoUrl = '',
 		links = [
 			{ label: 'Listen', href: '/' },
 			{ label: 'Watch', href: '/' },
@@ -33,24 +36,38 @@
 			<a href={link.href}>{link.label}</a>
 		{/each}
 	</nav>
-	<a class="logo" href="/">{logoText}</a>
+	<a class="logo" href="/">
+		{#if logoUrl}
+			<img src={logoUrl} alt="" />
+		{:else}
+			{logoText}
+		{/if}
+	</a>
 	<div class="end">
 		{#if showAppearanceToggle}
 			<AppearanceToggle {resolvedAppearance} {onAppearanceToggle} />
 		{/if}
 		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
 	</div>
+	<SiteNavPlayer />
 </header>
 
 <style>
 	.block-header {
+		position: sticky;
+		top: 0;
+		z-index: 30;
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.75rem 1rem;
 		padding: 0.85rem 1.25rem;
 		border-bottom: 1px solid color-mix(in srgb, var(--theme-2, var(--ink)) 40%, transparent);
 		background: color-mix(in srgb, var(--theme-5, var(--paper)) 50%, var(--paper));
+	}
+
+	.block-header :global(.site-nav-player) {
+		grid-column: 1 / -1;
 	}
 
 	.left {
@@ -77,6 +94,14 @@
 		justify-self: center;
 	}
 
+	.logo img {
+		display: block;
+		height: 1.75rem;
+		width: auto;
+		max-width: 8rem;
+		object-fit: contain;
+	}
+
 	.end {
 		display: flex;
 		align-items: center;
@@ -91,5 +116,16 @@
 		color: var(--on-accent);
 		text-decoration: none;
 		font-size: 0.85rem;
+	}
+
+	@media (max-width: 960px) {
+		.block-header:has(:global(.header-player)) {
+			display: flex;
+			flex-wrap: wrap;
+		}
+
+		.block-header :global(.site-nav-player) {
+			grid-column: auto;
+		}
 	}
 </style>

@@ -1,9 +1,12 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
+	import { player } from '#lib/player/player.svelte.js';
 
 	/**
 	 * @type {{
 	 *   logoText?: string,
+	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
@@ -14,6 +17,7 @@
 	 */
 	let {
 		logoText = 'SNDBNK',
+		logoUrl = '',
 		links = [
 			{ label: 'Releases', href: '/' },
 			{ label: 'Mixes', href: '/' },
@@ -27,8 +31,15 @@
 	} = $props();
 </script>
 
-<header class="block-header">
-	<a class="logo" href="/">{logoText}</a>
+<header class="block-header" class:has-player={!!player.current}>
+	<a class="logo" href="/">
+		{#if logoUrl}
+			<img src={logoUrl} alt="" />
+		{:else}
+			{logoText}
+		{/if}
+	</a>
+	<SiteNavPlayer />
 	<span class="divider" aria-hidden="true"></span>
 	<nav aria-label="Primary">
 		{#each links as link (link.label)}
@@ -45,7 +56,11 @@
 
 <style>
 	.block-header {
+		position: sticky;
+		top: 0;
+		z-index: 30;
 		display: flex;
+		flex-wrap: nowrap;
 		align-items: center;
 		gap: 0.85rem;
 		padding: 0.85rem 1.25rem;
@@ -53,11 +68,26 @@
 		background: color-mix(in srgb, var(--theme-1, var(--paper)) 35%, var(--paper));
 	}
 
+	.logo,
+	.divider,
+	nav,
+	.end {
+		flex: 0 0 auto;
+	}
+
 	.logo {
 		font-family: var(--font-display);
 		font-size: 1rem;
 		color: var(--theme-4, var(--ink));
 		text-decoration: none;
+	}
+
+	.logo img {
+		display: block;
+		height: 1.75rem;
+		width: auto;
+		max-width: 8rem;
+		object-fit: contain;
 	}
 
 	.divider {
@@ -88,6 +118,16 @@
 		gap: 0.55rem;
 		margin-left: auto;
 		flex: 0 0 auto;
+	}
+
+	.block-header.has-player .end {
+		margin-left: 0;
+	}
+
+	@media (max-width: 960px) {
+		.block-header.has-player {
+			flex-wrap: wrap;
+		}
 	}
 
 	.cta {

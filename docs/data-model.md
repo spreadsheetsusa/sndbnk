@@ -91,13 +91,15 @@ custom-domain hosts only; apex `/users/{username}` ignores it. Owner management 
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `id`                                        | UUID route key for `/sites/{id}` (unique; `userId` remains PK)                                                        |
 | `name` / `description`                      | Tenant title and meta description                                                                                     |
-| `logoFilename` / `logoMime`                 | Local-disk logo (`site-logo/`); also used as favicon when set                                                         |
+| `logoFilename` / `logoMime`                 | Uploaded logo (`site-logo/`); used when no site-library image is chosen                                               |
+| `logoTrackId`                               | Site-media image id for the logo. Older rows may be a track id; that cover is used when the id is not a site image    |
 | `ogImageFilename` / `ogImageMime`           | Social share image (`site-og/`); falls back to logo then avatar                                                       |
 | `accentColor`                               | `#RRGGBB` tenant accent; null keeps listener/default accent                                                           |
+| `headerAccent` / `footerAccent`             | `#RRGGBB` navbar and footer accents; null falls back to the site theme accent                                         |
 | `appearance`                                | `light` \| `dark` \| `user` — locked modes, or visitor toggle via header blocks                                       |
 | `themePersona`                              | Persona id (`mono` \| `analogous` \| `complementary` \| `split` \| `soft` \| `vivid`); seeds slot palette from accent |
 | `themePalette`                              | JSON `{ primary, secondary, tertiary, surface, success, error }` hex map; null = derive from accent + persona         |
-| `hideBranding`                              | Hide “Powered by SNDBNK”; honored only when `allowRemoveBranding`                                                     |
+| `hideBranding`                              | Legacy Studio flag. The footer no longer renders a platform credit                                                    |
 | `sidebarEnabled`                            | Master toggle for profile sidebar on **custom domains** only                                                          |
 | `sidebarStats`                              | Stats card (counts, Follow, reposts); default on                                                                      |
 | `sidebarFansAlsoLike`                       | Fans Also Like card; default on                                                                                       |
@@ -107,6 +109,7 @@ custom-domain hosts only; apex `/users/{username}` ignores it. Owner management 
 | `siteIntent`                                | `tracks` \| `mixes` \| `podcast` \| `label` \| `other` (prefs)                                                        |
 | `wantBlog` / `wantEvents` / `wantEcommerce` | Feature interest flags from the wizard (prefs only)                                                                   |
 | `headerBlock` / `footerBlock`               | JSON `{ id, type, props }` site chrome (nullable until seeded)                                                        |
+| `background`                                | JSON `{ trackId, size, position, attachment }`; `trackId` is a site-media image, or a legacy track cover              |
 
 Sidebar defaults: master off, cards on (so enabling the master restores a full sidebar). Apex and
 subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
@@ -115,12 +118,17 @@ subdomain hosts ignore these flags. `resolveSidebarVisibility()` in
 Site chrome (header/footer) is site-wide, not per-page. `ensureSiteChrome()` seeds defaults
 (`header.logo-links-cta` + `footer.minimal`, brand text from `site.name`) on setup complete and
 builder load; it also lifts any legacy header/footer instances out of page `blocks`. Edited via
-`PUT /api/sites/{id}/chrome`. Accent + appearance + theme persona edit via Inspector **Site** theme or
-`PUT /api/sites/{id}/theme` (also Settings → Site / setup wizard).
+`PUT /api/sites/{id}/chrome`. Accent, appearance, theme persona, and navbar/footer accents edit via
+Inspector **Site** or `PUT /api/sites/{id}/theme`. The logo and background pickers list site-media
+images (`kind = image`) with a thumbnail and filename. `PUT /api/sites/{id}/logo` and
+`PUT /api/sites/{id}/background` store that id. A saved track id still resolves to its cover when it
+is not a site image. `site_page.background`
+uses the same JSON shape so a page can override the site image later; the builder edits the site-wide
+value only. `resolveBackground()` prefers a page image when one is set.
 
 Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[userId]`,
 `/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
-`hideBranding` needs Studio+ (`canRemoveBranding`); sidebar toggles need Studio+
+sidebar toggles need Studio+
 (`canUseCustomDomain`).
 
 ### `site_page` — builder pages for a tenant site
@@ -140,6 +148,7 @@ the current UI creates flat sibling pages only.
 | `title`                       | Page title (default `Home`)                                              |
 | `seoTitle` / `seoDescription` | Optional SEO fields                                                      |
 | `blocks`                      | JSON body blocks only (`{ id, type, props, layout? }`; no header/footer) |
+| `background`                  | Same JSON as `site.background`; null keeps the site-wide image           |
 | `catalogSeeded`               | One-time legacy Home catalog seed guard                                  |
 | `sortOrder`                   | Sibling order                                                            |
 
@@ -151,7 +160,7 @@ exclude `header.*` / `footer.*` (those live on `site` chrome). Allowlist:
 
 ### `site_media` — design images and videos
 
-Per-site library for the builder (not audio tracks). Rows cascade with the site and the user.
+Per-site library for the builder (not audio tracks). The logo and background pickers use image rows from this table. Rows cascade with the site and the user.
 Bytes live on platform storage at `{userId}/sm-{id}/file.{ext}` — one folder per asset, so accounts
 stay separated and a delete wipes a single folder. The display `name` is renameable and is not the
 storage key. `kind` is `image` | `video`. Caps: 8MB images, 32MB video, 200 files per site.

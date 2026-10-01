@@ -14,6 +14,9 @@
 	 *     themePersona?: string,
 	 *     themePalette?: import('#lib/builder/theme-persona.js').ThemeSlotColors | null,
 	 *     hideBranding?: boolean,
+	 *     logoUrl?: string | null,
+	 *     headerAccent?: string | null,
+	 *     footerAccent?: string | null,
 	 *     siteOrigin?: string,
 	 *     header: PageBlockInstance | null,
 	 *     footer: PageBlockInstance | null
@@ -24,11 +27,10 @@
 	 *     blocks: PageBlockInstance[]
 	 *   },
 	 *   profileData?: Record<string, any> | null,
-	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null,
-	 *   platformOrigin?: string | null
+	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null
 	 * }}
 	 */
-	let { site, page, profileData = null, profileList = null, platformOrigin = null } = $props();
+	let { site, page, profileData = null, profileList = null } = $props();
 
 	/**
 	 * @param {PageBlockInstance} block
@@ -38,14 +40,14 @@
 	}
 </script>
 
-<TenantSiteChrome {site} platformOrigin={platformOrigin ?? undefined}>
+<TenantSiteChrome {site}>
 	<main id="main" aria-label={page.title}>
 		{#each page.blocks as instance (instance.id)}
 			{@const def = getBlockDefinition(instance.type)}
 			{@const Block = def?.component}
 			{#if Block}
 				<section class="page-block" style:max-width={maxWidth(instance)}>
-					{#if instance.type === 'catalog.profile'}
+					{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
 						<Block {...instance.props} {profileData} {profileList} />
 					{:else}
 						<Block {...instance.props} />

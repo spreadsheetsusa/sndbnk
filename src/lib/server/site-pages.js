@@ -1,5 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 
+import { parseSiteBackground } from '#lib/builder/site-background.js';
 import {
 	cloneBlockProps,
 	isPageBodyBlockType,
@@ -69,6 +70,7 @@ export function serializeSitePage(row) {
 		seoTitle: row.seoTitle ?? '',
 		seoDescription: row.seoDescription ?? '',
 		blocks: parsePageBlocks(row.blocks),
+		background: parseSiteBackground(row.background),
 		sortOrder: row.sortOrder,
 		updatedAt: row.updatedAt.getTime()
 	};

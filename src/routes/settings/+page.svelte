@@ -93,7 +93,6 @@
 	const canSubdomain = $derived(data.billing.allowSubdomain);
 	const canCustomDomain = $derived(data.billing.allowCustomDomain);
 	const canEditSite = $derived(data.billing.canEditSite);
-	const canRemoveBranding = $derived(data.billing.allowRemoveBranding);
 	const onFree = $derived(data.billing.planId === 'free');
 	const atTrackCap = $derived(isAtTrackCap(data.usage.trackCount, data.usage.maxTracks));
 	const nearTrackCap = $derived(isNearTrackCap(data.usage.trackCount, data.usage.maxTracks));
@@ -218,7 +217,6 @@
 	const siteDescriptionLength = $derived(siteDescriptionTyped ?? siteDescriptionValue.length);
 	const accentColorValue = $derived(form?.accentColor ?? data.site.accentColor);
 	const appearanceValue = $derived(form?.appearance ?? data.site.appearance ?? 'light');
-	const hideBrandingValue = $derived(form?.hideBranding ?? data.site.hideBranding);
 	/** Live drafts so toggles stick before save (and children can dim with the parent). */
 	let sidebarEnabledDraft = $state(/** @type {boolean | null} */ (null));
 	let sidebarStatsDraft = $state(/** @type {boolean | null} */ (null));
@@ -1244,18 +1242,6 @@
 							</p>
 						</fieldset>
 
-						{#if canRemoveBranding}
-							<label class="check-row">
-								<input name="hideBranding" type="checkbox" checked={hideBrandingValue} />
-								<span>Hide “Powered by SNDBNK” on my site</span>
-							</label>
-						{:else}
-							<div class="locked branding-upsell">
-								<p>Studio unlocks unbranded hosting (hide SNDBNK chrome on your site).</p>
-								<a class="cta pressable" href={STUDIO_CHECKOUT_HREF}>Get Studio</a>
-							</div>
-						{/if}
-
 						{#if canCustomDomain}
 							<fieldset class="sidebar-fieldset">
 								<legend>Profile sidebar on your custom domain</legend>
@@ -2093,10 +2079,6 @@
 
 	.sidebar-cards.dimmed .check-row {
 		cursor: default;
-	}
-
-	.branding-upsell {
-		margin-bottom: 0.5rem;
 	}
 
 	.avatar-copy {

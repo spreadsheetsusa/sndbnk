@@ -1,5 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 
+import { normalizeSiteBackground, parseSiteBackground } from '#lib/builder/site-background.js';
+import { siteMediaUrl } from '#lib/site-media-url.js';
 import {
 	DEFAULT_THEME_PERSONA,
 	normalizeThemePersona,
@@ -16,7 +18,7 @@ import {
 } from '#lib/components/blocks/types.js';
 import { canRemoveBranding, canUseCustomDomain, canUseSubdomain } from '#lib/server/billing/plans';
 import { db } from '#lib/server/db';
-import { site } from '#lib/server/db/schema';
+import { site, siteMedia, track } from '#lib/server/db/schema';
 import { readFileHead, sniffImage } from '#lib/server/media/sniff';
 import {
 	ensureRootPage,
@@ -67,6 +69,53 @@ export function siteLogoUrl(userId, updatedAt) {
 }
 
 /**
+ * Cover URL when an older pick still points at a library track that has a cover.
+ * @param {string} userId
+ * @param {string | null | undefined} trackId
+ */
+export async function libraryCoverUrl(userId, trackId) {
+	if (!trackId) return null;
+	const rows = await db
+		.select({ coverFilename: track.coverFilename })
+		.from(track)
+		.where(and(eq(track.id, trackId), eq(track.userId, userId)))
+		.limit(1);
+	if (!rows[0]?.coverFilename) return null;
+	return `/api/media/${trackId}/cover`;
+}
+
+/**
+ * Site-library image first. A track cover is only used when the id is not a site image
+ * (picks saved before the site media library).
+ * @param {string} userId
+ * @param {string} siteId
+ * @param {string | null | undefined} imageId
+ */
+export async function resolvePickedImageUrl(userId, siteId, imageId) {
+	if (!imageId) return null;
+	const rows = await db
+		.select({ kind: siteMedia.kind })
+		.from(siteMedia)
+		.where(
+			and(eq(siteMedia.id, imageId), eq(siteMedia.siteId, siteId), eq(siteMedia.userId, userId))
+		)
+		.limit(1);
+	if (rows[0]?.kind === 'image') return siteMediaUrl(imageId);
+	if (rows[0]) return null;
+	return libraryCoverUrl(userId, imageId);
+}
+
+/**
+ * Picked image wins over an uploaded logo file.
+ * @param {typeof site.$inferSelect} row
+ */
+async function resolveLogoUrl(row) {
+	const picked = await resolvePickedImageUrl(row.userId, row.id, row.logoTrackId);
+	if (picked) return picked;
+	return row.logoFilename ? siteLogoUrl(row.userId, row.updatedAt) : null;
+}
+
+/**
  * @param {string} userId
  * @param {Date} updatedAt
  */
@@ -112,13 +161,22 @@ export async function getSitePublic(userId) {
 	const row = await getSiteByUserId(userId);
 	if (!row) return null;
 
+	const background = parseSiteBackground(row.background);
+
 	return {
 		id: row.id,
 		name: row.name ?? null,
 		description: row.description ?? null,
-		logoUrl: row.logoFilename ? siteLogoUrl(userId, row.updatedAt) : null,
+		logoUrl: await resolveLogoUrl(row),
+		logoTrackId: row.logoTrackId ?? null,
 		ogImageUrl: row.ogImageFilename ? siteOgImageUrl(userId, row.updatedAt) : null,
 		accentColor: row.accentColor ?? null,
+		headerAccent: row.headerAccent ?? null,
+		footerAccent: row.footerAccent ?? null,
+		background,
+		backgroundUrl: background?.trackId
+			? await resolvePickedImageUrl(userId, row.id, background.trackId)
+			: null,
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -148,7 +206,11 @@ export function serializeSiteOwner(row) {
 		name: row.name ?? '',
 		description: row.description ?? '',
 		logoUrl: row.logoFilename ? siteLogoUrl(row.userId, row.updatedAt) : null,
+		logoTrackId: row.logoTrackId ?? null,
 		accentColor: row.accentColor ?? '',
+		headerAccent: row.headerAccent ?? '',
+		footerAccent: row.footerAccent ?? '',
+		background: parseSiteBackground(row.background),
 		appearance: /** @type {SiteAppearance} */ (
 			SITE_APPEARANCES.includes(/** @type {SiteAppearance} */ (row.appearance))
 				? row.appearance
@@ -164,6 +226,61 @@ export function serializeSiteOwner(row) {
 		header: parseChromeBlock(row.headerBlock, 'header'),
 		footer: parseChromeBlock(row.footerBlock, 'footer')
 	};
+}
+
+/**
+ * Owner shape with the picked logo and background image resolved.
+ * @param {typeof site.$inferSelect} row
+ */
+export async function presentSiteOwner(row) {
+	const owner = serializeSiteOwner(row);
+	owner.logoUrl = await resolveLogoUrl(row);
+	owner.backgroundUrl = owner.background?.trackId
+		? await resolvePickedImageUrl(row.userId, row.id, owner.background.trackId)
+		: null;
+	return owner;
+}
+
+/**
+ * Site-library images the logo and background pickers can choose.
+ * @param {string} siteId
+ */
+export async function listSiteImagePicks(siteId) {
+	const rows = await db
+		.select({ id: siteMedia.id, name: siteMedia.name })
+		.from(siteMedia)
+		.where(and(eq(siteMedia.siteId, siteId), eq(siteMedia.kind, 'image')))
+		.orderBy(desc(siteMedia.createdAt))
+		.limit(100);
+
+	return rows.map((row) => ({
+		id: row.id,
+		filename: row.name,
+		thumbUrl: siteMediaUrl(row.id)
+	}));
+}
+
+/**
+ * New picks must be a site-library image. An existing track cover is still accepted
+ * so a saved value can be written back unchanged.
+ * @param {string} userId
+ * @param {string} siteId
+ * @param {string | null} imageId
+ * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
+ */
+async function assertPickerImage(userId, siteId, imageId) {
+	if (!imageId) return { ok: true };
+	const rows = await db
+		.select({ kind: siteMedia.kind })
+		.from(siteMedia)
+		.where(
+			and(eq(siteMedia.id, imageId), eq(siteMedia.siteId, siteId), eq(siteMedia.userId, userId))
+		)
+		.limit(1);
+	if (rows[0]?.kind === 'image') return { ok: true };
+	if (rows[0]) return { ok: false, message: 'Choose an image.' };
+	if (await libraryCoverUrl(userId, imageId)) return { ok: true };
+	return { ok: false, message: 'Choose an image from the site library.' };
 }
 
 /**
@@ -409,7 +526,7 @@ export async function ensureSiteChrome(siteId) {
 	await stripChromeFromAllPages(siteId);
 
 	const updated = await db.select().from(site).where(eq(site.id, siteId)).limit(1);
-	return updated[0] ? serializeSiteOwner(updated[0]) : null;
+	return updated[0] ? presentSiteOwner(updated[0]) : null;
 }
 
 /**
@@ -529,7 +646,9 @@ export function normalizeSiteThemePalette(raw) {
  *   accentColor: string,
  *   appearance: string,
  *   themePersona?: string,
- *   themePalette?: unknown
+ *   themePalette?: unknown,
+ *   headerAccent?: string | null,
+ *   footerAccent?: string | null
  * }} input
  */
 export async function updateSiteTheme(input) {
@@ -572,6 +691,17 @@ export async function updateSiteTheme(input) {
 			: null;
 	}
 
+	if (Object.prototype.hasOwnProperty.call(input, 'headerAccent')) {
+		const headerAccent = normalizeAccentColor(input.headerAccent);
+		if (!headerAccent.ok) return headerAccent;
+		patch.headerAccent = headerAccent.accentColor;
+	}
+	if (Object.prototype.hasOwnProperty.call(input, 'footerAccent')) {
+		const footerAccent = normalizeAccentColor(input.footerAccent);
+		if (!footerAccent.ok) return footerAccent;
+		patch.footerAccent = footerAccent.accentColor;
+	}
+
 	await db.update(site).set(patch).where(eq(site.id, row.id));
 
 	const themePalette =
@@ -584,7 +714,15 @@ export async function updateSiteTheme(input) {
 		accentColor: accentResult.accentColor ?? '',
 		appearance: appearanceResult.appearance,
 		themePersona: personaResult.themePersona,
-		themePalette
+		themePalette,
+		headerAccent:
+			'headerAccent' in patch
+				? /** @type {string | null} */ (patch.headerAccent ?? '')
+				: (row.headerAccent ?? ''),
+		footerAccent:
+			'footerAccent' in patch
+				? /** @type {string | null} */ (patch.footerAccent ?? '')
+				: (row.footerAccent ?? '')
 	};
 }
 
@@ -734,6 +872,7 @@ export async function saveSiteLogo(userId, plan, file) {
 		.set({
 			logoFilename: validated.filename,
 			logoMime: validated.mime,
+			logoTrackId: null,
 			updatedAt: new Date()
 		})
 		.where(eq(site.userId, userId));
@@ -763,11 +902,88 @@ export async function removeSiteLogo(userId, plan) {
 	if (existing) {
 		await db
 			.update(site)
-			.set({ logoFilename: null, logoMime: null, updatedAt: new Date() })
+			.set({ logoFilename: null, logoMime: null, logoTrackId: null, updatedAt: new Date() })
 			.where(eq(site.userId, userId));
 	}
 
 	return { ok: /** @type {const} */ (true) };
+}
+
+/**
+ * Point the site logo at a site-library image, or clear that pick.
+ * @param {string} userId
+ * @param {string | null | undefined} plan
+ * @param {string} siteId
+ * @param {string | null} trackId
+ */
+export async function setSiteLogoTrack(userId, plan, siteId, trackId) {
+	if (!canEditSite(plan)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Site settings need Vault or higher. Upgrade from the Billing tab.'
+		};
+	}
+
+	const row = await getOwnedSite(userId, siteId);
+	if (!row) return { ok: /** @type {const} */ (false), message: 'Site not found.' };
+
+	const allowed = await assertPickerImage(userId, siteId, trackId);
+	if (!allowed.ok) return allowed;
+
+	const updatedAt = new Date();
+	await db.update(site).set({ logoTrackId: trackId, updatedAt }).where(eq(site.id, row.id));
+
+	const logoUrl = await resolveLogoUrl({ ...row, logoTrackId: trackId, updatedAt });
+	return {
+		ok: /** @type {const} */ (true),
+		logoTrackId: trackId,
+		logoUrl
+	};
+}
+
+/**
+ * Site-wide background image and how it paints. Null background clears the image.
+ * @param {string} userId
+ * @param {string | null | undefined} plan
+ * @param {string} siteId
+ * @param {unknown} input
+ */
+export async function setSiteBackground(userId, plan, siteId, input) {
+	if (!canEditSite(plan)) {
+		return {
+			ok: /** @type {const} */ (false),
+			message: 'Site settings need Vault or higher. Upgrade from the Billing tab.'
+		};
+	}
+
+	const row = await getOwnedSite(userId, siteId);
+	if (!row) return { ok: /** @type {const} */ (false), message: 'Site not found.' };
+
+	const normalized = normalizeSiteBackground(input);
+	if (!normalized.ok) return normalized;
+
+	if (normalized.background?.trackId) {
+		const allowed = await assertPickerImage(userId, siteId, normalized.background.trackId);
+		if (!allowed.ok) return allowed;
+	}
+
+	await db
+		.update(site)
+		.set({
+			background: normalized.background ? JSON.stringify(normalized.background) : null,
+			updatedAt: new Date()
+		})
+		.where(eq(site.id, row.id));
+
+	const backgroundUrl = normalized.background?.trackId
+		? await resolvePickedImageUrl(userId, row.id, normalized.background.trackId)
+		: null;
+
+	return {
+		ok: /** @type {const} */ (true),
+		background: normalized.background,
+		backgroundUrl
+	};
 }
 
 /**

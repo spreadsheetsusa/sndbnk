@@ -3,6 +3,7 @@ import HeaderB from '#lib/components/block-previews/HeaderB.svelte';
 import HeaderC from '#lib/components/block-previews/HeaderC.svelte';
 import HeaderD from '#lib/components/block-previews/HeaderD.svelte';
 import CatalogProfilePreview from '#lib/components/block-previews/CatalogProfilePreview.svelte';
+import StreamPreview from '#lib/components/block-previews/StreamPreview.svelte';
 import HeroA from '#lib/components/block-previews/HeroA.svelte';
 import HeroB from '#lib/components/block-previews/HeroB.svelte';
 import HeroC from '#lib/components/block-previews/HeroC.svelte';
@@ -68,6 +69,7 @@ import BlogThreeOverlayCards from '#lib/components/blocks/BlogThreeOverlayCards.
 import BlogThreeTextColumns from '#lib/components/blocks/BlogThreeTextColumns.svelte';
 import BlogTwoTextPosts from '#lib/components/blocks/BlogTwoTextPosts.svelte';
 import CatalogProfile from '#lib/components/blocks/CatalogProfile.svelte';
+import StreamBlock from '#lib/components/blocks/StreamBlock.svelte';
 import ContactCenteredForm from '#lib/components/blocks/ContactCenteredForm.svelte';
 import ContactMapForm from '#lib/components/blocks/ContactMapForm.svelte';
 import ContactMapPanelForm from '#lib/components/blocks/ContactMapPanelForm.svelte';
@@ -349,6 +351,15 @@ export const blockDefinitions = [
 			{ key: 'showTabs', label: 'Show catalog tabs', kind: 'boolean' },
 			{ key: 'showSidebar', label: 'Show profile sidebar', kind: 'boolean' }
 		]
+	},
+	{
+		type: 'catalog.stream',
+		category: 'Music',
+		label: 'Stream',
+		preview: StreamPreview,
+		component: StreamBlock,
+		defaults: {},
+		fields: []
 	},
 	{
 		type: 'hero.split-copy-image',
