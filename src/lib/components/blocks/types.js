@@ -283,6 +283,8 @@ export function defaultChromeProps(type, siteName = 'Site') {
 				{ label: 'About', href: '/' },
 				{ label: 'Contact', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Listen',
 			ctaHref: '/'
 		};
@@ -295,6 +297,8 @@ export function defaultChromeProps(type, siteName = 'Site') {
 				{ label: 'Mixes', href: '/' },
 				{ label: 'Store', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Join',
 			ctaHref: '/'
 		};
@@ -307,6 +311,8 @@ export function defaultChromeProps(type, siteName = 'Site') {
 				{ label: 'Watch', href: '/' },
 				{ label: 'Tour', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Follow',
 			ctaHref: '/'
 		};
@@ -320,6 +326,8 @@ export function defaultChromeProps(type, siteName = 'Site') {
 				{ label: 'Events', href: '/' },
 				{ label: 'Press', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Book',
 			ctaHref: '/'
 		};

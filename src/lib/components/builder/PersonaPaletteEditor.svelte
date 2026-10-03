@@ -225,7 +225,7 @@
 	.swatch:focus-visible {
 		box-shadow:
 			0 0 0 2px var(--paper),
-			0 0 0 3px var(--accent);
+			0 0 0 3px var(--hud-ui);
 	}
 
 	.swatch.dragging {
@@ -235,7 +235,7 @@
 	}
 
 	.swatch.drop-target {
-		outline: 1px dashed var(--accent);
+		outline: 1px dashed var(--hud-ui);
 		outline-offset: 2px;
 	}
 

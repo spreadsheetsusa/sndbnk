@@ -10,6 +10,7 @@ import {
 	listSitePages,
 	updatePageProps
 } from '#lib/server/site-pages';
+import { loadStreamSeeds } from '#lib/server/stream-blocks';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 export const load = async ({ locals, params, url }) => {
@@ -45,6 +46,11 @@ export const load = async ({ locals, params, url }) => {
 		pages,
 		currentPageId: root.id,
 		profileCatalog: catalog,
+		streamPages: await loadStreamSeeds(
+			locals.user.id,
+			pages.flatMap((page) => page.blocks),
+			locals
+		),
 		logoMedia: await listSiteImagePicks(row.id)
 	};
 };

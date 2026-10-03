@@ -249,16 +249,16 @@
 	}
 
 	.layer-row.selected {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+		border-color: var(--hud-line);
+		background: var(--hud-wash-strong);
 	}
 
 	.layer-row.line-before {
-		box-shadow: inset 0 2px 0 var(--accent);
+		box-shadow: inset 0 2px 0 var(--hud-ui);
 	}
 
 	.layer-row.line-after {
-		box-shadow: inset 0 -2px 0 var(--accent);
+		box-shadow: inset 0 -2px 0 var(--hud-ui);
 	}
 
 	.layer-row.dragging {

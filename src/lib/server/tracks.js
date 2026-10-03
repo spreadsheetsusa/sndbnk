@@ -1,6 +1,19 @@
-import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	like,
+	lte,
+	or,
+	sql
+} from 'drizzle-orm';
 
-import { normalizeGenreField } from '#lib/genres.js';
+import { normalizeGenreField, parseGenres } from '#lib/genres.js';
 import { DEFAULT_TRACK_MEDIA_TYPE, isTrackMediaType } from '#lib/media/track-media-type.js';
 import { slugifyTitle, uniqueSlug } from '#lib/slugify.js';
 import {
@@ -1319,18 +1332,77 @@ function itemCursor(row) {
 }
 
 /**
+ * Match one genre token inside the comma-separated `track.genre` field.
+ * @param {string} genre
+ */
+function genreTokenCondition(genre) {
+	const safe = genre.replace(/[%_]/g, '');
+	if (!safe) return eq(track.genre, genre);
+	return or(
+		eq(track.genre, genre),
+		like(track.genre, `${safe}, %`),
+		like(track.genre, `%, ${safe}`),
+		like(track.genre, `%, ${safe}, %`)
+	);
+}
+
+/**
+ * @param {string | null | undefined} genre
+ * @returns {import('drizzle-orm').SQL | null}
+ */
+function genresCondition(genre) {
+	const parts = parseGenres(genre)
+		.map((token) => genreTokenCondition(token))
+		.filter(Boolean);
+	if (parts.length === 0) return null;
+	if (parts.length === 1) return parts[0];
+	return or(...parts);
+}
+
+/**
+ * Case-insensitive exact match on the track artist credit.
+ * @param {string[]} artists
+ * @returns {import('drizzle-orm').SQL | null}
+ */
+function artistsCondition(artists) {
+	const parts = artists
+		.map((name) => name.trim())
+		.filter(Boolean)
+		.map((name) => sql`lower(${track.artist}) = ${name.toLowerCase()}`);
+	if (parts.length === 0) return null;
+	if (parts.length === 1) return parts[0];
+	return or(...parts);
+}
+
+/**
  * One keyset page of a user's own uploads.
  * @param {string} userId
  * @param {{
  *   publishedOnly?: boolean,
  *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
  *   hostOwnerId?: string | null,
+ *   genre?: string | null,
+ *   artists?: string[],
+ *   dateFromMs?: number | null,
+ *   dateToMs?: number | null,
  *   decoded: { ms: number, id: string } | null
  * } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
  */
 function selectOwnTracks(
 	userId,
-	{ publishedOnly, mediaType, hostOwnerId = null, decoded, limit, direction, inclusive }
+	{
+		publishedOnly,
+		mediaType,
+		hostOwnerId = null,
+		genre = null,
+		artists = [],
+		dateFromMs = null,
+		dateToMs = null,
+		decoded,
+		limit,
+		direction,
+		inclusive
+	}
 ) {
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.userId, userId)];
@@ -1341,6 +1413,12 @@ function selectOwnTracks(
 		);
 	}
 	if (mediaType) conditions.push(eq(track.mediaType, mediaType));
+	const genreSql = genresCondition(genre);
+	if (genreSql) conditions.push(genreSql);
+	const artistSql = artistsCondition(artists);
+	if (artistSql) conditions.push(artistSql);
+	if (dateFromMs != null) conditions.push(gte(track.createdAt, new Date(dateFromMs)));
+	if (dateToMs != null) conditions.push(lte(track.createdAt, new Date(dateToMs)));
 	if (decoded) {
 		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
 	}
@@ -1396,6 +1474,63 @@ export async function listTracksWithUploader(
 		repostedAt: null
 	}));
 	return keysetPage(rows, limit, itemCursor, direction);
+}
+
+/**
+ * Published uploads for a site stream block. `count` is a hard cap (no further pages).
+ * @param {string} userId
+ * @param {{
+ *   hostOwnerId?: string | null,
+ *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
+ *   genre?: string | null,
+ *   artists?: string[],
+ *   dateFromMs?: number | null,
+ *   dateToMs?: number | null,
+ *   count?: number | null
+ * } & PageOptions} [options]
+ * @returns {Promise<{ rows: ProfileItemRow[], nextCursor: string | null }>}
+ */
+export async function listStreamTracks(
+	userId,
+	{
+		hostOwnerId = null,
+		mediaType = null,
+		genre = null,
+		artists = [],
+		dateFromMs = null,
+		dateToMs = null,
+		count = null,
+		limit = TRACK_PAGE_SIZE,
+		cursor = null,
+		direction = 'older',
+		inclusive = false
+	} = {}
+) {
+	const pageLimit = count ?? limit;
+	const decoded = count ? null : cursor ? decodeCursor(cursor) : null;
+	const own = await selectOwnTracks(userId, {
+		publishedOnly: true,
+		mediaType,
+		hostOwnerId,
+		genre,
+		artists,
+		dateFromMs,
+		dateToMs,
+		decoded,
+		limit: pageLimit,
+		direction: count ? 'older' : direction,
+		inclusive: count ? false : inclusive
+	});
+
+	/** @type {ProfileTrackRow[]} */
+	const rows = own.map((row) => ({
+		...row,
+		kind: /** @type {const} */ ('track'),
+		repostedAt: /** @type {number | null} */ (null)
+	}));
+	const page = keysetPage(rows, pageLimit, itemCursor, count ? 'older' : direction);
+	if (count != null) return { rows: page.rows.slice(0, count), nextCursor: null };
+	return page;
 }
 
 /**

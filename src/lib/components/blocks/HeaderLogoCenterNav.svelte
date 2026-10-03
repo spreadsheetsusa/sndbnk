@@ -1,5 +1,6 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import { showNavCta } from '#lib/components/blocks/nav-chrome.js';
 	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
 	import { player } from '#lib/player/player.svelte.js';
 
@@ -8,6 +9,7 @@
 	 *   logoText?: string,
 	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
+	 *   showCta?: boolean,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
 	 *   showAppearanceToggle?: boolean,
@@ -24,12 +26,15 @@
 			{ label: 'Events', href: '/' },
 			{ label: 'Press', href: '/' }
 		],
+		showCta = true,
 		ctaLabel = 'Book',
 		ctaHref = '/',
 		showAppearanceToggle = false,
 		resolvedAppearance = 'light',
 		onAppearanceToggle
 	} = $props();
+
+	const ctaOn = $derived(showNavCta(showCta, ctaLabel));
 </script>
 
 <header class="block-header" class:has-player={!!player.current}>
@@ -50,15 +55,14 @@
 		{#if showAppearanceToggle}
 			<AppearanceToggle {resolvedAppearance} {onAppearanceToggle} />
 		{/if}
-		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
+		{#if ctaOn}
+			<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
+		{/if}
 	</div>
 </header>
 
 <style>
 	.block-header {
-		position: sticky;
-		top: 0;
-		z-index: 30;
 		display: grid;
 		grid-template-columns: auto 1fr auto;
 		align-items: center;

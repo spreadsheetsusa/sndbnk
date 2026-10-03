@@ -1,5 +1,6 @@
 <script>
 	import AppearanceToggle from '#lib/components/blocks/AppearanceToggle.svelte';
+	import { showNavCta } from '#lib/components/blocks/nav-chrome.js';
 	import SiteNavPlayer from '#lib/components/blocks/SiteNavPlayer.svelte';
 
 	/**
@@ -7,6 +8,7 @@
 	 *   logoText?: string,
 	 *   logoUrl?: string,
 	 *   links?: Array<{ label: string, href: string }>,
+	 *   showCta?: boolean,
 	 *   ctaLabel?: string,
 	 *   ctaHref?: string,
 	 *   showAppearanceToggle?: boolean,
@@ -22,12 +24,15 @@
 			{ label: 'Watch', href: '/' },
 			{ label: 'Tour', href: '/' }
 		],
+		showCta = true,
 		ctaLabel = 'Follow',
 		ctaHref = '/',
 		showAppearanceToggle = false,
 		resolvedAppearance = 'light',
 		onAppearanceToggle
 	} = $props();
+
+	const ctaOn = $derived(showNavCta(showCta, ctaLabel));
 </script>
 
 <header class="block-header">
@@ -47,16 +52,15 @@
 		{#if showAppearanceToggle}
 			<AppearanceToggle {resolvedAppearance} {onAppearanceToggle} />
 		{/if}
-		<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
+		{#if ctaOn}
+			<a class="cta accent-fill" href={ctaHref}>{ctaLabel}</a>
+		{/if}
 	</div>
 	<SiteNavPlayer />
 </header>
 
 <style>
 	.block-header {
-		position: sticky;
-		top: 0;
-		z-index: 30;
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
 		align-items: center;

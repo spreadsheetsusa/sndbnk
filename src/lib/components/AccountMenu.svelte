@@ -18,12 +18,11 @@
 	/**
 	 * @type {{
 	 *   idPrefix?: string,
-	 *   align?: 'start' | 'end',
 	 *   avatarSize?: string,
 	 *   compact?: boolean
 	 * }}
 	 */
-	let { idPrefix = uid, align = 'end', avatarSize = '2.25rem', compact = false } = $props();
+	let { idPrefix = uid, avatarSize = '2.25rem', compact = false } = $props();
 
 	const nav = $derived(
 		page.data.nav ?? {
@@ -43,6 +42,7 @@
 		$themePreference === 'light' || $themePreference === 'dark' ? $themePreference : $resolvedTheme
 	);
 	const menuId = $derived(`${idPrefix}-menu`);
+	const anchorName = $derived(`--${menuId.replace(/[^a-zA-Z0-9_-]/g, '')}`);
 
 	let accountMenuOpen = $state(false);
 	let pickerOpen = $state(false);
@@ -115,8 +115,8 @@
 {#if signedIn}
 	<div
 		class="account-wrap"
-		class:align-start={align === 'start'}
 		class:compact
+		style:anchor-name={anchorName}
 		{@attach accountMenuAttach}
 	>
 		<button
@@ -133,7 +133,12 @@
 		</button>
 
 		{#if accountMenuOpen}
-			<div id={menuId} class="account-panel" aria-label="Account menu">
+			<div
+				id={menuId}
+				class="account-panel"
+				style:position-anchor={anchorName}
+				aria-label="Account menu"
+			>
 				<ThemeControls
 					accentHex={$accentColor}
 					appearance={appearanceValue === 'dark' ? 'dark' : 'light'}
@@ -226,17 +231,29 @@
 		right: 0;
 		left: auto;
 		display: grid;
+		width: max-content;
 		min-width: 17rem;
-		max-width: calc(100vw - 2 * var(--site-shell-pad-x));
+		max-width: calc(100vw - 1rem);
+		max-height: calc(100dvh - 1rem);
+		overflow: auto;
 		padding: 0.4rem;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
 	}
 
-	.account-wrap.align-start .account-panel {
-		right: auto;
-		left: 0;
+	/* Grow into whichever side of the viewport has room, including while a HUD moves. */
+	@supports (position-area: bottom span-right) {
+		.account-panel {
+			position: fixed;
+			inset: auto;
+			margin: 0.5rem;
+			position-area: bottom span-right;
+			position-try-fallbacks:
+				flip-inline,
+				flip-block,
+				flip-block flip-inline;
+		}
 	}
 
 	.account-item {

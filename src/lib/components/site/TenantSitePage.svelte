@@ -32,6 +32,7 @@
 	 *       blocks: PageBlockInstance[]
 	 *     },
 	 *     catalog: Record<string, any> | null,
+	 *     streamPages?: Record<string, { key: string, items: any[], nextCursor: string | null }> | null,
 	 *     siteOrigin: string
 	 *   },
 	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null
@@ -71,4 +72,10 @@
 	{jsonLd}
 />
 
-<SitePageView site={data.site} page={data.page} profileData={data.catalog} {profileList} />
+<SitePageView
+	site={data.site}
+	page={data.page}
+	profileData={data.catalog}
+	{profileList}
+	streamPages={data.streamPages ?? null}
+/>

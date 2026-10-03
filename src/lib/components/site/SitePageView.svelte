@@ -27,10 +27,18 @@
 	 *     blocks: PageBlockInstance[]
 	 *   },
 	 *   profileData?: Record<string, any> | null,
-	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null
+	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null,
+	 *   streamPages?: Record<
+	 *     string,
+	 *     {
+	 *       key: string,
+	 *       items: import('#lib/lists/track-list.svelte.js').ListItem[],
+	 *       nextCursor: string | null
+	 *     }
+	 *   > | null
 	 * }}
 	 */
-	let { site, page, profileData = null, profileList = null } = $props();
+	let { site, page, profileData = null, profileList = null, streamPages = null } = $props();
 
 	/**
 	 * @param {PageBlockInstance} block
@@ -48,7 +56,14 @@
 				{@const Block = def?.component}
 				{#if Block}
 					<section class="page-block" style:max-width={maxWidth(instance)}>
-						{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
+						{#if instance.type === 'catalog.stream'}
+							<Block
+								{...instance.props}
+								{profileData}
+								{profileList}
+								streamSeed={streamPages?.[instance.id] ?? null}
+							/>
+						{:else if instance.type === 'catalog.profile'}
 							<Block {...instance.props} {profileData} {profileList} />
 						{:else}
 							<Block {...instance.props} />

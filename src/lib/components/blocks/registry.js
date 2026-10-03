@@ -164,7 +164,7 @@ const NAV_FIELDS = [
 	{ key: 'logoText', label: 'Logo text', kind: 'text' },
 	{
 		key: 'links',
-		label: 'Nav links',
+		label: 'Links',
 		kind: 'list',
 		itemFields: [
 			{ key: 'label', label: 'Label', kind: 'text' },
@@ -304,6 +304,8 @@ export const blockDefinitions = [
 				{ label: 'About', href: '/' },
 				{ label: 'Contact', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Listen',
 			ctaHref: '/'
 		},
@@ -322,6 +324,8 @@ export const blockDefinitions = [
 				{ label: 'Mixes', href: '/' },
 				{ label: 'Store', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Join',
 			ctaHref: '/'
 		},
@@ -340,6 +344,8 @@ export const blockDefinitions = [
 				{ label: 'Watch', href: '/' },
 				{ label: 'Tour', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Follow',
 			ctaHref: '/'
 		},
@@ -359,6 +365,8 @@ export const blockDefinitions = [
 				{ label: 'Events', href: '/' },
 				{ label: 'Press', href: '/' }
 			],
+			showCta: true,
+			hideOnScroll: false,
 			ctaLabel: 'Book',
 			ctaHref: '/'
 		},
@@ -387,7 +395,16 @@ export const blockDefinitions = [
 		label: 'Stream',
 		preview: StreamPreview,
 		component: StreamBlock,
-		defaults: {},
+		defaults: {
+			heading: '',
+			headingAlign: 'left',
+			count: null,
+			dateFrom: '',
+			dateTo: '',
+			genre: '',
+			artists: [],
+			mediaType: ''
+		},
 		fields: []
 	},
 	{

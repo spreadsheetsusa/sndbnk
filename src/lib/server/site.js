@@ -350,6 +350,7 @@ export async function ensureSiteRow(userId, defaultName) {
 
 /**
  * Hosts shown in the account menu for Vault+ / Studio+ creators.
+ * Subdomain is listed only when no custom domain is active.
  * @param {{
  *   userId: string,
  *   username: string,
@@ -366,15 +367,15 @@ export async function listNavSites(profile) {
 	const urls = buildPublicUrls(profile);
 	/** @type {string[]} */
 	const labels = [];
-	if (urls.subdomainUrl) {
+	// An active custom domain is the only public host; the subdomain just redirects there.
+	if (urls.customDomainUrl && profile.customDomain) {
+		labels.push(profile.customDomain);
+	} else if (urls.subdomainUrl) {
 		try {
 			labels.push(new URL(urls.subdomainUrl).host);
 		} catch {
 			labels.push(`${profile.username}`);
 		}
-	}
-	if (urls.customDomainUrl && profile.customDomain) {
-		labels.push(profile.customDomain);
 	}
 
 	if (labels.length === 0) {

@@ -21,6 +21,7 @@
 	 *   brandHref?: string | null,
 	 *   resizable?: boolean,
 	 *   collapsible?: boolean,
+	 *   neutral?: boolean,
 	 *   onclose?: () => void,
 	 *   children: import('svelte').Snippet,
 	 *   actions?: import('svelte').Snippet
@@ -32,6 +33,7 @@
 		brandHref = null,
 		resizable = false,
 		collapsible = false,
+		neutral = false,
 		onclose,
 		children,
 		actions
@@ -254,6 +256,7 @@
 
 <section
 	class="floating-hud"
+	class:neutral
 	class:resizing={mode === 'resize-se'}
 	class:dragging={mode === 'drag'}
 	class:collapsed
@@ -268,6 +271,7 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="hud-titlebar"
+		class:icons-only={!hasTitle}
 		onpointerdown={onTitlebarPointerDown}
 		onclickcapture={onTitlebarClickCapture}
 	>
@@ -297,7 +301,7 @@
 		</div>
 		<div class="hud-actions">
 			{#if brandHref}
-				<AccountMenu align="end" avatarSize="1.1rem" idPrefix="builder-account" compact />
+				<AccountMenu avatarSize="1.1rem" idPrefix="builder-account" compact />
 			{/if}
 			{#if actions}
 				{@render actions()}
@@ -358,6 +362,19 @@
 		grid-template-rows: auto;
 	}
 
+	/* Interior chrome stays stone gray. The frame border stays the platform accent.
+	   Ink and paper flip with the theme, so one mix covers light and dark. */
+	.floating-hud.neutral {
+		--hud-ui: color-mix(in srgb, var(--ink) 64%, var(--muted));
+		--on-hud-ui: var(--paper);
+		--hud-line: color-mix(in srgb, var(--muted) 46%, var(--ink));
+		--hud-wash: color-mix(in srgb, var(--muted) 10%, var(--paper));
+		--hud-wash-strong: color-mix(in srgb, var(--muted) 18%, var(--paper));
+		--field-border: var(--hud-line);
+		--field-surface: var(--hud-wash);
+		border-color: var(--accent);
+	}
+
 	.floating-hud.dragging,
 	.floating-hud.resizing {
 		cursor: grabbing;
@@ -373,6 +390,16 @@
 		border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
 		background: color-mix(in srgb, var(--ink) 6%, var(--paper));
 		cursor: grab;
+	}
+
+	.hud-titlebar.icons-only {
+		justify-content: space-evenly;
+		gap: 0;
+		padding-inline: 0;
+	}
+
+	.hud-titlebar.icons-only .hud-actions {
+		margin-inline-start: 0;
 	}
 
 	.floating-hud.collapsed .hud-titlebar {
@@ -451,6 +478,10 @@
 
 	.hud-close:hover {
 		background: color-mix(in srgb, var(--accent) 22%, var(--paper));
+	}
+
+	.floating-hud.neutral .hud-close:hover {
+		background: var(--hud-wash-strong);
 	}
 
 	.hud-body {

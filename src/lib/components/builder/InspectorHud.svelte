@@ -1,4 +1,5 @@
 <script>
+	import IconChevronDown from '@tabler/icons-svelte-runes/icons/chevron-down';
 	import IconFolder from '@tabler/icons-svelte-runes/icons/folder';
 	import IconFile from '@tabler/icons-svelte-runes/icons/file';
 	import IconPlus from '@tabler/icons-svelte-runes/icons/plus';
@@ -19,6 +20,7 @@
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
 	import LogoMediaSelect from '#lib/components/builder/LogoMediaSelect.svelte';
 	import SiteBackgroundControls from '#lib/components/builder/SiteBackgroundControls.svelte';
+	import StreamInspector from '#lib/components/builder/StreamInspector.svelte';
 	import PersonaPaletteEditor from '#lib/components/builder/PersonaPaletteEditor.svelte';
 	import ThemeControls from '#lib/components/ThemeControls.svelte';
 	import { isSafeHref } from '#lib/safe-href.js';
@@ -41,10 +43,11 @@
 	 *     slug?: string,
 	 *     seoTitle?: string,
 	 *     seoDescription?: string
-	 *   } | null
+	 *   } | null,
+	 *   catalogItems?: Array<Record<string, any>>
 	 * }}
 	 */
-	let { siteId, form = null, logoMedia = [] } = $props();
+	let { siteId, form = null, logoMedia = [], catalogItems = [] } = $props();
 
 	const logoFallback = $derived(
 		builder.logoTrackId &&
@@ -66,6 +69,19 @@
 	);
 
 	let submitting = $state(false);
+	let headerLayoutsOpen = $state(false);
+
+	const headerShowCta = $derived(builder.header?.props.showCta !== false);
+	const headerHideOnScroll = $derived(builder.header?.props.hideOnScroll === true);
+
+	/**
+	 * @param {string} key
+	 * @param {boolean} value
+	 */
+	function setHeaderFlag(key, value) {
+		builder.selectChrome('header');
+		builder.updateChromeProps('header', { [key]: value });
+	}
 
 	const current = $derived(builder.currentPage);
 	const isRoot = $derived(current?.path === '/');
@@ -287,7 +303,7 @@
 	</div>
 {/snippet}
 
-{#snippet chromePicker(kind, catalog, activeType)}
+{#snippet chromePicker(kind, catalog, activeType, onchoose)}
 	<ul class="chrome-thumbs" aria-label="{kind} layouts">
 		{#each catalog as entry (entry.type)}
 			{@const Preview = entry.preview}
@@ -301,6 +317,7 @@
 					onclick={() => {
 						builder.selectChrome(kind);
 						if (activeType !== entry.type) builder.setChromeType(kind, entry.type);
+						onchoose?.();
 					}}
 				>
 					<span class="frame">
@@ -313,10 +330,10 @@
 	</ul>
 {/snippet}
 
-{#snippet chromeFields(kind, instance, def)}
+{#snippet chromeFields(kind, instance, def, skip = [])}
 	{#if instance && def}
-		<div class="fields">
-			{#each def.fields as field (field.key)}
+		<div class="fields" class:dense={kind === 'header'}>
+			{#each def.fields.filter((field) => !skip.includes(field.key)) as field (field.key)}
 				{#if field.kind === 'list'}
 					{@const list = Array.isArray(instance.props[field.key])
 						? /** @type {Array<Record<string, unknown>>} */ (instance.props[field.key])
@@ -334,72 +351,127 @@
 							</button>
 						</div>
 						{#each list as item, itemIndex (`${kind}-${field.key}-${itemIndex}`)}
-							<div class="list-item">
-								<div class="list-item-head">
-									<span>Item {itemIndex + 1}</span>
+							{#if kind === 'header'}
+								{@const linkHref = item.href}
+								<div class="nav-link">
+									<input
+										type="text"
+										aria-label="Link {itemIndex + 1} label"
+										placeholder="Label"
+										value={String(item.label ?? '')}
+										oninput={(e) =>
+											builder.updateChromeListItem(
+												kind,
+												field.key,
+												itemIndex,
+												'label',
+												e.currentTarget.value
+											)}
+									/>
+									<input
+										type="text"
+										inputmode="url"
+										aria-label="Link {itemIndex + 1} URL"
+										placeholder="/path"
+										aria-invalid={hrefInvalid(linkHref)}
+										value={String(linkHref ?? '')}
+										oninput={(e) =>
+											builder.updateChromeListItem(
+												kind,
+												field.key,
+												itemIndex,
+												'href',
+												e.currentTarget.value
+											)}
+									/>
 									<button
 										type="button"
 										class="icon-btn"
-										aria-label="Remove item {itemIndex + 1}"
+										aria-label="Remove link {itemIndex + 1}"
 										onclick={() => builder.removeChromeListItem(kind, field.key, itemIndex)}
 									>
 										<IconTrash size={14} stroke={1.75} aria-hidden="true" />
 									</button>
 								</div>
-								{#each field.itemFields ?? [] as itemField (itemField.key)}
-									{#if itemField.kind === 'url'}
-										{@render urlField(itemField.label, item[itemField.key], (value) =>
-											builder.updateChromeListItem(kind, field.key, itemIndex, itemField.key, value)
-										)}
-									{:else if itemField.kind === 'media'}
-										{@const target = mediaTarget(
-											itemField,
-											kind,
-											instance.id,
-											field.key,
-											itemIndex
-										)}
-										{@render mediaSlot(
-											itemField.label,
-											item[itemField.key],
-											item[itemField.kindKey ?? 'imageKind'],
-											pickIsActive(target),
-											() => builder.openMediaPicker(target),
-											() => builder.clearMedia(target)
-										)}
-									{:else}
-										<label>
-											<span>{itemField.label}</span>
-											{#if itemField.kind === 'textarea'}
-												<textarea
-													rows="3"
-													value={String(item[itemField.key] ?? '')}
-													oninput={(e) =>
-														builder.updateChromeListItem(
-															kind,
-															field.key,
-															itemIndex,
-															itemField.key,
-															e.currentTarget.value
-														)}></textarea>
-											{:else}
-												<input
-													type="text"
-													value={String(item[itemField.key] ?? '')}
-													oninput={(e) =>
-														builder.updateChromeListItem(
-															kind,
-															field.key,
-															itemIndex,
-															itemField.key,
-															e.currentTarget.value
-														)}
-												/>
-											{/if}
-										</label>
-									{/if}
-								{/each}
-							</div>
+								{#if hrefInvalid(linkHref)}
+									<span class="field-error" role="alert"
+										>Use a /path, http(s) URL, or mailto: address.</span
+									>
+								{/if}
+							{:else}
+								<div class="list-item">
+									<div class="list-item-head">
+										<span>Item {itemIndex + 1}</span>
+										<button
+											type="button"
+											class="icon-btn"
+											aria-label="Remove item {itemIndex + 1}"
+											onclick={() => builder.removeChromeListItem(kind, field.key, itemIndex)}
+										>
+											<IconTrash size={14} stroke={1.75} aria-hidden="true" />
+										</button>
+									</div>
+									{#each field.itemFields ?? [] as itemField (itemField.key)}
+										{#if itemField.kind === 'url'}
+											{@render urlField(itemField.label, item[itemField.key], (value) =>
+												builder.updateChromeListItem(
+													kind,
+													field.key,
+													itemIndex,
+													itemField.key,
+													value
+												)
+											)}
+										{:else if itemField.kind === 'media'}
+											{@const target = mediaTarget(
+												itemField,
+												kind,
+												instance.id,
+												field.key,
+												itemIndex
+											)}
+											{@render mediaSlot(
+												itemField.label,
+												item[itemField.key],
+												item[itemField.kindKey ?? 'imageKind'],
+												pickIsActive(target),
+												() => builder.openMediaPicker(target),
+												() => builder.clearMedia(target)
+											)}
+										{:else}
+											<label>
+												<span>{itemField.label}</span>
+												{#if itemField.kind === 'textarea'}
+													<textarea
+														rows="3"
+														value={String(item[itemField.key] ?? '')}
+														oninput={(e) =>
+															builder.updateChromeListItem(
+																kind,
+																field.key,
+																itemIndex,
+																itemField.key,
+																e.currentTarget.value
+															)}></textarea>
+												{:else}
+													<input
+														type="text"
+														value={String(item[itemField.key] ?? '')}
+														oninput={(e) =>
+															builder.updateChromeListItem(
+																kind,
+																field.key,
+																itemIndex,
+																itemField.key,
+																e.currentTarget.value
+															)}
+													/>
+												{/if}
+											</label>
+										{/if}
+									{/each}
+								</div>
+							{/if}
 						{/each}
 					</section>
 				{:else if field.kind === 'url'}
@@ -463,7 +535,7 @@
 	{/if}
 {/snippet}
 
-<FloatingHud id="inspector" title="Inspector" resizable collapsible>
+<FloatingHud id="inspector" title="Inspector" resizable collapsible neutral>
 	<div class="inspector">
 		<div class="tabs" role="tablist" aria-label="Inspector sections">
 			<button
@@ -718,7 +790,7 @@
 				<SiteBackgroundControls media={logoMedia} fallback={backgroundFallback} />
 
 				<section
-					class="chrome-section"
+					class="chrome-section nav-section"
 					class:focused={builder.selectedChrome === 'header'}
 					aria-labelledby="site-header-label"
 				>
@@ -729,12 +801,99 @@
 							id="site-header-label"
 							onclick={() => builder.selectChrome('header')}
 						>
-							Header
+							Navbar
 						</button>
-						{#if headerDef}
-							<p class="chrome-type">{headerDef.label}</p>
-						{/if}
 					</header>
+
+					<div class="layout-card">
+						<button
+							type="button"
+							class="layout-toggle"
+							aria-expanded={headerLayoutsOpen}
+							aria-controls="header-layouts"
+							onclick={() => {
+								builder.selectChrome('header');
+								headerLayoutsOpen = !headerLayoutsOpen;
+							}}
+						>
+							<span class="layout-mini" aria-hidden="true">
+								{#if headerDef}
+									{@const LayoutPreview = headerDef.preview}
+									<LayoutPreview />
+								{/if}
+							</span>
+							<span class="layout-copy">
+								<span class="kicker">Layout</span>
+								<span class="layout-name">{headerDef?.label ?? 'Choose a layout'}</span>
+							</span>
+							<span class="layout-action">
+								{headerLayoutsOpen ? 'Close' : 'Change'}
+								<span class="layout-chevron" class:open={headerLayoutsOpen}>
+									<IconChevronDown size={16} stroke={1.75} aria-hidden="true" />
+								</span>
+							</span>
+						</button>
+						<div class="layout-drawer" class:open={headerLayoutsOpen} id="header-layouts">
+							<div class="layout-drawer-clip" inert={!headerLayoutsOpen}>
+								{@render chromePicker(
+									'header',
+									headerBlockCatalog,
+									builder.header?.type ?? null,
+									() => {
+										headerLayoutsOpen = false;
+									}
+								)}
+							</div>
+						</div>
+					</div>
+
+					<div class="nav-switches" role="group" aria-label="Navbar behavior">
+						<button
+							type="button"
+							class="hud-switch"
+							role="switch"
+							aria-checked={headerHideOnScroll}
+							onclick={() => setHeaderFlag('hideOnScroll', !headerHideOnScroll)}
+						>
+							<span class="hud-switch-copy">
+								<span class="hud-switch-label">Hide on scroll</span>
+								<span class="hud-switch-hint">Slides away after a short scroll down</span>
+							</span>
+							<span class="hud-knob-track" aria-hidden="true"><span class="hud-knob"></span></span>
+						</button>
+						<button
+							type="button"
+							class="hud-switch"
+							role="switch"
+							aria-checked={headerShowCta}
+							aria-expanded={headerShowCta}
+							aria-controls="nav-cta-fields"
+							onclick={() => setHeaderFlag('showCta', !headerShowCta)}
+						>
+							<span class="hud-switch-copy">
+								<span class="hud-switch-label">Call to action</span>
+								<span class="hud-switch-hint">Button at the end of the bar</span>
+							</span>
+							<span class="hud-knob-track" aria-hidden="true"><span class="hud-knob"></span></span>
+						</button>
+						{#if headerShowCta && builder.header}
+							<div class="cta-fields" id="nav-cta-fields">
+								<label>
+									<span>Label</span>
+									<input
+										type="text"
+										value={String(builder.header.props.ctaLabel ?? '')}
+										oninput={(e) =>
+											builder.updateChromeProps('header', { ctaLabel: e.currentTarget.value })}
+									/>
+								</label>
+								{@render urlField('URL', builder.header.props.ctaHref, (value) =>
+									builder.updateChromeProps('header', { ctaHref: value })
+								)}
+							</div>
+						{/if}
+					</div>
+
 					<LogoMediaSelect
 						media={logoMedia}
 						fallback={logoFallback}
@@ -745,14 +904,13 @@
 						<p class="form-error" role="alert">{builder.logoError}</p>
 					{/if}
 					<ChromeAccentControl
-						label="Nav accent"
+						label="Accent"
 						value={builder.headerAccent}
 						fallback={siteAccent}
 						onChange={(hex) => builder.setHeaderAccent(hex)}
 						onClear={() => builder.clearHeaderAccent()}
 					/>
-					{@render chromePicker('header', headerBlockCatalog, builder.header?.type ?? null)}
-					{@render chromeFields('header', builder.header, headerDef)}
+					{@render chromeFields('header', builder.header, headerDef, ['ctaLabel', 'ctaHref'])}
 				</section>
 
 				<section
@@ -801,150 +959,158 @@
 						<h2 class="block-title">{selectedDef.label}</h2>
 					</header>
 
-					<div class="fields">
-						{#each selectedDef.fields as field (field.key)}
-							{#if field.kind === 'list'}
-								{@const list = Array.isArray(selected.props[field.key])
-									? /** @type {Array<Record<string, unknown>>} */ (selected.props[field.key])
-									: []}
-								<section class="list-field" aria-label={field.label}>
-									<div class="list-head">
-										<span>{field.label}</span>
-										<button
-											type="button"
-											class="icon-btn"
-											aria-label="Add {field.label} item"
-											onclick={() =>
-												builder.addBlockListItem(selected.id, field.key, blankListItem(field))}
-										>
-											<IconPlus size={14} stroke={1.75} aria-hidden="true" />
-										</button>
-									</div>
-									{#each list as item, itemIndex (`${field.key}-${itemIndex}`)}
-										<div class="list-item">
-											<div class="list-item-head">
-												<span>Item {itemIndex + 1}</span>
-												<button
-													type="button"
-													class="icon-btn"
-													aria-label="Remove item {itemIndex + 1}"
-													onclick={() =>
-														builder.removeBlockListItem(selected.id, field.key, itemIndex)}
-												>
-													<IconTrash size={14} stroke={1.75} aria-hidden="true" />
-												</button>
-											</div>
-											{#each field.itemFields ?? [] as itemField (itemField.key)}
-												{#if itemField.kind === 'url'}
-													{@render urlField(itemField.label, item[itemField.key], (value) =>
-														builder.updateBlockListItem(
+					{#if selected.type === 'catalog.stream'}
+						<StreamInspector
+							props={selected.props}
+							items={catalogItems}
+							onChange={(patch) => builder.updateBlockProps(selected.id, patch)}
+						/>
+					{:else}
+						<div class="fields">
+							{#each selectedDef.fields as field (field.key)}
+								{#if field.kind === 'list'}
+									{@const list = Array.isArray(selected.props[field.key])
+										? /** @type {Array<Record<string, unknown>>} */ (selected.props[field.key])
+										: []}
+									<section class="list-field" aria-label={field.label}>
+										<div class="list-head">
+											<span>{field.label}</span>
+											<button
+												type="button"
+												class="icon-btn"
+												aria-label="Add {field.label} item"
+												onclick={() =>
+													builder.addBlockListItem(selected.id, field.key, blankListItem(field))}
+											>
+												<IconPlus size={14} stroke={1.75} aria-hidden="true" />
+											</button>
+										</div>
+										{#each list as item, itemIndex (`${field.key}-${itemIndex}`)}
+											<div class="list-item">
+												<div class="list-item-head">
+													<span>Item {itemIndex + 1}</span>
+													<button
+														type="button"
+														class="icon-btn"
+														aria-label="Remove item {itemIndex + 1}"
+														onclick={() =>
+															builder.removeBlockListItem(selected.id, field.key, itemIndex)}
+													>
+														<IconTrash size={14} stroke={1.75} aria-hidden="true" />
+													</button>
+												</div>
+												{#each field.itemFields ?? [] as itemField (itemField.key)}
+													{#if itemField.kind === 'url'}
+														{@render urlField(itemField.label, item[itemField.key], (value) =>
+															builder.updateBlockListItem(
+																selected.id,
+																field.key,
+																itemIndex,
+																itemField.key,
+																value
+															)
+														)}
+													{:else if itemField.kind === 'media'}
+														{@const target = mediaTarget(
+															itemField,
+															'block',
 															selected.id,
 															field.key,
-															itemIndex,
-															itemField.key,
-															value
-														)
-													)}
-												{:else if itemField.kind === 'media'}
-													{@const target = mediaTarget(
-														itemField,
-														'block',
-														selected.id,
-														field.key,
-														itemIndex
-													)}
-													{@render mediaSlot(
-														itemField.label,
-														item[itemField.key],
-														item[itemField.kindKey ?? 'imageKind'],
-														pickIsActive(target),
-														() => builder.openMediaPicker(target),
-														() => builder.clearMedia(target)
-													)}
-												{:else}
-													<label>
-														<span>{itemField.label}</span>
-														{#if itemField.kind === 'textarea'}
-															<textarea
-																rows="3"
-																value={String(item[itemField.key] ?? '')}
-																oninput={(e) =>
-																	builder.updateBlockListItem(
-																		selected.id,
-																		field.key,
-																		itemIndex,
-																		itemField.key,
-																		e.currentTarget.value
-																	)}></textarea>
-														{:else}
-															<input
-																type="text"
-																value={String(item[itemField.key] ?? '')}
-																oninput={(e) =>
-																	builder.updateBlockListItem(
-																		selected.id,
-																		field.key,
-																		itemIndex,
-																		itemField.key,
-																		e.currentTarget.value
-																	)}
-															/>
-														{/if}
-													</label>
-												{/if}
-											{/each}
-										</div>
-									{/each}
-								</section>
-							{:else if field.kind === 'url'}
-								{@render urlField(field.label, selected.props[field.key], (value) =>
-									setProp(field.key, value)
-								)}
-							{:else if field.kind === 'media'}
-								{@const target = mediaTarget(field, 'block', selected.id)}
-								{@render mediaSlot(
-									field.label,
-									selected.props[field.key],
-									selected.props[field.kindKey ?? 'imageKind'],
-									pickIsActive(target),
-									() => builder.openMediaPicker(target),
-									() => builder.clearMedia(target)
-								)}
-							{:else if field.kind === 'boolean'}
-								<label class="boolean-field">
-									<input
-										type="checkbox"
-										checked={isFieldOn(selected.props, field)}
-										onchange={(e) => setProp(field.key, e.currentTarget.checked)}
-									/>
-									<span>{field.label}</span>
-								</label>
-							{:else if field.kind === 'select'}
-								{@render selectField(
-									field.label,
-									selected.props[field.key],
-									field.options ?? [],
-									(value) => setProp(field.key, value)
-								)}
-							{:else}
-								<label>
-									<span>{field.label}</span>
-									{#if field.kind === 'textarea'}
-										<textarea
-											rows="3"
-											value={String(selected.props[field.key] ?? '')}
-											oninput={(e) => setProp(field.key, e.currentTarget.value)}></textarea>
-									{:else}
+															itemIndex
+														)}
+														{@render mediaSlot(
+															itemField.label,
+															item[itemField.key],
+															item[itemField.kindKey ?? 'imageKind'],
+															pickIsActive(target),
+															() => builder.openMediaPicker(target),
+															() => builder.clearMedia(target)
+														)}
+													{:else}
+														<label>
+															<span>{itemField.label}</span>
+															{#if itemField.kind === 'textarea'}
+																<textarea
+																	rows="3"
+																	value={String(item[itemField.key] ?? '')}
+																	oninput={(e) =>
+																		builder.updateBlockListItem(
+																			selected.id,
+																			field.key,
+																			itemIndex,
+																			itemField.key,
+																			e.currentTarget.value
+																		)}></textarea>
+															{:else}
+																<input
+																	type="text"
+																	value={String(item[itemField.key] ?? '')}
+																	oninput={(e) =>
+																		builder.updateBlockListItem(
+																			selected.id,
+																			field.key,
+																			itemIndex,
+																			itemField.key,
+																			e.currentTarget.value
+																		)}
+																/>
+															{/if}
+														</label>
+													{/if}
+												{/each}
+											</div>
+										{/each}
+									</section>
+								{:else if field.kind === 'url'}
+									{@render urlField(field.label, selected.props[field.key], (value) =>
+										setProp(field.key, value)
+									)}
+								{:else if field.kind === 'media'}
+									{@const target = mediaTarget(field, 'block', selected.id)}
+									{@render mediaSlot(
+										field.label,
+										selected.props[field.key],
+										selected.props[field.kindKey ?? 'imageKind'],
+										pickIsActive(target),
+										() => builder.openMediaPicker(target),
+										() => builder.clearMedia(target)
+									)}
+								{:else if field.kind === 'boolean'}
+									<label class="boolean-field">
 										<input
-											type="text"
-											value={String(selected.props[field.key] ?? '')}
-											oninput={(e) => setProp(field.key, e.currentTarget.value)}
+											type="checkbox"
+											checked={isFieldOn(selected.props, field)}
+											onchange={(e) => setProp(field.key, e.currentTarget.checked)}
 										/>
-									{/if}
-								</label>
-							{/if}
-						{/each}
-					</div>
+										<span>{field.label}</span>
+									</label>
+								{:else if field.kind === 'select'}
+									{@render selectField(
+										field.label,
+										selected.props[field.key],
+										field.options ?? [],
+										(value) => setProp(field.key, value)
+									)}
+								{:else}
+									<label>
+										<span>{field.label}</span>
+										{#if field.kind === 'textarea'}
+											<textarea
+												rows="3"
+												value={String(selected.props[field.key] ?? '')}
+												oninput={(e) => setProp(field.key, e.currentTarget.value)}></textarea>
+										{:else}
+											<input
+												type="text"
+												value={String(selected.props[field.key] ?? '')}
+												oninput={(e) => setProp(field.key, e.currentTarget.value)}
+											/>
+										{/if}
+									</label>
+								{/if}
+							{/each}
+						</div>
+					{/if}
 
 					{#if builder.savingBlocks}
 						<p class="form-ok" role="status">Saving…</p>
@@ -993,7 +1159,7 @@
 
 	.tab.active {
 		color: var(--ink);
-		background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+		background: var(--hud-wash-strong);
 	}
 
 	.panel {
@@ -1066,8 +1232,8 @@
 	}
 
 	.chrome-section.focused {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		border-color: var(--hud-line);
+		background: var(--hud-wash);
 	}
 
 	.chrome-head {
@@ -1097,6 +1263,261 @@
 		color: var(--muted);
 	}
 
+	.nav-section {
+		--nav-label: 5.25rem;
+		gap: 0.5rem;
+	}
+
+	.layout-card {
+		border: 1px solid var(--hud-line);
+		border-radius: 0.125rem;
+		background: var(--hud-wash);
+	}
+
+	.layout-toggle {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		gap: 0.5rem;
+		align-items: center;
+		width: 100%;
+		padding: 0.35rem;
+		border: 0;
+		background: transparent;
+		color: var(--ink);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.layout-mini {
+		display: block;
+		width: 4.25rem;
+		height: 2.4rem;
+		overflow: hidden;
+		border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+	}
+
+	.layout-mini :global(svg) {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.layout-copy {
+		display: grid;
+		gap: 0.05rem;
+		min-width: 0;
+	}
+
+	.kicker,
+	.layout-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.kicker {
+		font-size: 0.62rem;
+		font-weight: 700;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	.layout-name {
+		font-size: 0.82rem;
+		color: var(--ink);
+	}
+
+	.layout-action {
+		display: inline-flex;
+		gap: 0.15rem;
+		align-items: center;
+		font-size: 0.62rem;
+		font-weight: 700;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	.layout-chevron {
+		display: grid;
+		place-items: center;
+		color: var(--muted);
+		transition: transform 180ms ease;
+	}
+
+	.layout-chevron.open {
+		transform: rotate(180deg);
+	}
+
+	.layout-drawer {
+		display: grid;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows 200ms ease;
+	}
+
+	.layout-drawer.open {
+		grid-template-rows: 1fr;
+	}
+
+	.layout-drawer-clip {
+		overflow: hidden;
+		min-height: 0;
+	}
+
+	.layout-drawer .chrome-thumbs {
+		padding: 0 0.35rem 0.4rem;
+	}
+
+	.nav-switches {
+		display: grid;
+		border: 1px solid var(--hud-line);
+		border-radius: 0.125rem;
+		background: var(--hud-wash);
+	}
+
+	.hud-switch {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		min-height: 2.35rem;
+		padding: 0.4rem 0.5rem;
+		border: 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+		background: transparent;
+		color: var(--ink);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.nav-switches > :last-child,
+	.hud-switch[aria-expanded='true'] {
+		border-bottom: 0;
+	}
+
+	.hud-switch-copy {
+		display: grid;
+		gap: 0.05rem;
+		min-width: 0;
+	}
+
+	.hud-switch-label {
+		font-size: 0.78rem;
+		letter-spacing: 0.01em;
+		text-transform: none;
+		color: var(--ink);
+	}
+
+	.hud-switch-hint {
+		font-size: 0.65rem;
+		line-height: 1.3;
+		letter-spacing: 0;
+		text-transform: none;
+		color: var(--muted);
+	}
+
+	.hud-knob-track {
+		position: relative;
+		display: inline-flex;
+		flex-shrink: 0;
+		box-sizing: border-box;
+		width: 2.2rem;
+		height: 1.1rem;
+		align-items: center;
+		padding: 1px;
+		border: 1px solid var(--hud-line);
+		border-radius: 0.125rem;
+		background: var(--hud-wash);
+		box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 20%, transparent);
+	}
+
+	.hud-switch[aria-checked='true'] .hud-knob-track {
+		border-color: var(--hud-line);
+		background: var(--hud-ui);
+		box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 28%, transparent);
+	}
+
+	.hud-knob {
+		width: 0.85rem;
+		height: 0.85rem;
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 42%, var(--paper));
+		box-shadow: 0 1px 1px color-mix(in srgb, var(--ink) 28%, transparent);
+		transition: transform 120ms ease;
+	}
+
+	.hud-switch[aria-checked='true'] .hud-knob {
+		background: var(--on-hud-ui);
+		transform: translateX(1.05rem);
+	}
+
+	.cta-fields {
+		display: grid;
+		gap: 0.4rem;
+		padding: 0 0.5rem 0.5rem;
+	}
+
+	.cta-fields label,
+	.fields.dense > label {
+		grid-template-columns: var(--nav-label) minmax(0, 1fr);
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.cta-fields .field-error {
+		grid-column: 1 / -1;
+	}
+
+	.nav-section :global(.logo-select),
+	.nav-section :global(.accent) {
+		display: grid;
+		grid-template-columns: var(--nav-label) minmax(0, 1fr);
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.nav-section :global(.accent) {
+		grid-template-columns: var(--nav-label) auto minmax(0, 1fr);
+	}
+
+	.nav-section :global(.accent button) {
+		justify-self: start;
+	}
+
+	.nav-link {
+		display: grid;
+		grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) auto;
+		gap: 0.3rem;
+		align-items: center;
+	}
+
+	.nav-link input {
+		min-width: 0;
+		padding: 0.32rem 0.4rem;
+		font-size: 0.8rem;
+	}
+
+	.nav-section .list-field {
+		gap: 0.35rem;
+		padding: 0.4rem;
+	}
+
+	.nav-section .list-head {
+		min-height: 1.5rem;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.layout-chevron,
+		.layout-drawer,
+		.hud-knob {
+			transition: none;
+		}
+	}
+
 	.chrome-thumbs {
 		list-style: none;
 		margin: 0;
@@ -1119,8 +1540,8 @@
 	}
 
 	.thumb.selected {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+		border-color: var(--hud-ui);
+		background: var(--hud-wash);
 	}
 
 	.frame {
@@ -1201,7 +1622,7 @@
 
 	.delete-page-btn:hover:not(:disabled) {
 		color: var(--ink);
-		background: color-mix(in srgb, var(--theme-error, var(--accent)) 12%, var(--paper));
+		background: color-mix(in srgb, var(--chroma-red) 12%, var(--paper));
 	}
 
 	.delete-page-btn:disabled {
@@ -1214,8 +1635,8 @@
 	}
 
 	.tree-row.active {
-		border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-		background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+		border-color: var(--hud-line);
+		background: var(--hud-wash-strong);
 	}
 
 	.tree-title {
@@ -1278,9 +1699,9 @@
 		align-items: center;
 		min-height: 2rem;
 		padding: 0.4rem 0.5rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
-		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		background: var(--hud-wash);
 		color: var(--ink);
 		cursor: pointer;
 		user-select: none;
@@ -1289,7 +1710,7 @@
 	.boolean-field input {
 		width: auto;
 		margin: 0;
-		accent-color: var(--accent);
+		accent-color: var(--hud-ui);
 	}
 
 	input,
@@ -1297,9 +1718,9 @@
 	label select {
 		width: 100%;
 		padding: 0.4rem 0.5rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
-		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		background: var(--hud-wash);
 		color: var(--ink);
 		font: inherit;
 		font-size: 0.85rem;
@@ -1370,9 +1791,9 @@
 	}
 
 	.media-slot.picking .media-btn:first-of-type {
-		border-color: var(--ink);
-		background: var(--accent);
-		color: var(--on-accent);
+		border-color: var(--hud-line);
+		background: var(--hud-ui);
+		color: var(--on-hud-ui);
 	}
 
 	.media-slot-row {
@@ -1411,7 +1832,7 @@
 	.form-error {
 		margin: 0;
 		color: var(--ink);
-		background: color-mix(in srgb, var(--theme-error, var(--accent)) 18%, var(--paper));
+		background: color-mix(in srgb, var(--chroma-red) 16%, var(--paper));
 		border: 1px solid var(--ink);
 		padding: 0.4rem 0.5rem;
 		font-size: 0.8rem;
@@ -1442,8 +1863,8 @@
 	}
 
 	.save {
-		background: var(--accent);
-		color: var(--on-accent);
+		background: var(--hud-ui);
+		color: var(--on-hud-ui);
 	}
 
 	.danger {

@@ -4,6 +4,8 @@
 	import { builder } from '#lib/builder/builder.svelte.js';
 	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
 	import { backgroundStyle, resolveBackground } from '#lib/builder/site-background.js';
+	import { headerBlockProps } from '#lib/components/blocks/nav-chrome.js';
+	import NavScroll from '#lib/components/blocks/NavScroll.svelte';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
 	import {
@@ -632,26 +634,28 @@
 			>
 				{#if builder.header && HeaderBlock}
 					<!-- Select overlay sits under the player so transport stays clickable. -->
-					<div
-						class="chrome instance"
-						class:selected={builder.selectedChrome === 'header'}
-						style={chromeAccentStyle(builder.headerAccent)}
-					>
-						<HeaderBlock
-							{...builder.header.props}
-							logoUrl={builder.logoUrl}
-							showAppearanceToggle={builder.appearance === 'user'}
-							resolvedAppearance={builder.previewAppearance}
-							onAppearanceToggle={() => builder.togglePreviewAppearance()}
-						/>
-						<button
-							type="button"
-							class="chrome-select"
-							aria-label="Select site header"
-							aria-pressed={builder.selectedChrome === 'header'}
-							onclick={() => builder.selectChrome('header')}
-						></button>
-					</div>
+					<NavScroll hideOnScroll={builder.header.props.hideOnScroll === true}>
+						<div
+							class="chrome instance"
+							class:selected={builder.selectedChrome === 'header'}
+							style={chromeAccentStyle(builder.headerAccent)}
+						>
+							<HeaderBlock
+								{...headerBlockProps(builder.header.props)}
+								logoUrl={builder.logoUrl}
+								showAppearanceToggle={builder.appearance === 'user'}
+								resolvedAppearance={builder.previewAppearance}
+								onAppearanceToggle={() => builder.togglePreviewAppearance()}
+							/>
+							<button
+								type="button"
+								class="chrome-select"
+								aria-label="Select site header"
+								aria-pressed={builder.selectedChrome === 'header'}
+								onclick={() => builder.selectChrome('header')}
+							></button>
+						</div>
+					</NavScroll>
 				{/if}
 
 				<div class="stack">
@@ -687,7 +691,14 @@
 									onclick={() => builder.selectInstance(instance.id)}
 								>
 									{#if Block}
-										{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
+										{#if instance.type === 'catalog.stream'}
+											<Block
+												{...instance.props}
+												profileData={profileCatalog}
+												profileList={profileCatalog ? profileCatalogList.current : null}
+												streamSeed={data.streamPages?.[instance.id] ?? null}
+											/>
+										{:else if instance.type === 'catalog.profile'}
 											<Block
 												{...instance.props}
 												profileData={profileCatalog}
@@ -830,7 +841,12 @@
 	</main>
 
 	<BuilderToolbar />
-	<InspectorHud siteId={data.site.id} {form} logoMedia={data.logoMedia} />
+	<InspectorHud
+		siteId={data.site.id}
+		{form}
+		logoMedia={data.logoMedia}
+		catalogItems={profileCatalog?.items ?? []}
+	/>
 	<BlocksHud />
 	<MediaHud />
 </div>

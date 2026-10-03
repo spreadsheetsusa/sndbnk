@@ -127,9 +127,9 @@
 		width: 100%;
 		min-width: 0;
 		padding: 0.25rem 0.3rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
-		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		background: var(--hud-wash);
 		color: var(--ink);
 		font: inherit;
 		font-size: 0.75rem;
@@ -141,7 +141,7 @@
 	.clear {
 		justify-self: start;
 		padding: 0.15rem 0.45rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
 		background: transparent;
 		color: var(--muted);

@@ -7,6 +7,8 @@
 	import { chromeAccentStyle } from '#lib/builder/chrome-accent.js';
 	import { backgroundStyle } from '#lib/builder/site-background.js';
 	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
+	import { headerBlockProps } from '#lib/components/blocks/nav-chrome.js';
+	import NavScroll from '#lib/components/blocks/NavScroll.svelte';
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import HeaderPlayer from '#lib/components/player/HeaderPlayer.svelte';
 	import { player } from '#lib/player/player.svelte.js';
@@ -83,15 +85,17 @@
 
 <div class="tenant-site" style={themeStyle}>
 	{#if site.header && HeaderBlock}
-		<div class="chrome-accent" style={chromeAccentStyle(site.headerAccent)}>
-			<HeaderBlock
-				{...site.header.props}
-				logoUrl={site.logoUrl ?? ''}
-				showAppearanceToggle={appearanceMode === 'user'}
-				{resolvedAppearance}
-				onAppearanceToggle={toggleAppearance}
-			/>
-		</div>
+		<NavScroll hideOnScroll={site.header.props.hideOnScroll === true}>
+			<div class="chrome-accent" style={chromeAccentStyle(site.headerAccent)}>
+				<HeaderBlock
+					{...headerBlockProps(site.header.props)}
+					logoUrl={site.logoUrl ?? ''}
+					showAppearanceToggle={appearanceMode === 'user'}
+					{resolvedAppearance}
+					onAppearanceToggle={toggleAppearance}
+				/>
+			</div>
+		</NavScroll>
 	{:else if player.current}
 		<div class="tenant-player">
 			<div class="player-shell">

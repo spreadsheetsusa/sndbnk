@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
+import { parseStreamQuery, streamDateBounds } from '#lib/builder/stream-query.js';
 import { isTrackMediaType } from '#lib/media/track-media-type.js';
 import { listFeedTracks } from '#lib/server/feed';
 import { listLikedItemsWithUploader, listListeningHistory } from '#lib/server/listens';
@@ -9,6 +10,7 @@ import { getProfileByUsername, isTenantUsernameAllowed } from '#lib/server/tenan
 import { serializeTimelineRows } from '#lib/server/timeline';
 import {
 	listProfileItemsWithUploader,
+	listStreamTracks,
 	listTracksWithUploader,
 	serializeLibraryTrackRows,
 	serializeTrackRows,
@@ -30,7 +32,13 @@ export async function GET({ locals, url }) {
 	const page = { limit: TRACK_PAGE_SIZE, cursor, direction, inclusive };
 
 	// Tenant hosts only expose that creator's public profile listings.
-	if (locals.tenant && scope !== 'profile' && scope !== 'likes' && scope !== 'history') {
+	if (
+		locals.tenant &&
+		scope !== 'profile' &&
+		scope !== 'likes' &&
+		scope !== 'history' &&
+		scope !== 'stream'
+	) {
 		error(404, 'Not found.');
 	}
 
@@ -81,6 +89,41 @@ export async function GET({ locals, url }) {
 		});
 
 		const items = await serializeTimelineRows(rows, locals.user, hostOwnerId);
+		return json({ items, nextCursor });
+	}
+
+	if (scope === 'stream') {
+		const username = normalizeUsername(url.searchParams.get('username') ?? '');
+		if (!isTenantUsernameAllowed(locals, username)) {
+			error(404, 'Profile not found.');
+		}
+		const owner = username ? await getProfileByUsername(username) : null;
+		if (!owner) error(404, 'Profile not found.');
+
+		const query = parseStreamQuery({
+			count: url.searchParams.get('count'),
+			dateFrom: url.searchParams.get('from'),
+			dateTo: url.searchParams.get('to'),
+			genre: url.searchParams.get('genre'),
+			artists: url.searchParams.get('artists'),
+			mediaType: url.searchParams.get('mediaType')
+		});
+		const bounds = streamDateBounds(query);
+		const hostOwnerId = listingHostOwnerId(locals, owner.userId);
+		const { rows, nextCursor } = await listStreamTracks(owner.userId, {
+			hostOwnerId,
+			mediaType: query.mediaType,
+			genre: query.genre,
+			artists: query.artists,
+			dateFromMs: bounds.from,
+			dateToMs: bounds.to,
+			count: query.count,
+			limit: page.limit,
+			cursor: page.cursor,
+			direction: page.direction,
+			inclusive: page.inclusive
+		});
+		const items = await serializeTrackRows(rows, locals.user);
 		return json({ items, nextCursor });
 	}
 

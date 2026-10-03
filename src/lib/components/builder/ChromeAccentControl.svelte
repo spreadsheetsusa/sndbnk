@@ -49,7 +49,7 @@
 		width: 2rem;
 		height: 1.5rem;
 		padding: 0;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
 		background: transparent;
 		cursor: pointer;
@@ -57,7 +57,7 @@
 
 	button {
 		padding: 0.15rem 0.4rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
 		background: transparent;
 		color: var(--muted);

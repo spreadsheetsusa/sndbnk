@@ -533,6 +533,14 @@ class Builder {
 					return next;
 				})();
 
+		// Layout swaps should keep the copy already written into the navbar.
+		if (kind === 'header' && this.header) {
+			const current = $state.snapshot(this.header.props);
+			for (const key of ['logoText', 'links', 'showCta', 'hideOnScroll', 'ctaLabel', 'ctaHref']) {
+				if (current[key] !== undefined) props[key] = current[key];
+			}
+		}
+
 		const instance = {
 			id: crypto.randomUUID(),
 			type,

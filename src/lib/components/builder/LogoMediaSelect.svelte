@@ -109,9 +109,9 @@
 		width: 100%;
 		min-height: 2rem;
 		padding: 0.25rem 0.4rem;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
-		background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+		background: var(--hud-wash);
 		color: var(--ink);
 		font: inherit;
 		font-size: 0.8rem;
@@ -151,15 +151,15 @@
 		padding: 0.25rem;
 		overflow: auto;
 		list-style: none;
-		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
+		border: 1px solid var(--hud-line);
 		border-radius: 0.125rem;
 		background: var(--paper);
 		box-shadow: 0 0.4rem 1rem color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.menu button[aria-selected='true'] {
-		color: var(--on-accent);
-		background: var(--accent);
+		color: var(--on-hud-ui);
+		background: var(--hud-ui);
 	}
 
 	.none {

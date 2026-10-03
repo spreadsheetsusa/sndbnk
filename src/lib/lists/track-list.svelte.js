@@ -13,13 +13,17 @@ import { tick } from 'svelte';
  * when the scope alone does not say.
  *
  * @typedef {{
- *   scope: 'feed' | 'library' | 'profile' | 'likes' | 'history',
+ *   scope: 'feed' | 'library' | 'profile' | 'likes' | 'history' | 'stream',
  *   username?: string | null,
  *   genre?: string | null,
  *   mediaType?: string | null,
  *   q?: string | null,
  *   following?: boolean,
- *   owner?: string | null
+ *   owner?: string | null,
+ *   dateFrom?: string | null,
+ *   dateTo?: string | null,
+ *   artists?: string | null,
+ *   count?: number | null
  * }} ListQuery
  *
  * @typedef {{ cursor: string, offset: number }} ListAnchor
@@ -80,6 +84,10 @@ export class TrackList {
 		if (query.mediaType) this.#params.mediaType = query.mediaType;
 		if (query.q) this.#params.q = query.q;
 		if (query.following) this.#params.following = '1';
+		if (query.dateFrom) this.#params.from = query.dateFrom;
+		if (query.dateTo) this.#params.to = query.dateTo;
+		if (query.artists) this.#params.artists = query.artists;
+		if (query.count) this.#params.count = String(query.count);
 		this.#getContainer = getContainer;
 
 		const seedItems = seed.items ?? seed.tracks ?? [];

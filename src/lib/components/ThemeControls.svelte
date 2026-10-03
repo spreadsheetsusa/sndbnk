@@ -192,8 +192,8 @@
 	}
 
 	.mode-btn[aria-pressed='true'] {
-		background: var(--accent);
-		color: var(--on-accent);
+		background: var(--hud-ui, var(--accent));
+		color: var(--on-hud-ui, var(--on-accent));
 	}
 
 	.swatches {

@@ -8,6 +8,7 @@ import {
 	resolvePickedImageUrl
 } from '#lib/server/site';
 import { ensureRootPage, getSitePageByPath } from '#lib/server/site-pages';
+import { loadStreamSeeds } from '#lib/server/stream-blocks';
 
 /**
  * Load one composed tenant-site page and its optional live catalog data.
@@ -50,6 +51,8 @@ export async function loadTenantSitePage({ locals, url, path }) {
 			})
 		: null;
 
+	const streamPages = await loadStreamSeeds(locals.tenant.userId, page.blocks, locals);
+
 	return {
 		mode: /** @type {const} */ ('tenant-site'),
 		site: {
@@ -61,6 +64,7 @@ export async function loadTenantSitePage({ locals, url, path }) {
 		},
 		page,
 		catalog,
+		streamPages,
 		siteOrigin: url.origin
 	};
 }
