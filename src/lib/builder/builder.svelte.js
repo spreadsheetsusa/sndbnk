@@ -131,6 +131,8 @@ class Builder {
 	selectedCatalogType = $state(null);
 	/** Selected canvas instance. @type {string | null} */
 	selectedInstanceId = $state(null);
+	/** Canvas block waiting on the remove confirmation. @type {string | null} */
+	pendingRemoveId = $state(null);
 	/** Selected site chrome slot. @type {ChromeKind} */
 	selectedChrome = $state(/** @type {ChromeKind} */ (null));
 	/** Canvas blocks for the current page. @type {PageBlockInstance[]} */
@@ -355,6 +357,7 @@ class Builder {
 		this.selectedInstanceId = null;
 		this.selectedChrome = null;
 		this.blocksError = null;
+		this.pendingRemoveId = null;
 	}
 
 	/**
@@ -724,6 +727,27 @@ class Builder {
 			return { ...b, props: { ...b.props, [listKey]: list } };
 		});
 		this.persistBlocks();
+	}
+
+	/**
+	 * Open the remove confirmation for a canvas block.
+	 * @param {string} instanceId
+	 */
+	requestRemove(instanceId) {
+		if (!this.blocks.some((block) => block.id === instanceId)) return;
+		this.pendingRemoveId = instanceId;
+	}
+
+	cancelRemove() {
+		if (this.pendingRemoveId == null) return;
+		this.pendingRemoveId = null;
+	}
+
+	confirmRemove() {
+		const instanceId = this.pendingRemoveId;
+		if (!instanceId) return;
+		this.pendingRemoveId = null;
+		this.removeBlock(instanceId);
 	}
 
 	/**

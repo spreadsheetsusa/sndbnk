@@ -1118,7 +1118,7 @@
 						<p class="form-error" role="alert">{builder.blocksError}</p>
 					{/if}
 
-					<button type="button" class="danger" onclick={() => builder.removeBlock(selected.id)}>
+					<button type="button" class="danger" onclick={() => builder.requestRemove(selected.id)}>
 						Remove block
 					</button>
 				{/if}

@@ -77,6 +77,12 @@
 		text-align: center;
 	}
 
+	@media (max-width: 640px) {
+		.hero {
+			padding-inline: 1rem;
+		}
+	}
+
 	h2 {
 		margin: 0 0 0.55rem;
 		font-family: var(--font-editorial);

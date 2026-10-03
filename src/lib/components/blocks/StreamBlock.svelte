@@ -81,6 +81,7 @@
 								track={item}
 								linkBase=""
 								hideArtist
+								stream
 								showCommentForm={false}
 								signedIn={Boolean(profileData.viewer)}
 								viewerId={profileData.viewer?.id ?? null}
@@ -101,6 +102,12 @@
 <style>
 	.stream {
 		padding: 0.75rem 0 1.25rem;
+	}
+
+	@media (max-width: 640px) {
+		.stream {
+			padding-inline: 1rem;
+		}
 	}
 
 	.heading {

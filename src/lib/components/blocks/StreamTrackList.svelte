@@ -93,6 +93,7 @@
 								track={item}
 								linkBase=""
 								hideArtist
+								stream
 								showCommentForm={false}
 								signedIn={Boolean(profileData.viewer)}
 								viewerId={profileData.viewer?.id ?? null}

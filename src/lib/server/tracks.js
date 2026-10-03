@@ -1197,6 +1197,7 @@ export async function serializeTrackForPlayer(
 		repostedByName: uploader.repostedByName ?? null,
 		repostedByUsername: uploader.repostedByUsername ?? null,
 		isOwner: Boolean(viewer && viewer.id === row.userId),
+		hasPost: Boolean(row.description?.trim()),
 		timedComments: timedComments ?? []
 	};
 }

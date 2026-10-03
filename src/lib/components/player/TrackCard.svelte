@@ -1,4 +1,6 @@
 <script>
+	import { tick } from 'svelte';
+	import IconChevronDown from '@tabler/icons-svelte-runes/icons/chevron-down';
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
@@ -61,6 +63,7 @@
 	 * @property {string | null} [repostedByName]
 	 * @property {string | null} [repostedByUsername]
 	 * @property {boolean} isOwner
+	 * @property {boolean} [hasPost]
 	 * @property {TimedComment[] | undefined} [timedComments]
 	 */
 
@@ -75,6 +78,7 @@
 	 *   linkBase?: string,
 	 *   titleAsHeading?: boolean,
 	 *   hideArtist?: boolean,
+	 *   stream?: boolean,
 	 *   feedTracks?: import('#lib/player/player.svelte.js').PlayerTrack[] | null,
 	 *   feedIndex?: number,
 	 *   oncommented?: (comment: { id: string, body: string, atMs: number | null, createdAt: number, userId: string, userName: string, userImage: string | null }) => void,
@@ -92,6 +96,7 @@
 		linkBase = '',
 		titleAsHeading = false,
 		hideArtist = false,
+		stream = false,
 		feedTracks = null,
 		feedIndex = -1,
 		oncommented,
@@ -114,6 +119,48 @@
 			: (track.playCount ?? 0)
 	);
 	const genres = $derived(parseGenres(track.genre));
+
+	let postOpen = $state(false);
+	/** @type {string | null} */
+	let postHtml = $state(null);
+	let postBusy = $state(false);
+	/** @type {string | null} */
+	let postError = $state(null);
+
+	const renderPost = $derived.by(() => {
+		const html = postHtml ?? '';
+		/** @type {import('svelte/attachments').Attachment} */
+		return (node) => {
+			node.innerHTML = html;
+			return () => node.replaceChildren();
+		};
+	});
+
+	async function togglePost() {
+		if (postBusy) return;
+		if (postOpen) {
+			postOpen = false;
+			return;
+		}
+		postError = null;
+		if (postHtml == null) {
+			postBusy = true;
+			try {
+				const res = await fetch(`/api/tracks/${track.id}/post`);
+				if (!res.ok) throw new Error('Could not load this post.');
+				const body = await res.json();
+				postHtml = typeof body.html === 'string' ? body.html : '';
+			} catch {
+				postError = 'Could not load this post.';
+				return;
+			} finally {
+				postBusy = false;
+			}
+		}
+		if (!postHtml) return;
+		await tick();
+		postOpen = true;
+	}
 
 	let commentBody = $state('');
 	let commentBusy = $state(false);
@@ -406,7 +453,11 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<article class="track-card" {@attach whileNearViewport((visible) => (nearViewport = visible))}>
+<article
+	class="track-card"
+	class:stream
+	{@attach whileNearViewport((visible) => (nearViewport = visible))}
+>
 	<CoverArt
 		trackId={track.id}
 		hasCover={track.hasCover}
@@ -613,6 +664,34 @@
 				onrepositioned={handleCommentRepositioned}
 			/>
 		</div>
+
+		{#if stream && track.hasPost}
+			<div class="post">
+				<button
+					type="button"
+					class="post-toggle"
+					aria-expanded={postOpen}
+					aria-controls="track-post-{track.id}"
+					onclick={(event) => {
+						event.stopPropagation();
+						togglePost();
+					}}
+				>
+					{postBusy ? 'Loading…' : postOpen ? 'Less info' : 'More info'}
+					<span class="chevron" aria-hidden="true">
+						<IconChevronDown size={14} stroke={1.75} />
+					</span>
+				</button>
+				{#if postError}
+					<p class="post-error" role="alert">{postError}</p>
+				{/if}
+				<div class="post-panel" class:open={postOpen} id="track-post-{track.id}" inert={!postOpen}>
+					<div class="post-clip">
+						<div class="post-body" {@attach renderPost}></div>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		{#if signedIn && showCommentForm}
 			<form class="comment-row" onsubmit={submitComment}>
@@ -844,6 +923,83 @@
 		position: relative;
 		min-width: 0;
 		max-width: 100%;
+	}
+
+	.post-toggle {
+		display: inline-flex;
+		gap: 0.3rem;
+		align-items: center;
+		padding: 0.3rem 0.55rem;
+		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
+		border-radius: 0;
+		background: transparent;
+		color: var(--ink);
+		font-size: 0.68rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.post-toggle:hover {
+		border-color: var(--ink);
+		background: color-mix(in srgb, var(--accent) 18%, var(--paper));
+	}
+
+	.chevron {
+		display: inline-flex;
+		transition: transform 220ms ease;
+	}
+
+	.post-toggle[aria-expanded='true'] .chevron {
+		transform: rotate(180deg);
+	}
+
+	.post-error {
+		margin: 0.4rem 0 0;
+		color: var(--muted);
+		font-size: 0.8rem;
+	}
+
+	.post-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows 280ms ease;
+	}
+
+	.post-panel.open {
+		grid-template-rows: 1fr;
+	}
+
+	.post-clip {
+		overflow: hidden;
+	}
+
+	.post-body {
+		padding-top: 0.75rem;
+		color: var(--muted);
+		font-size: 0.92rem;
+		line-height: 1.55;
+		overflow-wrap: anywhere;
+	}
+
+	.post-body :global(p) {
+		margin: 0;
+	}
+
+	.post-body :global(img) {
+		display: block;
+		max-width: min(100%, 32rem);
+		height: auto;
+		margin: 0 0 0.75rem;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.chevron,
+		.post-panel {
+			transition: none;
+		}
 	}
 
 	/* Matches Waveform's --waveform-height (taller under pointer: coarse). */
@@ -1185,6 +1341,40 @@
 		.title,
 		.artist {
 			white-space: normal;
+		}
+
+		/* Title takes the row; stats and genre badges wrap onto their own full-width line. */
+		.track-card.stream .head {
+			flex-wrap: wrap;
+			row-gap: 0.45rem;
+		}
+
+		.track-card.stream .titles {
+			order: 1;
+			flex: 1 1 auto;
+		}
+
+		.track-card.stream .menu-wrap {
+			order: 2;
+		}
+
+		.track-card.stream .aside {
+			order: 3;
+			flex: 1 1 100%;
+			flex-direction: row;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: flex-start;
+			margin-left: 0;
+		}
+
+		.track-card.stream .aside-stats,
+		.track-card.stream .tags {
+			justify-content: flex-start;
+		}
+
+		.track-card.stream .tags {
+			flex: 1 1 100%;
 		}
 	}
 

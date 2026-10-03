@@ -22,6 +22,7 @@
 	} from '#lib/components/blocks/types.js';
 	import { buildPersonaPalette } from '#lib/builder/theme-persona.js';
 	import BlocksHud from '#lib/components/builder/BlocksHud.svelte';
+	import ConfirmRemoveBlock from '#lib/components/builder/ConfirmRemoveBlock.svelte';
 	import BuilderToolbar from '#lib/components/builder/BuilderToolbar.svelte';
 	import InspectorHud from '#lib/components/builder/InspectorHud.svelte';
 	import MediaHud from '#lib/components/builder/MediaHud.svelte';
@@ -778,7 +779,7 @@
 									class="remove"
 									aria-label="Remove block"
 									tabindex={builder.selectedInstanceId === instance.id ? 0 : -1}
-									onclick={() => builder.removeBlock(instance.id)}
+									onclick={() => builder.requestRemove(instance.id)}
 								>
 									<IconTrash size={15} stroke={1.75} aria-hidden="true" />
 								</button>
@@ -849,6 +850,7 @@
 	/>
 	<BlocksHud />
 	<MediaHud />
+	<ConfirmRemoveBlock />
 </div>
 
 <style>
@@ -1204,6 +1206,10 @@
 	.instance-hit :global(button),
 	.instance-hit :global(input) {
 		pointer-events: none;
+	}
+
+	.instance-hit :global(.post-toggle) {
+		pointer-events: auto;
 	}
 
 	.remove {
