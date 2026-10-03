@@ -43,6 +43,7 @@ export const load = async ({ locals, url }) => {
 			siteOrigin: url.origin,
 			playThresholds,
 			nav: emptyNav,
+			tenantHostKind: locals.tenant.hostKind,
 			tenantSite: site
 				? {
 						...site,
@@ -70,6 +71,7 @@ export const load = async ({ locals, url }) => {
 			siteOrigin,
 			playThresholds,
 			nav: emptyNav,
+			tenantHostKind: null,
 			tenantSite: null
 		};
 	}
@@ -93,6 +95,7 @@ export const load = async ({ locals, url }) => {
 			linkedAccounts,
 			sites
 		},
+		tenantHostKind: null,
 		tenantSite: null
 	};
 };

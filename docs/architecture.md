@@ -131,6 +131,12 @@ typically use A/AAAA or ALIAS/ANAME because DNS forbids CNAME at the zone apex. 
 Caddy asks `/api/domain-tls-check` before issuing a certificate for any unknown host, so an
 unverified domain cannot mint TLS certs — details in [operations.md](operations.md).
 
+An active custom domain also keeps first-party audience counts
+([`site-analytics.js`](../src/lib/server/site-analytics.js)): HTML page loads (plus the referring
+hostname), later in-site navigations, and qualified plays. There is no analytics cookie and no
+unique-visitor figure. The owner reads them at Settings → Audience. Vault subdomains and the apex
+profile are not counted.
+
 ## Directory map
 
 ```
@@ -165,6 +171,7 @@ src/
       db/                 schema.js, auth.schema.js (generated), index.js
       tenant.js billing/plans.js username.js domain-verify.js profile-page.js
       site.js             tenant branding (accent/appearance/persona) + site chrome (header/footer)
+      site-analytics.js   custom-domain page loads, referrers, plays, signed-in listeners
       site-pages.js       CMS pages + body block lists for the site builder
       tracks.js           track CRUD + serialization
       social.js           follow graph, reposts, profile stats

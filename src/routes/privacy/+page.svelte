@@ -55,6 +55,13 @@
 			example IP, timestamps, and requested paths) for security and reliability.
 		</li>
 		<li>
+			<strong>Custom-domain audience counts.</strong> On a creator’s active custom domain we count page
+			loads (the path, and the referring site’s hostname when the browser sends one) and plays. We do
+			not store an IP address, user-agent string, or unique-visitor id for this. If you are signed in,
+			a play also stores your account, the track, and the time so the creator can see which members listened.
+			The creator’s own signed-in visits are not counted. Creators see these totals in Settings.
+		</li>
+		<li>
 			<strong>Preferences on your device.</strong> Theme, accent color, player queue, and similar UI preferences
 			may be stored in your browser’s local storage. These are not used for advertising.
 		</li>
@@ -72,6 +79,10 @@
 			Send transactional email (welcome, email verification, password reset, billing notices);
 		</li>
 		<li>Enforce our Terms, prevent abuse, and protect the Service and users;</li>
+		<li>
+			Show a creator aggregate page loads, referrers, and plays on their custom domain, including
+			which signed-in accounts played there;
+		</li>
 		<li>Comply with law and respond to lawful requests; and</li>
 		<li>Communicate about the Service when you contact us.</li>
 	</ul>
@@ -117,8 +128,9 @@
 		We use essential cookies for authentication and short-lived notices (for example a one-shot
 		message after sign-in). In production, the session cookie may be scoped across
 		<code>*.sndbnk.com</code> so you stay signed in on creator subdomains. We do not use third-party advertising
-		cookies or analytics trackers on the Service today. You can control cookies in your browser; blocking
-		essential cookies will prevent sign-in.
+		cookies or analytics trackers. Page loads and plays on a creator’s custom domain are counted by the
+		Service itself, without an analytics cookie. You can control cookies in your browser; blocking essential
+		cookies will prevent sign-in.
 	</p>
 
 	<h2>6. Retention</h2>
@@ -126,9 +138,11 @@
 		We keep account, profile, content, and billing records for as long as your account is active and
 		as needed to provide the Service, resolve disputes, enforce agreements, and meet legal
 		obligations. Session and verification tokens expire. Server logs are retained for a limited
-		operational period. If you ask us to delete your account, we will delete or de-identify personal
-		data we control, except where we must retain it (for example billing records, abuse prevention,
-		or legal holds). Files on bring-your-own storage remain under your control on your server.
+		operational period. Custom-domain audience totals and signed-in listener rows are kept for about
+		400 days, then deleted. If you ask us to delete your account, we will delete or de-identify
+		personal data we control, except where we must retain it (for example billing records, abuse
+		prevention, or legal holds). Files on bring-your-own storage remain under your control on your
+		server.
 	</p>
 
 	<h2>7. Your choices and rights</h2>

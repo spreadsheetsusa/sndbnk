@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { replaceState } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -14,20 +14,22 @@
 	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
 	import IconCopy from '@tabler/icons-svelte-runes/icons/copy';
 	import Avatar from '#lib/components/Avatar.svelte';
+	import SiteAudience from '#lib/components/settings/SiteAudience.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import BioEditor from '#lib/components/settings/BioEditor.svelte';
 	import ProfileLinksEditor from '#lib/components/settings/ProfileLinksEditor.svelte';
 
 	let { data, form } = $props();
 
-	const tabs = [
+	const tabs = $derived([
 		{ id: 'profile', label: 'Profile' },
 		{ id: 'linked', label: 'Linked Accounts' },
 		{ id: 'billing', label: 'Billing' },
 		{ id: 'domain', label: 'Domain' },
 		{ id: 'site', label: 'Site' },
+		...(data.billing.allowCustomDomain ? [{ id: 'audience', label: 'Audience' }] : []),
 		{ id: 'storage', label: 'Storage' }
-	];
+	]);
 
 	/**
 	 * Form actions carry `&tab=`, so submitting without JS lands back on the section
@@ -48,6 +50,12 @@
 
 		const url = new URL(page.url);
 		url.searchParams.set('tab', id);
+		if (id === 'audience') {
+			if (!url.searchParams.get('range')) url.searchParams.set('range', '28');
+			goto(`${url.pathname}${url.search}`, { replaceState: true, noScroll: true, keepFocus: true });
+			return;
+		}
+		url.searchParams.delete('range');
 		replaceState(url, page.state);
 	}
 
@@ -1386,6 +1394,12 @@
 						</button>
 					</form>
 				{/if}
+			</div>
+		{/if}
+
+		{#if activeTab === 'audience'}
+			<div class="block" role="tabpanel" id="panel-audience" aria-labelledby="tab-audience">
+				<SiteAudience audience={data.audience} />
 			</div>
 		{/if}
 

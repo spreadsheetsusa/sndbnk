@@ -5,6 +5,7 @@
 	import favicon from '#lib/assets/favicon.png';
 	import EqPanel from '#lib/components/player/EqPanel.svelte';
 	import MilkdropWindow from '#lib/components/player/MilkdropWindow.svelte';
+	import SiteViewBeacon from '#lib/components/site/SiteViewBeacon.svelte';
 	import { eq } from '#lib/player/eq.svelte.js';
 	import { setPlayThresholds } from '#lib/player/play-thresholds.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
@@ -104,6 +105,9 @@
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </svelte:head>
 <div class="app-shell">
+	{#if data.tenantHostKind === 'custom'}
+		<SiteViewBeacon />
+	{/if}
 	{@render children()}
 </div>
 {#if eq.open}

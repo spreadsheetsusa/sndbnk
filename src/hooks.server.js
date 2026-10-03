@@ -4,6 +4,7 @@ import { auth } from '#lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { handleSecurityHeaders } from '#lib/server/security-headers';
+import { recordDocumentView } from '#lib/server/site-analytics';
 import { getRequestHostname, resolveTenantHost } from '#lib/server/tenant';
 
 const APEX_ONLY_PREFIXES = [
@@ -48,7 +49,8 @@ const TENANT_ALLOWED_PREFIXES = [
 	'/api/site-media',
 	'/api/tracks',
 	'/api/playlists',
-	'/api/users'
+	'/api/users',
+	'/api/site-views'
 ];
 
 /**
@@ -143,6 +145,13 @@ const handleBetterAuth = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
+/** @type {import('@sveltejs/kit').Handle} */
+const handleSiteAnalytics = async ({ event, resolve }) => {
+	const response = await resolve(event);
+	await recordDocumentView(event, response);
+	return response;
+};
+
 const AUTH_SIGNIN_PREFIX = '/api/auth/sign-in';
 const AUTH_RESET_PATHS = ['/api/auth/request-password-reset', '/api/auth/forget-password'];
 const AUTH_RESET_PREFIX = '/api/auth/reset-password';
@@ -196,4 +205,9 @@ export function handleError({ error, event, status, message }) {
 	return { message };
 }
 
-export const handle = sequence(handleTenant, handleBetterAuth, handleSecurityHeaders);
+export const handle = sequence(
+	handleTenant,
+	handleBetterAuth,
+	handleSiteAnalytics,
+	handleSecurityHeaders
+);

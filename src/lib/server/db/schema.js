@@ -255,6 +255,61 @@ export const siteMedia = sqliteTable(
 	(table) => [index('site_media_site_created_idx').on(table.siteId, table.createdAt)]
 );
 
+/** @typedef {'page' | 'referrer' | 'track' | 'total'} SiteStatKind */
+
+/**
+ * Daily custom-domain audience rollups. One row per (owner, UTC day, kind, key).
+ * `kind` is `page` | `referrer` | `track` | `total`. `key` is a path, referrer host,
+ * track id, or `''` for the day total and for Direct. Not unique people.
+ */
+export const siteStatDay = sqliteTable(
+	'site_stat_day',
+	{
+		siteUserId: text('site_user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		/** UTC calendar day, `YYYY-MM-DD`. */
+		day: text('day').notNull(),
+		/** `page` | `referrer` | `track` | `total` */
+		kind: text('kind').notNull(),
+		/** Path, referrer host, track id, or `''`. */
+		key: text('key').notNull().default(''),
+		views: integer('views').notNull().default(0),
+		plays: integer('plays').notNull().default(0)
+	},
+	(table) => [
+		primaryKey({ columns: [table.siteUserId, table.day, table.kind, table.key] }),
+		index('site_stat_day_user_kind_day_idx').on(table.siteUserId, table.kind, table.day)
+	]
+);
+
+/**
+ * Signed-in listeners who played on the owner's custom domain.
+ * Anonymous plays stay in `site_stat_day` only.
+ */
+export const siteListen = sqliteTable(
+	'site_listen',
+	{
+		siteUserId: text('site_user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		listenerUserId: text('listener_user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		trackId: text('track_id')
+			.notNull()
+			.references(() => track.id, { onDelete: 'cascade' }),
+		playCount: integer('play_count').notNull().default(1),
+		lastPlayedAt: integer('last_played_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		primaryKey({ columns: [table.siteUserId, table.listenerUserId, table.trackId] }),
+		index('site_listen_site_last_idx').on(table.siteUserId, table.lastPlayedAt)
+	]
+);
+
 export const profileRelations = relations(profile, ({ one, many }) => ({
 	user: one(user, {
 		fields: [profile.userId],
@@ -277,7 +332,33 @@ export const siteRelations = relations(site, ({ one, many }) => ({
 		references: [profile.userId]
 	}),
 	pages: many(sitePage),
-	media: many(siteMedia)
+	media: many(siteMedia),
+	statDays: many(siteStatDay),
+	listens: many(siteListen)
+}));
+
+export const siteStatDayRelations = relations(siteStatDay, ({ one }) => ({
+	owner: one(user, {
+		fields: [siteStatDay.siteUserId],
+		references: [user.id]
+	})
+}));
+
+export const siteListenRelations = relations(siteListen, ({ one }) => ({
+	owner: one(user, {
+		fields: [siteListen.siteUserId],
+		references: [user.id],
+		relationName: 'siteListenOwner'
+	}),
+	listener: one(user, {
+		fields: [siteListen.listenerUserId],
+		references: [user.id],
+		relationName: 'siteListenListener'
+	}),
+	track: one(track, {
+		fields: [siteListen.trackId],
+		references: [track.id]
+	})
 }));
 
 export const sitePageRelations = relations(sitePage, ({ one, many }) => ({

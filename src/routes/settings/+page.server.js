@@ -45,6 +45,7 @@ import {
 import { getUsage } from '#lib/server/quota';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
+import { audienceRange, getSiteAudience } from '#lib/server/site-analytics';
 import {
 	MAX_SITE_DESCRIPTION_LENGTH,
 	MAX_SITE_NAME_LENGTH,
@@ -66,7 +67,7 @@ import {
 import { buildPublicUrls, getProfileByUserId } from '#lib/server/tenant';
 import { validateUsername } from '#lib/server/username';
 
-export const load = async ({ locals }) => {
+export const load = async ({ locals, url }) => {
 	if (!locals.user) {
 		safeRedirect(302, '/signin');
 	}
@@ -158,7 +159,14 @@ export const load = async ({ locals }) => {
 			purchasable: isPlanPurchasable(option.id)
 		})),
 		storageAdapters: STORAGE_ADAPTERS,
-		storage
+		storage,
+		audience:
+			tier.allowCustomDomain && url.searchParams.get('tab') === 'audience'
+				? await getSiteAudience(
+						locals.user.id,
+						audienceRange(Number(url.searchParams.get('range')))
+					)
+				: null
 	};
 };
 

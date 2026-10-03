@@ -141,6 +141,24 @@ Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[
 sidebar toggles need Studio+
 (`canUseCustomDomain`).
 
+### `site_stat_day` — custom-domain page loads and plays
+
+Daily rollups for an **active custom domain** only. One row per `(siteUserId, day, kind, key)`.
+`day` is a UTC `YYYY-MM-DD`. `kind` is `page` (key = path), `referrer` (key = hostname, or `''` for
+Direct), `track` (key = track id), or `total` (key = `''`). `views` and `plays` are counters. This is
+not a unique-visitor number: a refresh is another page load, and anonymous visitors are not
+identified. The site owner's signed-in session is excluded. Rows older than 400 days are deleted on
+the next write.
+
+Service: [`site-analytics.js`](../src/lib/server/site-analytics.js). Shown on Settings → Audience.
+
+### `site_listen` — signed-in plays on a custom domain
+
+One row per `(siteUserId, listenerUserId, trackId)` with `playCount` and `lastPlayedAt`. Written
+only when a qualified play (the same threshold as `track.playCount`) happens on the custom domain
+and the listener is signed in as someone other than the owner. Anonymous plays stay in
+`site_stat_day`. Listener rows older than 400 days are deleted on the next write.
+
 ### `site_page` — builder pages for a tenant site
 
 Keyed on `id`; belongs to `site` via `siteId` (FK → `site.id`, cascade). Every site gets a root
@@ -307,6 +325,9 @@ erDiagram
   user ||--o| site : "1:1"
   site ||--o{ site_page : "pages"
   site ||--o{ site_media : "design files"
+  user ||--o{ site_stat_day : "audience days"
+  user ||--o{ site_listen : "signed-in plays"
+  track ||--o{ site_listen : "played on domain"
   user ||--o| storage_setting : "1:1"
   user ||--o{ track : owns
   user ||--o{ playlist : owns
