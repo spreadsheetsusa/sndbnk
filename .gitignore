@@ -33,4 +33,3 @@ vite.config.ts.timestamp-*
 
 # One-off local probes
 scratch-*.js
-scripts/.nocoast-import-map.json

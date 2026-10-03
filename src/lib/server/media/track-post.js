@@ -2,7 +2,7 @@ import DOMPurify from 'isomorphic-dompurify';
 
 import { getStorageAdapter, isMissingStorageObject, parseStoredAdapter } from '#lib/server/storage';
 
-/** Sidecar written by the nocoast import. Lists `content-N` images in post order. */
+/** Lists `content-N` images in post order beside the track audio. */
 export const CONTENT_MANIFEST = 'content.json';
 
 const CONTENT_IMAGE_NAME = /^content-\d+\.(?:jpe?g|png|gif|webp)$/;
