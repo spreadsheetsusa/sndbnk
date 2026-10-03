@@ -101,7 +101,9 @@ so unmigrated files keep serving.
 
 Site-builder images and videos use the same platform adapter, never the creator's audio/SSH
 adapter. Each file is `{userId}/sm-{assetId}/file.{ext}` with a `site_media` row for the display
-name. Public reads are `GET /api/site-media/{id}` (including on tenant hosts). See
+name. Public reads are `GET /api/site-media/{id}` (including on tenant hosts). Files uploaded after
+the S3 cutover are not in the server `MEDIA_ROOT`, so `bun run pull:prod` fetches missing platform
+objects into the local media tree (see [operations.md](operations.md)). See
 [data-model.md](data-model.md).
 
 ## Credential encryption

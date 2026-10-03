@@ -7,6 +7,11 @@
 	import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 	import { sitePlayerAccent } from '#lib/player/site-accent.svelte.js';
 	import {
+		heroImageWidthLabel,
+		heroImageWidthValue,
+		snapHeroImagePx
+	} from '#lib/components/blocks/hero-frame.js';
+	import {
 		BLOCK_MIN_WIDTH_PX,
 		clampBlockMaxWidth,
 		layoutFromMaxWidth,
@@ -151,6 +156,27 @@
 	 */
 	let resizeDrag = $state(null);
 
+	/**
+	 * Live hero-image width while the edge handles are dragged.
+	 * @type {null | {
+	 *   instanceId: string,
+	 *   side: 'left' | 'right',
+	 *   pointerId: number,
+	 *   startX: number,
+	 *   startWidth: number,
+	 *   slot: number,
+	 *   defaultPx: number,
+	 *   liveWidth: number
+	 * }}
+	 */
+	let imageDrag = $state(null);
+
+	/**
+	 * Selected hero image box, relative to its `.instance`.
+	 * @type {null | { instanceId: string, top: number, left: number, width: number, height: number }}
+	 */
+	let imageFrame = $state(null);
+
 	const hydrateBuilder = $derived.by(() => {
 		const state = {
 			siteId: data.site.id,
@@ -248,6 +274,12 @@
 
 	const guideBreakpoints = $derived(visibleBlockWidthBreakpoints(boardWidth()));
 
+	const imageSizeLabel = $derived.by(() => {
+		if (!imageDrag || typeof document === 'undefined') return '';
+		const font = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		return heroImageWidthLabel(imageDrag.liveWidth, font);
+	});
+
 	/**
 	 * @param {PageBlockInstance} instance
 	 * @returns {number | null}
@@ -321,6 +353,152 @@
 			// Already released.
 		}
 		builder.updateBlockLayout(instanceId, layout ?? null, { immediate: true });
+	}
+
+	/**
+	 * Column the image can grow into. Split heroes use their grid track;
+	 * centered heroes use the whole hero row.
+	 * @param {HTMLElement} media
+	 */
+	function heroImageSlotPx(media) {
+		const section = media.closest('section');
+		if (!(section instanceof HTMLElement)) return media.getBoundingClientRect().width;
+		const tracks = getComputedStyle(section)
+			.gridTemplateColumns.split(/\s+/)
+			.filter(Boolean)
+			.map((track) => parseFloat(track))
+			.filter((size) => Number.isFinite(size) && size > 0);
+		if (tracks.length < 2) return section.clientWidth;
+		const sectionRect = section.getBoundingClientRect();
+		const mediaRect = media.getBoundingClientRect();
+		const center = mediaRect.left + mediaRect.width / 2 - sectionRect.left;
+		let cursor = 0;
+		for (const size of tracks) {
+			if (center <= cursor + size + 1) return size;
+			cursor += size;
+		}
+		return mediaRect.width;
+	}
+
+	/**
+	 * Width the layout uses before an image-width override (42rem cap, or the column).
+	 * @param {HTMLElement} media
+	 * @param {number} slot
+	 */
+	function heroImageDefaultPx(media, slot) {
+		const cap = getComputedStyle(media).getPropertyValue('--hero-media-cap').trim();
+		if (!cap || cap === '100%') return slot;
+		const font = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		if (cap.endsWith('rem')) return Math.min(slot, parseFloat(cap) * font);
+		if (cap.endsWith('px')) return Math.min(slot, parseFloat(cap));
+		return slot;
+	}
+
+	/**
+	 * @param {string} instanceId
+	 */
+	function measureHeroImage(instanceId) {
+		const root = canvasEl?.querySelector(`[data-instance-id="${instanceId}"]`);
+		const media = root?.querySelector('[data-hero-media]');
+		if (!(root instanceof HTMLElement) || !(media instanceof HTMLElement)) return null;
+		const rootRect = root.getBoundingClientRect();
+		const mediaRect = media.getBoundingClientRect();
+		return {
+			instanceId,
+			top: mediaRect.top - rootRect.top,
+			left: mediaRect.left - rootRect.left,
+			width: mediaRect.width,
+			height: mediaRect.height
+		};
+	}
+
+	$effect(() => {
+		const id = builder.selectedInstanceId;
+		const block = builder.blocks.find((item) => item.id === id);
+		const live = imageDrag?.instanceId === id ? imageDrag.liveWidth : null;
+		if (!id || !block?.type.startsWith('hero.')) {
+			imageFrame = null;
+			return;
+		}
+		void live;
+		void canvasWidth;
+		void block.props.imageWidth;
+		const apply = () => {
+			imageFrame = measureHeroImage(id);
+		};
+		apply();
+		const media = canvasEl?.querySelector(`[data-instance-id="${id}"] [data-hero-media]`);
+		if (!(media instanceof HTMLElement)) return;
+		const ro = new ResizeObserver(apply);
+		ro.observe(media);
+		return () => ro.disconnect();
+	});
+
+	/**
+	 * @param {PointerEvent & { currentTarget: HTMLElement }} event
+	 * @param {PageBlockInstance} instance
+	 * @param {'left' | 'right'} side
+	 */
+	function startImageResize(event, instance, side) {
+		if (event.button !== 0) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const media = canvasEl?.querySelector(`[data-instance-id="${instance.id}"] [data-hero-media]`);
+		if (!(media instanceof HTMLElement)) return;
+		const slot = heroImageSlotPx(media);
+		const startWidth = media.getBoundingClientRect().width;
+		imageDrag = {
+			instanceId: instance.id,
+			side,
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			startWidth,
+			slot,
+			defaultPx: heroImageDefaultPx(media, slot),
+			liveWidth: startWidth
+		};
+		event.currentTarget.setPointerCapture(event.pointerId);
+	}
+
+	/**
+	 * @param {PointerEvent} event
+	 */
+	function onImageResizeMove(event) {
+		if (!imageDrag || event.pointerId !== imageDrag.pointerId) return;
+		const font = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		const dx = event.clientX - imageDrag.startX;
+		const signed = imageDrag.side === 'right' ? dx : -dx;
+		const liveWidth = snapHeroImagePx(imageDrag.startWidth + 2 * signed, imageDrag.slot, font);
+		imageDrag = { ...imageDrag, liveWidth };
+	}
+
+	/**
+	 * @param {PointerEvent & { currentTarget: HTMLElement }} event
+	 */
+	function onImageResizeUp(event) {
+		if (!imageDrag || event.pointerId !== imageDrag.pointerId) return;
+		const font = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		const drag = imageDrag;
+		imageDrag = null;
+		try {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		} catch {
+			// Already released.
+		}
+		builder.updateBlockProps(drag.instanceId, {
+			imageWidth: heroImageWidthValue(drag.liveWidth, drag.defaultPx, font)
+		});
+	}
+
+	/**
+	 * @param {MouseEvent} event
+	 * @param {string} instanceId
+	 */
+	function resetImageWidth(event, instanceId) {
+		event.preventDefault();
+		event.stopPropagation();
+		imageDrag = null;
+		builder.updateBlockProps(instanceId, { imageWidth: '' });
 	}
 
 	/**
@@ -442,6 +620,8 @@
 						{@const def = getBlockDefinition(instance.type)}
 						{@const Block = def?.component}
 						{@const maxWidthStyle = instanceMaxWidthStyle(instance)}
+						{@const liveImageWidth =
+							imageDrag?.instanceId === instance.id ? `${imageDrag.liveWidth}px` : null}
 						<div
 							class="drop-gap"
 							class:active={dropIndex === index}
@@ -453,8 +633,10 @@
 						></div>
 						<div
 							class="instance"
+							data-instance-id={instance.id}
 							class:selected={builder.selectedInstanceId === instance.id}
-							class:resizing={resizeDrag?.instanceId === instance.id}
+							class:resizing={resizeDrag?.instanceId === instance.id ||
+								imageDrag?.instanceId === instance.id}
 							style:max-width={maxWidthStyle}
 						>
 							<button
@@ -472,12 +654,52 @@
 											profileList={profileCatalog ? profileCatalogList.current : null}
 										/>
 									{:else}
-										<Block {...instance.props} />
+										<Block
+											{...instance.props}
+											{...liveImageWidth ? { imageWidth: liveImageWidth } : {}}
+										/>
 									{/if}
 								{:else}
 									<p class="missing">Unknown block: {instance.type}</p>
 								{/if}
 							</button>
+							{#if builder.selectedInstanceId === instance.id && imageFrame?.instanceId === instance.id}
+								<button
+									type="button"
+									class="resize-handle image"
+									aria-label="Resize image from left"
+									style:top="{imageFrame.top}px"
+									style:left="{imageFrame.left}px"
+									style:height="{imageFrame.height}px"
+									onpointerdown={(e) => startImageResize(e, instance, 'left')}
+									onpointermove={onImageResizeMove}
+									onpointerup={onImageResizeUp}
+									onpointercancel={onImageResizeUp}
+									ondblclick={(e) => resetImageWidth(e, instance.id)}
+								></button>
+								<button
+									type="button"
+									class="resize-handle image"
+									aria-label="Resize image from right"
+									style:top="{imageFrame.top}px"
+									style:left="{imageFrame.left + imageFrame.width}px"
+									style:height="{imageFrame.height}px"
+									onpointerdown={(e) => startImageResize(e, instance, 'right')}
+									onpointermove={onImageResizeMove}
+									onpointerup={onImageResizeUp}
+									onpointercancel={onImageResizeUp}
+									ondblclick={(e) => resetImageWidth(e, instance.id)}
+								></button>
+								{#if imageDrag?.instanceId === instance.id}
+									<span
+										class="image-size"
+										style:top="{imageFrame.top + imageFrame.height}px"
+										style:left="{imageFrame.left + imageFrame.width / 2}px"
+									>
+										{imageSizeLabel}
+									</span>
+								{/if}
+							{/if}
 							{#if builder.selectedInstanceId === instance.id}
 								<button
 									type="button"
@@ -807,6 +1029,14 @@
 		transform: translateX(50%);
 	}
 
+	.resize-handle.image {
+		z-index: 4;
+		right: auto;
+		bottom: auto;
+		width: 0.7rem;
+		transform: translateX(-50%);
+	}
+
 	.resize-handle::after {
 		content: '';
 		position: absolute;
@@ -822,6 +1052,20 @@
 	.resize-handle:hover::after,
 	.instance.resizing .resize-handle::after {
 		background: var(--accent);
+	}
+
+	.image-size {
+		position: absolute;
+		z-index: 4;
+		transform: translate(-50%, 0.4rem);
+		padding: 0.12rem 0.4rem;
+		border: 1px solid var(--ink);
+		background: var(--paper);
+		color: var(--ink);
+		font-size: 0.7rem;
+		letter-spacing: 0.04em;
+		white-space: nowrap;
+		pointer-events: none;
 	}
 
 	.chrome {

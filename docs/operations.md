@@ -42,6 +42,23 @@ phrase is required: type `reset production`, or set `NUKE_PRODUCTION=reset produ
 touch `.env`, source, or `drizzle/` migration files. Afterward you may want
 `bun run createsuperuser`.
 
+### Pull production data (`bun run pull:prod`)
+
+Downloads a consistent SQLite snapshot and rsyncs the server `MEDIA_ROOT`. Site-library images
+(backgrounds, builder media), avatars, logos, and hosted tracks uploaded after the S3 cutover live
+in the private `sndbnk-media` bucket, not on that disk. The same command then asks the production
+host — using its instance role, not your laptop's AWS keys — for every platform object the local
+database names that is missing under `MEDIA_ROOT`, and writes those files locally. Dev keeps
+`S3_BUCKET` empty and serves them from disk.
+
+```sh
+bun run pull:prod
+bun run pull:prod -- --platform-only   # database and disk media already pulled
+bun run pull:prod -- --skip-platform
+```
+
+SSH tracks are not copied. Playback of those still uses the creator's server.
+
 ## Environment variables
 
 Registered in [`src/env.js`](../src/env.js) and read through `$app/env/private` /
@@ -291,6 +308,7 @@ Creator custom domains (after Studio+ verification):
 | `{user}.sndbnk.com` does not resolve                      | missing `*.sndbnk.com` A record in Route 53 — add it pointing at the Lightsail IP                                                       |
 | Custom domain verify fails on apex                        | use A/AAAA (or ALIAS) to the platform IPs shown in Settings, not a CNAME                                                                |
 | Custom domain will not get TLS                            | `/api/domain-tls-check?domain=…` is returning `400`; hit it directly to see which check fails                                           |
+| Site background or `/api/site-media/…` 404s locally       | the file is in platform S3, not `MEDIA_ROOT`. `bun run pull:prod -- --platform-only` copies the missing objects                         |
 | Waveforms are flat placeholder bars                       | Redis/worker/ffmpeg — check `REDIS_URL`, `systemctl status sndbnk-waveform-worker redis-server`, `journalctl -u sndbnk-waveform-worker` |
 | Upload returns `413` before any validation message        | `BODY_SIZE_LIMIT` too low or unset; the adapter defaults to 512K (need ≥ `520M`)                                                        |
 | A query fails on a column that exists in `schema.js`      | the column was added to `schema.js` but no migration was generated/applied — run `bun run db:generate` + `db:migrate`                   |

@@ -131,13 +131,15 @@ import TestimonialTwoQuoteCards from '#lib/components/blocks/TestimonialTwoQuote
 import { BLOCK_TYPES } from '#lib/components/blocks/types.js';
 
 /**
- * @typedef {'text' | 'textarea' | 'url' | 'list' | 'boolean' | 'media'} BlockFieldKind
+ * @typedef {'text' | 'textarea' | 'url' | 'list' | 'boolean' | 'media' | 'select'} BlockFieldKind
  *
  * @typedef {{
  *   key: string,
  *   label: string,
  *   kind: BlockFieldKind,
  *   kindKey?: string,
+ *   default?: boolean,
+ *   options?: Array<{ value: string, label: string }>,
  *   itemFields?: Array<{
  *     key: string,
  *     label: string,
@@ -173,16 +175,43 @@ const NAV_FIELDS = [
 	{ key: 'ctaHref', label: 'CTA URL', kind: 'url' }
 ];
 
+/** @type {Array<{ value: string, label: string }>} */
+const HERO_IMAGE_RATIOS = [
+	{ value: '', label: 'Layout default' },
+	{ value: 'auto', label: 'Natural' },
+	{ value: '1 / 1', label: '1:1' },
+	{ value: '4 / 5', label: '4:5' },
+	{ value: '3 / 4', label: '3:4' },
+	{ value: '4 / 3', label: '4:3' },
+	{ value: '5 / 4', label: '5:4' },
+	{ value: '16 / 9', label: '16:9' },
+	{ value: '21 / 9', label: '21:9' }
+];
+
+/** @type {Array<{ value: string, label: string }>} */
+const HERO_IMAGE_WIDTHS = [
+	{ value: '', label: 'Layout default' },
+	{ value: '8rem', label: 'Compact' },
+	{ value: '14rem', label: 'Medium' },
+	{ value: '22rem', label: 'Large' },
+	{ value: '42rem', label: 'Wide' }
+];
+
 /** @type {BlockField[]} */
 const HERO_FIELDS = [
 	{ key: 'headline', label: 'Headline', kind: 'text' },
 	{ key: 'body', label: 'Body', kind: 'textarea' },
+	{ key: 'showPrimary', label: 'Show primary button', kind: 'boolean', default: true },
 	{ key: 'primaryLabel', label: 'Primary button', kind: 'text' },
 	{ key: 'primaryHref', label: 'Primary URL', kind: 'url' },
+	{ key: 'showSecondary', label: 'Show secondary button', kind: 'boolean', default: true },
 	{ key: 'secondaryLabel', label: 'Secondary button', kind: 'text' },
 	{ key: 'secondaryHref', label: 'Secondary URL', kind: 'url' },
 	{ key: 'imageId', label: 'Image', kind: 'media', kindKey: 'imageKind' },
-	{ key: 'imageLabel', label: 'Alt text', kind: 'text' }
+	{ key: 'imageLabel', label: 'Alt text', kind: 'text' },
+	{ key: 'imageRatio', label: 'Image ratio', kind: 'select', options: HERO_IMAGE_RATIOS },
+	{ key: 'imageWidth', label: 'Image width', kind: 'select', options: HERO_IMAGE_WIDTHS },
+	{ key: 'imageBorder', label: 'Image border', kind: 'boolean', default: true }
 ];
 
 /** @type {Record<string, unknown>} */

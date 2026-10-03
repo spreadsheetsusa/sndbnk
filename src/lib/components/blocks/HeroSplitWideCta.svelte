@@ -1,44 +1,70 @@
 <script>
-	import MediaPlaceholder from '#lib/components/blocks/MediaPlaceholder.svelte';
+	import HeroMedia from '#lib/components/blocks/HeroMedia.svelte';
+	import { showHeroCta } from '#lib/components/blocks/hero-frame.js';
 
 	/**
 	 * @type {{
 	 *   headline?: string,
 	 *   body?: string,
+	 *   showPrimary?: boolean,
 	 *   primaryLabel?: string,
 	 *   primaryHref?: string,
+	 *   showSecondary?: boolean,
 	 *   secondaryLabel?: string,
 	 *   secondaryHref?: string,
 	 *   imageLabel?: string,
 	 *   imageId?: string,
-	 *   imageKind?: string
+	 *   imageKind?: string,
+	 *   imageRatio?: string,
+	 *   imageWidth?: string,
+	 *   imageBorder?: boolean
 	 * }}
 	 */
 	let {
 		headline = 'Host the catalog. Own the page.',
 		body = 'Bring mixes, samples, and podcasts into one place listeners can actually find.',
+		showPrimary = true,
 		primaryLabel = 'Create your site',
 		primaryHref = '/',
+		showSecondary = true,
 		secondaryLabel = 'How hosting works',
 		secondaryHref = '/',
 		imageLabel = 'Catalog visual',
 		imageId = '',
-		imageKind = ''
+		imageKind = '',
+		imageRatio = '',
+		imageWidth = '',
+		imageBorder = true
 	} = $props();
+
+	const primaryOn = $derived(showHeroCta(showPrimary, primaryLabel));
+	const secondaryOn = $derived(showHeroCta(showSecondary, secondaryLabel));
 </script>
 
 <section class="hero">
 	<div class="copy">
 		<h2>{headline}</h2>
 		<p>{body}</p>
-		<div class="actions">
-			<a class="secondary wide" href={secondaryHref}>{secondaryLabel}</a>
-			<a class="primary accent-fill" href={primaryHref}>{primaryLabel}</a>
-		</div>
+		{#if primaryOn || secondaryOn}
+			<div class="actions">
+				{#if secondaryOn}
+					<a class="secondary wide" href={secondaryHref}>{secondaryLabel}</a>
+				{/if}
+				{#if primaryOn}
+					<a class="primary accent-fill" href={primaryHref}>{primaryLabel}</a>
+				{/if}
+			</div>
+		{/if}
 	</div>
-	<div class="media">
-		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="5 / 4" />
-	</div>
+	<HeroMedia
+		label={imageLabel}
+		mediaId={imageId}
+		kind={imageKind}
+		fallbackRatio="5 / 4"
+		{imageRatio}
+		{imageWidth}
+		{imageBorder}
+	/>
 </section>
 
 <style>

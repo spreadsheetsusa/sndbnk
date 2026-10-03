@@ -1,43 +1,70 @@
 <script>
-	import MediaPlaceholder from '#lib/components/blocks/MediaPlaceholder.svelte';
+	import HeroMedia from '#lib/components/blocks/HeroMedia.svelte';
+	import { showHeroCta } from '#lib/components/blocks/hero-frame.js';
 
 	/**
 	 * @type {{
 	 *   headline?: string,
 	 *   body?: string,
+	 *   showPrimary?: boolean,
 	 *   primaryLabel?: string,
 	 *   primaryHref?: string,
+	 *   showSecondary?: boolean,
 	 *   secondaryLabel?: string,
 	 *   secondaryHref?: string,
 	 *   imageLabel?: string,
 	 *   imageId?: string,
-	 *   imageKind?: string
+	 *   imageKind?: string,
+	 *   imageRatio?: string,
+	 *   imageWidth?: string,
+	 *   imageBorder?: boolean
 	 * }}
 	 */
 	let {
 		headline = 'Drop the next release',
 		body = 'A clean page for the track, the story, and the people who show up for it.',
+		showPrimary = true,
 		primaryLabel = 'Upload a track',
 		primaryHref = '/',
+		showSecondary = true,
 		secondaryLabel = 'Browse artists',
 		secondaryHref = '/',
 		imageLabel = 'Hero visual',
 		imageId = '',
-		imageKind = ''
+		imageKind = '',
+		imageRatio = '',
+		imageWidth = '',
+		imageBorder = true
 	} = $props();
+
+	const primaryOn = $derived(showHeroCta(showPrimary, primaryLabel));
+	const secondaryOn = $derived(showHeroCta(showSecondary, secondaryLabel));
 </script>
 
 <section class="hero">
-	<div class="media">
-		<MediaPlaceholder label={imageLabel} mediaId={imageId} kind={imageKind} ratio="21 / 9" />
-	</div>
+	<HeroMedia
+		--hero-media-cap="42rem"
+		label={imageLabel}
+		mediaId={imageId}
+		kind={imageKind}
+		fallbackRatio="21 / 9"
+		{imageRatio}
+		{imageWidth}
+		{imageBorder}
+	/>
 	<div class="copy">
 		<h2>{headline}</h2>
 		<p>{body}</p>
-		<div class="actions">
-			<a class="primary accent-fill" href={primaryHref}>{primaryLabel}</a>
-			<a class="secondary" href={secondaryHref}>{secondaryLabel}</a>
-		</div>
+		{#if primaryOn || secondaryOn}
+			<div class="actions">
+				{#if primaryOn}
+					<a class="primary accent-fill" href={primaryHref}>{primaryLabel}</a>
+				{/if}
+				{#if secondaryOn}
+					<a class="secondary" href={secondaryHref}>{secondaryLabel}</a>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </section>
 
@@ -48,10 +75,6 @@
 		justify-items: center;
 		padding: 2rem 0;
 		text-align: center;
-	}
-
-	.media {
-		width: min(100%, 42rem);
 	}
 
 	h2 {

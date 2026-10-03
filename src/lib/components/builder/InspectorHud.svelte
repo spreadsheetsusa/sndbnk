@@ -219,7 +219,33 @@
 			pick.idKey === target.idKey
 		);
 	}
+
+	/**
+	 * Missing booleans follow the field default so existing heroes stay bordered and buttoned.
+	 * @param {Record<string, unknown>} props
+	 * @param {{ key: string, default?: boolean }} field
+	 */
+	function isFieldOn(props, field) {
+		const value = props[field.key];
+		if (value === undefined || value === null) return field.default === true;
+		return value === true;
+	}
 </script>
+
+{#snippet selectField(label, value, options, onchange)}
+	{@const current = String(value ?? '')}
+	<label>
+		<span>{label}</span>
+		<select value={current} onchange={(e) => onchange(e.currentTarget.value)}>
+			{#each options as option (option.value)}
+				<option value={option.value}>{option.label}</option>
+			{/each}
+			{#if current && !options.some((option) => option.value === current)}
+				<option value={current}>{current}</option>
+			{/if}
+		</select>
+	</label>
+{/snippet}
 
 {#snippet urlField(label, value, oninput)}
 	{@const invalid = hrefInvalid(value)}
@@ -393,7 +419,7 @@
 					<label class="boolean-field">
 						<input
 							type="checkbox"
-							checked={Boolean(instance.props[field.key])}
+							checked={isFieldOn(instance.props, field)}
 							onchange={(e) =>
 								builder.updateChromeProps(kind, {
 									[field.key]: e.currentTarget.checked
@@ -401,6 +427,13 @@
 						/>
 						<span>{field.label}</span>
 					</label>
+				{:else if field.kind === 'select'}
+					{@render selectField(
+						field.label,
+						instance.props[field.key],
+						field.options ?? [],
+						(value) => builder.updateChromeProps(kind, { [field.key]: value })
+					)}
 				{:else}
 					<label>
 						<span>{field.label}</span>
@@ -879,11 +912,18 @@
 								<label class="boolean-field">
 									<input
 										type="checkbox"
-										checked={Boolean(selected.props[field.key])}
+										checked={isFieldOn(selected.props, field)}
 										onchange={(e) => setProp(field.key, e.currentTarget.checked)}
 									/>
 									<span>{field.label}</span>
 								</label>
+							{:else if field.kind === 'select'}
+								{@render selectField(
+									field.label,
+									selected.props[field.key],
+									field.options ?? [],
+									(value) => setProp(field.key, value)
+								)}
 							{:else}
 								<label>
 									<span>{field.label}</span>
@@ -1251,7 +1291,8 @@
 	}
 
 	input,
-	textarea {
+	textarea,
+	label select {
 		width: 100%;
 		padding: 0.4rem 0.5rem;
 		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ink));
@@ -1262,6 +1303,10 @@
 		font-size: 0.85rem;
 		text-transform: none;
 		letter-spacing: normal;
+	}
+
+	label select {
+		cursor: pointer;
 	}
 
 	input:disabled,

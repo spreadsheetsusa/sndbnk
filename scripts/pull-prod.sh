@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pull a consistent copy of the production SQLite DB and/or media tree into this checkout.
 #
-# Download-only. Never writes app data on the server (only a temp snapshot under /tmp).
+# Download-only. Never writes app data on the server (only temp files under /tmp).
 # Never touches production .env.
 #
 # Usage:
@@ -9,6 +9,8 @@
 #   bun run pull:prod -- --dry-run
 #   bun run pull:prod -- --db-only
 #   bun run pull:prod -- --media-only
+#   bun run pull:prod -- --platform-only  # S3 objects the disk rsync does not have
+#   bun run pull:prod -- --skip-platform
 #   bun run pull:prod -- --delete-media   # rsync --delete (opt-in; removes local-only media)
 #
 # Overrides (env or flags):
@@ -30,6 +32,7 @@ REMOTE_ROOT="${SNDBNK_REMOTE_ROOT:-/var/www/sndbnk}"
 DRY_RUN=0
 DO_DB=1
 DO_MEDIA=1
+DO_PLATFORM=1
 DELETE_MEDIA=0
 ASSUME_YES=0
 
@@ -49,11 +52,18 @@ while [[ $# -gt 0 ]]; do
 	--db-only)
 		DO_DB=1
 		DO_MEDIA=0
+		DO_PLATFORM=0
 		;;
 	--media-only)
 		DO_DB=0
 		DO_MEDIA=1
 		;;
+	--platform-only)
+		DO_DB=0
+		DO_MEDIA=0
+		DO_PLATFORM=1
+		;;
+	--skip-platform) DO_PLATFORM=0 ;;
 	--delete-media) DELETE_MEDIA=1 ;;
 	-y | --yes) ASSUME_YES=1 ;;
 	--key)
@@ -80,7 +90,7 @@ done
 
 [[ -n "$KEY" && -n "$HOST" && -n "$USER" && -n "$REMOTE_ROOT" ]] || die "missing SSH/path config"
 [[ "$REMOTE_ROOT" == /* ]] || die "remote root must be absolute: $REMOTE_ROOT"
-[[ "$DO_DB" -eq 1 || "$DO_MEDIA" -eq 1 ]] || die "nothing to do"
+[[ "$DO_DB" -eq 1 || "$DO_MEDIA" -eq 1 || "$DO_PLATFORM" -eq 1 ]] || die "nothing to do"
 
 command -v ssh >/dev/null || die "ssh not found"
 command -v rsync >/dev/null || die "rsync not found"
@@ -181,11 +191,18 @@ EOS
 stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 remote_tmp="/tmp/sndbnk-pull-${USER}-$$-${stamp}.db"
 local_tmp="$(mktemp "${TMPDIR:-/tmp}/sndbnk-pull.XXXXXX.db")"
+LOCAL_PLATFORM_MANIFEST=""
+REMOTE_PLATFORM_MANIFEST=""
+REMOTE_PLATFORM_OUT=""
 cleanup() {
 	rm -f "$local_tmp"
+	[[ -n "$LOCAL_PLATFORM_MANIFEST" ]] && rm -f "$LOCAL_PLATFORM_MANIFEST"
 	# Best-effort: drop remote temp if we created one and bailed mid-transfer.
 	if [[ "${REMOTE_TMP_CREATED:-0}" -eq 1 ]]; then
 		remote "rm -f $(printf '%q' "$remote_tmp")" 2>/dev/null || true
+	fi
+	if [[ -n "$REMOTE_PLATFORM_MANIFEST" || -n "$REMOTE_PLATFORM_OUT" ]]; then
+		remote "rm -rf $(printf '%q' "$REMOTE_PLATFORM_MANIFEST") $(printf '%q' "$REMOTE_PLATFORM_OUT")" 2>/dev/null || true
 	fi
 }
 trap cleanup EXIT
@@ -205,6 +222,7 @@ if [[ "$DO_MEDIA" -eq 1 ]]; then
 		echo "  media          yes (rsync pull, keep local-only files)"
 	fi
 fi
+[[ "$DO_PLATFORM" -eq 1 ]] && echo "  platform       yes (S3 objects missing from local media)"
 [[ "$DRY_RUN" -eq 1 ]] && echo "  mode           DRY RUN (no local writes)"
 echo
 
@@ -294,6 +312,51 @@ if [[ "$DO_MEDIA" -eq 1 ]]; then
 		"${SSH_TARGET}:${remote_media}/" \
 		"${LOCAL_MEDIA}/"
 	echo "  media → $LOCAL_MEDIA"
+fi
+
+if [[ "$DO_PLATFORM" -eq 1 ]]; then
+	[[ -f "$LOCAL_DB" ]] || die "platform pull needs a local database (pull the db first)"
+	echo "Checking platform objects against the local database…"
+	if [[ "$DRY_RUN" -eq 1 && "$DO_DB" -eq 1 ]]; then
+		echo "  (dry-run list uses the current local database, not the snapshot)"
+	fi
+	LOCAL_PLATFORM_MANIFEST="$(mktemp "${TMPDIR:-/tmp}/sndbnk-platform.XXXXXX.jsonl")"
+	bun "$ROOT/scripts/platform-object-manifest.js" --db "$LOCAL_DB" --media "$LOCAL_MEDIA" \
+		>"$LOCAL_PLATFORM_MANIFEST"
+	platform_count=0
+	if [[ -s "$LOCAL_PLATFORM_MANIFEST" ]]; then
+		platform_count="$(grep -c . "$LOCAL_PLATFORM_MANIFEST" || true)"
+	fi
+	if [[ "$platform_count" -eq 0 ]]; then
+		echo "  platform objects already present locally"
+	elif [[ "$DRY_RUN" -eq 1 ]]; then
+		echo "  [dry-run] would fetch $platform_count platform object(s) from S3 via $SSH_TARGET"
+	else
+		REMOTE_PLATFORM_MANIFEST="/tmp/sndbnk-platform-manifest-$$-${stamp}.jsonl"
+		REMOTE_PLATFORM_OUT="/tmp/sndbnk-platform-out-$$-${stamp}"
+		echo "Fetching $platform_count platform object(s) from S3…"
+		scp -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 \
+			"$LOCAL_PLATFORM_MANIFEST" "${SSH_TARGET}:${REMOTE_PLATFORM_MANIFEST}"
+		# bun - reads this script on stdin and resolves @aws-sdk from the remote checkout.
+		remote_cmd="$(printf 'export PATH="$HOME/.bun/bin:$PATH"; cd %q && mkdir -p %q && bun - %q %q' \
+			"$REMOTE_ROOT" "$REMOTE_PLATFORM_OUT" "$REMOTE_PLATFORM_MANIFEST" "$REMOTE_PLATFORM_OUT")"
+		set +e
+		remote "$remote_cmd" <"$ROOT/scripts/pull-platform-objects.js"
+		fetch_status=$?
+		set -e
+		echo "Installing platform objects…"
+		rsync -e "ssh -i $(printf '%q' "$KEY") -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15" \
+			-a -h --progress \
+			"${SSH_TARGET}:${REMOTE_PLATFORM_OUT}/" \
+			"${LOCAL_MEDIA}/"
+		remote "rm -rf $(printf '%q' "$REMOTE_PLATFORM_MANIFEST") $(printf '%q' "$REMOTE_PLATFORM_OUT")"
+		REMOTE_PLATFORM_MANIFEST=""
+		REMOTE_PLATFORM_OUT=""
+		if [[ "$fetch_status" -ne 0 ]]; then
+			die "platform fetch failed; installed whatever landed under $LOCAL_MEDIA"
+		fi
+		echo "  platform → $LOCAL_MEDIA"
+	fi
 fi
 
 echo
