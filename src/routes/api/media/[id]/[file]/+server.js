@@ -6,6 +6,19 @@ import { canViewTrack, getTrackById } from '#lib/server/tracks';
 import { getStorageAdapter, isMissingStorageObject, parseStoredAdapter } from '#lib/server/storage';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
 
+const CONTENT_IMAGE = /^content-\d+\.(?:jpe?g|png|gif|webp)$/;
+
+/**
+ * @param {string} filename
+ */
+function contentMime(filename) {
+	const ext = filename.slice(filename.lastIndexOf('.') + 1).toLowerCase();
+	if (ext === 'png') return 'image/png';
+	if (ext === 'gif') return 'image/gif';
+	if (ext === 'webp') return 'image/webp';
+	return 'image/jpeg';
+}
+
 /**
  * @param {string} kind
  * @param {typeof import('#lib/server/db/schema').track.$inferSelect} row
@@ -116,7 +129,8 @@ function asBodyInit(body) {
 
 export async function GET({ locals, params, request, setHeaders, url }) {
 	const kind = params.file;
-	if (kind !== 'audio' && kind !== 'cover' && kind !== 'master') {
+	const contentName = CONTENT_IMAGE.test(kind) ? kind : null;
+	if (!contentName && kind !== 'audio' && kind !== 'cover' && kind !== 'master') {
 		error(404, 'Not found');
 	}
 
@@ -127,7 +141,9 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 		error(404, 'Not found');
 	}
 
-	const resolved = resolveObject(kind, row, locals.user?.id);
+	const resolved = contentName
+		? { filename: contentName, mime: contentMime(contentName) }
+		: resolveObject(kind, row, locals.user?.id);
 	if (!resolved) {
 		error(404, 'Not found');
 	}
@@ -145,7 +161,9 @@ export async function GET({ locals, params, request, setHeaders, url }) {
 		// Published covers are share/OG assets — allow shared caches. Audio and
 		// unpublished owner previews stay private.
 		const cacheControl =
-			kind === 'cover' && row.published ? 'public, max-age=3600' : 'private, max-age=3600';
+			(kind === 'cover' || contentName) && row.published
+				? 'public, max-age=3600'
+				: 'private, max-age=3600';
 
 		setHeaders({
 			'accept-ranges': 'bytes',

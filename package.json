@@ -8,9 +8,9 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"scripts": {
-		"dev": "bun run --bun vite dev",
-		"build": "bun run --bun vite build",
-		"preview": "bun run --bun vite preview",
+		"dev": "bun run --env-file=.env --bun vite dev",
+		"build": "bun run --env-file=.env --bun vite build",
+		"preview": "bun run --env-file=.env --bun vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"lint": "prettier --check .",
 		"format": "prettier --write .",

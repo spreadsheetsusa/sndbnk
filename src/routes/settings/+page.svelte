@@ -1537,112 +1537,117 @@
 					</fieldset>
 
 					{#if isSshAdapter}
-						<div class="field-row">
-							<div class="field-cell">
-								<label for="sshHost">SSH host</label>
-								<input
-									id="sshHost"
-									class="field-md"
-									name="sshHost"
-									type="text"
-									value={sshHostValue}
-									placeholder="files.example.com"
-									autocapitalize="none"
-									spellcheck="false"
-									required
-								/>
+						<div class="ssh-panel">
+							<div class="ssh-connect">
+								<div class="ssh-field ssh-host">
+									<label for="sshHost">SSH host</label>
+									<input
+										id="sshHost"
+										name="sshHost"
+										type="text"
+										value={sshHostValue}
+										placeholder="files.example.com"
+										autocapitalize="none"
+										spellcheck="false"
+										required
+									/>
+								</div>
+								<div class="ssh-field ssh-user">
+									<label for="sshUsername">SSH username</label>
+									<input
+										id="sshUsername"
+										name="sshUsername"
+										type="text"
+										value={sshUsernameValue}
+										autocapitalize="none"
+										spellcheck="false"
+										required
+									/>
+								</div>
+								<div class="ssh-field ssh-port">
+									<label for="sshPort">SSH port</label>
+									<input
+										id="sshPort"
+										name="sshPort"
+										type="number"
+										value={sshPortValue}
+										min="1"
+										max="65535"
+										required
+									/>
+								</div>
 							</div>
-							<div class="field-cell field-cell-xs">
-								<label for="sshPort">SSH port</label>
-								<input
-									id="sshPort"
-									class="field-xs"
-									name="sshPort"
-									type="number"
-									value={sshPortValue}
-									min="1"
-									max="65535"
-									required
-								/>
+
+							<div class="ssh-paths">
+								<div class="ssh-field">
+									<label for="sshRemotePath">Remote path</label>
+									<input
+										id="sshRemotePath"
+										name="sshRemotePath"
+										type="text"
+										value={sshRemotePathValue}
+										placeholder="/var/www/uploads"
+										autocapitalize="none"
+										spellcheck="false"
+										required
+									/>
+									<p class="hint">Absolute directory on the server where files are written.</p>
+								</div>
+								<div class="ssh-field">
+									<label for="sshPublicBaseUrl">Public base URL</label>
+									<input
+										id="sshPublicBaseUrl"
+										name="sshPublicBaseUrl"
+										type="url"
+										value={sshPublicBaseUrlValue}
+										placeholder="https://example.com/uploads"
+										autocapitalize="none"
+										spellcheck="false"
+									/>
+								</div>
+								<p class="hint ssh-span">
+									Optional. When set, published tracks load audio/cover from this URL instead of
+									through SNDBNK. Path under the base must mirror
+									<code>{'{userId}/{trackId}/…'}</code>
+									(same tree as the remote path). Leave blank to always proxy via SSH. For the visualizer,
+									the host should send
+									<code>Access-Control-Allow-Origin</code>
+									(the player uses
+									<code>crossOrigin=anonymous</code>).
+								</p>
+							</div>
+
+							<div class="ssh-auth">
+								<div class="ssh-field">
+									<label for="sshPrivateKey">SSH private key</label>
+									<textarea
+										id="sshPrivateKey"
+										name="sshPrivateKey"
+										rows="8"
+										placeholder={data.storage.hasPrivateKey
+											? 'Leave blank to keep existing key'
+											: 'Paste your PEM private key'}
+										spellcheck="false"
+										autocapitalize="none"></textarea>
+								</div>
+								<div class="ssh-field">
+									<label for="sshPassphrase">Key passphrase</label>
+									<input
+										id="sshPassphrase"
+										name="sshPassphrase"
+										type="password"
+										autocomplete="off"
+									/>
+									<p class="hint">Optional. Only needed if your private key is encrypted.</p>
+									{#if data.storage.hasPassphrase}
+										<label class="checkbox-row">
+											<input type="checkbox" name="clearPassphrase" value="on" />
+											Clear stored passphrase
+										</label>
+									{/if}
+								</div>
 							</div>
 						</div>
-
-						<label for="sshUsername">SSH username</label>
-						<input
-							id="sshUsername"
-							class="field-md"
-							name="sshUsername"
-							type="text"
-							value={sshUsernameValue}
-							autocapitalize="none"
-							spellcheck="false"
-							required
-						/>
-
-						<label for="sshRemotePath">Remote path</label>
-						<input
-							id="sshRemotePath"
-							class="field-full"
-							name="sshRemotePath"
-							type="text"
-							value={sshRemotePathValue}
-							placeholder="/var/www/uploads"
-							autocapitalize="none"
-							spellcheck="false"
-							required
-						/>
-						<p class="hint">Absolute directory on the server where files are written.</p>
-
-						<label for="sshPublicBaseUrl">Public base URL</label>
-						<input
-							id="sshPublicBaseUrl"
-							class="field-full"
-							name="sshPublicBaseUrl"
-							type="url"
-							value={sshPublicBaseUrlValue}
-							placeholder="https://example.com/uploads"
-							autocapitalize="none"
-							spellcheck="false"
-						/>
-						<p class="hint">
-							Optional. When set, published tracks load audio/cover from this URL instead of through
-							SNDBNK. Path under the base must mirror
-							<code>{'{userId}/{trackId}/…'}</code>
-							(same tree as the remote path). Leave blank to always proxy via SSH. For the visualizer,
-							the host should send
-							<code>Access-Control-Allow-Origin</code>
-							(the player uses
-							<code>crossOrigin=anonymous</code>).
-						</p>
-
-						<label for="sshPrivateKey">SSH private key</label>
-						<textarea
-							id="sshPrivateKey"
-							class="field-full"
-							name="sshPrivateKey"
-							rows="6"
-							placeholder={data.storage.hasPrivateKey
-								? 'Leave blank to keep existing key'
-								: 'Paste your PEM private key'}
-							spellcheck="false"
-							autocapitalize="none"></textarea>
-
-						<label for="sshPassphrase">Key passphrase</label>
-						<input
-							id="sshPassphrase"
-							class="field-md"
-							name="sshPassphrase"
-							type="password"
-							autocomplete="off"
-						/>
-						<p class="hint">Optional. Only needed if your private key is encrypted.</p>
-
-						{#if data.storage.hasPassphrase}
-							<label class="checkbox-row">
-								<input type="checkbox" name="clearPassphrase" value="on" />
-								Clear stored passphrase
-							</label>
-						{/if}
 					{/if}
 
 					<div class="storage-actions">
@@ -1886,11 +1891,6 @@
 		box-shadow: 4px 4px 0 var(--accent);
 	}
 
-	.field-xs {
-		width: 5.5rem;
-		max-width: min(5.5rem, 100%);
-	}
-
 	.field-sm {
 		width: 15rem;
 		max-width: min(15rem, 100%);
@@ -1904,36 +1904,6 @@
 	.field-lg {
 		width: 26rem;
 		max-width: min(26rem, 100%);
-	}
-
-	.field-full {
-		width: 100%;
-		max-width: 100%;
-	}
-
-	.field-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem 1rem;
-		align-items: end;
-		margin-bottom: 0;
-	}
-
-	.field-cell {
-		display: grid;
-		min-width: 0;
-	}
-
-	.field-cell label {
-		margin-bottom: 0.5rem;
-	}
-
-	.field-cell input {
-		margin-bottom: 0.35rem;
-	}
-
-	.field-cell-xs {
-		flex: 0 0 auto;
 	}
 
 	.avatar-block {
@@ -2165,9 +2135,14 @@
 	}
 
 	.adapter-list {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
 		margin: 1.5rem 0 0;
 		padding: 0;
-		border: none;
+		border: 1px solid var(--field-border);
+		border-radius: 0.125rem;
+		background: var(--field-surface);
 	}
 
 	.adapter-option {
@@ -2175,10 +2150,15 @@
 		grid-template-columns: auto 1fr;
 		gap: 0.75rem;
 		align-items: start;
-		margin-bottom: 0.75rem;
+		margin: 0;
 		padding: 0.85rem 1rem;
-		border: 1px solid var(--ink);
+		border: 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
 		cursor: pointer;
+	}
+
+	.adapter-option:last-of-type {
+		border-bottom: 0;
 	}
 
 	.adapter-option.disabled {
@@ -2250,6 +2230,117 @@
 	.test-storage-form {
 		margin: 0;
 		margin-top: 0.75rem;
+	}
+
+	.ssh-panel {
+		display: grid;
+		gap: 1.15rem;
+		margin-top: 1.35rem;
+		padding-top: 1.2rem;
+		border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+		container-type: inline-size;
+		container-name: ssh-form;
+	}
+
+	.ssh-connect,
+	.ssh-paths,
+	.ssh-auth {
+		display: grid;
+		gap: 0.85rem 1rem;
+		align-items: start;
+	}
+
+	.ssh-connect {
+		grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) 6.75rem;
+	}
+
+	.ssh-host {
+		grid-column: 1;
+	}
+
+	.ssh-user {
+		grid-column: 2;
+	}
+
+	.ssh-port {
+		grid-column: 3;
+	}
+
+	.ssh-paths {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.ssh-auth {
+		grid-template-columns: minmax(0, 1.7fr) minmax(12.5rem, 0.75fr);
+	}
+
+	.ssh-field {
+		display: grid;
+		align-content: start;
+		gap: 0.4rem;
+		min-width: 0;
+	}
+
+	.ssh-field > label {
+		margin: 0;
+	}
+
+	.ssh-field input,
+	.ssh-field textarea {
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
+		margin: 0;
+	}
+
+	.ssh-field textarea {
+		min-height: 11.5rem;
+	}
+
+	.ssh-panel .hint {
+		margin: 0;
+	}
+
+	.ssh-span code {
+		overflow-wrap: anywhere;
+	}
+
+	.ssh-span {
+		grid-column: 1 / -1;
+	}
+
+	.ssh-field .checkbox-row {
+		margin: 0.15rem 0 0;
+	}
+
+	@container ssh-form (max-width: 44rem) {
+		.ssh-connect {
+			grid-template-columns: minmax(0, 1fr) 6.5rem;
+		}
+
+		.ssh-host {
+			grid-column: 1 / -1;
+			grid-row: 1;
+		}
+
+		.ssh-user {
+			grid-column: 1;
+			grid-row: 2;
+		}
+
+		.ssh-port {
+			grid-column: 2;
+			grid-row: 2;
+		}
+
+		.ssh-paths,
+		.ssh-auth {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ssh-field textarea {
+			min-height: 8.5rem;
+		}
 	}
 
 	.email-panel {
@@ -2810,17 +2901,11 @@
 			width: auto;
 		}
 
-		.field-xs,
 		.field-sm,
 		.field-md,
 		.field-lg {
 			width: 100%;
 			max-width: 100%;
-		}
-
-		.field-row {
-			flex-direction: column;
-			align-items: stretch;
 		}
 	}
 

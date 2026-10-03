@@ -1,7 +1,8 @@
 /**
  * Process-env config for modules that also run outside SvelteKit (BullMQ worker).
- * Bun auto-loads `.env`; systemd sets `EnvironmentFile`. Kit still validates the
- * declared set via `$app/env/private` imports elsewhere at app boot (`src/env.js`).
+ * Bun auto-loads `.env` for `bun ./script.js`, but `bun run --bun <bin>` (Vite) does not —
+ * those scripts pass `--env-file=.env`. systemd sets `EnvironmentFile` in production.
+ * Kit still validates the declared set via `$app/env/private` (`src/env.js`).
  */
 
 /** @param {string} key */

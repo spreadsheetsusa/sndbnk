@@ -29,6 +29,15 @@
 	const pageDescription = $derived(
 		data.description?.trim() || `Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
 	);
+	/** Server-sanitized post HTML (plain tracklist plus content images). */
+	const renderDescription = $derived.by(() => {
+		const html = data.descriptionHtml ?? '';
+		/** @type {import('svelte/attachments').Attachment} */
+		return (node) => {
+			node.innerHTML = html;
+			return () => node.replaceChildren();
+		};
+	});
 	const seoCanonical = $derived(`${data.siteOrigin}${trackPath(data.track)}`);
 	const seoImage = $derived(
 		data.track.hasCover ? data.track.coverUrl || `/api/media/${data.track.id}/cover` : null
@@ -116,9 +125,9 @@
 			/>
 		</div>
 
-		{#if data.description}
+		{#if data.descriptionHtml}
 			<section class="description" aria-label="Description">
-				<p>{data.description}</p>
+				<div class="description-body" {@attach renderDescription}></div>
 			</section>
 		{/if}
 
@@ -268,12 +277,21 @@
 		animation: rise 0.75s ease 0.05s both;
 	}
 
-	.description p {
+	.description-body {
 		max-width: 44rem;
-		margin: 0;
 		color: var(--muted);
 		line-height: 1.55;
-		white-space: pre-line;
+	}
+
+	.description-body :global(p) {
+		margin: 0;
+	}
+
+	.description-body :global(img) {
+		display: block;
+		max-width: min(100%, 32rem);
+		height: auto;
+		margin: 0 0 1rem;
 	}
 
 	.below-player {

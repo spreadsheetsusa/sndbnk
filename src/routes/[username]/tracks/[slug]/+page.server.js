@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 
+import { loadContentImages, renderTrackPostHtml } from '#lib/server/media/track-post';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
 import {
@@ -48,9 +49,12 @@ export const load = async ({ locals, params }) => {
 		timedComments
 	);
 
+	const contentImages = await loadContentImages(row.track);
+
 	return {
 		track,
 		description: row.track.description,
+		descriptionHtml: renderTrackPostHtml(row.track.id, row.track.description, contentImages),
 		meta: {
 			album: row.track.album ?? null,
 			albumArtist: row.track.albumArtist ?? null,

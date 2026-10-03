@@ -206,7 +206,7 @@ export function parseTrackMetadata(formData) {
 		return { ok: true, value };
 	};
 
-	const descriptionCap = capped(description, 5000, 'Description');
+	const descriptionCap = capped(description, 20_000, 'Description');
 	if (!descriptionCap.ok) return descriptionCap;
 	const artistCap = capped(artist, 200, 'Artist');
 	if (!artistCap.ok) return artistCap;

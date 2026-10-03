@@ -8,7 +8,7 @@ import { createLocalAdapter } from './local.js';
 import { parseStoredAdapter } from './platform.js';
 import { normalizePublicBaseUrl, publicMediaUrl } from './public-url.js';
 import { createS3Adapter } from './s3.js';
-import { platformAdapterId } from './s3-config.js';
+import { isPlatformS3Configured, platformAdapterId } from './s3-config.js';
 import { assertPublicSshHost } from './ssh-host.js';
 import { createSshAdapter } from './ssh.js';
 
@@ -278,8 +278,10 @@ function sshConfigFromRow(row) {
  * Resolve a storage adapter.
  *
  * Pass a stored snapshot (`track.storageAdapter`) on reads — that value is
- * exact (`local` stays on disk, `s3` stays on the bucket). Omit it to use the
- * owner's current preference: SSH when they chose BYOS, otherwise the platform
+ * exact when its backend is available (`local` stays on disk, `s3` stays on
+ * the bucket). A `s3` snapshot with no `S3_BUCKET` reads the copy under
+ * `MEDIA_ROOT` (what `pull:prod` rsyncs). Omit the snapshot to use the owner's
+ * current preference: SSH when they chose BYOS, otherwise the platform
  * backend (`s3` when `S3_BUCKET` is set, else `local`).
  *
  * @param {string} userId
@@ -299,6 +301,9 @@ export async function getStorageAdapter(userId, forceAdapter) {
 	}
 
 	if (adapterId === 's3') {
+		// Prod rows are `s3`. A checkout with an empty S3_BUCKET still has the
+		// rsynced files on disk; production always has the bucket set.
+		if (!isPlatformS3Configured()) return createLocalAdapter(userId);
 		return createS3Adapter(userId);
 	}
 
