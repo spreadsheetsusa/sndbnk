@@ -101,6 +101,9 @@ export async function getPlaylistWithOwner(playlistId) {
 
 /**
  * Ordered published member tracks with uploader info.
+ * Pass the playlist owner from owner-only library and edit views so a
+ * domain-only catalog still lists. Public pages pass the tenant host only,
+ * which keeps those tracks out of the apex pool.
  * @param {string} playlistId
  * @param {string | null} [hostOwnerId]
  */

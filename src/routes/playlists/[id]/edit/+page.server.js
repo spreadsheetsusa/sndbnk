@@ -23,7 +23,7 @@ export const load = async ({ locals, params }) => {
 	const row = await getOwnedPlaylist(locals.user.id, params.id);
 	if (!row) error(404, 'Playlist not found');
 
-	const members = await listPlaylistTrackRows(row.id);
+	const members = await listPlaylistTrackRows(row.id, locals.user.id);
 
 	return {
 		profile: { username: profile.username },

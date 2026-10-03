@@ -17,7 +17,9 @@ export async function GET({ locals, params }) {
 	const owned = await getOwnedPlaylist(locals.user.id, params.id);
 	if (!owned) error(404, 'Playlist not found.');
 
-	const rows = await listPlaylistTrackRows(owned.id);
+	// Apex /library. The owner still sees their own domain-only tracks.
+	// Public playlist pages pass the tenant host only.
+	const rows = await listPlaylistTrackRows(owned.id, locals.user.id);
 	const items = await serializeLibraryTrackRows(rows, locals.user);
 	return json({ items });
 }
