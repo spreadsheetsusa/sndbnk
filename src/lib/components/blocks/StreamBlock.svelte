@@ -6,6 +6,7 @@
 	} from '#lib/builder/stream-query.js';
 	import StreamTrackList from '#lib/components/blocks/StreamTrackList.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
+	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
 
 	/**
@@ -47,7 +48,6 @@
 	const username = $derived(
 		typeof profileData?.profile?.username === 'string' ? profileData.profile.username : ''
 	);
-	const tracks = $derived((profileList?.items ?? []).filter((item) => item.kind !== 'playlist'));
 </script>
 
 <section
@@ -70,25 +70,38 @@
 		{/key}
 	{:else if profileData && profileList}
 		{@const list = profileList}
-		{#if tracks.length === 0}
+		{#if list.items.length === 0}
 			<p class="empty">No tracks have been uploaded yet.</p>
 		{:else}
 			<InfiniteList {list} moreLabel="Load more">
 				<ul>
-					{#each tracks as item (item.id)}
+					{#each list.items as item (item.id)}
 						<li data-cursor={item.cursor}>
-							<TrackCard
-								track={item}
-								linkBase=""
-								hideArtist
-								stream
-								showCommentForm={false}
-								signedIn={Boolean(profileData.viewer)}
-								viewerId={profileData.viewer?.id ?? null}
-								viewerName={profileData.viewer?.name ?? null}
-								viewerImage={profileData.viewer?.image ?? null}
-								ondeleted={() => list.remove(item.id)}
-							/>
+							{#if item.kind === 'playlist'}
+								<PlaylistCard
+									playlist={item}
+									linkBase=""
+									showCommentForm={false}
+									signedIn={Boolean(profileData.viewer)}
+									viewerId={profileData.viewer?.id ?? null}
+									viewerName={profileData.viewer?.name ?? null}
+									viewerImage={profileData.viewer?.image ?? null}
+									ondeleted={() => list.remove(item.id)}
+								/>
+							{:else}
+								<TrackCard
+									track={item}
+									linkBase=""
+									hideArtist
+									stream
+									showCommentForm={false}
+									signedIn={Boolean(profileData.viewer)}
+									viewerId={profileData.viewer?.id ?? null}
+									viewerName={profileData.viewer?.name ?? null}
+									viewerImage={profileData.viewer?.image ?? null}
+									ondeleted={() => list.remove(item.id)}
+								/>
+							{/if}
 						</li>
 					{/each}
 				</ul>

@@ -5,7 +5,8 @@ import {
 	streamQueryKey
 } from '#lib/builder/stream-query.js';
 import { listingHostOwnerId } from '#lib/server/platform-pool';
-import { listStreamTracks, serializeTrackRows } from '#lib/server/tracks';
+import { serializeTimelineRows } from '#lib/server/timeline';
+import { listStreamTracks } from '#lib/server/tracks';
 
 /**
  * First page for each stream block that has a catalog query, keyed by block id.
@@ -24,7 +25,7 @@ export async function loadStreamSeeds(userId, blocks, locals) {
 	);
 	const hostOwnerId = listingHostOwnerId(locals, userId);
 
-	/** @type {Record<string, { key: string, items: Awaited<ReturnType<typeof serializeTrackRows>>, nextCursor: string | null }>} */
+	/** @type {Record<string, { key: string, items: Awaited<ReturnType<typeof serializeTimelineRows>>, nextCursor: string | null }>} */
 	const out = {};
 	await Promise.all(
 		targets.map(async (block) => {
@@ -41,7 +42,7 @@ export async function loadStreamSeeds(userId, blocks, locals) {
 			});
 			out[block.id] = {
 				key: streamQueryKey(query),
-				items: await serializeTrackRows(page.rows, locals.user),
+				items: await serializeTimelineRows(page.rows, locals.user, hostOwnerId),
 				nextCursor: page.nextCursor
 			};
 		})

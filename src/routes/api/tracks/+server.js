@@ -21,7 +21,7 @@ import { normalizeUsername } from '#lib/server/username';
 /**
  * Paged listings for every infinite-scroll surface. The page shape here
  * must match what the matching `load` returns, since the client appends one to
- * the other. Feed and profile return mixed `items` (tracks + playlists);
+ * the other. Feed, profile, and stream return mixed `items` (tracks + playlists);
  * library stays tracks-only.
  */
 export async function GET({ locals, url }) {
@@ -123,7 +123,7 @@ export async function GET({ locals, url }) {
 			direction: page.direction,
 			inclusive: page.inclusive
 		});
-		const items = await serializeTrackRows(rows, locals.user);
+		const items = await serializeTimelineRows(rows, locals.user, hostOwnerId);
 		return json({ items, nextCursor });
 	}
 

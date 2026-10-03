@@ -1,3 +1,4 @@
+import { alias } from 'drizzle-orm/sqlite-core';
 import {
 	and,
 	asc,
@@ -25,7 +26,16 @@ import {
 	keysetPage
 } from '#lib/server/cursor';
 import { db } from '#lib/server/db';
-import { profile, track, trackComment, trackLike, trackRepost, user } from '#lib/server/db/schema';
+import {
+	playlist,
+	playlistTrack,
+	profile,
+	track,
+	trackComment,
+	trackLike,
+	trackRepost,
+	user
+} from '#lib/server/db/schema';
 import {
 	audioColumnsFromStream,
 	createMediaRevision,
@@ -776,10 +786,13 @@ export function isTrackListed(row) {
 	return row.published && !row.isPrivate;
 }
 
-/** Drizzle condition for publicly listed tracks. */
-export function trackListedCondition() {
+/**
+ * Drizzle condition for publicly listed tracks.
+ * @param {typeof track} [source]
+ */
+export function trackListedCondition(source = track) {
 	return /** @type {import('drizzle-orm').SQL} */ (
-		and(eq(track.published, true), eq(track.isPrivate, false))
+		and(eq(source.published, true), eq(source.isPrivate, false))
 	);
 }
 
@@ -1333,27 +1346,29 @@ function itemCursor(row) {
 }
 
 /**
- * Match one genre token inside the comma-separated `track.genre` field.
+ * Match one genre token inside the comma-separated genre field.
  * @param {string} genre
+ * @param {typeof track} [source]
  */
-function genreTokenCondition(genre) {
+function genreTokenCondition(genre, source = track) {
 	const safe = genre.replace(/[%_]/g, '');
-	if (!safe) return eq(track.genre, genre);
+	if (!safe) return eq(source.genre, genre);
 	return or(
-		eq(track.genre, genre),
-		like(track.genre, `${safe}, %`),
-		like(track.genre, `%, ${safe}`),
-		like(track.genre, `%, ${safe}, %`)
+		eq(source.genre, genre),
+		like(source.genre, `${safe}, %`),
+		like(source.genre, `%, ${safe}`),
+		like(source.genre, `%, ${safe}, %`)
 	);
 }
 
 /**
  * @param {string | null | undefined} genre
+ * @param {typeof track} [source]
  * @returns {import('drizzle-orm').SQL | null}
  */
-function genresCondition(genre) {
+function genresCondition(genre, source = track) {
 	const parts = parseGenres(genre)
-		.map((token) => genreTokenCondition(token))
+		.map((token) => genreTokenCondition(token, source))
 		.filter(Boolean);
 	if (parts.length === 0) return null;
 	if (parts.length === 1) return parts[0];
@@ -1363,16 +1378,51 @@ function genresCondition(genre) {
 /**
  * Case-insensitive exact match on the track artist credit.
  * @param {string[]} artists
+ * @param {typeof track} [source]
  * @returns {import('drizzle-orm').SQL | null}
  */
-function artistsCondition(artists) {
+function artistsCondition(artists, source = track) {
 	const parts = artists
 		.map((name) => name.trim())
 		.filter(Boolean)
-		.map((name) => sql`lower(${track.artist}) = ${name.toLowerCase()}`);
+		.map((name) => sql`lower(${source.artist}) = ${name.toLowerCase()}`);
 	if (parts.length === 0) return null;
 	if (parts.length === 1) return parts[0];
 	return or(...parts);
+}
+
+/**
+ * Catalog filters shared by a stream's tracks and the playlists that contain them.
+ * @param {typeof track} source
+ * @param {typeof profile} ownerProfile
+ * @param {{
+ *   publishedOnly?: boolean,
+ *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
+ *   hostOwnerId?: string | null,
+ *   genre?: string | null,
+ *   artists?: string[],
+ *   dateFromMs?: number | null,
+ *   dateToMs?: number | null
+ * }} input
+ * @returns {import('drizzle-orm').SQL[]}
+ */
+function listingTrackConditions(source, ownerProfile, input) {
+	/** @type {import('drizzle-orm').SQL[]} */
+	const conditions = [];
+	if (input.publishedOnly) {
+		conditions.push(
+			trackListedCondition(source),
+			visibleOnHostCondition(ownerProfile, source.userId, input.hostOwnerId ?? null)
+		);
+	}
+	if (input.mediaType) conditions.push(eq(source.mediaType, input.mediaType));
+	const genreSql = genresCondition(input.genre, source);
+	if (genreSql) conditions.push(genreSql);
+	const artistSql = artistsCondition(input.artists ?? [], source);
+	if (artistSql) conditions.push(artistSql);
+	if (input.dateFromMs != null) conditions.push(gte(source.createdAt, new Date(input.dateFromMs)));
+	if (input.dateToMs != null) conditions.push(lte(source.createdAt, new Date(input.dateToMs)));
+	return conditions;
 }
 
 /**
@@ -1406,20 +1456,18 @@ function selectOwnTracks(
 	}
 ) {
 	/** @type {import('drizzle-orm').SQL[]} */
-	const conditions = [eq(track.userId, userId)];
-	if (publishedOnly) {
-		conditions.push(
-			trackListedCondition(),
-			visibleOnHostCondition(profile, track.userId, hostOwnerId)
-		);
-	}
-	if (mediaType) conditions.push(eq(track.mediaType, mediaType));
-	const genreSql = genresCondition(genre);
-	if (genreSql) conditions.push(genreSql);
-	const artistSql = artistsCondition(artists);
-	if (artistSql) conditions.push(artistSql);
-	if (dateFromMs != null) conditions.push(gte(track.createdAt, new Date(dateFromMs)));
-	if (dateToMs != null) conditions.push(lte(track.createdAt, new Date(dateToMs)));
+	const conditions = [
+		eq(track.userId, userId),
+		...listingTrackConditions(track, profile, {
+			publishedOnly,
+			mediaType,
+			hostOwnerId,
+			genre,
+			artists,
+			dateFromMs,
+			dateToMs
+		})
+	];
 	if (decoded) {
 		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
 	}
@@ -1478,7 +1526,90 @@ export async function listTracksWithUploader(
 }
 
 /**
- * Published uploads for a site stream block. `count` is a hard cap (no further pages).
+ * Published playlists that contain at least one track matching the stream filters.
+ * The playlist is placed by its own `createdAt`, same as the profile timeline, and
+ * only when that timestamp is inside the stream's date window.
+ *
+ * @param {string} userId
+ * @param {{
+ *   hostOwnerId?: string | null,
+ *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
+ *   genre?: string | null,
+ *   artists?: string[],
+ *   dateFromMs?: number | null,
+ *   dateToMs?: number | null,
+ *   decoded: { ms: number, id: string } | null
+ * } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
+ */
+function selectStreamPlaylists(
+	userId,
+	{
+		hostOwnerId = null,
+		mediaType = null,
+		genre = null,
+		artists = [],
+		dateFromMs = null,
+		dateToMs = null,
+		decoded,
+		limit,
+		direction,
+		inclusive
+	}
+) {
+	const member = alias(track, 'stream_member');
+	const memberProfile = alias(profile, 'stream_member_profile');
+	const memberMatch = db
+		.select({ trackId: playlistTrack.trackId })
+		.from(playlistTrack)
+		.innerJoin(member, eq(member.id, playlistTrack.trackId))
+		.leftJoin(memberProfile, eq(memberProfile.userId, member.userId))
+		.where(
+			and(
+				eq(playlistTrack.playlistId, playlist.id),
+				...listingTrackConditions(member, memberProfile, {
+					publishedOnly: true,
+					mediaType,
+					hostOwnerId,
+					genre,
+					artists,
+					dateFromMs,
+					dateToMs
+				})
+			)
+		);
+
+	/** @type {import('drizzle-orm').SQL[]} */
+	const conditions = [
+		eq(playlist.userId, userId),
+		eq(playlist.published, true),
+		visibleOnHostCondition(profile, playlist.userId, hostOwnerId),
+		sql`exists ${memberMatch}`
+	];
+	if (dateFromMs != null) conditions.push(gte(playlist.createdAt, new Date(dateFromMs)));
+	if (dateToMs != null) conditions.push(lte(playlist.createdAt, new Date(dateToMs)));
+	if (decoded) {
+		conditions.push(
+			keysetCondition(playlist.createdAt, playlist.id, decoded, direction, inclusive)
+		);
+	}
+
+	return db
+		.select({
+			playlist: playlist,
+			username: profile.username,
+			uploaderName: user.name
+		})
+		.from(playlist)
+		.leftJoin(profile, eq(profile.userId, playlist.userId))
+		.leftJoin(user, eq(user.id, playlist.userId))
+		.where(and(...conditions))
+		.orderBy(...keysetOrder(playlist.createdAt, playlist.id, direction))
+		.limit(limit + 1);
+}
+
+/**
+ * Published uploads for a site stream block, plus playlists that contain a matching track.
+ * `count` is a hard cap (no further pages).
  * @param {string} userId
  * @param {{
  *   hostOwnerId?: string | null,
@@ -1508,8 +1639,10 @@ export async function listStreamTracks(
 	} = {}
 ) {
 	const pageLimit = count ?? limit;
+	const pageDirection = count ? 'older' : direction;
+	const pageInclusive = count ? false : inclusive;
 	const decoded = count ? null : cursor ? decodeCursor(cursor) : null;
-	const own = await selectOwnTracks(userId, {
+	const filters = {
 		publishedOnly: true,
 		mediaType,
 		hostOwnerId,
@@ -1519,17 +1652,31 @@ export async function listStreamTracks(
 		dateToMs,
 		decoded,
 		limit: pageLimit,
-		direction: count ? 'older' : direction,
-		inclusive: count ? false : inclusive
-	});
+		direction: pageDirection,
+		inclusive: pageInclusive
+	};
 
-	/** @type {ProfileTrackRow[]} */
-	const rows = own.map((row) => ({
-		...row,
-		kind: /** @type {const} */ ('track'),
-		repostedAt: /** @type {number | null} */ (null)
-	}));
-	const page = keysetPage(rows, pageLimit, itemCursor, count ? 'older' : direction);
+	const [own, playlists] = await Promise.all([
+		selectOwnTracks(userId, filters),
+		selectStreamPlaylists(userId, filters)
+	]);
+
+	/** @type {ProfileItemRow[]} */
+	const rows = [
+		...own.map((row) => ({
+			...row,
+			kind: /** @type {const} */ ('track'),
+			repostedAt: /** @type {number | null} */ (null)
+		})),
+		...playlists.map((row) => ({
+			kind: /** @type {const} */ ('playlist'),
+			playlist: row.playlist,
+			username: row.username,
+			uploaderName: row.uploaderName
+		}))
+	];
+	rows.sort(keysetComparator(itemSortAt, itemSortId, pageDirection));
+	const page = keysetPage(rows, pageLimit, itemCursor, pageDirection);
 	if (count != null) return { rows: page.rows.slice(0, count), nextCursor: null };
 	return page;
 }

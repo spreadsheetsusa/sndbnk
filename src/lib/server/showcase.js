@@ -90,11 +90,14 @@ export async function pickHeroTrack(viewer = null) {
 
 /**
  * Headline numbers for the landing page stat badges.
+ * Counts every listed track in the bank, including catalogs that stay off the
+ * sndbnk.com pool (custom-domain hosts with publish-to-sndbnk off).
  * @returns {Promise<SiteStats>}
  */
 export async function getSiteStats() {
 	const artistLikes = count(trackLike.userId);
 	const artistTracks = countDistinct(track.id);
+	const listed = trackListedCondition();
 
 	const [totals, likes, comments, topArtists, genreRows] = await Promise.all([
 		db
@@ -104,20 +107,17 @@ export async function getSiteStats() {
 				totalDurationMs: sql`coalesce(sum(${track.durationMs}), 0)`.mapWith(Number)
 			})
 			.from(track)
-			.leftJoin(profile, eq(profile.userId, track.userId))
-			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
+			.where(listed),
 		db
 			.select({ n: count() })
 			.from(trackLike)
 			.innerJoin(track, eq(track.id, trackLike.trackId))
-			.leftJoin(profile, eq(profile.userId, track.userId))
-			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
+			.where(listed),
 		db
 			.select({ n: count() })
 			.from(trackComment)
 			.innerJoin(track, eq(track.id, trackComment.trackId))
-			.leftJoin(profile, eq(profile.userId, track.userId))
-			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
+			.where(listed),
 		db
 			.select({
 				name: user.name,
@@ -129,22 +129,14 @@ export async function getSiteStats() {
 			.leftJoin(trackLike, eq(trackLike.trackId, track.id))
 			.leftJoin(profile, eq(profile.userId, track.userId))
 			.leftJoin(user, eq(user.id, track.userId))
-			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId)))
+			.where(listed)
 			.groupBy(track.userId, user.name, profile.username)
 			.orderBy(desc(artistLikes), desc(artistTracks))
 			.limit(1),
 		db
 			.select({ genre: track.genre })
 			.from(track)
-			.leftJoin(profile, eq(profile.userId, track.userId))
-			.where(
-				and(
-					trackListedCondition(),
-					visibleOnHostCondition(profile, track.userId),
-					isNotNull(track.genre),
-					ne(track.genre, '')
-				)
-			)
+			.where(and(listed, isNotNull(track.genre), ne(track.genre, '')))
 	]);
 
 	const top = topArtists[0];

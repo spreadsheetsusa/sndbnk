@@ -84,8 +84,9 @@ redirect to `/signup` rather than rendering.
 `publishToSndbnk` applies only when the plan allows a custom domain and `customDomainStatus` is
 `active`. While a custom domain is active, `{username}.{base}` 301s to it, so the tenant site has
 one public host. While the flag is off, that catalog also stays out of the sndbnk.com pool: feed,
-search, showcase, sitemap, and apex profile, track, and playlist URLs (those apex URLs redirect to
-the custom domain). Turning it on shares the catalog in the pool. Removing the domain or leaving
+search, the landing hero, sitemap, and apex profile, track, and playlist URLs (those apex URLs
+redirect to the custom domain). Landing stat badges still count every listed track, so the strip is
+the whole bank. Turning it on shares the catalog in the pool. Removing the domain or leaving
 Studio/Label ignores the flag, so the catalog is not stranded, and the subdomain serves the site
 again.
 
