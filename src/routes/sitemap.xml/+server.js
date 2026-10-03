@@ -1,8 +1,9 @@
 import { ORIGIN } from '$app/env/private';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '#lib/server/db';
 import { playlist, profile, track } from '#lib/server/db/schema';
+import { visibleOnHostCondition } from '#lib/server/platform-pool';
 import { trackListedCondition } from '#lib/server/tracks';
 
 /**
@@ -45,7 +46,8 @@ export const GET = async () => {
 				createdAt: track.createdAt
 			})
 			.from(track)
-			.where(trackListedCondition()),
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
 		db
 			.select({
 				id: playlist.id,
@@ -54,7 +56,8 @@ export const GET = async () => {
 				createdAt: playlist.createdAt
 			})
 			.from(playlist)
-			.where(eq(playlist.published, true))
+			.leftJoin(profile, eq(profile.userId, playlist.userId))
+			.where(and(eq(playlist.published, true), visibleOnHostCondition(profile, playlist.userId)))
 	]);
 
 	const activeUserIds = [

@@ -5,6 +5,7 @@ import { canRemoveBranding } from '#lib/server/billing/plans';
 import { listRecentComments } from '#lib/server/feed';
 import { listLikedItemsWithUploader, listListeningHistory } from '#lib/server/listens';
 import { listLinksForUser } from '#lib/server/profile-links';
+import { listingHostOwnerId, redirectApexCatalogToDomain } from '#lib/server/platform-pool';
 import { getSitePublic, resolveSidebarVisibility } from '#lib/server/site';
 import { getProfileStats, isFollowing, listFansAlsoLike, listFollowers } from '#lib/server/social';
 import { buildPublicUrls, getProfileByUsername } from '#lib/server/tenant';
@@ -27,9 +28,9 @@ export function resolveProfileTab(requested, isOwner) {
 
 /**
  * Shared loader data for public profile surfaces (path URL + tenant hosts).
- * @param {{ username: string, locals: App.Locals, url?: URL }} input
+ * @param {{ username: string, locals: App.Locals, url?: URL, preview?: boolean }} input
  */
-export async function loadPublicProfilePage({ username, locals, url }) {
+export async function loadPublicProfilePage({ username, locals, url, preview = false }) {
 	const normalized = normalizeUsername(username);
 	const row = await getProfileByUsername(normalized);
 
@@ -38,6 +39,8 @@ export async function loadPublicProfilePage({ username, locals, url }) {
 	}
 
 	const urls = buildPublicUrls(row);
+	const hostOwnerId = listingHostOwnerId(locals, row.userId);
+	if (!preview) redirectApexCatalogToDomain(locals, row, '/');
 	const viaTenantHost = Boolean(locals.tenant);
 	const hostKind = locals.tenant?.hostKind ?? null;
 	const viewerId = locals.user?.id ?? null;
@@ -48,14 +51,14 @@ export async function loadPublicProfilePage({ username, locals, url }) {
 		await Promise.all([
 			listLinksForUser(row.userId),
 			tab === 'likes'
-				? listLikedItemsWithUploader(row.userId)
+				? listLikedItemsWithUploader(row.userId, { hostOwnerId })
 				: tab === 'history'
 					? listListeningHistory(row.userId)
-					: listProfileItemsWithUploader(row.userId, { publishedOnly: true }),
+					: listProfileItemsWithUploader(row.userId, { publishedOnly: true, hostOwnerId }),
 			getProfileStats(row.userId),
 			listFansAlsoLike(row.userId, viewerId),
 			listFollowers(row.userId, viewerId),
-			listRecentComments({ creatorId: row.userId }),
+			listRecentComments({ creatorId: row.userId, hostOwnerId }),
 			isFollowing(viewerId, row.userId),
 			getSitePublic(row.userId)
 		]);
@@ -63,7 +66,7 @@ export async function loadPublicProfilePage({ username, locals, url }) {
 	const items =
 		tab === 'history'
 			? await serializeTrackRows(page.rows, locals.user)
-			: await serializeTimelineRows(page.rows, locals.user);
+			: await serializeTimelineRows(page.rows, locals.user, hostOwnerId);
 
 	const publicSite = site
 		? {

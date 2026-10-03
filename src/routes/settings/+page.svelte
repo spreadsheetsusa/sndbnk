@@ -78,6 +78,7 @@
 	let linkedBusy = $state(false);
 	let billingBusy = $state(false);
 	let domainBusy = $state(false);
+	let catalogBusy = $state(false);
 	let siteBusy = $state(false);
 	let logoBusy = $state(false);
 	let ogBusy = $state(false);
@@ -143,6 +144,9 @@
 		DOMAIN_STATUS_COPY[data.profile.customDomainStatus] ?? data.profile.customDomainStatus
 	);
 	const domainStatus = $derived(data.profile.customDomainStatus);
+	const publishToSndbnkValue = $derived(
+		typeof form?.publishToSndbnk === 'boolean' ? form.publishToSndbnk : data.profile.publishToSndbnk
+	);
 	const domainNeedsConnect = $derived(
 		(data.billing.planId === 'studio' || data.billing.planId === 'label') &&
 			(domainStatus === 'none' || domainStatus === 'pending')
@@ -240,7 +244,7 @@
 	);
 
 	/**
-	 * @param {'profile' | 'email' | 'linked' | 'billing' | 'domain' | 'site' | 'logo' | 'og' | 'storage' | 'avatar'} which
+	 * @param {'profile' | 'email' | 'linked' | 'billing' | 'domain' | 'catalog' | 'site' | 'logo' | 'og' | 'storage' | 'avatar'} which
 	 */
 	function busyHandler(which) {
 		return () => {
@@ -249,6 +253,7 @@
 			if (which === 'linked') linkedBusy = true;
 			if (which === 'billing') billingBusy = true;
 			if (which === 'domain') domainBusy = true;
+			if (which === 'catalog') catalogBusy = true;
 			if (which === 'site') siteBusy = true;
 			if (which === 'logo') logoBusy = true;
 			if (which === 'og') ogBusy = true;
@@ -268,6 +273,7 @@
 					if (which === 'linked') linkedBusy = false;
 					if (which === 'billing') billingBusy = false;
 					if (which === 'domain') domainBusy = false;
+					if (which === 'catalog') catalogBusy = false;
 					if (which === 'site') siteBusy = false;
 					if (which === 'logo') logoBusy = false;
 					if (which === 'og') ogBusy = false;
@@ -1010,6 +1016,44 @@
 								</div>
 							</div>
 						</div>
+					{/if}
+
+					{#if data.profile.customDomainStatus === 'active'}
+						<form
+							class="catalog-form"
+							method="POST"
+							action="?/updateCatalog&tab=domain"
+							use:enhance={busyHandler('catalog')}
+							aria-busy={catalogBusy}
+						>
+							{#if form?.catalogMessage && !catalogBusy}
+								<div class="banner error" role="alert">{form.catalogMessage}</div>
+							{/if}
+							{#if form?.catalogSuccess && !catalogBusy}
+								<div class="banner ok" role="status">{form.catalogSuccess}</div>
+							{/if}
+
+							<fieldset class="appearance-fieldset">
+								<legend>sndbnk.com</legend>
+								<label class="check-row">
+									<input
+										name="publishToSndbnk"
+										type="checkbox"
+										checked={publishToSndbnkValue}
+										disabled={catalogBusy}
+									/>
+									<span>Publish tracks to sndbnk.com as well as my own domain</span>
+								</label>
+								<p class="hint">
+									Off by default. Your collection stays on
+									<span class="mono">{data.profile.customDomain}</span>. Turn this on to share it in
+									the sndbnk.com feed, search, and profiles.
+								</p>
+							</fieldset>
+							<button class="pressable" type="submit" disabled={catalogBusy}>
+								{catalogBusy ? 'Saving…' : 'Save'}
+							</button>
+						</form>
 					{/if}
 				{:else if canSubdomain}
 					<div class="locked">
@@ -2621,6 +2665,10 @@
 		border: 1px solid var(--hard-border);
 		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		box-shadow: 6px 6px 0 var(--hard-shadow);
+	}
+
+	.catalog-form {
+		margin-top: 1.75rem;
 	}
 
 	.dns-titlebar {

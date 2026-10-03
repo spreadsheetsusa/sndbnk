@@ -3,6 +3,7 @@ import { and, count, countDistinct, desc, eq, isNotNull, ne, sql } from 'drizzle
 import { parseGenres } from '#lib/genres.js';
 import { db } from '#lib/server/db';
 import { profile, track, trackComment, trackLike, user } from '#lib/server/db/schema';
+import { visibleOnHostCondition } from '#lib/server/platform-pool';
 import {
 	getSocialForTracks,
 	getTrackWithUploader,
@@ -29,7 +30,8 @@ async function listHeroCandidateIds(limit = HERO_POOL_SIZE) {
 		})
 		.from(trackLike)
 		.innerJoin(track, eq(trackLike.trackId, track.id))
-		.where(trackListedCondition())
+		.leftJoin(profile, eq(profile.userId, track.userId))
+		.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId)))
 		.groupBy(track.id, track.coverFilename, track.createdAt)
 		.orderBy(desc(likeCount), desc(track.createdAt))
 		.limit(limit);
@@ -43,7 +45,14 @@ async function listHeroCandidateIds(limit = HERO_POOL_SIZE) {
 	const newest = await db
 		.select({ id: track.id })
 		.from(track)
-		.where(and(trackListedCondition(), isNotNull(track.coverFilename)))
+		.leftJoin(profile, eq(profile.userId, track.userId))
+		.where(
+			and(
+				trackListedCondition(),
+				visibleOnHostCondition(profile, track.userId),
+				isNotNull(track.coverFilename)
+			)
+		)
 		.orderBy(desc(track.createdAt), desc(track.id))
 		.limit(limit);
 
@@ -95,17 +104,20 @@ export async function getSiteStats() {
 				totalDurationMs: sql`coalesce(sum(${track.durationMs}), 0)`.mapWith(Number)
 			})
 			.from(track)
-			.where(trackListedCondition()),
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
 		db
 			.select({ n: count() })
 			.from(trackLike)
 			.innerJoin(track, eq(track.id, trackLike.trackId))
-			.where(trackListedCondition()),
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
 		db
 			.select({ n: count() })
 			.from(trackComment)
 			.innerJoin(track, eq(track.id, trackComment.trackId))
-			.where(trackListedCondition()),
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId))),
 		db
 			.select({
 				name: user.name,
@@ -117,14 +129,22 @@ export async function getSiteStats() {
 			.leftJoin(trackLike, eq(trackLike.trackId, track.id))
 			.leftJoin(profile, eq(profile.userId, track.userId))
 			.leftJoin(user, eq(user.id, track.userId))
-			.where(trackListedCondition())
+			.where(and(trackListedCondition(), visibleOnHostCondition(profile, track.userId)))
 			.groupBy(track.userId, user.name, profile.username)
 			.orderBy(desc(artistLikes), desc(artistTracks))
 			.limit(1),
 		db
 			.select({ genre: track.genre })
 			.from(track)
-			.where(and(trackListedCondition(), isNotNull(track.genre), ne(track.genre, '')))
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(
+				and(
+					trackListedCondition(),
+					visibleOnHostCondition(profile, track.userId),
+					isNotNull(track.genre),
+					ne(track.genre, '')
+				)
+			)
 	]);
 
 	const top = topArtists[0];

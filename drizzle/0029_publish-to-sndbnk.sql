@@ -1,0 +1,1 @@
+ALTER TABLE `profile` ADD `publish_to_sndbnk` integer DEFAULT false NOT NULL;

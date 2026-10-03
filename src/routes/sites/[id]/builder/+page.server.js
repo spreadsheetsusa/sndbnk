@@ -33,7 +33,12 @@ export const load = async ({ locals, params, url }) => {
 	const siteOwner = await ensureSiteChrome(row.id);
 	if (!siteOwner) error(404, 'Site not found');
 	const pages = await listSitePages(row.id);
-	const catalog = await loadPublicProfilePage({ username: profile.username, locals, url });
+	const catalog = await loadPublicProfilePage({
+		username: profile.username,
+		locals,
+		url,
+		preview: true
+	});
 
 	return {
 		site: siteOwner,

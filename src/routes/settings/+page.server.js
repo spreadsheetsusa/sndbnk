@@ -100,7 +100,8 @@ export const load = async ({ locals }) => {
 			location: row.location ?? '',
 			customDomain: row.customDomain,
 			customDomainStatus: row.customDomainStatus,
-			domainVerifyToken: row.domainVerifyToken
+			domainVerifyToken: row.domainVerifyToken,
+			publishToSndbnk: row.publishToSndbnk
 		},
 		site: {
 			name: siteSettings?.name ?? '',
@@ -527,6 +528,33 @@ export const actions = {
 		}
 
 		return { storageSuccess: 'Connection OK.' };
+	},
+
+	updateCatalog: async ({ locals, request }) => {
+		if (!locals.user) {
+			safeRedirect(302, '/signin');
+		}
+
+		const row = await getProfileByUserId(locals.user.id);
+		if (!row) {
+			safeRedirect(302, '/signup');
+		}
+
+		if (!canUseCustomDomain(row.plan) || row.customDomainStatus !== 'active' || !row.customDomain) {
+			return fail(403, { catalogMessage: 'A live custom domain is required.' });
+		}
+
+		const publishToSndbnk = (await request.formData()).get('publishToSndbnk')?.toString() === 'on';
+		await db
+			.update(profile)
+			.set({ publishToSndbnk, updatedAt: new Date() })
+			.where(eq(profile.userId, locals.user.id));
+
+		return {
+			catalogSuccess: publishToSndbnk
+				? 'Tracks will show on sndbnk.com and your domain.'
+				: 'Tracks stay on your domain.'
+		};
 	},
 
 	updateSite: async ({ locals, request }) => {

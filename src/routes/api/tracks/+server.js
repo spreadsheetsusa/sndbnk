@@ -3,6 +3,7 @@ import { error, json } from '@sveltejs/kit';
 import { isTrackMediaType } from '#lib/media/track-media-type.js';
 import { listFeedTracks } from '#lib/server/feed';
 import { listLikedItemsWithUploader, listListeningHistory } from '#lib/server/listens';
+import { listingHostOwnerId } from '#lib/server/platform-pool';
 import { listFollowingIds } from '#lib/server/social';
 import { getProfileByUsername, isTenantUsernameAllowed } from '#lib/server/tenant';
 import { serializeTimelineRows } from '#lib/server/timeline';
@@ -72,12 +73,14 @@ export async function GET({ locals, url }) {
 		const owner = username ? await getProfileByUsername(username) : null;
 		if (!owner) error(404, 'Profile not found.');
 
+		const hostOwnerId = listingHostOwnerId(locals, owner.userId);
 		const { rows, nextCursor } = await listProfileItemsWithUploader(owner.userId, {
 			...page,
-			publishedOnly: true
+			publishedOnly: true,
+			hostOwnerId
 		});
 
-		const items = await serializeTimelineRows(rows, locals.user);
+		const items = await serializeTimelineRows(rows, locals.user, hostOwnerId);
 		return json({ items, nextCursor });
 	}
 
@@ -89,8 +92,12 @@ export async function GET({ locals, url }) {
 		const owner = username ? await getProfileByUsername(username) : null;
 		if (!owner) error(404, 'Profile not found.');
 
-		const { rows, nextCursor } = await listLikedItemsWithUploader(owner.userId, page);
-		const items = await serializeTimelineRows(rows, locals.user);
+		const hostOwnerId = listingHostOwnerId(locals, owner.userId);
+		const { rows, nextCursor } = await listLikedItemsWithUploader(owner.userId, {
+			...page,
+			hostOwnerId
+		});
+		const items = await serializeTimelineRows(rows, locals.user, hostOwnerId);
 		return json({ items, nextCursor });
 	}
 

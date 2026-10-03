@@ -18,6 +18,7 @@ import {
 	trackLike,
 	user
 } from '#lib/server/db/schema';
+import { visibleOnHostCondition } from '#lib/server/platform-pool';
 import {
 	TRACK_PAGE_SIZE,
 	canViewTrack,
@@ -145,19 +146,32 @@ export async function listListeningHistory(
  * only include published items.
  *
  * @param {string} userId
- * @param {PageOptions} [options]
+ * @param {PageOptions & { hostOwnerId?: string | null }} [options]
  * @returns {Promise<{ rows: import('#lib/server/tracks').ProfileItemRow[], nextCursor: string | null }>}
  */
 export async function listLikedItemsWithUploader(
 	userId,
-	{ limit = TRACK_PAGE_SIZE, cursor = null, direction = 'older', inclusive = false } = {}
+	{
+		limit = TRACK_PAGE_SIZE,
+		cursor = null,
+		direction = 'older',
+		inclusive = false,
+		hostOwnerId = null
+	} = {}
 ) {
 	const decoded = cursor ? decodeCursor(cursor) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
-	const trackConditions = [eq(trackLike.userId, userId), trackListedCondition()];
-	/** @type {import('drizzle-orm').SQL[]} */
-	const playlistConditions = [eq(playlistLike.userId, userId), eq(playlist.published, true)];
+	const trackConditions = [
+		eq(trackLike.userId, userId),
+		trackListedCondition(),
+		visibleOnHostCondition(profile, track.userId, hostOwnerId)
+	];
+	const playlistConditions = [
+		eq(playlistLike.userId, userId),
+		eq(playlist.published, true),
+		visibleOnHostCondition(profile, playlist.userId, hostOwnerId)
+	];
 
 	if (decoded) {
 		trackConditions.push(

@@ -102,6 +102,7 @@ const PROFILE_COLUMNS = {
 	customDomainStatus: profile.customDomainStatus,
 	domainVerifyToken: profile.domainVerifyToken,
 	customDomainVerifiedAt: profile.customDomainVerifiedAt,
+	publishToSndbnk: profile.publishToSndbnk,
 	stripeCustomerId: profile.stripeCustomerId,
 	stripeSubscriptionId: profile.stripeSubscriptionId,
 	planInterval: profile.planInterval,

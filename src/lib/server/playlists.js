@@ -9,6 +9,7 @@ import {
 } from '#lib/server/cursor';
 import { db } from '#lib/server/db';
 import { playlist, playlistLike, playlistTrack, profile, track, user } from '#lib/server/db/schema';
+import { visibleOnHostCondition } from '#lib/server/platform-pool';
 import { likePattern, normalizeSearchQuery } from '#lib/server/search-query';
 import { getSshPublicBaseUrls } from '#lib/server/storage';
 import {
@@ -101,8 +102,9 @@ export async function getPlaylistWithOwner(playlistId) {
 /**
  * Ordered published member tracks with uploader info.
  * @param {string} playlistId
+ * @param {string | null} [hostOwnerId]
  */
-export async function listPlaylistTrackRows(playlistId) {
+export async function listPlaylistTrackRows(playlistId, hostOwnerId = null) {
 	return db
 		.select({
 			track: track,
@@ -114,7 +116,13 @@ export async function listPlaylistTrackRows(playlistId) {
 		.innerJoin(track, eq(track.id, playlistTrack.trackId))
 		.leftJoin(profile, eq(profile.userId, track.userId))
 		.leftJoin(user, eq(user.id, track.userId))
-		.where(and(eq(playlistTrack.playlistId, playlistId), trackListedCondition()))
+		.where(
+			and(
+				eq(playlistTrack.playlistId, playlistId),
+				trackListedCondition(),
+				visibleOnHostCondition(profile, track.userId, hostOwnerId)
+			)
+		)
 		.orderBy(asc(playlistTrack.position));
 }
 
@@ -457,7 +465,8 @@ export async function listPlaylistsForOwner(userId) {
  *   cursor?: string | null,
  *   direction?: import('#lib/server/cursor').Direction,
  *   inclusive?: boolean,
- *   q?: string | null
+ *   q?: string | null,
+ *   hostOwnerId?: string | null
  * }} [opts]
  */
 export async function listPlaylistRows({
@@ -467,7 +476,8 @@ export async function listPlaylistRows({
 	cursor = null,
 	direction = 'older',
 	inclusive = false,
-	q = null
+	q = null,
+	hostOwnerId = null
 } = {}) {
 	if (userIds && userIds.length === 0) {
 		return { rows: [], nextCursor: null };
@@ -479,7 +489,10 @@ export async function listPlaylistRows({
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [];
-	if (publishedOnly) conditions.push(eq(playlist.published, true));
+	if (publishedOnly) {
+		conditions.push(eq(playlist.published, true));
+		conditions.push(visibleOnHostCondition(profile, playlist.userId, hostOwnerId));
+	}
 	if (userIds) conditions.push(inArray(playlist.userId, userIds));
 	if (term) conditions.push(or(like(playlist.title, term), like(profile.username, term)));
 	if (decoded) {
@@ -517,9 +530,17 @@ export async function listPlaylistRows({
  * @param {PlaylistSocial | undefined} social
  * @param {{ id: string } | null | undefined} viewer
  * @param {number} [createdAtOverride] ms used for the listing cursor when merging timelines
+ * @param {string | null} [hostOwnerId]
  */
-export async function serializePlaylistForCard(row, owner, social, viewer, createdAtOverride) {
-	const memberRows = await listPlaylistTrackRows(row.id);
+export async function serializePlaylistForCard(
+	row,
+	owner,
+	social,
+	viewer,
+	createdAtOverride,
+	hostOwnerId = null
+) {
+	const memberRows = await listPlaylistTrackRows(row.id, hostOwnerId);
 	const trackIds = memberRows.map((m) => m.track.id);
 	const sshOwnerIds = memberRows
 		.filter((m) => m.track.storageAdapter === 'ssh' && m.track.published)
@@ -578,8 +599,9 @@ export async function serializePlaylistForCard(row, owner, social, viewer, creat
  *   listAt?: number | null
  * }>} rows
  * @param {{ id: string } | null | undefined} viewer
+ * @param {string | null} [hostOwnerId]
  */
-export async function serializePlaylistRows(rows, viewer) {
+export async function serializePlaylistRows(rows, viewer, hostOwnerId = null) {
 	const playlistIds = rows.map((row) => row.playlist.id);
 	const social = await getSocialForPlaylists(playlistIds, viewer?.id ?? null);
 
@@ -590,7 +612,8 @@ export async function serializePlaylistRows(rows, viewer) {
 				row,
 				social.get(row.playlist.id),
 				viewer,
-				row.listAt ?? undefined
+				row.listAt ?? undefined,
+				hostOwnerId
 			)
 		)
 	);

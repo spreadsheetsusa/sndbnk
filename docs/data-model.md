@@ -74,11 +74,18 @@ These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies 
 | `customDomainStatus`                       | `'none' \| 'pending' \| 'active'`                          |
 | `domainVerifyToken`                        | the `sndbnk-verify=…` value the owner puts in DNS TXT      |
 | `customDomainVerifiedAt`                   | timestamp of the last successful verification              |
+| `publishToSndbnk`                          | default off; Studio+ pool opt-in, see below                |
 | `stripeCustomerId`, `stripeSubscriptionId` | Stripe customer / active subscription ids                  |
 | `planInterval`, `subscriptionStatus`, …    | billing interval, Stripe status, or `grandfathered`        |
 
 A user without a `profile` row is in a broken half-registered state. Loaders that need one
 redirect to `/signup` rather than rendering.
+
+`publishToSndbnk` applies only when the plan allows a custom domain and `customDomainStatus` is
+`active`. While it is off, that catalog stays on the creator's subdomain and custom domain and stays
+out of the sndbnk.com pool: feed, search, showcase, sitemap, and apex profile, track, and playlist
+URLs (those apex URLs redirect to the custom domain). Turning it on shares the catalog in the pool.
+Removing the domain or leaving Studio/Label ignores the flag, so the catalog is not stranded.
 
 ### `site` — optional 1:1 tenant branding
 

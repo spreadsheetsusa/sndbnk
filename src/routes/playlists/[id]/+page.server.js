@@ -6,7 +6,8 @@ import {
 	getSocialForPlaylists,
 	serializePlaylistForCard
 } from '#lib/server/playlists';
-import { isTenantResourceAllowed } from '#lib/server/tenant';
+import { catalogHostOwnerId, redirectApexCatalogToDomain } from '#lib/server/platform-pool';
+import { getProfileByUserId, isTenantResourceAllowed } from '#lib/server/tenant';
 
 export const load = async ({ locals, params }) => {
 	const row = await getPlaylistWithOwner(params.id);
@@ -18,12 +19,19 @@ export const load = async ({ locals, params }) => {
 		error(404, 'Playlist not found');
 	}
 
+	const owner = await getProfileByUserId(row.playlist.userId);
+	if (owner) {
+		redirectApexCatalogToDomain(locals, owner, `/playlists/${row.playlist.id}`);
+	}
+
 	const social = await getSocialForPlaylists([row.playlist.id], locals.user?.id ?? null);
 	const playlist = await serializePlaylistForCard(
 		row.playlist,
 		row,
 		social.get(row.playlist.id),
-		locals.user
+		locals.user,
+		undefined,
+		catalogHostOwnerId(locals)
 	);
 
 	return {

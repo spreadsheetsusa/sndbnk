@@ -1,8 +1,9 @@
 import { error } from '@sveltejs/kit';
 
 import { loadContentImages, renderTrackPostHtml } from '#lib/server/media/track-post';
+import { redirectApexCatalogToDomain } from '#lib/server/platform-pool';
 import { safeRedirect } from '#lib/server/safe-redirect';
-import { isTenantResourceAllowed } from '#lib/server/tenant';
+import { getProfileByUserId, isTenantResourceAllowed } from '#lib/server/tenant';
 import {
 	canViewTrack,
 	getSocialForTracks,
@@ -33,6 +34,11 @@ export const load = async ({ locals, params }) => {
 		!canViewTrack(row.track, locals.user?.id)
 	) {
 		error(404, 'Track not found');
+	}
+
+	const owner = await getProfileByUserId(row.track.userId);
+	if (owner) {
+		redirectApexCatalogToDomain(locals, owner, `/${username}/tracks/${slug}/`);
 	}
 
 	const social = await getSocialForTracks([row.track.id], locals.user?.id ?? null);

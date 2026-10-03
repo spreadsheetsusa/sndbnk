@@ -28,6 +28,7 @@ import {
 import { probeAudioBytes } from '#lib/server/media/probe';
 import { readFileHead, sniffAudio, sniffImage } from '#lib/server/media/sniff';
 import { parseWaveform, WAVEFORM_FILENAME } from '#lib/server/media/waveform';
+import { visibleOnHostCondition } from '#lib/server/platform-pool';
 import { checkUploadAllowed } from '#lib/server/quota';
 import { parseTagEmbedStatus } from '#lib/media/tag-embed-status.js';
 import { enqueueTranscodeJob } from '#lib/server/queue/transcode';
@@ -1323,16 +1324,22 @@ function itemCursor(row) {
  * @param {{
  *   publishedOnly?: boolean,
  *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
+ *   hostOwnerId?: string | null,
  *   decoded: { ms: number, id: string } | null
  * } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
  */
 function selectOwnTracks(
 	userId,
-	{ publishedOnly, mediaType, decoded, limit, direction, inclusive }
+	{ publishedOnly, mediaType, hostOwnerId = null, decoded, limit, direction, inclusive }
 ) {
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [eq(track.userId, userId)];
-	if (publishedOnly) conditions.push(trackListedCondition());
+	if (publishedOnly) {
+		conditions.push(
+			trackListedCondition(),
+			visibleOnHostCondition(profile, track.userId, hostOwnerId)
+		);
+	}
 	if (mediaType) conditions.push(eq(track.mediaType, mediaType));
 	if (decoded) {
 		conditions.push(keysetCondition(track.createdAt, track.id, decoded, direction, inclusive));
@@ -1400,13 +1407,14 @@ export async function listTracksWithUploader(
  * of which source a given item came from.
  *
  * @param {string} userId
- * @param {{ publishedOnly?: boolean } & PageOptions} [options]
+ * @param {{ publishedOnly?: boolean, hostOwnerId?: string | null } & PageOptions} [options]
  * @returns {Promise<{ rows: ProfileItemRow[], nextCursor: string | null }>}
  */
 export async function listProfileItemsWithUploader(
 	userId,
 	{
 		publishedOnly = false,
+		hostOwnerId = null,
 		limit = TRACK_PAGE_SIZE,
 		cursor = null,
 		direction = 'older',
@@ -1417,7 +1425,11 @@ export async function listProfileItemsWithUploader(
 	const decoded = cursor ? decodeCursor(cursor) : null;
 
 	/** @type {import('drizzle-orm').SQL[]} */
-	const repostConditions = [eq(trackRepost.userId, userId), trackListedCondition()];
+	const repostConditions = [
+		eq(trackRepost.userId, userId),
+		trackListedCondition(),
+		visibleOnHostCondition(profile, track.userId, hostOwnerId)
+	];
 	if (decoded) {
 		repostConditions.push(
 			keysetCondition(trackRepost.createdAt, trackRepost.trackId, decoded, direction, inclusive)
@@ -1425,7 +1437,14 @@ export async function listProfileItemsWithUploader(
 	}
 
 	const [own, reposted, playlists] = await Promise.all([
-		selectOwnTracks(userId, { publishedOnly, decoded, limit, direction, inclusive }),
+		selectOwnTracks(userId, {
+			publishedOnly,
+			hostOwnerId,
+			decoded,
+			limit,
+			direction,
+			inclusive
+		}),
 		db
 			.select({
 				track: track,
@@ -1443,6 +1462,7 @@ export async function listProfileItemsWithUploader(
 		listPlaylistRows({
 			userIds: [userId],
 			publishedOnly,
+			hostOwnerId,
 			limit,
 			cursor,
 			direction,

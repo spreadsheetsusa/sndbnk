@@ -90,6 +90,11 @@ export const profile = sqliteTable('profile', {
 	customDomainStatus: text('custom_domain_status').notNull().default('none'),
 	domainVerifyToken: text('domain_verify_token'),
 	customDomainVerifiedAt: integer('custom_domain_verified_at', { mode: 'timestamp_ms' }),
+	/**
+	 * Studio+ with a live custom domain stays off the sndbnk.com pool until this is on.
+	 * Ignored for everyone else, so a missing domain does not hide the catalog.
+	 */
+	publishToSndbnk: integer('publish_to_sndbnk', { mode: 'boolean' }).notNull().default(false),
 	stripeCustomerId: text('stripe_customer_id'),
 	stripeSubscriptionId: text('stripe_subscription_id'),
 	planInterval: text('plan_interval'),

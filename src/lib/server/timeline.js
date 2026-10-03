@@ -6,8 +6,9 @@ import { serializeTrackRows } from '#lib/server/tracks';
  *
  * @param {import('#lib/server/tracks').ProfileItemRow[]} rows
  * @param {{ id: string } | null | undefined} viewer
+ * @param {string | null} [hostOwnerId]
  */
-export async function serializeTimelineRows(rows, viewer) {
+export async function serializeTimelineRows(rows, viewer, hostOwnerId = null) {
 	/** @type {import('#lib/server/tracks').ProfileTrackRow[]} */
 	const trackRows = [];
 	/** @type {import('#lib/server/tracks').ProfilePlaylistRow[]} */
@@ -20,7 +21,7 @@ export async function serializeTimelineRows(rows, viewer) {
 
 	const [tracks, playlists] = await Promise.all([
 		serializeTrackRows(trackRows, viewer),
-		serializePlaylistRows(playlistRows, viewer)
+		serializePlaylistRows(playlistRows, viewer, hostOwnerId)
 	]);
 
 	/** @type {Map<string, (typeof tracks)[number] | (typeof playlists)[number]>} */
