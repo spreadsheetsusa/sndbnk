@@ -39,6 +39,7 @@ flowchart LR
   tenant -->|apex| authHook
   tenant -->|not_found| nf["404 text/plain"]
   tenant -->|"free plan on subdomain"| redir["302 → apex /users/:username"]
+  tenant -->|"active custom domain"| canon["301 → custom domain, same path"]
   tenant -->|"entitled tenant host"| gate["path allowlist"]
   gate --> authHook["handleBetterAuth<br/>sets locals.user + locals.session"]
   authHook --> handler["load / actions / +server"]
@@ -50,12 +51,12 @@ flowchart LR
 Skipped entirely when `building`. Otherwise it reads the hostname (preferring `x-forwarded-host`,
 which Caddy sets) and resolves it:
 
-| Outcome     | Effect                                                          |
-| ----------- | --------------------------------------------------------------- |
-| `apex`      | pass through untouched                                          |
-| `not_found` | plain-text 404 response, no SvelteKit render                    |
-| `redirect`  | 302 to the apex path URL — Free cannot use a subdomain (Vault+) |
-| `rewrite`   | sets `event.locals.tenant`, then gates the path                 |
+| Outcome     | Effect                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apex`      | pass through untouched                                                                                                                                                                      |
+| `not_found` | plain-text 404 response, no SvelteKit render                                                                                                                                                |
+| `redirect`  | 302 to the apex path URL when Free cannot use a subdomain (Vault+). 301 to the custom domain, same path and query, when that domain is `active` — the subdomain is not a second public copy |
+| `rewrite`   | sets `event.locals.tenant`, then gates the path                                                                                                                                             |
 
 On a tenant host platform and account routes stay deliberately narrow:
 
@@ -102,11 +103,11 @@ Only `handleTenant` writes `locals.tenant`. Loaders read it, never set it.
 One creator, three public URLs, gated by plan entitlements
 ([`src/lib/server/billing/plans.js`](../src/lib/server/billing/plans.js)):
 
-| Surface       | URL                               | Requires                                                          |
-| ------------- | --------------------------------- | ----------------------------------------------------------------- |
-| Path          | `{ORIGIN}/users/{username}`       | nothing — always available                                        |
-| Subdomain     | `{username}.{PUBLIC_BASE_DOMAIN}` | `allowSubdomain` (Vault+)                                         |
-| Custom domain | the creator's own hostname        | `allowCustomDomain` (Studio+) + `customDomainStatus === 'active'` |
+| Surface       | URL                               | Requires                                                                                    |
+| ------------- | --------------------------------- | ------------------------------------------------------------------------------------------- |
+| Path          | `{ORIGIN}/users/{username}`       | nothing — always available                                                                  |
+| Subdomain     | `{username}.{PUBLIC_BASE_DOMAIN}` | `allowSubdomain` (Vault+). While a custom domain is `active`, this host 301s to that domain |
+| Custom domain | the creator's own hostname        | `allowCustomDomain` (Studio+) + `customDomainStatus === 'active'`                           |
 
 `classifyHost()` in [`src/lib/server/tenant.js`](../src/lib/server/tenant.js) decides which is which:
 
@@ -117,8 +118,10 @@ One creator, three public URLs, gated by plan entitlements
   `example.com` ↔ `www.example.com` pairing for simple apex names)
 
 The apex path route remains the standalone audio profile. Tenant hosts render persisted site chrome
-and `site_page` blocks; artists place `catalog.profile` wherever the live profile/catalog should
-appear.
+and visible `site_page` blocks (`hidden` blocks stay in the page list and are omitted); artists place
+`catalog.profile` wherever the live profile/catalog should appear. An `active` custom domain is the only public tenant host: `{username}.{base}` answers with
+a 301 to that hostname (path and query preserved, `Cache-Control: no-store` so removing the domain
+lets the subdomain serve again). The subdomain stays the DNS target for CNAME and TLS.
 
 Custom domains need DNS proof before they go `active`: a TXT record at `_sndbnk-verify.{domain}`
 plus either a CNAME (or CNAME chain) to `{username}.{base}`, or A/AAAA addresses that match the

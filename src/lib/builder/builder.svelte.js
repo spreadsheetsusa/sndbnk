@@ -15,9 +15,9 @@ import {
 } from '#lib/builder/theme-persona.js';
 import { getBlockDefinition } from '#lib/components/blocks/registry.js';
 import {
+	compactPageBlock,
 	createDefaultChromeBlock,
-	isPageBodyBlockType,
-	parseBlockLayout
+	isPageBodyBlockType
 } from '#lib/components/blocks/types.js';
 import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 
@@ -36,13 +36,13 @@ import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
  * @returns {PageBlockInstance}
  */
 function cloneBodyBlock(block) {
-	const layout = parseBlockLayout(block.layout);
-	return {
+	return compactPageBlock({
 		id: block.id,
 		type: block.type,
 		props: structuredClone(block.props ?? {}),
-		...(layout ? { layout: { ...layout } } : {})
-	};
+		layout: block.layout,
+		hidden: block.hidden
+	});
 }
 
 /**
@@ -658,15 +658,9 @@ class Builder {
 	 * @param {{ immediate?: boolean }} [opts]
 	 */
 	updateBlockLayout(instanceId, layout, opts = {}) {
-		const nextLayout = parseBlockLayout(layout);
-		this.blocks = this.blocks.map((b) => {
-			if (b.id !== instanceId) return b;
-			if (!nextLayout) {
-				const { layout: _drop, ...rest } = b;
-				return rest;
-			}
-			return { ...b, layout: { ...nextLayout } };
-		});
+		this.blocks = this.blocks.map((b) =>
+			b.id === instanceId ? compactPageBlock({ ...b, layout }) : b
+		);
 		this.persistBlocks(opts);
 	}
 
@@ -743,9 +737,34 @@ class Builder {
 		const next = [...this.blocks];
 		const [item] = next.splice(from, 1);
 		const clamped = Math.max(0, Math.min(toIndex, next.length));
+		if (clamped === from) return;
 		next.splice(clamped, 0, item);
 		this.blocks = next;
 		this.persistBlocks({ immediate: true });
+	}
+
+	/**
+	 * Hide a block on the published page. The builder canvas omits it too.
+	 * @param {string} instanceId
+	 * @param {boolean} hidden
+	 */
+	setBlockHidden(instanceId, hidden) {
+		const current = this.blocks.find((b) => b.id === instanceId);
+		if (!current || (current.hidden === true) === (hidden === true)) return;
+		this.blocks = this.blocks.map((b) =>
+			b.id === instanceId ? compactPageBlock({ ...b, hidden }) : b
+		);
+		this.persistBlocks({ immediate: true });
+	}
+
+	/**
+	 * Select a body block without leaving the current inspector tab.
+	 * @param {string} instanceId
+	 */
+	highlightBlock(instanceId) {
+		if (!this.blocks.some((b) => b.id === instanceId)) return;
+		this.selectedInstanceId = instanceId;
+		this.selectedChrome = null;
 	}
 
 	/**
@@ -1056,15 +1075,7 @@ class Builder {
 	async #flushBlocks() {
 		if (!this.siteId || !this.currentPageId) return;
 		const gen = ++this.#persistGen;
-		const payload = this.blocks.map((b) => {
-			const layout = parseBlockLayout(b.layout);
-			return {
-				id: b.id,
-				type: b.type,
-				props: b.props,
-				...(layout ? { layout } : {})
-			};
-		});
+		const payload = this.blocks.map((b) => compactPageBlock(b));
 		this.savingBlocks = true;
 		this.blocksError = null;
 		try {

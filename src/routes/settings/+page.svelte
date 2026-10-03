@@ -801,7 +801,10 @@
 						{/if}
 					</div>
 					<p>
-						{#if canCustomDomain}
+						{#if canCustomDomain && domainStatus === 'active' && data.urls.customDomainUrl}
+							Your site is published at <span class="mono">{data.profile.customDomain}</span>.
+							{data.profile.username}.{data.baseDomain} forwards there.
+						{:else if canCustomDomain}
 							Your subdomain is live. Point a custom domain here so listeners land on you.
 						{:else if canSubdomain}
 							Your subdomain is live. Studio puts a custom domain on the station.
@@ -857,7 +860,12 @@
 						{/if}
 					</div>
 					<p class="hint">
-						Subdomains work automatically once your plan includes them — no DNS for you to manage.
+						{#if domainStatus === 'active' && data.urls.customDomainUrl}
+							{data.profile.username}.{data.baseDomain} still resolves so your domain can point at it.
+							Visitors are sent to <span class="mono">{data.profile.customDomain}</span>.
+						{:else}
+							Subdomains work automatically once your plan includes them — no DNS for you to manage.
+						{/if}
 					</p>
 				{:else}
 					<div class="locked">
@@ -1068,9 +1076,7 @@
 			<div class="block" role="tabpanel" id="panel-site" aria-labelledby="tab-site">
 				<div class="block-head">
 					<h2>Site</h2>
-					<p>
-						Branding for your subdomain and custom domain. Leaves your apex profile path unchanged.
-					</p>
+					<p>Branding for your public site. Leaves your apex profile path unchanged.</p>
 				</div>
 
 				{#if !canEditSite}

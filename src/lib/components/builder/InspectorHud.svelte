@@ -14,6 +14,7 @@
 		getBlockDefinition,
 		headerBlockCatalog
 	} from '#lib/components/blocks/registry.js';
+	import BlockLayers from '#lib/components/builder/BlockLayers.svelte';
 	import ChromeAccentControl from '#lib/components/builder/ChromeAccentControl.svelte';
 	import FloatingHud from '#lib/components/builder/FloatingHud.svelte';
 	import LogoMediaSelect from '#lib/components/builder/LogoMediaSelect.svelte';
@@ -603,6 +604,7 @@
 				{#if !current}
 					<p class="hint">Select a page from the Pages tab.</p>
 				{:else}
+					<BlockLayers />
 					<form
 						method="POST"
 						action="?/updatePage"

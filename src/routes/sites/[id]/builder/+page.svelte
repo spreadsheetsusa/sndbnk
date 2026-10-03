@@ -125,6 +125,11 @@
 
 	/** @type {number | null} */
 	let dropIndex = $state(null);
+	/** Nested dragenter/leave depth so the insertion strips only exist while a block is in flight. */
+	let dragDepth = 0;
+	/** @type {number} */
+	let dragLeaveFrame = 0;
+	let receivingDrop = $state(false);
 	/** @type {HTMLElement | null} */
 	let canvasEl = $state(null);
 	/** Inner content width of `.canvas` (padding box), used as the resize ceiling. */
@@ -512,6 +517,36 @@
 
 	/**
 	 * @param {DragEvent} event
+	 */
+	function onCanvasDragEnter(event) {
+		if (!event.dataTransfer?.types.includes(builder.blockMime)) return;
+		dragDepth += 1;
+		cancelAnimationFrame(dragLeaveFrame);
+		receivingDrop = true;
+	}
+
+	function onCanvasDragLeave() {
+		if (dragDepth === 0) return;
+		dragDepth -= 1;
+		if (dragDepth > 0) return;
+		// Entering a child fires leave then enter. Wait a frame so that pair doesn't flash the strips off.
+		cancelAnimationFrame(dragLeaveFrame);
+		dragLeaveFrame = requestAnimationFrame(() => {
+			if (dragDepth > 0) return;
+			receivingDrop = false;
+			dropIndex = null;
+		});
+	}
+
+	function endBlockDrag() {
+		dragDepth = 0;
+		cancelAnimationFrame(dragLeaveFrame);
+		receivingDrop = false;
+		dropIndex = null;
+	}
+
+	/**
+	 * @param {DragEvent} event
 	 * @param {number} index
 	 */
 	function onGapDragOver(event, index) {
@@ -535,7 +570,7 @@
 			event.dataTransfer?.getData(builder.blockMime) ||
 			event.dataTransfer?.getData('text/plain') ||
 			'';
-		dropIndex = null;
+		endBlockDrag();
 		if (!type) return;
 		builder.insertBlock(type, index);
 	}
@@ -563,22 +598,26 @@
 	}
 </script>
 
-<svelte:window onkeydown={onBuilderKeydown} />
+<svelte:window onkeydown={onBuilderKeydown} ondragend={endBlockDrag} />
 
 <svelte:head>
 	<title>{data.site.name || 'Site'} builder | SNDBNK</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="page" {@attach hydrateBuilder}>
+<div class="page site-stage" {@attach hydrateBuilder}>
 	<main>
 		<!-- Canvas click clears selection; Escape is handled below for keyboard. -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="canvas"
+			class:receiving={receivingDrop}
 			aria-label="Site builder canvas"
 			ondragover={onDragOver}
+			ondragenter={onCanvasDragEnter}
+			ondragleave={onCanvasDragLeave}
+			ondrop={endBlockDrag}
 			onclick={clearCanvasSelection}
 			role="region"
 			{@attach measureCanvas}
@@ -617,121 +656,123 @@
 
 				<div class="stack">
 					{#each builder.blocks as instance, index (instance.id)}
-						{@const def = getBlockDefinition(instance.type)}
-						{@const Block = def?.component}
-						{@const maxWidthStyle = instanceMaxWidthStyle(instance)}
-						{@const liveImageWidth =
-							imageDrag?.instanceId === instance.id ? `${imageDrag.liveWidth}px` : null}
-						<div
-							class="drop-gap"
-							class:active={dropIndex === index}
-							role="separator"
-							aria-label="Drop block here"
-							ondragover={(e) => onGapDragOver(e, index)}
-							ondragleave={onDragLeaveGap}
-							ondrop={(e) => onDropAt(e, index)}
-						></div>
-						<div
-							class="instance"
-							data-instance-id={instance.id}
-							class:selected={builder.selectedInstanceId === instance.id}
-							class:resizing={resizeDrag?.instanceId === instance.id ||
-								imageDrag?.instanceId === instance.id}
-							style:max-width={maxWidthStyle}
-						>
-							<button
-								type="button"
-								class="instance-hit"
-								aria-label="Select {def?.label ?? instance.type}"
-								aria-pressed={builder.selectedInstanceId === instance.id}
-								onclick={() => builder.selectInstance(instance.id)}
+						{#if !instance.hidden}
+							{@const def = getBlockDefinition(instance.type)}
+							{@const Block = def?.component}
+							{@const maxWidthStyle = instanceMaxWidthStyle(instance)}
+							{@const liveImageWidth =
+								imageDrag?.instanceId === instance.id ? `${imageDrag.liveWidth}px` : null}
+							<div
+								class="drop-gap"
+								class:active={dropIndex === index}
+								role="separator"
+								aria-label="Drop block here"
+								ondragover={(e) => onGapDragOver(e, index)}
+								ondragleave={onDragLeaveGap}
+								ondrop={(e) => onDropAt(e, index)}
+							></div>
+							<div
+								class="instance"
+								data-instance-id={instance.id}
+								class:selected={builder.selectedInstanceId === instance.id}
+								class:resizing={resizeDrag?.instanceId === instance.id ||
+									imageDrag?.instanceId === instance.id}
+								style:max-width={maxWidthStyle}
 							>
-								{#if Block}
-									{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
-										<Block
-											{...instance.props}
-											profileData={profileCatalog}
-											profileList={profileCatalog ? profileCatalogList.current : null}
-										/>
+								<button
+									type="button"
+									class="instance-hit"
+									aria-label="Select {def?.label ?? instance.type}"
+									aria-pressed={builder.selectedInstanceId === instance.id}
+									onclick={() => builder.selectInstance(instance.id)}
+								>
+									{#if Block}
+										{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
+											<Block
+												{...instance.props}
+												profileData={profileCatalog}
+												profileList={profileCatalog ? profileCatalogList.current : null}
+											/>
+										{:else}
+											<Block
+												{...instance.props}
+												{...liveImageWidth ? { imageWidth: liveImageWidth } : {}}
+											/>
+										{/if}
 									{:else}
-										<Block
-											{...instance.props}
-											{...liveImageWidth ? { imageWidth: liveImageWidth } : {}}
-										/>
+										<p class="missing">Unknown block: {instance.type}</p>
 									{/if}
-								{:else}
-									<p class="missing">Unknown block: {instance.type}</p>
+								</button>
+								{#if builder.selectedInstanceId === instance.id && imageFrame?.instanceId === instance.id}
+									<button
+										type="button"
+										class="resize-handle image"
+										aria-label="Resize image from left"
+										style:top="{imageFrame.top}px"
+										style:left="{imageFrame.left}px"
+										style:height="{imageFrame.height}px"
+										onpointerdown={(e) => startImageResize(e, instance, 'left')}
+										onpointermove={onImageResizeMove}
+										onpointerup={onImageResizeUp}
+										onpointercancel={onImageResizeUp}
+										ondblclick={(e) => resetImageWidth(e, instance.id)}
+									></button>
+									<button
+										type="button"
+										class="resize-handle image"
+										aria-label="Resize image from right"
+										style:top="{imageFrame.top}px"
+										style:left="{imageFrame.left + imageFrame.width}px"
+										style:height="{imageFrame.height}px"
+										onpointerdown={(e) => startImageResize(e, instance, 'right')}
+										onpointermove={onImageResizeMove}
+										onpointerup={onImageResizeUp}
+										onpointercancel={onImageResizeUp}
+										ondblclick={(e) => resetImageWidth(e, instance.id)}
+									></button>
+									{#if imageDrag?.instanceId === instance.id}
+										<span
+											class="image-size"
+											style:top="{imageFrame.top + imageFrame.height}px"
+											style:left="{imageFrame.left + imageFrame.width / 2}px"
+										>
+											{imageSizeLabel}
+										</span>
+									{/if}
 								{/if}
-							</button>
-							{#if builder.selectedInstanceId === instance.id && imageFrame?.instanceId === instance.id}
-								<button
-									type="button"
-									class="resize-handle image"
-									aria-label="Resize image from left"
-									style:top="{imageFrame.top}px"
-									style:left="{imageFrame.left}px"
-									style:height="{imageFrame.height}px"
-									onpointerdown={(e) => startImageResize(e, instance, 'left')}
-									onpointermove={onImageResizeMove}
-									onpointerup={onImageResizeUp}
-									onpointercancel={onImageResizeUp}
-									ondblclick={(e) => resetImageWidth(e, instance.id)}
-								></button>
-								<button
-									type="button"
-									class="resize-handle image"
-									aria-label="Resize image from right"
-									style:top="{imageFrame.top}px"
-									style:left="{imageFrame.left + imageFrame.width}px"
-									style:height="{imageFrame.height}px"
-									onpointerdown={(e) => startImageResize(e, instance, 'right')}
-									onpointermove={onImageResizeMove}
-									onpointerup={onImageResizeUp}
-									onpointercancel={onImageResizeUp}
-									ondblclick={(e) => resetImageWidth(e, instance.id)}
-								></button>
-								{#if imageDrag?.instanceId === instance.id}
-									<span
-										class="image-size"
-										style:top="{imageFrame.top + imageFrame.height}px"
-										style:left="{imageFrame.left + imageFrame.width / 2}px"
-									>
-										{imageSizeLabel}
-									</span>
+								{#if builder.selectedInstanceId === instance.id}
+									<button
+										type="button"
+										class="resize-handle left"
+										aria-label="Resize block width from left"
+										data-builder-no-drag
+										onpointerdown={(e) => startResize(e, instance, 'left')}
+										onpointermove={onResizePointerMove}
+										onpointerup={onResizePointerUp}
+										onpointercancel={onResizePointerUp}
+									></button>
+									<button
+										type="button"
+										class="resize-handle right"
+										aria-label="Resize block width from right"
+										data-builder-no-drag
+										onpointerdown={(e) => startResize(e, instance, 'right')}
+										onpointermove={onResizePointerMove}
+										onpointerup={onResizePointerUp}
+										onpointercancel={onResizePointerUp}
+									></button>
 								{/if}
-							{/if}
-							{#if builder.selectedInstanceId === instance.id}
 								<button
 									type="button"
-									class="resize-handle left"
-									aria-label="Resize block width from left"
-									data-builder-no-drag
-									onpointerdown={(e) => startResize(e, instance, 'left')}
-									onpointermove={onResizePointerMove}
-									onpointerup={onResizePointerUp}
-									onpointercancel={onResizePointerUp}
-								></button>
-								<button
-									type="button"
-									class="resize-handle right"
-									aria-label="Resize block width from right"
-									data-builder-no-drag
-									onpointerdown={(e) => startResize(e, instance, 'right')}
-									onpointermove={onResizePointerMove}
-									onpointerup={onResizePointerUp}
-									onpointercancel={onResizePointerUp}
-								></button>
-							{/if}
-							<button
-								type="button"
-								class="remove"
-								aria-label="Remove block"
-								tabindex={builder.selectedInstanceId === instance.id ? 0 : -1}
-								onclick={() => builder.removeBlock(instance.id)}
-							>
-								<IconTrash size={15} stroke={1.75} aria-hidden="true" />
-							</button>
-						</div>
+									class="remove"
+									aria-label="Remove block"
+									tabindex={builder.selectedInstanceId === instance.id ? 0 : -1}
+									onclick={() => builder.removeBlock(instance.id)}
+								>
+									<IconTrash size={15} stroke={1.75} aria-hidden="true" />
+								</button>
+							</div>
+						{/if}
 					{/each}
 					<div
 						class="drop-gap end"
@@ -795,36 +836,45 @@
 </div>
 
 <style>
+	/* Platform paper-grid lives on body. :has() drops it only while this stage is mounted. */
+	:global(body:has(.site-stage)) {
+		background-image: none;
+	}
+
 	.page {
 		min-height: 100vh;
+		min-height: 100dvh;
 		display: grid;
 		grid-template-rows: 1fr;
 	}
 
 	main {
-		min-height: 0;
-		padding: 0.75rem var(--site-shell-pad-x) 1.25rem;
+		min-height: 100vh;
+		min-height: 100dvh;
+		padding: 0;
 	}
 
 	.canvas {
 		position: relative;
-		min-height: calc(100vh - 2rem);
+		min-height: 100vh;
+		min-height: 100dvh;
 		display: grid;
 		align-content: start;
-		gap: 1.25rem;
-		padding: 1.5rem 1.25rem 4rem;
-		/* Editor frame only — not the platform accent. HUDs keep SNDBNK chrome. */
-		border: 1px dotted color-mix(in srgb, var(--ink) 28%, transparent);
-		border-radius: 0;
+		gap: 0;
+		padding: 0;
+		border: 0;
 		background: transparent;
 		box-shadow: none;
 	}
 
 	.console-status {
+		position: absolute;
+		top: 0.7rem;
+		left: 5.6rem;
+		z-index: 5;
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		justify-self: start;
 		padding: 0.12rem 0.45rem 0.08rem;
 		border: 1px solid var(--hard-border);
 		border-radius: 0;
@@ -913,9 +963,12 @@
 
 	.preview {
 		display: grid;
+		align-content: start;
 		gap: 0;
 		width: 100%;
 		min-width: 0;
+		min-height: 100vh;
+		min-height: 100dvh;
 		/* Site theme tokens applied inline; isolate from listener dark/light on <html>. */
 		border: 0;
 		background-color: var(--paper);
@@ -928,18 +981,39 @@
 	}
 
 	.drop-gap {
-		min-height: 0.55rem;
-		border: 1px dashed transparent;
+		position: relative;
+		height: 0;
+		min-height: 0;
+		border: 0;
+		background: transparent;
 		transition:
 			min-height 120ms ease,
 			border-color 120ms ease,
 			background 120ms ease;
 	}
 
+	/* Hit strip only while dragging, so resting blocks stay flush like the published page. */
+	.canvas.receiving .drop-gap::before {
+		content: '';
+		position: absolute;
+		z-index: 4;
+		left: 0;
+		right: 0;
+		top: -0.55rem;
+		height: 1.1rem;
+	}
+
 	.drop-gap.active {
+		z-index: 4;
+		height: auto;
 		min-height: 1.4rem;
-		border-color: var(--accent);
+		border: 1px dashed var(--accent);
 		background: color-mix(in srgb, var(--accent) 16%, transparent);
+	}
+
+	.drop-gap.active::before,
+	.canvas.receiving .drop-gap.end.empty::before {
+		content: none;
 	}
 
 	.drop-gap.end.empty {
@@ -990,7 +1064,7 @@
 		width: 100%;
 		margin-inline: auto;
 		outline: 1px solid transparent;
-		background: var(--paper);
+		background: transparent;
 	}
 
 	.instance:not(.selected):hover {
@@ -1096,14 +1170,6 @@
 	.chrome :global(.header-player) {
 		position: relative;
 		z-index: 4;
-	}
-
-	.chrome + .stack {
-		border-top: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
-	}
-
-	.stack + .chrome {
-		border-top: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.instance-hit {

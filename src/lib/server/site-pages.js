@@ -3,9 +3,9 @@ import { and, asc, eq } from 'drizzle-orm';
 import { parseSiteBackground } from '#lib/builder/site-background.js';
 import {
 	cloneBlockProps,
+	compactPageBlock,
 	isPageBodyBlockType,
 	parseAllPageBlocks,
-	parseBlockLayout,
 	parsePageBlocks,
 	stringifyPageBlocks,
 	stripChromeFromBlocks
@@ -304,14 +304,15 @@ export function normalizePageBlocks(raw) {
 				message: 'Headers and footers are site chrome — use the Site tab.'
 			};
 		}
-		const props = cloneBlockProps(row.props);
-		const layout = parseBlockLayout(row.layout);
-		blocks.push({
-			id: row.id,
-			type: row.type,
-			props,
-			...(layout ? { layout } : {})
-		});
+		blocks.push(
+			compactPageBlock({
+				id: row.id,
+				type: row.type,
+				props: cloneBlockProps(row.props),
+				layout: row.layout,
+				hidden: row.hidden
+			})
+		);
 	}
 	return { ok: /** @type {const} */ (true), blocks };
 }

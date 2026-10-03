@@ -43,16 +43,18 @@
 <TenantSiteChrome {site}>
 	<main id="main" aria-label={page.title}>
 		{#each page.blocks as instance (instance.id)}
-			{@const def = getBlockDefinition(instance.type)}
-			{@const Block = def?.component}
-			{#if Block}
-				<section class="page-block" style:max-width={maxWidth(instance)}>
-					{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
-						<Block {...instance.props} {profileData} {profileList} />
-					{:else}
-						<Block {...instance.props} />
-					{/if}
-				</section>
+			{#if !instance.hidden}
+				{@const def = getBlockDefinition(instance.type)}
+				{@const Block = def?.component}
+				{#if Block}
+					<section class="page-block" style:max-width={maxWidth(instance)}>
+						{#if instance.type === 'catalog.profile' || instance.type === 'catalog.stream'}
+							<Block {...instance.props} {profileData} {profileList} />
+						{:else}
+							<Block {...instance.props} />
+						{/if}
+					</section>
+				{/if}
 			{/if}
 		{/each}
 	</main>

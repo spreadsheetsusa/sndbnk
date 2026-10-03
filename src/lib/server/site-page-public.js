@@ -39,7 +39,8 @@ export async function loadTenantSitePage({ locals, url, path }) {
 		: null;
 
 	const needsCatalog = page.blocks.some(
-		(block) => block.type === 'catalog.profile' || block.type === 'catalog.stream'
+		(block) =>
+			block.hidden !== true && (block.type === 'catalog.profile' || block.type === 'catalog.stream')
 	);
 	const catalog = needsCatalog
 		? await loadPublicProfilePage({

@@ -119,7 +119,8 @@ export const BLOCK_WIDTH_SNAP_PX = 12;
  *   id: string,
  *   type: string,
  *   props: Record<string, unknown>,
- *   layout?: PageBlockLayout
+ *   layout?: PageBlockLayout,
+ *   hidden?: boolean
  * }} PageBlockInstance
  */
 
@@ -187,6 +188,28 @@ export function snapBlockMaxWidth(width, artboardWidth, snapPx = BLOCK_WIDTH_SNA
 		bestDist = boardDist;
 	}
 	return clampBlockMaxWidth(best, board);
+}
+
+/**
+ * Body-block shape stored on a page. Drops an empty layout and a visible flag.
+ * @param {{
+ *   id: string,
+ *   type: string,
+ *   props: Record<string, unknown>,
+ *   layout?: unknown,
+ *   hidden?: unknown
+ * }} block
+ * @returns {PageBlockInstance}
+ */
+export function compactPageBlock(block) {
+	const layout = parseBlockLayout(block.layout);
+	return {
+		id: block.id,
+		type: block.type,
+		props: block.props,
+		...(layout ? { layout } : {}),
+		...(block.hidden === true ? { hidden: true } : {})
+	};
 }
 
 /**
@@ -455,13 +478,15 @@ export function parsePageBlocks(value) {
 			const row = /** @type {Record<string, unknown>} */ (item);
 			if (typeof row.id !== 'string' || !row.id) continue;
 			if (typeof row.type !== 'string' || !isPageBodyBlockType(row.type)) continue;
-			const layout = parseBlockLayout(row.layout);
-			out.push({
-				id: row.id,
-				type: row.type,
-				props: cloneProps(row.props),
-				...(layout ? { layout } : {})
-			});
+			out.push(
+				compactPageBlock({
+					id: row.id,
+					type: row.type,
+					props: cloneProps(row.props),
+					layout: row.layout,
+					hidden: row.hidden
+				})
+			);
 		}
 		return out;
 	} catch {
@@ -486,13 +511,15 @@ export function parseAllPageBlocks(value) {
 			const row = /** @type {Record<string, unknown>} */ (item);
 			if (typeof row.id !== 'string' || !row.id) continue;
 			if (typeof row.type !== 'string' || !BLOCK_TYPE_SET.has(row.type)) continue;
-			const layout = parseBlockLayout(row.layout);
-			out.push({
-				id: row.id,
-				type: row.type,
-				props: cloneProps(row.props),
-				...(layout ? { layout } : {})
-			});
+			out.push(
+				compactPageBlock({
+					id: row.id,
+					type: row.type,
+					props: cloneProps(row.props),
+					layout: row.layout,
+					hidden: row.hidden
+				})
+			);
 		}
 		return out;
 	} catch {

@@ -192,7 +192,7 @@ export function buildPublicUrls(profileRow) {
 		canUseCustomDomain(profileRow.plan) &&
 		profileRow.customDomain &&
 		profileRow.customDomainStatus === 'active'
-			? `${protocol}://${profileRow.customDomain}`
+			? `${protocol}://${profileRow.customDomain}${port}`
 			: null;
 
 	return {
@@ -204,16 +204,51 @@ export function buildPublicUrls(profileRow) {
 }
 
 /**
+ * Live custom domain means the sndbnk subdomain is not a second public copy.
+ * Same path and query land on the stored hostname. Null when the subdomain
+ * should keep serving (no active domain, or the target is itself a platform host).
+ * @param {NonNullable<Awaited<ReturnType<typeof selectProfile>>>} row
+ * @param {URL | undefined} requestUrl
+ * @returns {{ type: 'redirect', status: 301, location: string } | null}
+ */
+function redirectSubdomainToCustomDomain(row, requestUrl) {
+	const { customDomainUrl } = buildPublicUrls(row);
+	if (!customDomainUrl || !row.customDomain) return null;
+
+	let target;
+	try {
+		target = new URL(customDomainUrl);
+	} catch {
+		// Stored hostname did not form an http(s) URL.
+		return null;
+	}
+	if (target.protocol !== 'http:' && target.protocol !== 'https:') return null;
+	if (!customDomainMatches(row.customDomain, target.hostname)) return null;
+
+	const targetHost = classifyHost(target.hostname);
+	if (targetHost === 'apex' || targetHost.kind !== 'custom') return null;
+	if (requestUrl && target.hostname === requestUrl.hostname) return null;
+
+	if (requestUrl) {
+		target.pathname = requestUrl.pathname || '/';
+		target.search = requestUrl.search;
+	}
+
+	return { type: 'redirect', status: 301, location: target.toString() };
+}
+
+/**
  * Resolve tenant host into a rewrite, redirect, or error outcome.
  * @param {string} hostname
+ * @param {URL} [requestUrl] path and query to keep on a custom-domain redirect
  * @returns {Promise<
  *   | { type: 'apex' }
  *   | { type: 'rewrite', tenant: TenantContext, pathname: string }
- *   | { type: 'redirect', location: string }
+ *   | { type: 'redirect', location: string, status?: 301 | 302 }
  *   | { type: 'not_found' }
  * >}
  */
-export async function resolveTenantHost(hostname) {
+export async function resolveTenantHost(hostname, requestUrl) {
 	const classified = classifyHost(hostname);
 
 	if (classified === 'apex') {
@@ -226,9 +261,13 @@ export async function resolveTenantHost(hostname) {
 			return { type: 'not_found' };
 		}
 
+		const toCustomDomain = redirectSubdomainToCustomDomain(row, requestUrl);
+		if (toCustomDomain) return toCustomDomain;
+
 		if (!canUseSubdomain(row.plan)) {
 			return {
 				type: 'redirect',
+				status: 302,
 				location: `${ORIGIN.replace(/\/$/, '')}/users/${row.username}`
 			};
 		}

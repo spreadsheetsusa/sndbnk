@@ -41,6 +41,22 @@ die() {
 	exit 1
 }
 
+# Logical size. `du` reports allocated blocks, which on APFS reads larger than the file.
+file_bytes() {
+	stat -f '%z' "$1" 2>/dev/null || stat -c '%s' "$1"
+}
+
+human_bytes() {
+	awk -v bytes="$1" 'BEGIN {
+		split("B K M G T", units, " ")
+		n = bytes + 0
+		i = 1
+		while (n >= 1024 && i < 5) { n /= 1024; i++ }
+		if (i == 1) printf "%d%s", n, units[i]
+		else printf "%.1f%s", n, units[i]
+	}'
+}
+
 usage() {
 	sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
 	exit 0
@@ -194,8 +210,10 @@ local_tmp="$(mktemp "${TMPDIR:-/tmp}/sndbnk-pull.XXXXXX.db")"
 LOCAL_PLATFORM_MANIFEST=""
 REMOTE_PLATFORM_MANIFEST=""
 REMOTE_PLATFORM_OUT=""
+MEDIA_RSYNC_LOG=""
 cleanup() {
 	rm -f "$local_tmp"
+	[[ -n "$MEDIA_RSYNC_LOG" ]] && rm -f "$MEDIA_RSYNC_LOG"
 	[[ -n "$LOCAL_PLATFORM_MANIFEST" ]] && rm -f "$LOCAL_PLATFORM_MANIFEST"
 	# Best-effort: drop remote temp if we created one and bailed mid-transfer.
 	if [[ "${REMOTE_TMP_CREATED:-0}" -eq 1 ]]; then
@@ -290,7 +308,7 @@ EOS
 		rm -f "${LOCAL_DB}-wal" "${LOCAL_DB}-shm" "${LOCAL_DB}-journal"
 		mkdir -p "$(dirname "$LOCAL_DB")"
 		mv "$local_tmp" "$LOCAL_DB"
-		echo "  installed $LOCAL_DB ($(du -h "$LOCAL_DB" | awk '{print $1}'))"
+		echo "  installed $LOCAL_DB ($(human_bytes "$(file_bytes "$LOCAL_DB")"))"
 	fi
 fi
 
@@ -301,16 +319,23 @@ if [[ "$DO_MEDIA" -eq 1 ]]; then
 	remote "du -sh $(printf '%q' "$remote_media")"
 
 	mkdir -p "$LOCAL_MEDIA"
-	# Keep flags portable: macOS ships an older rsync without --info=.
-	rsync_flags=(-a -h --progress --stats)
+	# macOS openrsync has no --info=. Its --stats line is also wrong: a no-op
+	# tree prints a huge bytes/sec and "matched data: 0" for the whole remote size.
+	rsync_flags=(-a -h --progress)
 	[[ "$DELETE_MEDIA" -eq 1 ]] && rsync_flags+=(--delete)
 	[[ "$DRY_RUN" -eq 1 ]] && rsync_flags+=(--dry-run)
 
 	echo "Syncing media…"
+	MEDIA_RSYNC_LOG="$(mktemp)"
 	rsync -e "ssh -i $(printf '%q' "$KEY") -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15" \
 		"${rsync_flags[@]}" \
 		"${SSH_TARGET}:${remote_media}/" \
-		"${LOCAL_MEDIA}/"
+		"${LOCAL_MEDIA}/" | tee "$MEDIA_RSYNC_LOG"
+	if [[ ! -s "$MEDIA_RSYNC_LOG" ]]; then
+		echo "  media already in sync"
+	fi
+	rm -f "$MEDIA_RSYNC_LOG"
+	MEDIA_RSYNC_LOG=""
 	echo "  media → $LOCAL_MEDIA"
 fi
 

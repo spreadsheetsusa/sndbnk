@@ -62,9 +62,11 @@ and store `imageId` plus `imageKind` on the block; public pages render them from
 stays `/`). Canvas body blocks drag from the Blocks HUD — insertable categories are Blog, Contact,
 Content, CTA, Ecommerce, Feature, Gallery, Hero, Pricing, Statistic, Step, Team, and Testimonial
 (Header/Footer stay site chrome only). `PUT /api/sites/[id]/pages/[pageId]/blocks` persists the
-ordered body list (`{ id, type, props, layout? }` — optional `layout.maxWidth` from canvas side
+ordered body list (`{ id, type, props, layout?, hidden? }` — optional `layout.maxWidth` from canvas side
 handles, centered between ~512px and the full canvas content width; resize snaps to common
-breakpoints with dashed vertical guides while dragging). Site header/footer render outside
+breakpoints with dashed vertical guides while dragging). `hidden: true` drops the block from the
+public page and the builder canvas. Inspector **Page** lists those blocks like layers: drag to
+reorder (top of the list is the top of the page) and an eye toggles `hidden`. Site header/footer render outside
 the page stack
 on every page preview; Inspector **Site** tab edits site theme (accent + appearance
 `light`/`dark`/`user` + theme persona) via `PUT /api/sites/[id]/theme`, then picks header/footer

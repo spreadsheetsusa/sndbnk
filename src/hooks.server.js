@@ -72,7 +72,7 @@ const handleTenant = async ({ event, resolve }) => {
 	}
 
 	const hostname = getRequestHostname(event);
-	const outcome = await resolveTenantHost(hostname);
+	const outcome = await resolveTenantHost(hostname, event.url);
 
 	if (outcome.type === 'apex') {
 		return resolve(event);
@@ -86,7 +86,12 @@ const handleTenant = async ({ event, resolve }) => {
 	}
 
 	if (outcome.type === 'redirect') {
-		return Response.redirect(outcome.location, 302);
+		const status = outcome.status ?? 302;
+		const response = Response.redirect(outcome.location, status);
+		// Reversible while the domain stays connected. Browsers must not pin a 301
+		// after the creator removes it and the subdomain should serve again.
+		if (status === 301) response.headers.set('cache-control', 'no-store');
+		return response;
 	}
 
 	// Tenant host: composed site pages are served from `/` and the catch-all page route.

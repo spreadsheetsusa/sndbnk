@@ -82,10 +82,12 @@ A user without a `profile` row is in a broken half-registered state. Loaders tha
 redirect to `/signup` rather than rendering.
 
 `publishToSndbnk` applies only when the plan allows a custom domain and `customDomainStatus` is
-`active`. While it is off, that catalog stays on the creator's subdomain and custom domain and stays
-out of the sndbnk.com pool: feed, search, showcase, sitemap, and apex profile, track, and playlist
-URLs (those apex URLs redirect to the custom domain). Turning it on shares the catalog in the pool.
-Removing the domain or leaving Studio/Label ignores the flag, so the catalog is not stranded.
+`active`. While a custom domain is active, `{username}.{base}` 301s to it, so the tenant site has
+one public host. While the flag is off, that catalog also stays out of the sndbnk.com pool: feed,
+search, showcase, sitemap, and apex profile, track, and playlist URLs (those apex URLs redirect to
+the custom domain). Turning it on shares the catalog in the pool. Removing the domain or leaving
+Studio/Label ignores the flag, so the catalog is not stranded, and the subdomain serves the site
+again.
 
 ### `site` — optional 1:1 tenant branding
 
@@ -146,18 +148,18 @@ loads. Legacy empty root pages receive one `catalog.profile` block once; `catalo
 re-adding it after an artist deliberately deletes it. `parentId` is ready for a folder hierarchy;
 the current UI creates flat sibling pages only.
 
-| Column                        | Purpose                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| `id`                          | UUID PK                                                                  |
-| `siteId`                      | Owner site (`site.id`)                                                   |
-| `parentId`                    | Optional parent page (self-FK)                                           |
-| `slug` / `path`               | Root uses `''` / `'/'`; path unique per site                             |
-| `title`                       | Page title (default `Home`)                                              |
-| `seoTitle` / `seoDescription` | Optional SEO fields                                                      |
-| `blocks`                      | JSON body blocks only (`{ id, type, props, layout? }`; no header/footer) |
-| `background`                  | Same JSON as `site.background`; null keeps the site-wide image           |
-| `catalogSeeded`               | One-time legacy Home catalog seed guard                                  |
-| `sortOrder`                   | Sibling order                                                            |
+| Column                        | Purpose                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                          | UUID PK                                                                                                                                          |
+| `siteId`                      | Owner site (`site.id`)                                                                                                                           |
+| `parentId`                    | Optional parent page (self-FK)                                                                                                                   |
+| `slug` / `path`               | Root uses `''` / `'/'`; path unique per site                                                                                                     |
+| `title`                       | Page title (default `Home`)                                                                                                                      |
+| `seoTitle` / `seoDescription` | Optional SEO fields                                                                                                                              |
+| `blocks`                      | JSON body blocks (`{ id, type, props, layout?, hidden? }`; no header/footer). `hidden: true` stays in the list and is omitted on the public page |
+| `background`                  | Same JSON as `site.background`; null keeps the site-wide image                                                                                   |
+| `catalogSeeded`               | One-time legacy Home catalog seed guard                                                                                                          |
+| `sortOrder`                   | Sibling order                                                                                                                                    |
 
 Service: [`site-pages.js`](../src/lib/server/site-pages.js). Edited from `/sites/{id}/builder`
 (`?/createPage`, `?/deletePage`, `?/updatePage` for page management;
