@@ -1,5 +1,13 @@
 import { browser } from '$app/env';
 
+import {
+	audioSessionInterrupted,
+	holdAudioSession,
+	installPlaybackActions,
+	syncPlaybackPosition,
+	syncPlaybackSession,
+	watchAudioInterruptions
+} from '#lib/player/playback-session.js';
 import { getPlayThresholds } from '#lib/player/play-thresholds.js';
 
 /**
@@ -83,6 +91,10 @@ class Player {
 	#loadGen = 0;
 	/** True while the current generation still wants playback. */
 	#wantsPlay = false;
+	/** play() retries after the OS pauses us in the background. Capped per hide. */
+	#reclaims = 0;
+	/** Set around an intentional element pause so background reclaim doesn't restart it. */
+	#intentionalPause = false;
 	/** @type {((this: HTMLAudioElement, ev: Event) => void) | null} */
 	#pendingSeek = null;
 	/** Track ids already counted as a play this browser session. */
@@ -94,9 +106,24 @@ class Player {
 	#recordingPlay = false;
 
 	constructor() {
-		if (browser) {
-			this.queue = this.#restoreQueue();
-		}
+		if (!browser) return;
+		this.queue = this.#restoreQueue();
+		installPlaybackActions({
+			play: () => this.resume(),
+			pause: () => this.pause(),
+			previous: () => this.previous(),
+			next: () => this.next(),
+			seek: (seconds) => this.seek(seconds),
+			// rAF (and `currentTime`) stalls while the page is hidden; the element does not.
+			seekBy: (delta) => this.seek((this.#audio?.currentTime ?? this.currentTime) + delta)
+		});
+		document.addEventListener('visibilitychange', () => this.#onVisibility());
+		watchAudioInterruptions(() => this.#onSessionResume());
+	}
+
+	/** True while the listener asked for audio, including across an OS pause. */
+	get wantsPlayback() {
+		return this.#wantsPlay;
 	}
 
 	/** @param {string} id */
@@ -167,8 +194,16 @@ class Player {
 	 * @param {number} [atSeconds]
 	 */
 	#playTrack(track, atSeconds) {
+		// Claim playback before the graph exists. A bare AudioContext is ambient
+		// and mobile OSes suspend ambient audio as soon as the page is hidden.
+		this.#wantsPlay = true;
+		holdAudioSession();
 		const el = this.#ensureAudio();
-		if (!el) return;
+		if (!el) {
+			this.#wantsPlay = false;
+			this.#publishSession();
+			return;
+		}
 
 		const sameId = this.current?.id === track.id;
 		const needsReload =
@@ -194,7 +229,9 @@ class Player {
 		this.#lastTickWall = 0;
 
 		this.#clearPendingSeek(el);
+		this.#intentionalPause = true;
 		el.pause();
+		this.#intentionalPause = false;
 
 		const src = track.audioUrl?.trim() || `/api/media/${track.id}/audio`;
 		if (el.src !== new URL(src, location.href).href) {
@@ -216,6 +253,7 @@ class Player {
 			el.addEventListener('loadedmetadata', onMeta, { once: true });
 		}
 
+		this.#publishSession();
 		void this.#startPlayback(gen);
 	}
 
@@ -228,6 +266,7 @@ class Player {
 
 		this.#wantsPlay = true;
 		this.loading = true;
+		this.#publishSession();
 
 		try {
 			await el.play();
@@ -237,7 +276,11 @@ class Player {
 		} catch (err) {
 			if (gen !== this.#loadGen || isAbortError(err)) return;
 			this.loading = false;
+			// Hidden play() is often rejected; keep the request so returning to the
+			// page (or a lock-screen play) can start it without a fresh gesture.
+			if (document.visibilityState === 'hidden') return;
 			this.#wantsPlay = false;
+			this.#publishSession();
 		}
 	}
 
@@ -316,6 +359,7 @@ class Player {
 		this.#wantsPlay = false;
 		this.loading = false;
 		this.#audio?.pause();
+		this.#publishSession();
 	}
 
 	resume() {
@@ -336,6 +380,7 @@ class Player {
 		const clamped = Math.max(0, Math.min(seconds, this.duration || seconds));
 		el.currentTime = clamped;
 		this.currentTime = clamped;
+		syncPlaybackPosition(clamped, this.duration || el.duration);
 	}
 
 	/** Advance to the next queued track, or the next feed continuum track. */
@@ -442,6 +487,7 @@ class Player {
 			this.duration = 0;
 			this.#clearPlaylistContext();
 			this.#clearFeedContext();
+			this.#publishSession();
 		}
 	}
 
@@ -466,9 +512,26 @@ class Player {
 		if (this.#audio) return this.#audio;
 
 		const el = new Audio();
-		el.preload = 'metadata';
+		el.preload = 'auto';
 		// Must be set before any src so Web Audio analysers can read samples.
 		el.crossOrigin = 'anonymous';
+		// In the document, not display:none: iOS drops a detached element when the
+		// app is backgrounded, and display:none does the same on some versions.
+		el.setAttribute('playsinline', '');
+		el.setAttribute('webkit-playsinline', '');
+		el.setAttribute('aria-hidden', 'true');
+		el.tabIndex = -1;
+		el.dataset.sndbnkPlayer = '';
+		el.style.position = 'fixed';
+		el.style.width = '0';
+		el.style.height = '0';
+		el.style.opacity = '0';
+		el.style.pointerEvents = 'none';
+		const attach = () => {
+			if (!el.isConnected) document.body.append(el);
+		};
+		if (document.body) attach();
+		else document.addEventListener('DOMContentLoaded', attach, { once: true });
 
 		el.addEventListener('play', () => {
 			if (!this.#wantsPlay) {
@@ -477,6 +540,7 @@ class Player {
 			}
 			this.playing = true;
 			this.loading = false;
+			this.#publishSession();
 			this.#startTicking();
 		});
 		el.addEventListener('playing', () => {
@@ -497,14 +561,27 @@ class Player {
 			this.#lastTickWall = 0;
 			this.#stopTicking();
 			this.currentTime = el.currentTime;
-			if (!this.#wantsPlay) this.loading = false;
+			if (this.#intentionalPause) return;
+			if (!this.#wantsPlay) {
+				this.loading = false;
+				this.#publishSession();
+				return;
+			}
+			// Natural end also fires pause. Don't restart the track; `ended` advances.
+			if (this.#reachedEnd(el)) return;
+			if (document.visibilityState === 'hidden') this.#reclaimPlayback();
 		});
 		el.addEventListener('ended', () => {
 			this.playing = false;
 			this.loading = false;
-			this.#wantsPlay = false;
 			this.#stopTicking();
+			const gen = this.#loadGen;
 			this.#advanceAfterEnd();
+			// #playTrack bumps the generation when a successor actually starts.
+			if (this.#loadGen === gen) {
+				this.#wantsPlay = false;
+				this.#publishSession();
+			}
 		});
 		el.addEventListener('durationchange', () => {
 			if (Number.isFinite(el.duration) && el.duration > 0) {
@@ -512,9 +589,12 @@ class Player {
 			}
 		});
 		el.addEventListener('timeupdate', () => {
-			if (!this.playing) {
-				this.currentTime = el.currentTime;
-			}
+			if (!this.playing) this.currentTime = el.currentTime;
+			// rAF is paused while the page is hidden; timeupdate still fires.
+			syncPlaybackPosition(
+				el.currentTime,
+				Number.isFinite(el.duration) ? el.duration : this.duration
+			);
 		});
 		el.addEventListener('error', () => {
 			if (!this.#wantsPlay && !this.playing) return;
@@ -522,12 +602,59 @@ class Player {
 			this.loading = false;
 			this.#wantsPlay = false;
 			this.#stopTicking();
+			this.#publishSession();
 		});
 
 		this.#audio = el;
 		// Warm Web Audio taps before playback so the viz toggle never creates the source mid-stream.
 		document.dispatchEvent(new CustomEvent('sndbnk:audio-ready'));
 		return el;
+	}
+
+	#publishSession() {
+		const state = !this.current ? 'none' : this.#wantsPlay ? 'playing' : 'paused';
+		syncPlaybackSession(this.current, state);
+	}
+
+	/**
+	 * @param {HTMLAudioElement} el
+	 */
+	#reachedEnd(el) {
+		if (el.ended) return true;
+		return Number.isFinite(el.duration) && el.duration > 0 && el.currentTime >= el.duration - 0.25;
+	}
+
+	#onVisibility() {
+		if (!this.#wantsPlay) return;
+		if (document.visibilityState === 'hidden') {
+			this.#reclaims = 0;
+			this.#publishSession();
+			document.dispatchEvent(new CustomEvent('sndbnk:keep-alive'));
+			if (this.#audio?.paused) this.#reclaimPlayback();
+			return;
+		}
+		document.dispatchEvent(new CustomEvent('sndbnk:keep-alive'));
+		if (this.#audio?.paused) void this.#startPlayback();
+	}
+
+	/** Audio focus returned after a call or another app released it. */
+	#onSessionResume() {
+		if (!this.#wantsPlay || audioSessionInterrupted()) return;
+		document.dispatchEvent(new CustomEvent('sndbnk:keep-alive'));
+		if (this.#audio?.paused) void this.#startPlayback();
+	}
+
+	/**
+	 * Some mobile browsers pause the element when the page hides even though
+	 * the listener didn't. One or two play() calls keep the session going.
+	 */
+	#reclaimPlayback() {
+		if (!this.#wantsPlay || this.#reclaims >= 2 || audioSessionInterrupted()) return;
+		const el = this.#audio;
+		if (!el || this.#reachedEnd(el)) return;
+		this.#reclaims += 1;
+		this.#publishSession();
+		void el.play().catch(() => {});
 	}
 
 	/** Smooth playhead updates while playing; also accumulates listen time. */

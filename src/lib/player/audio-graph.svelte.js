@@ -1,4 +1,5 @@
 import { browser } from '$app/env';
+import { holdAudioSession } from '#lib/player/playback-session.js';
 import { player } from '#lib/player/player.svelte.js';
 
 /**
@@ -7,6 +8,8 @@ import { player } from '#lib/player/player.svelte.js';
  */
 const GRAPH_KEY = 'sndbnk:audio-graph';
 const VOLUME_KEY = 'sndbnk:volume';
+/** Contexts already listening for a background suspend. */
+const watchedContexts = new WeakSet();
 
 /**
  * Shared Web Audio graph for playback taps (EQ, Milkdrop).
@@ -34,12 +37,23 @@ class AudioGraph {
 	#eqFilters = [];
 	/** Live gain target 0–1 (source of truth while dragging). */
 	#volume = 1;
+	/** Stops a suspend/resume storm. Reset when the context is actually running. */
+	#suspendTries = 0;
 
 	constructor() {
 		if (!browser) return;
 		this.#restoreVolume();
 		document.addEventListener('sndbnk:audio-ready', () => {
 			this.ensure();
+		});
+		// The page hides before the context is suspended. Resume if it already
+		// dropped, and again from statechange if the suspend lands after this.
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible') this.#suspendTries = 0;
+			if (player.wantsPlayback) this.resume();
+		});
+		document.addEventListener('sndbnk:keep-alive', () => {
+			if (player.wantsPlayback) this.resume();
 		});
 	}
 
@@ -102,6 +116,8 @@ class AudioGraph {
 		if (!browser) return false;
 		const audioEl = player.getAudioElement();
 		if (!audioEl) return false;
+		// Tag the session before the context exists so iOS doesn't record it as ambient.
+		if (player.wantsPlayback) holdAudioSession();
 
 		if (!this.#ctx) {
 			const existing =
@@ -151,6 +167,7 @@ class AudioGraph {
 			}
 		}
 
+		this.#watchContext();
 		this.#applyVolume();
 		this.ready = Boolean(this.#ctx && this.#source && this.#analyser && this.#output);
 		this.resume();
@@ -158,9 +175,25 @@ class AudioGraph {
 	}
 
 	resume() {
+		if (player.wantsPlayback) holdAudioSession();
 		if (this.#ctx?.state === 'suspended') {
 			void this.#ctx.resume();
 		}
+	}
+
+	#watchContext() {
+		const ctx = this.#ctx;
+		if (!ctx || watchedContexts.has(ctx)) return;
+		watchedContexts.add(ctx);
+		ctx.addEventListener('statechange', () => {
+			if (ctx.state === 'running') {
+				this.#suspendTries = 0;
+				return;
+			}
+			if (ctx.state !== 'suspended' || !player.wantsPlayback || this.#suspendTries >= 3) return;
+			this.#suspendTries += 1;
+			this.resume();
+		});
 	}
 
 	/**
