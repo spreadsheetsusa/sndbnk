@@ -8,6 +8,7 @@ import {
 	syncPlaybackSession,
 	watchAudioInterruptions
 } from '#lib/player/playback-session.js';
+import { playbackSrc, prefersDocumentOriginPlayback } from '#lib/player/playback-src.js';
 import { getPlayThresholds } from '#lib/player/play-thresholds.js';
 
 /**
@@ -93,6 +94,8 @@ class Player {
 	#wantsPlay = false;
 	/** play() retries after the OS pauses us in the background. Capped per hide. */
 	#reclaims = 0;
+	/** Page is hidden, frozen, or entering bfcache. */
+	#hidden = false;
 	/** Set around an intentional element pause so background reclaim doesn't restart it. */
 	#intentionalPause = false;
 	/** @type {((this: HTMLAudioElement, ev: Event) => void) | null} */
@@ -118,6 +121,13 @@ class Player {
 			seekBy: (delta) => this.seek((this.#audio?.currentTime ?? this.currentTime) + delta)
 		});
 		document.addEventListener('visibilitychange', () => this.#onVisibility());
+		// Home-screen and in-app web views often skip visibilitychange and only
+		// fire pagehide / freeze when the listener switches apps.
+		window.addEventListener('pagehide', () => this.#onBackground());
+		document.addEventListener('freeze', () => this.#onBackground());
+		window.addEventListener('pageshow', () => {
+			if (document.visibilityState === 'visible') this.#onForeground();
+		});
 		watchAudioInterruptions(() => this.#onSessionResume());
 	}
 
@@ -233,7 +243,12 @@ class Player {
 		el.pause();
 		this.#intentionalPause = false;
 
-		const src = track.audioUrl?.trim() || `/api/media/${track.id}/audio`;
+		const src = playbackSrc(
+			track.id,
+			track.audioUrl,
+			location.href,
+			prefersDocumentOriginPlayback()
+		);
 		if (el.src !== new URL(src, location.href).href) {
 			el.src = src;
 		} else {
@@ -625,14 +640,32 @@ class Player {
 	}
 
 	#onVisibility() {
-		if (!this.#wantsPlay) return;
 		if (document.visibilityState === 'hidden') {
-			this.#reclaims = 0;
-			this.#publishSession();
-			document.dispatchEvent(new CustomEvent('sndbnk:keep-alive'));
-			if (this.#audio?.paused) this.#reclaimPlayback();
+			this.#onBackground();
 			return;
 		}
+		this.#onForeground();
+	}
+
+	/**
+	 * Re-assert the playback session when the page leaves the foreground.
+	 * Idempotent: visibilitychange, pagehide, and freeze can all land for one hide.
+	 */
+	#onBackground() {
+		if (!this.#wantsPlay) return;
+		if (!this.#hidden) {
+			this.#hidden = true;
+			this.#reclaims = 0;
+		}
+		this.#publishSession();
+		document.dispatchEvent(new CustomEvent('sndbnk:keep-alive'));
+		if (this.#audio?.paused) this.#reclaimPlayback();
+	}
+
+	#onForeground() {
+		this.#hidden = false;
+		if (!this.#wantsPlay) return;
+		this.#reclaims = 0;
 		document.dispatchEvent(new CustomEvent('sndbnk:keep-alive'));
 		if (this.#audio?.paused) void this.#startPlayback();
 	}

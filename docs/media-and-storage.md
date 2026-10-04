@@ -332,8 +332,13 @@ back to a placeholder. Upload inserts the track row before `storage.put` (folder
 `coverFilename` null until the cover bytes are stored, so listings do not advertise `hasCover`
 during the put window.
 
-The player points an `HTMLAudioElement` at `track.audioUrl` when present, else
-`/api/media/${track.id}/audio`, and lets the browser do the ranged fetching. UI entry points map
+The player points an `HTMLAudioElement` at `track.audioUrl` when that URL is
+present. On phones, a cross-origin public URL is replaced with
+`/api/media/${id}/audio` so the document origin owns the bytes — iOS and Android
+drop a captured cross-origin element when the app is backgrounded, which is the
+usual case for a custom domain whose files live on another host. Desktop keeps
+the public URL. With no `audioUrl`, the element always uses
+`/api/media/${track.id}/audio`. The browser does the ranged fetching. UI entry points map
 tracks through [`toPlayerTrack()`](../src/lib/player/to-player-track.js) so `audioUrl` / `coverUrl`
 are never dropped at the boundary. While a load is in flight (or rebuffering), `player.loading` is
 true and play controls show an in-button spinner via `PlayPauseGlyph`.
