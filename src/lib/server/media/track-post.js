@@ -10,7 +10,7 @@ const CONTENT_SRC = /^\/api\/media\/[A-Za-z0-9-]+\/content-\d+\.(?:jpe?g|png|gif
 
 const PURIFY_OPTIONS = {
 	ALLOWED_TAGS: ['p', 'br', 'img'],
-	ALLOWED_ATTR: ['src', 'alt']
+	ALLOWED_ATTR: ['src', 'alt', 'loading', 'decoding']
 };
 
 let hooksInstalled = false;
@@ -73,7 +73,9 @@ export function renderTrackPostHtml(trackId, description, filenames) {
 	if (!text && images.length === 0) return '';
 
 	const id = trackId.replace(/[^A-Za-z0-9-]/g, '');
-	const imgs = images.map((name) => `<img src="/api/media/${id}/${name}" alt="">`).join('');
+	const imgs = images
+		.map((name) => `<img src="/api/media/${id}/${name}" alt="" loading="lazy" decoding="async">`)
+		.join('');
 	const body = text ? `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>` : '';
 
 	ensurePurifyHooks();

@@ -8,7 +8,8 @@
 	/**
 	 * Resilient track cover: native lazy/async loading, short retries with
 	 * cache-bust on error, then a placeholder. Optional `wash` draws the mobile
-	 * card backdrop from the same resolved URL.
+	 * card backdrop from the same resolved URL, but only once the row is near
+	 * the viewport — a CSS background ignores `loading="lazy"`.
 	 *
 	 * @type {{
 	 *   trackId: string,
@@ -53,6 +54,25 @@
 	);
 	const showPlaceholder = $derived(!src && placeholder !== false);
 	const placeholderClass = $derived(className ? `${className} placeholder` : 'cover-placeholder');
+	let washReady = $state(false);
+	const washImage = $derived(washReady && src ? `url(${JSON.stringify(src)})` : undefined);
+
+	/** @type {import('svelte/attachments').Attachment} */
+	const armWash = (node) => {
+		// The wash itself is display:none until the phone layout, so watch the
+		// card. The background rule is what fetches, and it only applies there.
+		const target = node.parentElement ?? node;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (!entries.some((entry) => entry.isIntersecting)) return;
+				washReady = true;
+				observer.disconnect();
+			},
+			{ rootMargin: '400px' }
+		);
+		observer.observe(target);
+		return () => observer.disconnect();
+	};
 
 	function handleError() {
 		if (retryTimer) clearTimeout(retryTimer);
@@ -98,7 +118,12 @@
 {/snippet}
 
 {#if wash && src}
-	<div class="cover-art-wash" style:--cover-art-url="url({src})" aria-hidden="true"></div>
+	<div
+		class="cover-art-wash"
+		style:--cover-art-url={washImage}
+		aria-hidden="true"
+		{@attach armWash}
+	></div>
 {/if}
 {#if wrapperClass}
 	<div class={wrapperClass}>
@@ -122,7 +147,7 @@
 			pointer-events: none;
 			background:
 				var(--cover-art-wash-scrim, none),
-				var(--cover-art-url) center / cover no-repeat;
+				var(--cover-art-url, none) center / cover no-repeat;
 			filter: blur(14px) saturate(1.15);
 			opacity: var(--track-card-wash, 0.5);
 			transform: scale(1.08);
@@ -133,7 +158,7 @@
 			filter: blur(8px);
 			opacity: 0.12;
 			transform: none;
-			background: var(--cover-art-url) center / cover no-repeat;
+			background: var(--cover-art-url, none) center / cover no-repeat;
 		}
 	}
 </style>

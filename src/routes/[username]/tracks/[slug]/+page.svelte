@@ -253,12 +253,6 @@
 	}
 
 	@media (max-width: 640px) {
-		.player-wrap {
-			--track-card-cover-mobile: block;
-			--track-card-wash: 0;
-			--track-card-cover-size: 100%;
-		}
-
 		.player-wrap :global(.track-card) {
 			padding: 0 0 1rem;
 		}

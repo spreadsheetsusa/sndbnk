@@ -114,6 +114,8 @@
 
 <style>
 	.stream {
+		container-type: inline-size;
+		container-name: stream;
 		padding: 0.75rem 0 1.25rem;
 	}
 

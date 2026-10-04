@@ -217,6 +217,13 @@
 	const isActive = $derived(player.isCurrent(track.id));
 	const isPlaying = $derived(isActive && player.playing);
 	const isLoading = $derived(isActive && player.loading);
+	const playLabel = $derived(
+		isLoading
+			? `Loading ${track.title}`
+			: isPlaying
+				? `Pause ${track.title}`
+				: `Play ${track.title}`
+	);
 	const cardTime = $derived(isActive ? player.currentTime : 0);
 
 	/**
@@ -453,280 +460,309 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<article
-	class="track-card"
-	class:stream
-	{@attach whileNearViewport((visible) => (nearViewport = visible))}
->
-	<CoverArt
-		trackId={track.id}
-		hasCover={track.hasCover}
-		coverUrl={track.coverUrl}
-		wash
-		wrapperClass="cover"
-	/>
+{#snippet trackMenu()}
+	<div class="menu-wrap" {@attach menuClickOutside}>
+		<button
+			type="button"
+			class="more-btn"
+			bind:this={moreBtn}
+			aria-label="More actions for {track.title}"
+			aria-expanded={menuOpen}
+			aria-haspopup="menu"
+			aria-controls="track-menu-{track.id}"
+			onclick={() => {
+				menuOpen = !menuOpen;
+				if (!menuOpen) playlistPickerOpen = false;
+			}}
+		>
+			<span class="more-icon" aria-hidden="true">
+				<IconDots size={16} stroke={1.75} />
+			</span>
+		</button>
 
-	<div class="body">
-		<div class="head">
-			<button
-				type="button"
-				class="play-btn pressable"
-				aria-label={isLoading
-					? `Loading ${track.title}`
-					: isPlaying
-						? `Pause ${track.title}`
-						: `Play ${track.title}`}
-				aria-busy={isLoading}
-				onclick={togglePlay}
-			>
-				<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={18} />
-			</button>
-
-			<div class="titles">
-				{#if !hideArtist}
-					{#if track.username}
-						<a class="artist" href="{linkBase}/users/{track.username}">
-							{track.artist || track.uploaderName}
-						</a>
-					{:else}
-						<span class="artist">{track.artist || track.uploaderName}</span>
-					{/if}
+		{#if menuOpen}
+			<div class="menu" id="track-menu-{track.id}" role="menu">
+				<button type="button" role="menuitem" onclick={copyLink}>
+					{copied ? 'Copied!' : 'Copy link'}
+				</button>
+				{#if track.isOwner}
+					<a class="menu-item" role="menuitem" href="/library?track={track.id}&edit=1">Edit</a>
 				{/if}
-				{#if titleAsHeading}
-					<h1 class="title">{track.title}</h1>
-				{:else}
-					<a class="title" href={trackPath(track)}>{track.title}</a>
-				{/if}
-			</div>
-
-			<div class="aside">
-				{#if track.repostedAt}
-					<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
-						<IconRepeat size={12} stroke={2} aria-hidden="true" />
-						{#if track.repostedByUsername}
-							Reposted by @{track.repostedByUsername}
-						{:else}
-							Reposted
-						{/if}
-					</span>
-				{/if}
-				<span class="aside-stats">
-					<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
-						{relativeTime(track.createdAt)}
-					</span>
-					{#if playCount > 0}
-						<span class="stat" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
-							<IconHeadphones size={12} stroke={2} aria-hidden="true" />
-							{playCount}
-						</span>
-					{/if}
+				<button type="button" role="menuitem" disabled={!signedIn || likeBusy} onclick={toggleLike}>
+					{liked ? 'Unlike' : 'Like'}
 					{#if likeCount > 0}
-						<span class="stat" title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}">
-							<IconHeart size={12} stroke={2} aria-hidden="true" />
-							{likeCount}
-						</span>
+						<span class="menu-count">{likeCount}</span>
 					{/if}
-				</span>
-				{#if genres.length}
-					<span class="tags">
-						{#each genres as g (g)}
-							<span class="tag"># {g}</span>
-						{/each}
-					</span>
-				{/if}
-			</div>
-
-			<div class="menu-wrap" {@attach menuClickOutside}>
-				<button
-					type="button"
-					class="more-btn"
-					bind:this={moreBtn}
-					aria-label="More actions for {track.title}"
-					aria-expanded={menuOpen}
-					aria-haspopup="menu"
-					aria-controls="track-menu-{track.id}"
-					onclick={() => {
-						menuOpen = !menuOpen;
-						if (!menuOpen) playlistPickerOpen = false;
-					}}
-				>
-					<span class="more-icon" aria-hidden="true">
-						<IconDots size={16} stroke={1.75} />
-					</span>
-					<span class="more-cover" aria-hidden="true">
-						<CoverArt trackId={track.id} hasCover={track.hasCover} coverUrl={track.coverUrl} />
-					</span>
 				</button>
-
-				{#if menuOpen}
-					<div class="menu" id="track-menu-{track.id}" role="menu">
-						<button type="button" role="menuitem" onclick={copyLink}>
-							{copied ? 'Copied!' : 'Copy link'}
-						</button>
-						{#if track.isOwner}
-							<a class="menu-item" role="menuitem" href="/library?track={track.id}&edit=1">
-								Edit
-							</a>
-						{/if}
-						<button
-							type="button"
-							role="menuitem"
-							disabled={!signedIn || likeBusy}
-							onclick={toggleLike}
-						>
-							{liked ? 'Unlike' : 'Like'}
-							{#if likeCount > 0}
-								<span class="menu-count">{likeCount}</span>
-							{/if}
-						</button>
-						{#if !track.isOwner}
-							<button
-								type="button"
-								role="menuitem"
-								disabled={!signedIn || repostBusy}
-								onclick={toggleRepost}
-							>
-								{reposted ? 'Remove repost' : 'Repost'}
-								{#if repostCount > 0}
-									<span class="menu-count">{repostCount}</span>
-								{/if}
-							</button>
-						{/if}
-						<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
-						{#if signedIn}
-							<button
-								type="button"
-								role="menuitem"
-								onclick={() => (playlistPickerOpen = !playlistPickerOpen)}
-							>
-								Add to playlist
-							</button>
-							{#if playlistPickerOpen}
-								<div class="playlist-picker">
-									<AddToPlaylistMenu
-										trackId={track.id}
-										onclose={() => {
-											playlistPickerOpen = false;
-											menuOpen = false;
-										}}
-									/>
-								</div>
-							{/if}
-						{/if}
-						{#if track.isOwner}
-							<button
-								type="button"
-								role="menuitem"
-								class="danger"
-								disabled={deleteBusy}
-								onclick={deleteTrack}
-							>
-								Delete Track
-							</button>
-						{/if}
-					</div>
-				{/if}
-			</div>
-		</div>
-
-		<div class="wave-row">
-			{#if showWaveform}
-				<Waveform
-					peaks={track.waveform}
-					durationMs={track.durationMs}
-					currentTime={cardTime}
-					label="Seek within {track.title}"
-					onseek={handleSeek}
-					onscrub={(seconds) => (scrubSeconds = seconds)}
-				/>
-			{:else}
-				<!-- Same height as the real waveform, so mounting one shifts nothing. -->
-				<div class="wave-placeholder" aria-hidden="true"></div>
-			{/if}
-			{#if isActive || scrubSeconds != null}
-				<span
-					class="time-chip current"
-					style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
-				>
-					{formatDuration(displayTime * 1000)}
-				</span>
-			{/if}
-			<span class="time-chip total">{formatDuration(track.durationMs)}</span>
-
-			<WaveformCommentMarkers
-				trackId={track.id}
-				{markers}
-				{viewerId}
-				{durationMs}
-				{playheadMarkerId}
-				onseek={handleSeek}
-				onscrub={(seconds) => (scrubSeconds = seconds)}
-				onrepositioned={handleCommentRepositioned}
-			/>
-		</div>
-
-		{#if stream && track.hasPost}
-			<div class="post">
-				<button
-					type="button"
-					class="post-toggle"
-					aria-expanded={postOpen}
-					aria-controls="track-post-{track.id}"
-					onclick={(event) => {
-						event.stopPropagation();
-						togglePost();
-					}}
-				>
-					{postBusy ? 'Loading…' : postOpen ? 'Less info' : 'More info'}
-					<span class="chevron" aria-hidden="true">
-						<IconChevronDown size={14} stroke={1.75} />
-					</span>
-				</button>
-				{#if postError}
-					<p class="post-error" role="alert">{postError}</p>
-				{/if}
-				<div class="post-panel" class:open={postOpen} id="track-post-{track.id}" inert={!postOpen}>
-					<div class="post-clip">
-						<div class="post-body" {@attach renderPost}></div>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		{#if signedIn && showCommentForm}
-			<form class="comment-row" onsubmit={submitComment}>
-				<Avatar src={viewerImage} name={viewerName} />
-				<div class="comment-field">
-					<textarea
-						bind:this={commentField}
-						name="comment"
-						rows="1"
-						placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-						aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-						maxlength="1000"
-						autocomplete="off"
-						bind:value={commentBody}
-						disabled={commentBusy}
-						oninput={resizeCommentField}
-						onkeydown={onCommentKeydown}></textarea>
+				{#if !track.isOwner}
 					<button
-						type="submit"
-						class="send-btn"
-						aria-label="Post comment"
-						disabled={commentBusy || !commentBody.trim()}
+						type="button"
+						role="menuitem"
+						disabled={!signedIn || repostBusy}
+						onclick={toggleRepost}
 					>
-						<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
+						{reposted ? 'Remove repost' : 'Repost'}
+						{#if repostCount > 0}
+							<span class="menu-count">{repostCount}</span>
+						{/if}
 					</button>
-				</div>
-				{#if commentNote}
-					<span class="comment-note" role="status">{commentNote}</span>
 				{/if}
-			</form>
+				<button type="button" role="menuitem" onclick={addToNextUp}>Add to Next Up</button>
+				{#if signedIn}
+					<button
+						type="button"
+						role="menuitem"
+						onclick={() => (playlistPickerOpen = !playlistPickerOpen)}
+					>
+						Add to playlist
+					</button>
+					{#if playlistPickerOpen}
+						<div class="playlist-picker">
+							<AddToPlaylistMenu
+								trackId={track.id}
+								onclose={() => {
+									playlistPickerOpen = false;
+									menuOpen = false;
+								}}
+							/>
+						</div>
+					{/if}
+				{/if}
+				{#if track.isOwner}
+					<button
+						type="button"
+						role="menuitem"
+						class="danger"
+						disabled={deleteBusy}
+						onclick={deleteTrack}
+					>
+						Delete Track
+					</button>
+				{/if}
+			</div>
 		{/if}
 	</div>
-</article>
+{/snippet}
+
+<div class="track-frame">
+	<article
+		class="track-card"
+		class:stream
+		{@attach whileNearViewport((visible) => (nearViewport = visible))}
+	>
+		<CoverArt
+			trackId={track.id}
+			hasCover={track.hasCover}
+			coverUrl={track.coverUrl}
+			wash
+			wrapperClass="cover"
+		/>
+		<button
+			type="button"
+			class="cover-play"
+			aria-label={playLabel}
+			aria-busy={isLoading}
+			onclick={togglePlay}
+		>
+			<span class="cover-play-mark">
+				<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={15} />
+			</span>
+		</button>
+
+		<div class="body">
+			<div class="head">
+				<button
+					type="button"
+					class="play-btn pressable"
+					aria-label={playLabel}
+					aria-busy={isLoading}
+					onclick={togglePlay}
+				>
+					<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={18} />
+				</button>
+
+				<div class="titles">
+					<div class="compact-rail">
+						<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
+							{relativeTime(track.createdAt)}
+						</span>
+						{#if playCount > 0}
+							<span class="stat" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
+								<IconHeadphones size={12} stroke={2} aria-hidden="true" />
+								{playCount}
+							</span>
+						{/if}
+						{#if likeCount > 0}
+							<span class="stat" title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}">
+								<IconHeart size={12} stroke={2} aria-hidden="true" />
+								{likeCount}
+							</span>
+						{/if}
+						{@render trackMenu()}
+					</div>
+					{#if !hideArtist}
+						{#if track.username}
+							<a class="artist" href="{linkBase}/users/{track.username}">
+								{track.artist || track.uploaderName}
+							</a>
+						{:else}
+							<span class="artist">{track.artist || track.uploaderName}</span>
+						{/if}
+					{/if}
+					{#if titleAsHeading}
+						<h1 class="title">{track.title}</h1>
+					{:else}
+						<a class="title" href={trackPath(track)}>{track.title}</a>
+					{/if}
+				</div>
+
+				<div class="aside">
+					{#if track.repostedAt}
+						<span class="repost-badge" title={new Date(track.repostedAt).toLocaleString()}>
+							<IconRepeat size={12} stroke={2} aria-hidden="true" />
+							{#if track.repostedByUsername}
+								Reposted by @{track.repostedByUsername}
+							{:else}
+								Reposted
+							{/if}
+						</span>
+					{/if}
+					<span class="aside-stats">
+						<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
+							{relativeTime(track.createdAt)}
+						</span>
+						{#if playCount > 0}
+							<span class="stat" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
+								<IconHeadphones size={12} stroke={2} aria-hidden="true" />
+								{playCount}
+							</span>
+						{/if}
+						{#if likeCount > 0}
+							<span class="stat" title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}">
+								<IconHeart size={12} stroke={2} aria-hidden="true" />
+								{likeCount}
+							</span>
+						{/if}
+					</span>
+					{#if genres.length}
+						<span class="tags">
+							{#each genres as g (g)}
+								<span class="tag"># {g}</span>
+							{/each}
+						</span>
+					{/if}
+				</div>
+			</div>
+
+			<div class="wave-row">
+				{#if showWaveform}
+					<Waveform
+						peaks={track.waveform}
+						durationMs={track.durationMs}
+						currentTime={cardTime}
+						label="Seek within {track.title}"
+						onseek={handleSeek}
+						onscrub={(seconds) => (scrubSeconds = seconds)}
+					/>
+				{:else}
+					<!-- Same height as the real waveform, so mounting one shifts nothing. -->
+					<div class="wave-placeholder" aria-hidden="true"></div>
+				{/if}
+				{#if isActive || scrubSeconds != null}
+					<span
+						class="time-chip current"
+						style:left="min(max({progressPct}%, 1.2rem), calc(100% - 1.2rem))"
+					>
+						{formatDuration(displayTime * 1000)}
+					</span>
+				{/if}
+				<span class="time-chip total">{formatDuration(track.durationMs)}</span>
+
+				<WaveformCommentMarkers
+					trackId={track.id}
+					{markers}
+					{viewerId}
+					{durationMs}
+					{playheadMarkerId}
+					onseek={handleSeek}
+					onscrub={(seconds) => (scrubSeconds = seconds)}
+					onrepositioned={handleCommentRepositioned}
+				/>
+			</div>
+
+			{#if stream && track.hasPost}
+				<div class="post">
+					<button
+						type="button"
+						class="post-toggle"
+						aria-expanded={postOpen}
+						aria-controls="track-post-{track.id}"
+						onclick={(event) => {
+							event.stopPropagation();
+							togglePost();
+						}}
+					>
+						{postBusy ? 'Loading…' : postOpen ? 'Less info' : 'More info'}
+						<span class="chevron" aria-hidden="true">
+							<IconChevronDown size={14} stroke={1.75} />
+						</span>
+					</button>
+					{#if postError}
+						<p class="post-error" role="alert">{postError}</p>
+					{/if}
+					<div
+						class="post-panel"
+						class:open={postOpen}
+						id="track-post-{track.id}"
+						inert={!postOpen}
+					>
+						<div class="post-clip">
+							<div class="post-body" {@attach renderPost}></div>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			{#if signedIn && showCommentForm}
+				<form class="comment-row" onsubmit={submitComment}>
+					<Avatar src={viewerImage} name={viewerName} />
+					<div class="comment-field">
+						<textarea
+							bind:this={commentField}
+							name="comment"
+							rows="1"
+							placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+							aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+							maxlength="1000"
+							autocomplete="off"
+							bind:value={commentBody}
+							disabled={commentBusy}
+							oninput={resizeCommentField}
+							onkeydown={onCommentKeydown}></textarea>
+						<button
+							type="submit"
+							class="send-btn"
+							aria-label="Post comment"
+							disabled={commentBusy || !commentBody.trim()}
+						>
+							<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
+						</button>
+					</div>
+					{#if commentNote}
+						<span class="comment-note" role="status">{commentNote}</span>
+					{/if}
+				</form>
+			{/if}
+		</div>
+	</article>
+</div>
 
 <style>
+	.track-frame {
+		container-type: inline-size;
+		container-name: player;
+	}
+
 	.track-card {
 		--cover-art-wash-scrim: linear-gradient(
 			to bottom,
@@ -799,6 +835,33 @@
 	}
 
 	.play-btn :global(svg) {
+		display: block;
+	}
+
+	.cover-play {
+		display: none;
+		box-sizing: border-box;
+		width: 3.5rem;
+		height: 3.5rem;
+		place-items: center;
+		padding: 0;
+		border: 0;
+		border-radius: 0.25rem;
+		background: transparent;
+		color: var(--ink);
+		cursor: pointer;
+	}
+
+	.cover-play-mark {
+		display: grid;
+		width: 1.7rem;
+		height: 1.7rem;
+		place-items: center;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--paper) 82%, transparent);
+	}
+
+	.cover-play-mark :global(svg) {
 		display: block;
 	}
 
@@ -1133,6 +1196,32 @@
 		flex-shrink: 0;
 	}
 
+	/* The menu sits in the title block so a narrow card can float it with the
+	   timestamp. On a wide card, pin that cluster to the head edge. */
+	.track-card .head {
+		position: relative;
+	}
+
+	.track-card .compact-rail {
+		position: absolute;
+		top: 50%;
+		right: 0;
+		z-index: 2;
+		display: flex;
+		gap: 0.35rem;
+		align-items: center;
+		transform: translateY(-50%);
+	}
+
+	.track-card .compact-rail .uploaded,
+	.track-card .compact-rail .stat {
+		display: none;
+	}
+
+	.track-card .aside {
+		margin-right: 2.75rem;
+	}
+
 	.more-btn {
 		display: inline-flex;
 		width: 2rem;
@@ -1155,21 +1244,6 @@
 
 	.more-btn :global(svg) {
 		display: block;
-	}
-
-	.more-cover {
-		display: none;
-	}
-
-	.more-cover :global(.cover-placeholder) {
-		display: block;
-		width: 100%;
-		height: 100%;
-		background:
-			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
-			linear-gradient(225deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
-			var(--paper);
-		background-size: 8px 8px;
 	}
 
 	.menu {
@@ -1244,137 +1318,13 @@
 		.track-card {
 			position: relative;
 			isolation: isolate;
-			grid-template-columns: 1fr;
 			/* Shell gutter is the mobile inset; don't pad the card again. */
 			padding-inline: 0;
-		}
-
-		.track-card :global(> .cover) {
-			display: var(--track-card-cover-mobile, none);
-			width: var(--track-card-cover-size, 100%);
-			height: auto;
-			aspect-ratio: 1;
-			max-width: 100%;
-		}
-
-		.head {
-			justify-content: space-between;
-		}
-
-		.menu-wrap {
-			order: 1;
-		}
-
-		.titles {
-			order: 2;
-			flex: 1;
-			min-width: 0;
-		}
-
-		.aside {
-			order: 3;
-			flex-direction: column;
-			align-items: flex-end;
-			justify-content: center;
-			margin-left: 0;
-			gap: 0.35rem;
-		}
-
-		.aside-stats,
-		.tags {
-			justify-content: flex-end;
-		}
-
-		.more-icon {
-			display: none;
-		}
-
-		.more-cover {
-			display: block;
-			width: 100%;
-			height: 100%;
-		}
-
-		.more-cover :global(img) {
-			display: block;
-			width: 100%;
-			height: 100%;
-			object-fit: cover;
-		}
-
-		.more-btn {
-			position: relative;
-			display: block;
-			width: 2.75rem;
-			height: 2.75rem;
-			padding: 0;
-			overflow: hidden;
-			border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-			border-radius: 0.125rem;
-			color: inherit;
-			background: transparent;
-		}
-
-		.more-btn:hover,
-		.more-btn[aria-expanded='true'] {
-			border-color: var(--ink);
-			color: inherit;
-			background: transparent;
-			outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-			outline-offset: 1px;
-		}
-
-		.more-btn:hover::after,
-		.more-btn[aria-expanded='true']::after {
-			content: '';
-			position: absolute;
-			inset: 0;
-			background: color-mix(in srgb, var(--accent) 18%, transparent);
-			pointer-events: none;
-		}
-
-		.menu {
-			left: 0;
-			right: auto;
 		}
 
 		.title,
 		.artist {
 			white-space: normal;
-		}
-
-		/* Title takes the row; stats and genre badges wrap onto their own full-width line. */
-		.track-card.stream .head {
-			flex-wrap: wrap;
-			row-gap: 0.45rem;
-		}
-
-		.track-card.stream .titles {
-			order: 1;
-			flex: 1 1 auto;
-		}
-
-		.track-card.stream .menu-wrap {
-			order: 2;
-		}
-
-		.track-card.stream .aside {
-			order: 3;
-			flex: 1 1 100%;
-			flex-direction: row;
-			flex-wrap: wrap;
-			align-items: center;
-			justify-content: flex-start;
-			margin-left: 0;
-		}
-
-		.track-card.stream .aside-stats,
-		.track-card.stream .tags {
-			justify-content: flex-start;
-		}
-
-		.track-card.stream .tags {
-			flex: 1 1 100%;
 		}
 	}
 
@@ -1391,6 +1341,179 @@
 		.send-btn {
 			width: 1.45rem;
 			height: 1.45rem;
+		}
+	}
+
+	/* Narrow card: phone, a slim feed column, or a builder block under ~640px. */
+	@container player (max-width: 40rem) {
+		.track-card {
+			grid-template-columns: 3.5rem minmax(0, 1fr);
+			column-gap: 0.65rem;
+			row-gap: 0;
+			align-items: start;
+		}
+
+		/* Head and waveform become grid cells so the cover sits beside the
+		   title and genres only, and the waveform stays full width. */
+		.track-card .body {
+			display: contents;
+		}
+
+		.track-card .body > * + * {
+			margin-top: 0;
+		}
+
+		.track-card :global(> .cover),
+		.track-card > .cover-play {
+			grid-column: 1;
+			grid-row: 1;
+			align-self: start;
+			justify-self: start;
+		}
+
+		.track-card > .cover-play {
+			display: grid;
+			z-index: 1;
+		}
+
+		.track-card :global(> .cover) {
+			display: block;
+			box-sizing: border-box;
+			width: 3.5rem;
+			height: 3.5rem;
+			max-width: none;
+			aspect-ratio: auto;
+			overflow: hidden;
+			border: 1px solid color-mix(in srgb, var(--ink) 80%, transparent);
+			border-radius: 0.25rem;
+			box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 80%, transparent);
+		}
+
+		.track-card :global(> .cover img),
+		.track-card :global(> .cover .cover-placeholder) {
+			border: 0;
+			border-radius: 0;
+			box-shadow: none;
+		}
+
+		.track-card .play-btn {
+			display: none;
+		}
+
+		.track-card .head {
+			display: block;
+			grid-column: 2;
+			grid-row: 1;
+			min-width: 0;
+		}
+
+		.track-card .titles {
+			display: block;
+			flex: none;
+			order: 0;
+			min-width: 0;
+			overflow: visible;
+		}
+
+		.track-card .compact-rail {
+			position: static;
+			z-index: auto;
+			float: right;
+			transform: none;
+			margin: 0 0 0.1rem 0.45rem;
+		}
+
+		.track-card .compact-rail .uploaded,
+		.track-card .compact-rail .stat {
+			display: inline-flex;
+		}
+
+		.track-card .artist {
+			display: block;
+			overflow: visible;
+			white-space: normal;
+			text-overflow: unset;
+			overflow-wrap: break-word;
+		}
+
+		.track-card .title {
+			display: inline;
+			overflow: visible;
+			white-space: normal;
+			text-overflow: unset;
+			overflow-wrap: break-word;
+		}
+
+		.track-card .aside {
+			display: flex;
+			flex: none;
+			flex-direction: column;
+			flex-wrap: nowrap;
+			align-items: flex-start;
+			justify-content: flex-start;
+			order: 0;
+			width: 100%;
+			max-width: 100%;
+			margin: 0.4rem 0 0;
+		}
+
+		.track-card .aside:not(:has(.tags, .repost-badge)) {
+			display: none;
+		}
+
+		.track-card .aside-stats {
+			display: none;
+		}
+
+		.track-card .repost-badge {
+			flex-basis: auto;
+			justify-content: flex-start;
+		}
+
+		.track-card .tags {
+			flex: none;
+			justify-content: flex-start;
+		}
+
+		.track-card .more-icon {
+			display: inline-flex;
+		}
+
+		.track-card .more-btn {
+			display: inline-flex;
+			width: 1.75rem;
+			height: 1.75rem;
+			padding: 0;
+			overflow: visible;
+			border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
+			border-radius: 0;
+			background: transparent;
+			color: var(--ink);
+		}
+
+		.track-card .more-btn:hover,
+		.track-card .more-btn[aria-expanded='true'] {
+			border-color: var(--ink);
+			outline: none;
+			color: var(--on-accent);
+			background: var(--accent);
+		}
+
+		.track-card .more-btn:hover::after,
+		.track-card .more-btn[aria-expanded='true']::after {
+			content: none;
+		}
+
+		.track-card .menu {
+			right: 0;
+			left: auto;
+		}
+
+		.track-card .wave-row,
+		.track-card .post,
+		.track-card .comment-row {
+			grid-column: 1 / -1;
+			margin-top: 0.75rem;
 		}
 	}
 </style>
