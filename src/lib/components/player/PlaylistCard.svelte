@@ -169,6 +169,13 @@
 	const isActive = $derived(playlistActive && activeTrack && player.isCurrent(activeTrack.id));
 	const isPlaying = $derived(Boolean(isActive && player.playing));
 	const isLoading = $derived(Boolean(isActive && player.loading));
+	const playLabel = $derived(
+		isLoading
+			? `Loading ${playlist.title}`
+			: isPlaying
+				? `Pause ${playlist.title}`
+				: `Play ${playlist.title}`
+	);
 	const cardTime = $derived(isActive ? player.currentTime : 0);
 
 	let nearViewport = $state(false);
@@ -381,17 +388,25 @@
 			<IconPlaylist size={36} stroke={1.5} />
 		{/snippet}
 	</CoverArt>
+	<button
+		type="button"
+		class="cover-play"
+		aria-label={playLabel}
+		aria-busy={isLoading}
+		disabled={playlist.tracks.length === 0}
+		onclick={togglePlay}
+	>
+		<span class="cover-play-mark">
+			<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={15} />
+		</span>
+	</button>
 
 	<div class="body">
 		<div class="head">
 			<button
 				type="button"
 				class="play-btn pressable"
-				aria-label={isLoading
-					? `Loading ${playlist.title}`
-					: isPlaying
-						? `Pause ${playlist.title}`
-						: `Play ${playlist.title}`}
+				aria-label={playLabel}
 				aria-busy={isLoading}
 				disabled={playlist.tracks.length === 0}
 				onclick={togglePlay}
@@ -600,6 +615,8 @@
 	}
 
 	.playlist-card :global(> .cover) {
+		grid-column: 1;
+		grid-row: 1;
 		width: var(--track-card-cover-size, 10rem);
 		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
@@ -647,8 +664,65 @@
 		align-items: center;
 	}
 
+	.cover-play {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		grid-column: 1;
+		grid-row: 1;
+		box-sizing: border-box;
+		width: var(--track-card-cover-size, 10rem);
+		height: var(--track-card-cover-size, 10rem);
+		place-items: center;
+		padding: 0;
+		border: 0;
+		border-radius: 0.125rem;
+		background: transparent;
+		color: var(--ink);
+		cursor: pointer;
+	}
+
+	.cover-play:disabled {
+		cursor: not-allowed;
+	}
+
+	.cover-play::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		background: transparent;
+		transition: background 120ms ease;
+	}
+
+	.cover-play:hover:not(:disabled)::before,
+	.cover-play:focus-visible:not(:disabled)::before {
+		background: color-mix(in srgb, var(--ink) 22%, transparent);
+	}
+
+	.cover-play-mark {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		width: 2.75rem;
+		height: 2.75rem;
+		place-items: center;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--paper) 88%, transparent);
+	}
+
+	.cover-play:disabled .cover-play-mark {
+		opacity: 0.45;
+	}
+
+	.cover-play-mark :global(svg) {
+		display: block;
+		width: 1.15rem;
+		height: 1.15rem;
+	}
+
 	.play-btn {
-		display: inline-flex;
+		display: none;
 		width: 2.75rem;
 		height: 2.75rem;
 		align-items: center;
@@ -1050,8 +1124,13 @@
 			padding-inline: 0;
 		}
 
-		.playlist-card :global(> .cover) {
+		.playlist-card :global(> .cover),
+		.playlist-card > .cover-play {
 			display: none;
+		}
+
+		.play-btn {
+			display: inline-flex;
 		}
 
 		.body {

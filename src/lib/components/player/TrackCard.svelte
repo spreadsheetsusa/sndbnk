@@ -4,6 +4,8 @@
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
+	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
+	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 
@@ -118,6 +120,11 @@
 			? (player.current?.playCount ?? track.playCount ?? 0)
 			: (track.playCount ?? 0)
 	);
+	/** @type {number | null} */
+	let commentCountOverride = $state(null);
+	const commentCount = $derived(commentCountOverride ?? track.commentCount ?? 0);
+	const likeBesidePost = $derived(Boolean(stream && track.hasPost));
+	const likeBesideComment = $derived(!likeBesidePost && signedIn && showCommentForm);
 	const genres = $derived(parseGenres(track.genre));
 
 	let postOpen = $state(false);
@@ -416,6 +423,7 @@
 			if (res.ok) {
 				const data = await res.json();
 				commentBody = '';
+				commentCountOverride = commentCount + 1;
 				if (data.comment.atMs != null) {
 					postedComments = [...postedComments, data.comment];
 				}
@@ -430,6 +438,55 @@
 		} finally {
 			commentBusy = false;
 		}
+	}
+
+	/**
+	 * Pin the open menu to the trigger and promote it to the top layer so it
+	 * paints above sticky chrome, the next card, and floating player windows.
+	 * @type {import('svelte/attachments').Attachment}
+	 */
+	function floatMenu(node) {
+		const menu =
+			/** @type {HTMLElement & { showPopover?: () => void, hidePopover?: () => void }} */ (node);
+		const place = () => {
+			const btn = moreBtn;
+			if (!btn) return;
+			const trigger = btn.getBoundingClientRect();
+			const width = menu.offsetWidth;
+			const height = menu.offsetHeight;
+			const gap = 6;
+			const margin = 8;
+			const spaceBelow = window.innerHeight - trigger.bottom - margin;
+			const spaceAbove = trigger.top - margin;
+			const top =
+				spaceBelow >= height || spaceBelow >= spaceAbove
+					? trigger.bottom + gap
+					: Math.max(margin, trigger.top - gap - height);
+			const spaceRight = window.innerWidth - trigger.right - margin;
+			const spaceLeft = trigger.left - margin;
+			const preferredLeft =
+				spaceLeft >= spaceRight ? Math.max(margin, trigger.right - width) : trigger.left;
+			menu.style.top = `${top}px`;
+			menu.style.left = `${Math.min(Math.max(margin, preferredLeft), window.innerWidth - margin - width)}px`;
+		};
+		menu.style.visibility = 'hidden';
+		try {
+			menu.showPopover?.();
+		} catch {
+			// Already showing, or the popover API is unavailable.
+		}
+		place();
+		menu.style.visibility = 'visible';
+		const observer = new ResizeObserver(place);
+		observer.observe(menu);
+		window.addEventListener('scroll', place, true);
+		window.addEventListener('resize', place);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('scroll', place, true);
+			window.removeEventListener('resize', place);
+			if (menu.matches(':popover-open')) menu.hidePopover?.();
+		};
 	}
 
 	/** @type {import('svelte/attachments').Attachment} */
@@ -481,7 +538,7 @@
 		</button>
 
 		{#if menuOpen}
-			<div class="menu" id="track-menu-{track.id}" role="menu">
+			<div class="menu" id="track-menu-{track.id}" role="menu" popover="manual" {@attach floatMenu}>
 				<button type="button" role="menuitem" onclick={copyLink}>
 					{copied ? 'Copied!' : 'Copy link'}
 				</button>
@@ -544,6 +601,45 @@
 	</div>
 {/snippet}
 
+{#snippet railStats()}
+	<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
+		{relativeTime(track.createdAt)}
+	</span>
+	{#if commentCount > 0}
+		<span class="stat" title="{commentCount} {commentCount === 1 ? 'comment' : 'comments'}">
+			<IconMessageCircle size={12} stroke={2} aria-hidden="true" />
+			{commentCount}
+		</span>
+	{/if}
+{/snippet}
+
+{#snippet likeControl()}
+	<span class="engage-actions">
+		{#if playCount > 0}
+			<span class="stat" title="{playCount} {playCount === 1 ? 'listen' : 'listens'}">
+				<IconHeadphones size={12} stroke={2} aria-hidden="true" />
+				{playCount}
+			</span>
+		{/if}
+		<button
+			type="button"
+			class="like-btn"
+			aria-pressed={liked}
+			aria-label="{liked ? 'Unlike' : 'Like'}, {likeCount} {likeCount === 1 ? 'like' : 'likes'}"
+			title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}"
+			disabled={!signedIn || likeBusy}
+			onclick={toggleLike}
+		>
+			{#if liked}
+				<IconHeartFilled size={14} aria-hidden="true" />
+			{:else}
+				<IconHeart size={14} stroke={2} aria-hidden="true" />
+			{/if}
+			<span>{likeCount}</span>
+		</button>
+	</span>
+{/snippet}
+
 <div class="track-frame">
 	<article
 		class="track-card"
@@ -571,33 +667,9 @@
 
 		<div class="body">
 			<div class="head">
-				<button
-					type="button"
-					class="play-btn pressable"
-					aria-label={playLabel}
-					aria-busy={isLoading}
-					onclick={togglePlay}
-				>
-					<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={18} />
-				</button>
-
 				<div class="titles">
 					<div class="compact-rail">
-						<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
-							{relativeTime(track.createdAt)}
-						</span>
-						{#if playCount > 0}
-							<span class="stat" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
-								<IconHeadphones size={12} stroke={2} aria-hidden="true" />
-								{playCount}
-							</span>
-						{/if}
-						{#if likeCount > 0}
-							<span class="stat" title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}">
-								<IconHeart size={12} stroke={2} aria-hidden="true" />
-								{likeCount}
-							</span>
-						{/if}
+						{@render railStats()}
 						{@render trackMenu()}
 					</div>
 					{#if !hideArtist}
@@ -628,21 +700,7 @@
 						</span>
 					{/if}
 					<span class="aside-stats">
-						<span class="uploaded" title={new Date(track.createdAt).toLocaleString()}>
-							{relativeTime(track.createdAt)}
-						</span>
-						{#if playCount > 0}
-							<span class="stat" title="{playCount} {playCount === 1 ? 'play' : 'plays'}">
-								<IconHeadphones size={12} stroke={2} aria-hidden="true" />
-								{playCount}
-							</span>
-						{/if}
-						{#if likeCount > 0}
-							<span class="stat" title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}">
-								<IconHeart size={12} stroke={2} aria-hidden="true" />
-								{likeCount}
-							</span>
-						{/if}
+						{@render railStats()}
 					</span>
 					{#if genres.length}
 						<span class="tags">
@@ -692,21 +750,24 @@
 
 			{#if stream && track.hasPost}
 				<div class="post">
-					<button
-						type="button"
-						class="post-toggle"
-						aria-expanded={postOpen}
-						aria-controls="track-post-{track.id}"
-						onclick={(event) => {
-							event.stopPropagation();
-							togglePost();
-						}}
-					>
-						{postBusy ? 'Loading…' : postOpen ? 'Less info' : 'More info'}
-						<span class="chevron" aria-hidden="true">
-							<IconChevronDown size={14} stroke={1.75} />
-						</span>
-					</button>
+					<div class="post-bar">
+						{@render likeControl()}
+						<button
+							type="button"
+							class="post-toggle"
+							aria-expanded={postOpen}
+							aria-controls="track-post-{track.id}"
+							onclick={(event) => {
+								event.stopPropagation();
+								togglePost();
+							}}
+						>
+							{postBusy ? 'Loading…' : postOpen ? 'Less info' : 'More info'}
+							<span class="chevron" aria-hidden="true">
+								<IconChevronDown size={14} stroke={1.75} />
+							</span>
+						</button>
+					</div>
 					{#if postError}
 						<p class="post-error" role="alert">{postError}</p>
 					{/if}
@@ -724,34 +785,43 @@
 			{/if}
 
 			{#if signedIn && showCommentForm}
-				<form class="comment-row" onsubmit={submitComment}>
-					<Avatar src={viewerImage} name={viewerName} />
-					<div class="comment-field">
-						<textarea
-							bind:this={commentField}
-							name="comment"
-							rows="1"
-							placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-							aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-							maxlength="1000"
-							autocomplete="off"
-							bind:value={commentBody}
-							disabled={commentBusy}
-							oninput={resizeCommentField}
-							onkeydown={onCommentKeydown}></textarea>
-						<button
-							type="submit"
-							class="send-btn"
-							aria-label="Post comment"
-							disabled={commentBusy || !commentBody.trim()}
-						>
-							<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
-						</button>
-					</div>
-					{#if commentNote}
-						<span class="comment-note" role="status">{commentNote}</span>
+				<div class="engage-row">
+					{#if likeBesideComment}
+						{@render likeControl()}
 					{/if}
-				</form>
+					<form class="comment-row" onsubmit={submitComment}>
+						<Avatar src={viewerImage} name={viewerName} />
+						<div class="comment-field">
+							<textarea
+								bind:this={commentField}
+								name="comment"
+								rows="1"
+								placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+								aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+								maxlength="1000"
+								autocomplete="off"
+								bind:value={commentBody}
+								disabled={commentBusy}
+								oninput={resizeCommentField}
+								onkeydown={onCommentKeydown}></textarea>
+							<button
+								type="submit"
+								class="send-btn"
+								aria-label="Post comment"
+								disabled={commentBusy || !commentBody.trim()}
+							>
+								<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
+							</button>
+						</div>
+						{#if commentNote}
+							<span class="comment-note" role="status">{commentNote}</span>
+						{/if}
+					</form>
+				</div>
+			{:else if !likeBesidePost}
+				<div class="engage-row">
+					{@render likeControl()}
+				</div>
 			{/if}
 		</div>
 	</article>
@@ -778,6 +848,8 @@
 	/* Tall enough to outrun the body with the comment row open, so revealing it cannot shift the list.
 	   CoverArt owns the .cover node, so pierce with :global. */
 	.track-card :global(> .cover) {
+		grid-column: 1;
+		grid-row: 1;
 		width: var(--track-card-cover-size, 10rem);
 		height: var(--track-card-cover-size, 10rem);
 		flex-shrink: 0;
@@ -818,51 +890,53 @@
 		align-items: center;
 	}
 
-	.play-btn {
-		display: inline-flex;
-		order: 0;
-		width: 2.75rem;
-		height: 2.75rem;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-		border: 1px solid var(--ink);
-		border-radius: 50%;
-		color: var(--on-accent);
-		background: var(--accent);
-		cursor: pointer;
-		flex-shrink: 0;
-	}
-
-	.play-btn :global(svg) {
-		display: block;
-	}
-
 	.cover-play {
-		display: none;
+		position: relative;
+		z-index: 1;
+		display: grid;
+		grid-column: 1;
+		grid-row: 1;
 		box-sizing: border-box;
-		width: 3.5rem;
-		height: 3.5rem;
+		width: var(--track-card-cover-size, 10rem);
+		height: var(--track-card-cover-size, 10rem);
 		place-items: center;
 		padding: 0;
 		border: 0;
-		border-radius: 0.25rem;
+		border-radius: 0.125rem;
 		background: transparent;
 		color: var(--ink);
 		cursor: pointer;
 	}
 
+	.cover-play::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		background: transparent;
+		transition: background 120ms ease;
+	}
+
+	.cover-play:hover::before,
+	.cover-play:focus-visible::before {
+		background: color-mix(in srgb, var(--ink) 22%, transparent);
+	}
+
 	.cover-play-mark {
+		position: relative;
+		z-index: 1;
 		display: grid;
-		width: 1.7rem;
-		height: 1.7rem;
+		width: 2.75rem;
+		height: 2.75rem;
 		place-items: center;
 		border-radius: 50%;
-		background: color-mix(in srgb, var(--paper) 82%, transparent);
+		background: color-mix(in srgb, var(--paper) 88%, transparent);
 	}
 
 	.cover-play-mark :global(svg) {
 		display: block;
+		width: 1.15rem;
+		height: 1.15rem;
 	}
 
 	.titles {
@@ -971,21 +1045,84 @@
 	}
 
 	.tag {
-		padding: 0.2rem 0.6rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--ink) 8%, transparent);
-		color: var(--ink);
+		padding: 0.15rem 0.4rem;
+		border: 1px solid var(--accent);
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 10%, var(--paper));
+		color: var(--muted);
 		font-size: 0.68rem;
 		font-weight: 800;
 		letter-spacing: 0.02em;
+		line-height: 1.2;
 		white-space: nowrap;
+		transition:
+			background 120ms ease,
+			color 120ms ease;
+	}
+
+	.tag:hover {
+		background: var(--accent);
+		color: var(--on-accent);
 	}
 
 	.wave-row {
 		position: relative;
 		min-width: 0;
 		max-width: 100%;
+	}
+
+	.post-bar,
+	.engage-row {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		min-width: 0;
+	}
+
+	.engage-row .comment-row {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.engage-actions {
+		display: inline-flex;
+		flex-shrink: 0;
+		gap: 0.55rem;
+		align-items: center;
+	}
+
+	.like-btn {
+		display: inline-flex;
+		flex-shrink: 0;
+		gap: 0.28rem;
+		align-items: center;
+		padding: 0.2rem 0.15rem;
+		border: 0;
+		background: transparent;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		line-height: 1;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
+	.like-btn :global(svg) {
+		display: block;
+	}
+
+	.like-btn:not(:disabled):hover {
+		color: var(--ink);
+	}
+
+	.like-btn[aria-pressed='true'],
+	.like-btn[aria-pressed='true']:hover {
+		color: var(--accent);
+	}
+
+	.like-btn:disabled {
+		cursor: default;
 	}
 
 	.post-toggle {
@@ -1247,16 +1384,32 @@
 	}
 
 	.menu {
-		position: absolute;
-		z-index: 30;
-		top: calc(100% + 0.35rem);
-		right: 0;
+		position: fixed;
+		/* Top layer via popover; this still wins if a browser paints it in-flow. */
+		z-index: 1200;
+		inset: unset;
 		display: grid;
+		width: max-content;
 		min-width: 11rem;
+		max-width: calc(100vw - 1rem);
+		height: auto;
+		margin: 0;
 		padding: 0.3rem;
+		overflow: visible;
 		border: 1px solid var(--hard-border);
 		background: var(--paper);
+		color: var(--ink);
 		box-shadow: 5px 5px 0 var(--hard-shadow);
+	}
+
+	@supports selector(:popover-open) {
+		.menu:not(:popover-open) {
+			display: none;
+		}
+
+		.menu:popover-open {
+			display: grid;
+		}
 	}
 
 	.playlist-picker {
@@ -1347,7 +1500,8 @@
 	/* Narrow card: phone, a slim feed column, or a builder block under ~640px. */
 	@container player (max-width: 40rem) {
 		.track-card {
-			grid-template-columns: 3.5rem minmax(0, 1fr);
+			--compact-cover: calc(3.5rem + 20px);
+			grid-template-columns: var(--compact-cover) minmax(0, 1fr);
 			column-gap: 0.65rem;
 			row-gap: 0;
 			align-items: start;
@@ -1372,15 +1526,26 @@
 		}
 
 		.track-card > .cover-play {
-			display: grid;
-			z-index: 1;
+			width: var(--compact-cover);
+			height: var(--compact-cover);
+			border-radius: 0.25rem;
+		}
+
+		.track-card .cover-play-mark {
+			width: 2.15rem;
+			height: 2.15rem;
+		}
+
+		.track-card .cover-play-mark :global(svg) {
+			width: 18px;
+			height: 18px;
 		}
 
 		.track-card :global(> .cover) {
 			display: block;
 			box-sizing: border-box;
-			width: 3.5rem;
-			height: 3.5rem;
+			width: var(--compact-cover);
+			height: var(--compact-cover);
 			max-width: none;
 			aspect-ratio: auto;
 			overflow: hidden;
@@ -1394,10 +1559,6 @@
 			border: 0;
 			border-radius: 0;
 			box-shadow: none;
-		}
-
-		.track-card .play-btn {
-			display: none;
 		}
 
 		.track-card .head {
@@ -1504,14 +1665,9 @@
 			content: none;
 		}
 
-		.track-card .menu {
-			right: 0;
-			left: auto;
-		}
-
 		.track-card .wave-row,
 		.track-card .post,
-		.track-card .comment-row {
+		.track-card .engage-row {
 			grid-column: 1 / -1;
 			margin-top: 0.75rem;
 		}

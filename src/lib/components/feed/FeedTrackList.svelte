@@ -140,7 +140,7 @@
 	   `.more-btn` is in TrackCard, so it must be `:global` here. */
 	.track-list li:has(:global(.more-btn[aria-expanded='true'])) {
 		position: relative;
-		z-index: 2;
+		z-index: 80;
 		content-visibility: visible;
 	}
 </style>

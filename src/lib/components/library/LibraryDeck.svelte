@@ -1321,17 +1321,26 @@
 		gap: 0.2rem;
 		align-items: center;
 		min-height: 1.7rem;
-		padding: 0.2rem 0.6rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
-		border-radius: 9999px;
-		background: color-mix(in srgb, var(--ink) 8%, transparent);
-		color: var(--ink);
+		padding: 0.15rem 0.4rem;
+		border: 1px solid var(--accent);
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 10%, var(--paper));
+		color: var(--muted);
 		font-size: 0.68rem;
 		font-weight: 800;
+		letter-spacing: 0.02em;
+		line-height: 1.2;
 		white-space: nowrap;
 		transition:
 			padding 180ms ease,
-			gap 180ms ease;
+			gap 180ms ease,
+			background 120ms ease,
+			color 120ms ease;
+	}
+
+	.genre:hover {
+		background: var(--accent);
+		color: var(--on-accent);
 	}
 
 	.edit-btn {
@@ -1422,6 +1431,11 @@
 		outline: none;
 	}
 
+	.genre-input::placeholder {
+		color: color-mix(in srgb, currentColor 55%, transparent);
+		opacity: 1;
+	}
+
 	.genre-x {
 		display: inline-grid;
 		place-items: center;
@@ -1430,14 +1444,15 @@
 		margin: 0;
 		padding: 0;
 		border: 0;
-		border-radius: 9999px;
+		border-radius: 0.125rem;
 		color: inherit;
-		background: color-mix(in srgb, var(--ink) 12%, transparent);
+		background: color-mix(in srgb, var(--ink) 14%, transparent);
 		cursor: pointer;
 	}
 
+	.genre:hover .genre-x,
 	.genre-x:hover {
-		background: color-mix(in srgb, var(--ink) 22%, transparent);
+		background: color-mix(in srgb, var(--on-accent) 18%, transparent);
 	}
 
 	.wave-stack,

@@ -474,15 +474,25 @@
 	.genre-chip {
 		overflow: hidden;
 		min-width: 0;
-		padding: 0.1rem 0.4rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--ink) 6%, transparent);
-		color: var(--ink);
+		padding: 0.1rem 0.35rem;
+		border: 1px solid var(--accent);
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 10%, var(--paper));
+		color: var(--muted);
 		font-size: 0.68rem;
-		font-weight: 700;
+		font-weight: 800;
+		letter-spacing: 0.02em;
+		line-height: 1.2;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		transition:
+			background 120ms ease,
+			color 120ms ease;
+	}
+
+	.genre-chip:hover {
+		background: var(--accent);
+		color: var(--on-accent);
 	}
 
 	.genre-more {
