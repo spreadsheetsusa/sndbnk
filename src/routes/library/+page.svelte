@@ -638,6 +638,9 @@
 			onprivate={(isPrivate) => {
 				if (resolvedId) mergeTrackPatch({ id: resolvedId, isPrivate });
 			}}
+			ondownloadable={(canDownload) => {
+				if (resolvedId) mergeTrackPatch({ id: resolvedId, canDownload });
+			}}
 		/>
 
 		<section class="block" aria-labelledby="tracks-heading">

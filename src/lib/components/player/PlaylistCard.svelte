@@ -39,6 +39,9 @@
 	 * @property {number[] | null} waveform
 	 * @property {number} likeCount
 	 * @property {number} commentCount
+	 * @property {number} [downloadCount]
+	 * @property {boolean} [canDownload]
+	 * @property {boolean} [downloadReady]
 	 * @property {boolean} likedByViewer
 	 * @property {boolean} isOwner
 	 * @property {TimedComment[] | undefined} [timedComments]
@@ -106,6 +109,16 @@
 	});
 
 	const activeTrack = $derived(playlist.tracks[activeIndex] ?? null);
+	/** @type {{ id: string, count: number } | null} */
+	let downloadOverride = $state(null);
+	const downloadCount = $derived(
+		activeTrack && downloadOverride?.id === activeTrack.id
+			? downloadOverride.count
+			: (activeTrack?.downloadCount ?? 0)
+	);
+	const canOfferDownload = $derived(
+		Boolean(activeTrack?.canDownload && activeTrack?.downloadReady)
+	);
 
 	const coverTrackId = $derived(
 		playlist.coverTrackId ?? playlist.tracks.find((t) => t.hasCover)?.id ?? null
@@ -466,6 +479,25 @@
 						<button type="button" role="menuitem" onclick={copyLink}>
 							{copied ? 'Copied!' : 'Copy link'}
 						</button>
+						{#if activeTrack && canOfferDownload}
+							<a
+								class="menu-item"
+								role="menuitem"
+								href="/api/tracks/{activeTrack.id}/download"
+								download
+								title="Download {activeTrack.title}"
+								onclick={() => {
+									if (!activeTrack) return;
+									downloadOverride = { id: activeTrack.id, count: downloadCount + 1 };
+									menuOpen = false;
+								}}
+							>
+								Download
+								{#if downloadCount > 0}
+									<span class="menu-count">{downloadCount}</span>
+								{/if}
+							</a>
+						{/if}
 						{#if playlist.isOwner}
 							<a class="menu-item" role="menuitem" href="/playlists/{playlist.id}/edit">Edit</a>
 						{/if}
@@ -882,6 +914,11 @@
 
 	.menu .danger {
 		color: color-mix(in srgb, var(--ink) 70%, #b00020);
+	}
+
+	.menu button:hover .menu-count,
+	.menu-item:hover .menu-count {
+		color: inherit;
 	}
 
 	.menu-count {
