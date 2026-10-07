@@ -9,6 +9,7 @@ import { getRequestEvent } from '$app/server';
 import { linkedAccountSwitch } from '#lib/server/auth-linked-switch';
 import { syncStripeCustomerEmail } from '#lib/server/billing/customer';
 import { db } from '#lib/server/db';
+import { activeCustomDomainOrigin } from '#lib/server/domain-auth';
 import { sendResetPasswordMail, sendVerifyEmailChangeMail } from '#lib/server/mail/templates';
 
 const isLocalBase = PUBLIC_BASE_DOMAIN === 'localhost' || PUBLIC_BASE_DOMAIN === '127.0.0.1';
@@ -56,7 +57,11 @@ export const auth = betterAuth({
 			await syncStripeCustomerEmail(user.id, user.email);
 		}
 	},
-	trustedOrigins: authTrustedOrigins(),
+	trustedOrigins: async (request) => {
+		const origins = authTrustedOrigins();
+		const extra = await activeCustomDomainOrigin(request);
+		return extra ? [...origins, extra] : origins;
+	},
 	// Close HTTP paths that bypass app signup (profile creation) or expose
 	// unused admin capabilities. Server-side auth.api.setRole / ban / unban remain.
 	disabledPaths: [

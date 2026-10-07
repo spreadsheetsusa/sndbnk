@@ -13,7 +13,9 @@ import { validateUsername } from '#lib/server/username';
  * drift — new accounts always start on Free and upgrade through Stripe.
  *
  * @param {{ name: string, username: string, email: string, password: string, headers: Headers }} input
- * @returns {Promise<{ ok: true, userId: string, username: string } | { ok: false, message: string }>}
+ * @returns {Promise<
+ *   { ok: true, userId: string, username: string, headers: Headers } | { ok: false, message: string }
+ * >}
  */
 export async function createAccount({
 	name: nameRaw,
@@ -43,10 +45,14 @@ export async function createAccount({
 		return { ok: false, message: 'That username is already taken.' };
 	}
 
-	/** @type {{ user: { id: string } } | null} */
+	/** @type {{ response?: { user?: { id: string } }, headers?: Headers } | null} */
 	let signedUp = null;
 	try {
-		signedUp = await auth.api.signUpEmail({ body: { name, email, password }, headers });
+		signedUp = await auth.api.signUpEmail({
+			body: { name, email, password },
+			headers,
+			returnHeaders: true
+		});
 	} catch (error) {
 		if (error instanceof APIError) {
 			return { ok: false, message: error.message || 'We could not create your account.' };
@@ -54,7 +60,8 @@ export async function createAccount({
 		return { ok: false, message: 'Something went wrong. Please try again.' };
 	}
 
-	const userId = signedUp?.user?.id;
+	const userId = signedUp?.response?.user?.id;
+	const responseHeaders = signedUp?.headers ?? new Headers();
 	if (!userId) {
 		return {
 			ok: false,
@@ -81,5 +88,5 @@ export async function createAccount({
 
 	await sendWelcomeMail({ to: email, name, username });
 
-	return { ok: true, userId, username };
+	return { ok: true, userId, username, headers: responseHeaders };
 }

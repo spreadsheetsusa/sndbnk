@@ -163,6 +163,8 @@ export const site = sqliteTable(
 		wantBlog: integer('want_blog', { mode: 'boolean' }).notNull().default(false),
 		wantEvents: integer('want_events', { mode: 'boolean' }).notNull().default(false),
 		wantEcommerce: integer('want_ecommerce', { mode: 'boolean' }).notNull().default(false),
+		/** Visitors may create or sign in to a SNDBNK account on this custom domain. */
+		allowDomainAuth: integer('allow_domain_auth', { mode: 'boolean' }).notNull().default(false),
 		/** JSON `{ id, type, props }` site chrome header; null until ensureSiteChrome. */
 		headerBlock: text('header_block'),
 		/** JSON `{ id, type, props }` site chrome footer; null until ensureSiteChrome. */
@@ -176,6 +178,57 @@ export const site = sqliteTable(
 			.notNull()
 	},
 	(table) => [uniqueIndex('site_id_uidx').on(table.id)]
+);
+
+/**
+ * SNDBNK accounts created through a custom domain's own sign-up page.
+ * Sign-ins by existing accounts are not rows here — any SNDBNK user can still interact.
+ */
+export const siteAccount = sqliteTable(
+	'site_account',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		siteId: text('site_id')
+			.notNull()
+			.references(() => site.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		/** Hostname at signup, kept if the domain later changes. */
+		hostname: text('hostname').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [
+		uniqueIndex('site_account_site_user_uidx').on(table.siteId, table.userId),
+		index('site_account_site_created_idx').on(table.siteId, table.createdAt)
+	]
+);
+
+/**
+ * One-time session copy between a custom domain and the apex.
+ * Browsers will not send a sndbnk.com cookie to an unrelated host, so each host
+ * keeps its own cookie for the same session token. Codes are single-use and short-lived.
+ */
+export const authHandoff = sqliteTable(
+	'auth_handoff',
+	{
+		id: text('id').primaryKey(),
+		/** Hostname allowed to redeem the code (no port). */
+		destHost: text('dest_host').notNull(),
+		/** Absolute URL to send the browser to after the cookie is set. */
+		returnUrl: text('return_url').notNull(),
+		/** JSON array of `{ name, value, maxAge }` session cookies. */
+		cookiesJson: text('cookies_json').notNull(),
+		expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.$defaultFn(() => new Date())
+			.notNull()
+	},
+	(table) => [index('auth_handoff_expires_idx').on(table.expiresAt)]
 );
 
 /**
@@ -334,7 +387,19 @@ export const siteRelations = relations(site, ({ one, many }) => ({
 	pages: many(sitePage),
 	media: many(siteMedia),
 	statDays: many(siteStatDay),
-	listens: many(siteListen)
+	listens: many(siteListen),
+	accounts: many(siteAccount)
+}));
+
+export const siteAccountRelations = relations(siteAccount, ({ one }) => ({
+	site: one(site, {
+		fields: [siteAccount.siteId],
+		references: [site.id]
+	}),
+	user: one(user, {
+		fields: [siteAccount.userId],
+		references: [user.id]
+	})
 }));
 
 export const siteStatDayRelations = relations(siteStatDay, ({ one }) => ({

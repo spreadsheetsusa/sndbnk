@@ -42,6 +42,7 @@ const APEX_ONLY_PREFIXES = [
 const TENANT_ALLOWED_PREFIXES = [
 	'/tracks',
 	'/playlists',
+	'/auth/network',
 	'/api/media',
 	'/api/avatar',
 	'/api/site-logo',
@@ -102,6 +103,17 @@ const handleTenant = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	if (isPassthroughPath(pathname)) {
+		return resolve(event);
+	}
+
+	// Custom domains may host branded sign-in. The route 404s unless the site opted in.
+	// Sign-out stays available so a session can be cleared after the owner turns it off.
+	if (
+		outcome.tenant.hostKind === 'custom' &&
+		['/signin', '/signup', '/forgot-password', '/signout'].some(
+			(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+		)
+	) {
 		return resolve(event);
 	}
 

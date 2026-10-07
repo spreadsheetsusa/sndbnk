@@ -1,5 +1,6 @@
 <script>
 	import { tick } from 'svelte';
+	import { page } from '$app/state';
 	import IconChevronDown from '@tabler/icons-svelte-runes/icons/chevron-down';
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconDownload from '@tabler/icons-svelte-runes/icons/download';
@@ -110,6 +111,11 @@
 		ondeleted
 	} = $props();
 
+	const signInHref = $derived(
+		!signedIn && page.data.domainAuth
+			? `/signin?next=${encodeURIComponent(page.url.pathname + page.url.search)}`
+			: null
+	);
 	/** @type {{ liked: boolean, count: number } | null} */
 	let likeOverride = $state(null);
 	const liked = $derived(likeOverride?.liked ?? track.likedByViewer);
@@ -573,12 +579,21 @@
 				{#if track.isOwner}
 					<a class="menu-item" role="menuitem" href="/library?track={track.id}&edit=1">Edit</a>
 				{/if}
-				<button type="button" role="menuitem" disabled={!signedIn || likeBusy} onclick={toggleLike}>
-					{liked ? 'Unlike' : 'Like'}
-					{#if likeCount > 0}
-						<span class="menu-count">{likeCount}</span>
-					{/if}
-				</button>
+				{#if signInHref}
+					<a class="menu-item" role="menuitem" href={signInHref}>Sign in to like</a>
+				{:else}
+					<button
+						type="button"
+						role="menuitem"
+						disabled={!signedIn || likeBusy}
+						onclick={toggleLike}
+					>
+						{liked ? 'Unlike' : 'Like'}
+						{#if likeCount > 0}
+							<span class="menu-count">{likeCount}</span>
+						{/if}
+					</button>
+				{/if}
 				{#if !track.isOwner}
 					<button
 						type="button"
@@ -655,22 +670,34 @@
 				{playCount}
 			</span>
 		{/if}
-		<button
-			type="button"
-			class="like-btn"
-			aria-pressed={liked}
-			aria-label="{liked ? 'Unlike' : 'Like'}, {likeCount} {likeCount === 1 ? 'like' : 'likes'}"
-			title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}"
-			disabled={!signedIn || likeBusy}
-			onclick={toggleLike}
-		>
-			{#if liked}
-				<IconHeartFilled size={14} aria-hidden="true" />
-			{:else}
+		{#if signInHref}
+			<a
+				class="like-btn"
+				href={signInHref}
+				aria-label="Sign in to like, {likeCount} {likeCount === 1 ? 'like' : 'likes'}"
+				title="Sign in to like"
+			>
 				<IconHeart size={14} stroke={2} aria-hidden="true" />
-			{/if}
-			<span>{likeCount}</span>
-		</button>
+				<span>{likeCount}</span>
+			</a>
+		{:else}
+			<button
+				type="button"
+				class="like-btn"
+				aria-pressed={liked}
+				aria-label="{liked ? 'Unlike' : 'Like'}, {likeCount} {likeCount === 1 ? 'like' : 'likes'}"
+				title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}"
+				disabled={!signedIn || likeBusy}
+				onclick={toggleLike}
+			>
+				{#if liked}
+					<IconHeartFilled size={14} aria-hidden="true" />
+				{:else}
+					<IconHeart size={14} stroke={2} aria-hidden="true" />
+				{/if}
+				<span>{likeCount}</span>
+			</button>
+		{/if}
 	</span>
 {/snippet}
 
@@ -818,7 +845,9 @@
 				</div>
 			{/if}
 
-			{#if signedIn && showCommentForm}
+			{#if signInHref && showCommentForm}
+				<p class="comment-signin"><a href={signInHref}>Sign in to comment</a></p>
+			{:else if signedIn && showCommentForm}
 				<div class="engage-row">
 					{#if likeBesideComment}
 						{@render likeControl()}
@@ -1134,6 +1163,7 @@
 		border: 0;
 		background: transparent;
 		color: var(--muted);
+		text-decoration: none;
 		font-size: 0.72rem;
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
@@ -1157,6 +1187,16 @@
 
 	.like-btn:disabled {
 		cursor: default;
+	}
+
+	.comment-signin {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.82rem;
+	}
+
+	.comment-signin a {
+		color: var(--ink);
 	}
 
 	.post-toggle {

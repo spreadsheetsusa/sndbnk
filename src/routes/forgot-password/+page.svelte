@@ -4,9 +4,16 @@
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import IconCircleCheck from '@tabler/icons-svelte-runes/icons/circle-check';
 	import { enhance } from '$app/forms';
+	import DomainAuthPanel from '#lib/components/auth/DomainAuthPanel.svelte';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
-	let { form } = $props();
+	/**
+	 * @type {{
+	 *   data: { domain: { name: string, logoUrl: string | null } | null },
+	 *   form: { message?: string, email?: string, success?: boolean } | null | undefined
+	 * }}
+	 */
+	let { data, form } = $props();
 	let submitting = $state(false);
 
 	function handleSubmit() {
@@ -23,84 +30,134 @@
 </script>
 
 <svelte:head>
-	<title>Forgot password | SNDBNK</title>
-	<meta name="description" content="Reset your SNDBNK password." />
+	<title>{data.domain ? `Forgot password | ${data.domain.name}` : 'Forgot password | SNDBNK'}</title
+	>
+	<meta name="description" content="Reset your password." />
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<main class="auth-page">
-	<section class="auth-intro" aria-labelledby="forgot-title">
-		<div class="auth-top">
-			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-			<ThemeToggle />
-		</div>
-		<div class="intro-copy">
-			<p class="eyebrow accent-text">Account recovery</p>
-			<h1 id="forgot-title" class="display-face">Get back in.</h1>
-		</div>
-		<p class="side-note">We will email a one-time link if that address is on file.</p>
-		<svg viewBox="0 0 600 120" role="img" aria-label="Abstract sound wave">
-			<path
-				d="M0 60 H45 L57 45 L68 76 L80 20 L94 102 L109 48 L124 70 L139 8 L154 112 L169 40 L184 81 L199 26 L214 96 L229 52 L244 67 L259 16 L274 105 L289 43 L304 78 L319 30 L334 91 L349 54 L364 65 L379 22 L394 99 L409 47 L424 73 L439 34 L454 87 L469 56 L484 64 L499 42 L514 76 L529 57 L544 63 L555 51 L566 68 L578 59 H600"
+{#if data.domain}
+	<DomainAuthPanel
+		siteName={data.domain.name}
+		logoUrl={data.domain.logoUrl}
+		title="Forgot password"
+		lede="We'll email a link if that address has an account. The link opens on SNDBNK."
+	>
+		{#if form?.success && form?.message && !submitting}
+			<div class="form-success" role="status" aria-live="polite">
+				<span class="form-success-icon" aria-hidden="true">
+					<IconCircleCheck size={16} stroke={1.75} />
+				</span>
+				{form.message}
+			</div>
+		{:else if form?.message && !submitting}
+			<div class="form-error" id="domain-form-error" role="alert" aria-live="polite">
+				<span class="form-error-icon" aria-hidden="true">
+					<IconAlertCircle size={16} stroke={1.75} />
+				</span>
+				{form.message}
+			</div>
+		{/if}
+
+		<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+			<label for="domain-email">Email</label>
+			<input
+				id="domain-email"
+				name="email"
+				type="email"
+				value={form?.email ?? ''}
+				autocomplete="email"
+				required
+				aria-invalid={form?.message && !form?.success && !submitting ? 'true' : undefined}
+				aria-describedby={form?.message && !form?.success && !submitting
+					? 'domain-form-error'
+					: undefined}
 			/>
-		</svg>
-	</section>
+			<button class="pressable" type="submit" disabled={submitting}>
+				{submitting ? 'Sending…' : 'Email reset link'}
+				{#if !submitting}
+					<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
+				{/if}
+			</button>
+		</form>
 
-	<section class="form-panel" aria-label="Forgot password form">
-		<div class="form-wrap">
-			<p class="eyebrow">Password reset</p>
-			<h2>Forgot password</h2>
-			<p class="form-intro">Enter the email you use to sign in.</p>
-
-			{#if form?.success && form?.message && !submitting}
-				<div class="form-success" id="form-success" role="status" aria-live="polite">
-					<span class="form-success-icon" aria-hidden="true">
-						<IconCircleCheck size={16} stroke={1.75} />
-					</span>
-					{form.message}
-				</div>
-			{:else if form?.message && !submitting}
-				<div class="form-error" id="form-error" role="alert" aria-live="polite">
-					<span class="form-error-icon" aria-hidden="true">
-						<IconAlertCircle size={16} stroke={1.75} />
-					</span>
-					{form.message}
-				</div>
-			{/if}
-
-			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
-				<label for="email">Email</label>
-				<input
-					id="email"
-					name="email"
-					type="email"
-					value={form?.email ?? ''}
-					autocomplete="email"
-					required
-					aria-invalid={form?.message && !form?.success && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting
-						? form?.success
-							? 'form-success'
-							: 'form-error'
-						: undefined}
+		<p class="switch-auth"><a href="/signin">Back to sign in</a></p>
+	</DomainAuthPanel>
+{:else}
+	<main class="auth-page">
+		<section class="auth-intro" aria-labelledby="forgot-title">
+			<div class="auth-top">
+				<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+				<ThemeToggle />
+			</div>
+			<div class="intro-copy">
+				<p class="eyebrow accent-text">Account recovery</p>
+				<h1 id="forgot-title" class="display-face">Get back in.</h1>
+			</div>
+			<p class="side-note">We will email a one-time link if that address is on file.</p>
+			<svg viewBox="0 0 600 120" role="img" aria-label="Abstract sound wave">
+				<path
+					d="M0 60 H45 L57 45 L68 76 L80 20 L94 102 L109 48 L124 70 L139 8 L154 112 L169 40 L184 81 L199 26 L214 96 L229 52 L244 67 L259 16 L274 105 L289 43 L304 78 L319 30 L334 91 L349 54 L364 65 L379 22 L394 99 L409 47 L424 73 L439 34 L454 87 L469 56 L484 64 L499 42 L514 76 L529 57 L544 63 L555 51 L566 68 L578 59 H600"
 				/>
+			</svg>
+		</section>
 
-				<button class="pressable" type="submit" disabled={submitting}>
-					{submitting ? 'Sending…' : 'Send reset link'}
-					{#if !submitting}
-						<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
-					{/if}
-				</button>
-			</form>
+		<section class="form-panel" aria-label="Forgot password form">
+			<div class="form-wrap">
+				<p class="eyebrow">Password reset</p>
+				<h2>Forgot password</h2>
+				<p class="form-intro">Enter the email you use to sign in.</p>
 
-			<p class="switch-auth">Remembered it? <a href="/signin">Sign in</a></p>
-		</div>
-		<a class="back-link" href="/signin">
-			<IconArrowLeft size={14} stroke={1.75} aria-hidden="true" />
-			Back to sign in
-		</a>
-	</section>
-</main>
+				{#if form?.success && form?.message && !submitting}
+					<div class="form-success" id="form-success" role="status" aria-live="polite">
+						<span class="form-success-icon" aria-hidden="true">
+							<IconCircleCheck size={16} stroke={1.75} />
+						</span>
+						{form.message}
+					</div>
+				{:else if form?.message && !submitting}
+					<div class="form-error" id="form-error" role="alert" aria-live="polite">
+						<span class="form-error-icon" aria-hidden="true">
+							<IconAlertCircle size={16} stroke={1.75} />
+						</span>
+						{form.message}
+					</div>
+				{/if}
+
+				<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+					<label for="email">Email</label>
+					<input
+						id="email"
+						name="email"
+						type="email"
+						value={form?.email ?? ''}
+						autocomplete="email"
+						required
+						aria-invalid={form?.message && !form?.success && !submitting ? 'true' : undefined}
+						aria-describedby={form?.message && !submitting
+							? form?.success
+								? 'form-success'
+								: 'form-error'
+							: undefined}
+					/>
+
+					<button class="pressable" type="submit" disabled={submitting}>
+						{submitting ? 'Sending…' : 'Send reset link'}
+						{#if !submitting}
+							<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
+						{/if}
+					</button>
+				</form>
+
+				<p class="switch-auth">Remembered it? <a href="/signin">Sign in</a></p>
+			</div>
+			<a class="back-link" href="/signin">
+				<IconArrowLeft size={14} stroke={1.75} aria-hidden="true" />
+				Back to sign in
+			</a>
+		</section>
+	</main>
+{/if}
 
 <style>
 	.auth-page {

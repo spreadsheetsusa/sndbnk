@@ -55,7 +55,12 @@
 		};
 	}
 
-	const signedIn = $derived(Boolean(page.data.nav?.name));
+	const signedIn = $derived(Boolean(page.data.nav?.name || page.data.tenantViewer));
+	const signInHref = $derived(
+		!signedIn && page.data.domainAuth
+			? `/signin?next=${encodeURIComponent(page.url.pathname + page.url.search)}`
+			: null
+	);
 
 	let queueOpen = $state(false);
 	/** @type {HTMLButtonElement | null} */
@@ -138,7 +143,7 @@
 			}));
 	});
 
-	const viewerId = $derived(page.data.nav?.id ?? null);
+	const viewerId = $derived(page.data.nav?.id ?? page.data.tenantViewer?.id ?? null);
 
 	// Network fetch for avatar markers — not derivable from local state.
 	$effect(() => {
@@ -500,6 +505,10 @@
 							<IconHeart size={15} stroke={1.75} aria-hidden="true" />
 						{/if}
 					</button>
+				{:else if signInHref}
+					<a class="cell icon-btn" href={signInHref} aria-label="Sign in to like">
+						<IconHeart size={15} stroke={1.75} aria-hidden="true" />
+					</a>
 				{/if}
 				<button
 					type="button"
@@ -617,6 +626,7 @@
 		padding: 0;
 		color: var(--ink);
 		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+		text-decoration: none;
 		cursor: pointer;
 		transition:
 			background 120ms ease,

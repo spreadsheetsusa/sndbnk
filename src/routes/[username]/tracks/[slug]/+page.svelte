@@ -139,8 +139,10 @@
 						No comments yet.
 						{#if data.viewer}
 							Be the first — drop one above while the track plays.
-						{:else}
-							<a href="/signin">Sign in</a> to leave one.
+						{:else if !page.data.tenantHostKind || page.data.domainAuth}
+							<a href="/signin?next={encodeURIComponent(page.url.pathname + page.url.search)}"
+								>Sign in</a
+							> to leave one.
 						{/if}
 					</p>
 				{:else}
