@@ -14,20 +14,26 @@
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
-	import { absoluteUrl, musicRecordingJsonLd } from '#lib/seo.js';
-	import { trackPath } from '#lib/track-path.js';
+	import { trackShareMeta } from '#lib/share.js';
 
 	let { data } = $props();
 
 	/** @type {string | null} */
 	let deletingCommentId = $state(null);
 
-	const artistName = $derived(data.track.artist || data.track.uploaderName);
 	const tenantSiteName = $derived(page.data.tenantSite?.name ?? null);
-	const siteLabel = $derived(tenantSiteName || 'SNDBNK');
-	const pageTitle = $derived(`${data.track.title} by ${artistName} | ${siteLabel}`);
-	const pageDescription = $derived(
-		data.description?.trim() || `Listen to ${data.track.title} by ${artistName} on ${siteLabel}.`
+	const share = $derived(
+		trackShareMeta({
+			origin: data.siteOrigin,
+			siteName: tenantSiteName,
+			onTenant: Boolean(page.data.tenantSite),
+			track: data.track,
+			description: data.description,
+			streamMime: data.streamMime,
+			coverMime: data.coverMime,
+			accent: page.data.tenantSite?.accentColor,
+			noindex: Boolean(data.track.isPrivate)
+		})
 	);
 	/** Server-sanitized post HTML (plain tracklist plus content images). */
 	const renderDescription = $derived.by(() => {
@@ -38,21 +44,6 @@
 			return () => node.replaceChildren();
 		};
 	});
-	const seoCanonical = $derived(`${data.siteOrigin}${trackPath(data.track)}`);
-	const seoImage = $derived(
-		data.track.hasCover ? data.track.coverUrl || `/api/media/${data.track.id}/cover` : null
-	);
-	const seoJsonLd = $derived(
-		musicRecordingJsonLd({
-			name: data.track.title,
-			byArtist: artistName,
-			url: seoCanonical,
-			image: seoImage ? absoluteUrl(data.siteOrigin, seoImage) : null,
-			durationMs: data.track.durationMs,
-			description: data.description || pageDescription
-		})
-	);
-
 	/**
 	 * Jump playback to a comment's timestamp.
 	 * @param {number} atMs
@@ -91,15 +82,20 @@
 </script>
 
 <SeoHead
-	title={pageTitle}
-	description={pageDescription}
-	canonical={seoCanonical}
+	title={share.title}
+	description={share.description}
+	canonical={share.canonical}
 	origin={data.siteOrigin}
-	image={seoImage}
-	siteName={tenantSiteName}
+	image={share.image}
+	imageType={share.imageType}
+	siteName={share.siteName}
 	type="music.song"
-	jsonLd={seoJsonLd}
-	noindex={Boolean(data.track.isPrivate)}
+	jsonLd={share.jsonLd}
+	noindex={share.noindex}
+	oembedUrl={share.oembedUrl}
+	publishedAt={share.publishedAt}
+	audio={share.audio}
+	discordEmbed={share.discordEmbed}
 />
 
 {#snippet trackContent()}

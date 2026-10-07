@@ -35,9 +35,11 @@ versioning. See [operations.md](operations.md).
 
 ## Content-Security-Policy is Report-Only
 
-[`src/lib/server/security-headers.js`](../src/lib/server/security-headers.js) and production Caddy
-already set `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`,
-and (in prod) HSTS. Only CSP stays `Content-Security-Policy-Report-Only` so Butterchurn, Stripe.js,
+[`src/lib/server/security-headers.js`](../src/lib/server/security-headers.js) sets
+`X-Content-Type-Options`, `X-Frame-Options` (omitted on `/{user}/tracks/{slug}/embed`),
+`Referrer-Policy`, and `Permissions-Policy`. Production Caddy repeats those and adds HSTS.
+Caddy does not set `X-Frame-Options`; the app owns it so the track embed can be framed.
+Only CSP stays `Content-Security-Policy-Report-Only` so Butterchurn, Stripe.js,
 and Google Fonts can be inventory'd without breaking playback. Flip to enforcing CSP after
 confirming the report-only policy is clean in production.
 

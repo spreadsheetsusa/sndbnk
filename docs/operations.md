@@ -229,10 +229,12 @@ reads `x-forwarded-host`, so this header is load-bearing, not cosmetic. Upstream
 streams and large uploads are not cut off.
 
 Security headers set on both site blocks: HSTS, `X-Content-Type-Options: nosniff`,
-`X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive
+`Referrer-Policy: strict-origin-when-cross-origin`, a restrictive
 `Permissions-Policy`, `Content-Security-Policy-Report-Only` (not enforcing — see
-[known-issues](known-issues.md)), and `-Server`. The SvelteKit `handle` sequence also sets the same
-baseline headers (minus HSTS) so dev / direct Bun is not naked.
+[known-issues](known-issues.md)), and `-Server`. The SvelteKit `handle` sequence sets the same
+baseline (minus HSTS), including `X-Frame-Options: DENY`, so dev / direct Bun is not naked.
+The track embed route omits that frame header — Caddy must not set it too, or the player
+cannot be iframed.
 
 ### On-demand TLS gate
 

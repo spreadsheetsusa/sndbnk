@@ -63,7 +63,10 @@ export function personJsonLd({ name, username, url, image = null, description = 
  *   url: string,
  *   image?: string | null,
  *   durationMs?: number | null,
- *   description?: string | null
+ *   description?: string | null,
+ *   audioUrl?: string | null,
+ *   encodingFormat?: string | null,
+ *   datePublished?: string | null
  * }} input
  */
 export function musicRecordingJsonLd({
@@ -72,7 +75,10 @@ export function musicRecordingJsonLd({
 	url,
 	image = null,
 	durationMs = null,
-	description = null
+	description = null,
+	audioUrl = null,
+	encodingFormat = null,
+	datePublished = null
 }) {
 	return {
 		'@context': 'https://schema.org',
@@ -85,7 +91,17 @@ export function musicRecordingJsonLd({
 		url,
 		...(image ? { image } : {}),
 		...(durationMs != null ? { duration: `PT${Math.round(durationMs / 1000)}S` } : {}),
-		...(description ? { description } : {})
+		...(description ? { description } : {}),
+		...(datePublished ? { datePublished } : {}),
+		...(audioUrl
+			? {
+					audio: {
+						'@type': 'AudioObject',
+						contentUrl: audioUrl,
+						...(encodingFormat ? { encodingFormat } : {})
+					}
+				}
+			: {})
 	};
 }
 

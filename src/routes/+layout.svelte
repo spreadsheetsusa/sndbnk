@@ -1,5 +1,6 @@
 <script>
 	import { browser } from '$app/env';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.png';
@@ -16,6 +17,8 @@
 	import { applyTheme, initTheme } from '#lib/stores/theme.js';
 
 	let { data, children } = $props();
+
+	const embedWidget = $derived(/\/tracks\/[^/]+\/embed\/?$/.test(page.url.pathname));
 
 	const tenantLogo = $derived(data.tenantSite?.logoUrl ?? null);
 	const tenantAccent = $derived(data.tenantSite?.accentColor ?? null);
@@ -105,15 +108,15 @@
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </svelte:head>
 <div class="app-shell">
-	{#if data.tenantHostKind === 'custom'}
+	{#if data.tenantHostKind === 'custom' && !embedWidget}
 		<SiteViewBeacon />
 	{/if}
 	{@render children()}
 </div>
-{#if eq.open}
+{#if eq.open && !embedWidget}
 	<EqPanel active={eq.open} />
 {/if}
-{#if visualizer.showWindow}
+{#if visualizer.showWindow && !embedWidget}
 	<MilkdropWindow />
 {/if}
 
@@ -121,5 +124,10 @@
 	.app-shell {
 		min-height: 100vh;
 		min-height: 100dvh;
+	}
+
+	:global(html.embed-widget) .app-shell {
+		height: 100%;
+		min-height: 0;
 	}
 </style>

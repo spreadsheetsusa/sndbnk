@@ -98,6 +98,12 @@ class Player {
 	#hidden = false;
 	/** Set around an intentional element pause so background reclaim doesn't restart it. */
 	#intentionalPause = false;
+	/**
+	 * Embed iframes share this origin's localStorage. Isolation drops Next Up
+	 * in memory and refuses to write it back, so a widget ending cannot shorten
+	 * the listener's queue in the parent tab.
+	 */
+	#isolated = false;
 	/** @type {((this: HTMLAudioElement, ev: Event) => void) | null} */
 	#pendingSeek = null;
 	/** Track ids already counted as a play this browser session. */
@@ -331,6 +337,10 @@ class Player {
 	 * the queue empties.
 	 */
 	#advanceAfterEnd() {
+		if (this.#isolated) {
+			this.currentTime = this.duration;
+			return;
+		}
 		if (this.playlistId && this.#playlistTracks.length > 0 && this.current) {
 			const idx = this.#playlistTracks.findIndex((t) => t.id === this.current?.id);
 			const next = idx >= 0 ? this.#playlistTracks[idx + 1] : null;
@@ -351,6 +361,15 @@ class Player {
 		}
 		this.#clearFeedContext();
 		this.currentTime = this.duration;
+	}
+
+	/**
+	 * Forget the persisted Next Up queue for this document.
+	 * Call before playback in a framed player.
+	 */
+	isolate() {
+		this.#isolated = true;
+		this.queue = [];
 	}
 
 	/**
@@ -765,7 +784,7 @@ class Player {
 	}
 
 	#persistQueue() {
-		if (!browser) return;
+		if (!browser || this.#isolated) return;
 		try {
 			localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(this.queue));
 		} catch {
