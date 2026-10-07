@@ -185,6 +185,7 @@ export async function getSitePublic(userId) {
 		themePersona: normalizeThemePersona(row.themePersona),
 		themePalette: parseThemePalette(row.themePalette),
 		hideBranding: row.hideBranding,
+		allowDomainAuth: row.allowDomainAuth,
 		header: parseChromeBlock(row.headerBlock, 'header'),
 		footer: parseChromeBlock(row.footerBlock, 'footer'),
 		sidebarEnabled: row.sidebarEnabled,
@@ -740,7 +741,8 @@ export async function updateSiteTheme(input) {
  *   sidebarStats?: boolean,
  *   sidebarFansAlsoLike?: boolean,
  *   sidebarFollowers?: boolean,
- *   sidebarActivity?: boolean
+ *   sidebarActivity?: boolean,
+ *   allowDomainAuth?: boolean
  * }} input
  */
 export async function updateSiteSettings(input) {
@@ -804,6 +806,7 @@ export async function updateSiteSettings(input) {
 		patch.sidebarFansAlsoLike = Boolean(input.sidebarFansAlsoLike);
 		patch.sidebarFollowers = Boolean(input.sidebarFollowers);
 		patch.sidebarActivity = Boolean(input.sidebarActivity);
+		patch.allowDomainAuth = Boolean(input.allowDomainAuth);
 	}
 
 	await db.update(site).set(patch).where(eq(site.userId, input.userId));

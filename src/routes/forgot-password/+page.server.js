@@ -1,17 +1,28 @@
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 
+import { domainAuthBrand } from '#lib/server/domain-auth';
 import { requestPasswordResetEmail } from '#lib/server/forgot-password';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
 
-export const load = ({ locals }) => {
+export const load = async ({ locals }) => {
+	const brand = await domainAuthBrand(locals);
+	if (brand.kind === 'hidden') {
+		error(404, 'Not found');
+	}
 	if (locals.user) {
 		safeRedirect(302, '/');
 	}
+	return { domain: brand.kind === 'domain' ? brand.brand : null };
 };
 
 export const actions = {
 	default: async (event) => {
+		const brand = await domainAuthBrand(event.locals);
+		if (brand.kind === 'hidden') {
+			error(404, 'Not found');
+		}
+
 		const { request } = event;
 		const formData = await request.formData();
 		const email = formData.get('email')?.toString() ?? '';

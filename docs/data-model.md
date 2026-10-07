@@ -118,6 +118,7 @@ custom-domain hosts only; apex `/users/{username}` ignores it. Owner management 
 | `setupCompletedAt`                          | Set when the `/sites/{id}` setup wizard finishes                                                                      |
 | `siteIntent`                                | `tracks` \| `mixes` \| `podcast` \| `label` \| `other` (prefs)                                                        |
 | `wantBlog` / `wantEvents` / `wantEcommerce` | Feature interest flags from the wizard (prefs only)                                                                   |
+| `allowDomainAuth`                           | Custom domain may show branded sign-in / create-account. New accounts are SNDBNK accounts                             |
 | `headerBlock` / `footerBlock`               | JSON `{ id, type, props }` site chrome (nullable until seeded)                                                        |
 | `background`                                | JSON `{ trackId, size, position, attachment }`; `trackId` is a site-media image, or a legacy track cover              |
 
@@ -140,6 +141,17 @@ Service: [`site.js`](../src/lib/server/site.js). Public files: `/api/site-logo/[
 `/api/site-og/[userId]`. Edit gate: Vault+ (`canUseSubdomain`) or Studio+ (`canUseCustomDomain`);
 sidebar toggles need Studio+
 (`canUseCustomDomain`).
+
+### `site_account` — accounts created on a custom domain
+
+One row per `(siteId, userId)` when someone **creates** an account on that domain's sign-up page.
+Signing in with an existing SNDBNK account does not add a row. The owner reads the list on
+Settings → Site. `hostname` is the host they signed up on.
+
+### `auth_handoff` — short-lived session copy
+
+Single-use code (about 90 seconds) that carries session cookie values from one host to another so a
+custom domain and sndbnk.com can share a login. Redeemed by `GET /auth/network`. Not a user record.
 
 ### `site_stat_day` — custom-domain page loads and plays
 

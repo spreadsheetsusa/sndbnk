@@ -3,8 +3,19 @@
 	import IconArrowLeft from '@tabler/icons-svelte-runes/icons/arrow-left';
 	import IconArrowUpRight from '@tabler/icons-svelte-runes/icons/arrow-up-right';
 	import { enhance } from '$app/forms';
+	import DomainAuthPanel from '#lib/components/auth/DomainAuthPanel.svelte';
 	import ThemeToggle from '#lib/components/ThemeToggle.svelte';
 
+	/**
+	 * @type {{
+	 *   data: {
+	 *     formGuard: { token: string },
+	 *     next: string,
+	 *     domain: { name: string, logoUrl: string | null } | null
+	 *   },
+	 *   form: { message?: string, name?: string, username?: string, email?: string } | null | undefined
+	 * }}
+	 */
 	let { data, form } = $props();
 	let submitting = $state(false);
 
@@ -22,136 +33,242 @@
 </script>
 
 <svelte:head>
-	<title>Create an account | SNDBNK</title>
-	<meta name="description" content="Create your SNDBNK account and join a place built for sound." />
+	<title
+		>{data.domain ? `Create an account | ${data.domain.name}` : 'Create an account | SNDBNK'}</title
+	>
+	<meta
+		name="description"
+		content={data.domain
+			? `Create an account on ${data.domain.name}.`
+			: 'Create your SNDBNK account and join a place built for sound.'}
+	/>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<main class="auth-page">
-	<section class="auth-intro" aria-labelledby="signup-title">
-		<div class="auth-top">
-			<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
-			<ThemeToggle />
-		</div>
-		<div class="intro-copy">
-			<p class="eyebrow accent-text">Join the signal</p>
-			<h1 id="signup-title" class="display-face">Make noise on your own terms.</h1>
-		</div>
-		<p class="side-note">We are building a thoughtful home for sound and the people around it.</p>
-		<svg viewBox="0 0 600 120" role="img" aria-label="Abstract sound wave">
-			<path
-				d="M0 60 H45 L57 45 L68 76 L80 20 L94 102 L109 48 L124 70 L139 8 L154 112 L169 40 L184 81 L199 26 L214 96 L229 52 L244 67 L259 16 L274 105 L289 43 L304 78 L319 30 L334 91 L349 54 L364 65 L379 22 L394 99 L409 47 L424 73 L439 34 L454 87 L469 56 L484 64 L499 42 L514 76 L529 57 L544 63 L555 51 L566 68 L578 59 H600"
+{#if data.domain}
+	<DomainAuthPanel
+		siteName={data.domain.name}
+		logoUrl={data.domain.logoUrl}
+		title="Create account"
+		lede={`Join ${data.domain.name}. Likes, comments, and plays stay with your account.`}
+	>
+		{#if form?.message && !submitting}
+			<div class="form-error" id="domain-form-error" role="alert" aria-live="polite">
+				<span class="form-error-icon" aria-hidden="true">
+					<IconAlertCircle size={16} stroke={1.75} />
+				</span>
+				{form.message}
+			</div>
+		{/if}
+
+		<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+			<input type="hidden" name="_fg" value={data.formGuard.token} />
+			<input type="hidden" name="next" value={data.next} />
+			<div class="hp" aria-hidden="true">
+				<label for="domain-website">Website</label>
+				<input id="domain-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+			</div>
+
+			<label for="domain-name">Name</label>
+			<input
+				id="domain-name"
+				name="name"
+				type="text"
+				value={form?.name ?? ''}
+				autocomplete="name"
+				required
+				aria-invalid={form?.message && !submitting ? 'true' : undefined}
+				aria-describedby={form?.message && !submitting ? 'domain-form-error' : undefined}
 			/>
-		</svg>
-	</section>
 
-	<section class="form-panel" aria-label="Create account form">
-		<div class="form-wrap">
-			<p class="eyebrow">New account</p>
-			<h2>Create account</h2>
-			<p class="form-intro">A few details and you are in.</p>
+			<label for="domain-username">Username</label>
+			<input
+				id="domain-username"
+				name="username"
+				type="text"
+				value={form?.username ?? ''}
+				autocomplete="username"
+				autocapitalize="none"
+				spellcheck="false"
+				minlength="3"
+				maxlength="30"
+				pattern={'[a-zA-Z0-9](?:(?:[a-zA-Z0-9]|-){1,28}[a-zA-Z0-9])?'}
+				required
+				aria-invalid={form?.message && !submitting ? 'true' : undefined}
+				aria-describedby={form?.message && !submitting
+					? 'domain-form-error domain-username-hint'
+					: 'domain-username-hint'}
+			/>
+			<p class="field-hint" id="domain-username-hint">
+				Letters, numbers, and hyphens. 3–30 characters.
+			</p>
 
-			{#if form?.message && !submitting}
-				<div class="form-error" id="form-error" role="alert" aria-live="polite">
-					<span class="form-error-icon" aria-hidden="true">
-						<IconAlertCircle size={16} stroke={1.75} />
-					</span>
-					{form.message}
-				</div>
-			{/if}
+			<label for="domain-email">Email</label>
+			<input
+				id="domain-email"
+				name="email"
+				type="email"
+				value={form?.email ?? ''}
+				autocomplete="email"
+				required
+				aria-invalid={form?.message && !submitting ? 'true' : undefined}
+				aria-describedby={form?.message && !submitting ? 'domain-form-error' : undefined}
+			/>
 
-			<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
-				<input type="hidden" name="_fg" value={data.formGuard.token} />
-				<div class="hp" aria-hidden="true">
-					<label for="website">Website</label>
+			<label for="domain-password">Password</label>
+			<input
+				id="domain-password"
+				name="password"
+				type="password"
+				autocomplete="new-password"
+				minlength="8"
+				required
+				aria-invalid={form?.message && !submitting ? 'true' : undefined}
+				aria-describedby={form?.message && !submitting
+					? 'domain-form-error domain-password-hint'
+					: 'domain-password-hint'}
+			/>
+			<p class="field-hint" id="domain-password-hint">Use at least 8 characters.</p>
+
+			<button class="pressable" type="submit" disabled={submitting}>
+				{submitting ? 'Creating account…' : 'Create account'}
+				{#if !submitting}
+					<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
+				{/if}
+			</button>
+		</form>
+
+		<p class="switch-auth">
+			Already have an account? <a href="/signin">Sign in</a>
+		</p>
+	</DomainAuthPanel>
+{:else}
+	<main class="auth-page">
+		<section class="auth-intro" aria-labelledby="signup-title">
+			<div class="auth-top">
+				<a class="logo display-face" href="/" aria-label="SNDBNK home">SNDBNK</a>
+				<ThemeToggle />
+			</div>
+			<div class="intro-copy">
+				<p class="eyebrow accent-text">Join the signal</p>
+				<h1 id="signup-title" class="display-face">Make noise on your own terms.</h1>
+			</div>
+			<p class="side-note">We are building a thoughtful home for sound and the people around it.</p>
+			<svg viewBox="0 0 600 120" role="img" aria-label="Abstract sound wave">
+				<path
+					d="M0 60 H45 L57 45 L68 76 L80 20 L94 102 L109 48 L124 70 L139 8 L154 112 L169 40 L184 81 L199 26 L214 96 L229 52 L244 67 L259 16 L274 105 L289 43 L304 78 L319 30 L334 91 L349 54 L364 65 L379 22 L394 99 L409 47 L424 73 L439 34 L454 87 L469 56 L484 64 L499 42 L514 76 L529 57 L544 63 L555 51 L566 68 L578 59 H600"
+				/>
+			</svg>
+		</section>
+
+		<section class="form-panel" aria-label="Create account form">
+			<div class="form-wrap">
+				<p class="eyebrow">New account</p>
+				<h2>Create account</h2>
+				<p class="form-intro">A few details and you are in.</p>
+
+				{#if form?.message && !submitting}
+					<div class="form-error" id="form-error" role="alert" aria-live="polite">
+						<span class="form-error-icon" aria-hidden="true">
+							<IconAlertCircle size={16} stroke={1.75} />
+						</span>
+						{form.message}
+					</div>
+				{/if}
+
+				<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+					<input type="hidden" name="_fg" value={data.formGuard.token} />
+					<div class="hp" aria-hidden="true">
+						<label for="website">Website</label>
+						<input
+							id="website"
+							name="website"
+							type="text"
+							tabindex="-1"
+							autocomplete="off"
+							value=""
+						/>
+					</div>
+
+					<label for="name">Name</label>
 					<input
-						id="website"
-						name="website"
+						id="name"
+						name="name"
 						type="text"
-						tabindex="-1"
-						autocomplete="off"
-						value=""
+						value={form?.name ?? ''}
+						autocomplete="name"
+						required
+						aria-invalid={form?.message && !submitting ? 'true' : undefined}
+						aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
 					/>
-				</div>
 
-				<label for="name">Name</label>
-				<input
-					id="name"
-					name="name"
-					type="text"
-					value={form?.name ?? ''}
-					autocomplete="name"
-					required
-					aria-invalid={form?.message && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
-				/>
+					<label for="username">Username</label>
+					<input
+						id="username"
+						name="username"
+						type="text"
+						value={form?.username ?? ''}
+						autocomplete="username"
+						autocapitalize="none"
+						spellcheck="false"
+						minlength="3"
+						maxlength="30"
+						pattern={'[a-zA-Z0-9](?:(?:[a-zA-Z0-9]|-){1,28}[a-zA-Z0-9])?'}
+						required
+						aria-invalid={form?.message && !submitting ? 'true' : undefined}
+						aria-describedby={form?.message && !submitting
+							? 'form-error username-hint'
+							: 'username-hint'}
+					/>
+					<p class="field-hint" id="username-hint">
+						Your public URL: sndbnk.com/users/<span class="hint-em">you</span>. Letters, numbers,
+						hyphens.
+					</p>
 
-				<label for="username">Username</label>
-				<input
-					id="username"
-					name="username"
-					type="text"
-					value={form?.username ?? ''}
-					autocomplete="username"
-					autocapitalize="none"
-					spellcheck="false"
-					minlength="3"
-					maxlength="30"
-					pattern={'[a-zA-Z0-9](?:(?:[a-zA-Z0-9]|-){1,28}[a-zA-Z0-9])?'}
-					required
-					aria-invalid={form?.message && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting
-						? 'form-error username-hint'
-						: 'username-hint'}
-				/>
-				<p class="field-hint" id="username-hint">
-					Your public URL: sndbnk.com/users/<span class="hint-em">you</span>. Letters, numbers,
-					hyphens.
-				</p>
+					<label for="email">Email</label>
+					<input
+						id="email"
+						name="email"
+						type="email"
+						value={form?.email ?? ''}
+						autocomplete="email"
+						required
+						aria-invalid={form?.message && !submitting ? 'true' : undefined}
+						aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
+					/>
 
-				<label for="email">Email</label>
-				<input
-					id="email"
-					name="email"
-					type="email"
-					value={form?.email ?? ''}
-					autocomplete="email"
-					required
-					aria-invalid={form?.message && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting ? 'form-error' : undefined}
-				/>
+					<label for="password">Password</label>
+					<input
+						id="password"
+						name="password"
+						type="password"
+						autocomplete="new-password"
+						minlength="8"
+						required
+						aria-invalid={form?.message && !submitting ? 'true' : undefined}
+						aria-describedby={form?.message && !submitting
+							? 'form-error password-hint'
+							: 'password-hint'}
+					/>
+					<p class="field-hint" id="password-hint">Use at least 8 characters.</p>
 
-				<label for="password">Password</label>
-				<input
-					id="password"
-					name="password"
-					type="password"
-					autocomplete="new-password"
-					minlength="8"
-					required
-					aria-invalid={form?.message && !submitting ? 'true' : undefined}
-					aria-describedby={form?.message && !submitting
-						? 'form-error password-hint'
-						: 'password-hint'}
-				/>
-				<p class="field-hint" id="password-hint">Use at least 8 characters.</p>
+					<button class="pressable" type="submit" disabled={submitting}>
+						{submitting ? 'Creating account…' : 'Create account'}
+						{#if !submitting}
+							<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
+						{/if}
+					</button>
+				</form>
 
-				<button class="pressable" type="submit" disabled={submitting}>
-					{submitting ? 'Creating account…' : 'Create account'}
-					{#if !submitting}
-						<IconArrowUpRight size={16} stroke={1.75} aria-hidden="true" />
-					{/if}
-				</button>
-			</form>
-
-			<p class="switch-auth">Already have an account? <a href="/signin">Sign in</a></p>
-		</div>
-		<a class="back-link" href="/">
-			<IconArrowLeft size={14} stroke={1.75} aria-hidden="true" />
-			Back home
-		</a>
-	</section>
-</main>
+				<p class="switch-auth">Already have an account? <a href="/signin">Sign in</a></p>
+			</div>
+			<a class="back-link" href="/">
+				<IconArrowLeft size={14} stroke={1.75} aria-hidden="true" />
+				Back home
+			</a>
+		</section>
+	</main>
+{/if}
 
 <style>
 	.auth-page {

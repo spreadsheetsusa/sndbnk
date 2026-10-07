@@ -14,21 +14,24 @@ const STRIPE_HOST_SUFFIXES = ['.stripe.com'];
 
 /**
  * @param {string} hostname
+ * @param {string[]} extraHosts
  */
-function isAllowedRedirectHost(hostname) {
+function isAllowedRedirectHost(hostname, extraHosts) {
 	const host = hostname.toLowerCase();
 	try {
 		if (host === new URL(ORIGIN).hostname.toLowerCase()) return true;
 	} catch {
 		// ignore
 	}
+	if (extraHosts.some((allowed) => allowed.toLowerCase() === host)) return true;
 	return STRIPE_HOST_SUFFIXES.some((suffix) => host === suffix.slice(1) || host.endsWith(suffix));
 }
 
 /**
  * @param {string} location
+ * @param {string[]} extraHosts
  */
-function assertSafeLocation(location) {
+function assertSafeLocation(location, extraHosts) {
 	// Relative path (including protocol-relative rejection).
 	if (location.startsWith('/') && !location.startsWith('//')) return;
 
@@ -41,7 +44,7 @@ function assertSafeLocation(location) {
 
 	if (
 		(url.protocol === 'https:' || url.protocol === 'http:') &&
-		isAllowedRedirectHost(url.hostname)
+		isAllowedRedirectHost(url.hostname, extraHosts)
 	) {
 		return;
 	}
@@ -52,10 +55,11 @@ function assertSafeLocation(location) {
 /**
  * @param {300 | 301 | 302 | 303 | 304 | 305 | 306 | 307 | 308} status
  * @param {string | URL} location
+ * @param {string[]} [extraHosts] hostnames already checked by the caller (verified custom domains)
  * @returns {never}
  */
-export function safeRedirect(status, location) {
+export function safeRedirect(status, location, extraHosts = []) {
 	const value = location.toString();
-	assertSafeLocation(value);
+	assertSafeLocation(value, extraHosts);
 	throw new Redirect(status, value);
 }

@@ -1,4 +1,5 @@
 <script>
+	import { page } from '$app/state';
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
 	import IconPlaylist from '@tabler/icons-svelte-runes/icons/playlist';
@@ -93,6 +94,11 @@
 		ondeleted
 	} = $props();
 
+	const signInHref = $derived(
+		!signedIn && page.data.domainAuth
+			? `/signin?next=${encodeURIComponent(page.url.pathname + page.url.search)}`
+			: null
+	);
 	/** @type {{ liked: boolean, count: number } | null} */
 	let likeOverride = $state(null);
 	const liked = $derived(likeOverride?.liked ?? playlist.likedByViewer);
@@ -501,17 +507,21 @@
 						{#if playlist.isOwner}
 							<a class="menu-item" role="menuitem" href="/playlists/{playlist.id}/edit">Edit</a>
 						{/if}
-						<button
-							type="button"
-							role="menuitem"
-							disabled={!signedIn || likeBusy}
-							onclick={toggleLike}
-						>
-							{liked ? 'Unlike playlist' : 'Like playlist'}
-							{#if likeCount > 0}
-								<span class="menu-count">{likeCount}</span>
-							{/if}
-						</button>
+						{#if signInHref}
+							<a class="menu-item" role="menuitem" href={signInHref}>Sign in to like</a>
+						{:else}
+							<button
+								type="button"
+								role="menuitem"
+								disabled={!signedIn || likeBusy}
+								onclick={toggleLike}
+							>
+								{liked ? 'Unlike playlist' : 'Like playlist'}
+								{#if likeCount > 0}
+									<span class="menu-count">{likeCount}</span>
+								{/if}
+							</button>
+						{/if}
 						{#if playlist.isOwner}
 							<button
 								type="button"
@@ -566,7 +576,9 @@
 				{/if}
 			</div>
 
-			{#if signedIn && showCommentForm}
+			{#if signInHref && showCommentForm}
+				<p class="comment-signin"><a href={signInHref}>Sign in to comment</a></p>
+			{:else if signedIn && showCommentForm}
 				<form class="comment-row" onsubmit={submitComment}>
 					<Avatar src={viewerImage} name={viewerName} />
 					<div class="comment-field">
@@ -956,6 +968,16 @@
 		background: var(--accent);
 		color: var(--on-accent);
 		transform: translateY(-50%);
+	}
+
+	.comment-signin {
+		margin: 0.35rem 0 0;
+		color: var(--muted);
+		font-size: 0.82rem;
+	}
+
+	.comment-signin a {
+		color: var(--ink);
 	}
 
 	.comment-row {

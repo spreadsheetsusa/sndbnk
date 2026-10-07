@@ -14,6 +14,7 @@
 	import { player } from '#lib/player/player.svelte.js';
 	import { ACCENTS, normalizeHex } from '#lib/stores/brand.js';
 	import { applyTheme } from '#lib/stores/theme.js';
+	import { page } from '$app/state';
 
 	/** @typedef {import('#lib/components/blocks/types.js').PageBlockInstance} PageBlockInstance */
 
@@ -67,6 +68,19 @@
 	const footerDef = $derived(site.footer ? getBlockDefinition(site.footer.type) : null);
 	const HeaderBlock = $derived(headerDef?.component);
 	const FooterBlock = $derived(footerDef?.component);
+	const domainAuth = $derived(Boolean(page.data.domainAuth));
+	/** @type {{ id: string, name: string, image: string | null } | null} */
+	const tenantViewer = $derived(
+		page.data.tenantViewer &&
+			typeof page.data.tenantViewer === 'object' &&
+			'id' in page.data.tenantViewer &&
+			'name' in page.data.tenantViewer
+			? /** @type {{ id: string, name: string, image: string | null }} */ (page.data.tenantViewer)
+			: null
+	);
+	const showAccountBar = $derived(
+		page.data.tenantHostKind === 'custom' && (domainAuth || tenantViewer)
+	);
 
 	onMount(() => {
 		const appearance = resolveSiteAppearance(appearanceMode, site.id);
@@ -84,6 +98,19 @@
 </script>
 
 <div class="tenant-site" style={themeStyle}>
+	{#if showAccountBar}
+		<div class="account-bar">
+			{#if tenantViewer}
+				<span class="account-name">{tenantViewer.name}</span>
+				<form method="POST" action="/signout">
+					<button type="submit">Sign out</button>
+				</form>
+			{:else}
+				<a href="/signin">Sign in</a>
+				<a href="/signup">Create account</a>
+			{/if}
+		</div>
+	{/if}
 	{#if site.header && HeaderBlock}
 		<NavScroll hideOnScroll={site.header.props.hideOnScroll === true}>
 			<div class="chrome-accent" style={chromeAccentStyle(site.headerAccent)}>
@@ -118,6 +145,36 @@
 		min-height: 100vh;
 		color: var(--ink);
 		background: var(--paper);
+	}
+
+	.account-bar {
+		display: flex;
+		gap: 0.9rem;
+		align-items: center;
+		justify-content: flex-end;
+		padding: 0.4rem var(--site-shell-pad-x);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+		font-size: 0.85rem;
+	}
+
+	.account-name {
+		color: var(--muted);
+	}
+
+	.account-bar a,
+	.account-bar button {
+		padding: 0;
+		border: 0;
+		color: var(--ink);
+		background: transparent;
+		font: inherit;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.account-bar a:hover,
+	.account-bar button:hover {
+		color: var(--accent);
 	}
 
 	.tenant-player {

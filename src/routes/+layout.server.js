@@ -39,11 +39,21 @@ export const load = async ({ locals, url }) => {
 			await ensureSiteChrome(row.id);
 			site = await getSitePublic(locals.tenant.userId);
 		}
+		const tenantViewer = locals.user
+			? {
+					id: locals.user.id,
+					name: locals.user.name ?? 'Account',
+					image: locals.user.image ?? null
+				}
+			: null;
+
 		return {
 			siteOrigin: url.origin,
 			playThresholds,
 			nav: emptyNav,
 			tenantHostKind: locals.tenant.hostKind,
+			domainAuth: locals.tenant.hostKind === 'custom' && Boolean(site?.allowDomainAuth),
+			tenantViewer,
 			tenantSite: site
 				? {
 						...site,
@@ -61,6 +71,7 @@ export const load = async ({ locals, url }) => {
 						themePersona: 'mono',
 						themePalette: null,
 						hideBranding: false,
+						allowDomainAuth: false,
 						updatedAt: null
 					}
 		};
@@ -72,6 +83,8 @@ export const load = async ({ locals, url }) => {
 			playThresholds,
 			nav: emptyNav,
 			tenantHostKind: null,
+			domainAuth: false,
+			tenantViewer: null,
 			tenantSite: null
 		};
 	}
@@ -96,6 +109,8 @@ export const load = async ({ locals, url }) => {
 			sites
 		},
 		tenantHostKind: null,
+		domainAuth: false,
+		tenantViewer: null,
 		tenantSite: null
 	};
 };

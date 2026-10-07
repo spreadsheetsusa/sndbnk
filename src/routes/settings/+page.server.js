@@ -45,6 +45,7 @@ import {
 import { getUsage } from '#lib/server/quota';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
+import { listSiteAccounts } from '#lib/server/domain-auth';
 import { audienceRange, getSiteAudience } from '#lib/server/site-analytics';
 import {
 	MAX_SITE_DESCRIPTION_LENGTH,
@@ -116,8 +117,11 @@ export const load = async ({ locals, url }) => {
 			sidebarStats: siteSettings?.sidebarStats ?? true,
 			sidebarFansAlsoLike: siteSettings?.sidebarFansAlsoLike ?? true,
 			sidebarFollowers: siteSettings?.sidebarFollowers ?? true,
-			sidebarActivity: siteSettings?.sidebarActivity ?? true
+			sidebarActivity: siteSettings?.sidebarActivity ?? true,
+			allowDomainAuth: siteSettings?.allowDomainAuth ?? false
 		},
+		siteAccounts:
+			tier.allowCustomDomain && siteSettings?.id ? await listSiteAccounts(siteSettings.id) : [],
 		links,
 		limits: {
 			bio: MAX_BIO_LENGTH,
@@ -586,6 +590,7 @@ export const actions = {
 		const sidebarFansAlsoLike = formData.get('sidebarFansAlsoLike')?.toString() === 'on';
 		const sidebarFollowers = formData.get('sidebarFollowers')?.toString() === 'on';
 		const sidebarActivity = formData.get('sidebarActivity')?.toString() === 'on';
+		const allowDomainAuth = formData.get('allowDomainAuth')?.toString() === 'on';
 
 		const result = await updateSiteSettings({
 			userId: locals.user.id,
@@ -599,7 +604,8 @@ export const actions = {
 			sidebarStats,
 			sidebarFansAlsoLike,
 			sidebarFollowers,
-			sidebarActivity
+			sidebarActivity,
+			allowDomainAuth
 		});
 
 		if (!result.ok) {
@@ -616,7 +622,8 @@ export const actions = {
 					sidebarStats,
 					sidebarFansAlsoLike,
 					sidebarFollowers,
-					sidebarActivity
+					sidebarActivity,
+					allowDomainAuth
 				}
 			);
 		}

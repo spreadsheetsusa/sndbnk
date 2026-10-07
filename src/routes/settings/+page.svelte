@@ -14,6 +14,7 @@
 	import IconCheck from '@tabler/icons-svelte-runes/icons/check';
 	import IconCopy from '@tabler/icons-svelte-runes/icons/copy';
 	import Avatar from '#lib/components/Avatar.svelte';
+	import SiteAccounts from '#lib/components/settings/SiteAccounts.svelte';
 	import SiteAudience from '#lib/components/settings/SiteAudience.svelte';
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import BioEditor from '#lib/components/settings/BioEditor.svelte';
@@ -235,6 +236,7 @@
 	let sidebarFansAlsoLikeDraft = $state(/** @type {boolean | null} */ (null));
 	let sidebarFollowersDraft = $state(/** @type {boolean | null} */ (null));
 	let sidebarActivityDraft = $state(/** @type {boolean | null} */ (null));
+	const allowDomainAuthValue = $derived(form?.allowDomainAuth ?? data.site.allowDomainAuth);
 	const sidebarEnabledValue = $derived(
 		sidebarEnabledDraft ?? form?.sidebarEnabled ?? data.site.sidebarEnabled
 	);
@@ -1387,12 +1389,28 @@
 									</label>
 								</div>
 							</fieldset>
+
+							<fieldset class="sidebar-fieldset">
+								<legend>Accounts on your custom domain</legend>
+								<label class="check-row">
+									<input name="allowDomainAuth" type="checkbox" checked={allowDomainAuthValue} />
+									<span>Allow account creation and sign-in on my custom domain</span>
+								</label>
+								<p class="hint">
+									Visitors get a sign-in and create-account page in your site's name. New accounts
+									are SNDBNK accounts, and they stay on your domain. You can see who joined through
+									your site below.
+								</p>
+							</fieldset>
 						{/if}
 
 						<button class="pressable" type="submit" disabled={siteBusy}>
 							{siteBusy ? 'Saving…' : 'Save site settings'}
 						</button>
 					</form>
+					{#if canCustomDomain}
+						<SiteAccounts accounts={data.siteAccounts} />
+					{/if}
 				{/if}
 			</div>
 		{/if}

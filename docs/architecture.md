@@ -64,7 +64,11 @@ On a tenant host platform and account routes stay deliberately narrow:
 - **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`,
   `/library`, `/sites`, `/plans`, `/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/users/*`,
   and unlisted `/api/*` — platform
-  surfaces only exist on the apex
+  surfaces only exist on the apex. Custom domains also reach `/signin`, `/signup`,
+  `/forgot-password`, and `/signout`. Those pages 404 unless `site.allowDomainAuth` is on;
+  `/signout` still clears a session after the switch is turned off
+- **Network session:** `/auth/network` copies the same better-auth session between the custom domain
+  and the apex with a single-use code. Browsers will not send a `sndbnk.com` cookie to another host
 - **Platform public:** `/{username}/tracks/{slug}/`, `/tracks/*` (legacy UUID 301), `/api/media/*`,
   `/api/avatar/*`, `/api/site-logo/*`, `/api/site-og/*`, `/api/site-media/*`, `/api/tracks/*`,
   `/api/playlists/*`, `/api/users/*`, `/playlists/*`
