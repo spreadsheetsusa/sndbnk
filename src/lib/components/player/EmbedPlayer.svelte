@@ -144,7 +144,7 @@
 	.widget {
 		box-sizing: border-box;
 		display: grid;
-		grid-template-columns: 4.5rem minmax(0, 1fr);
+		grid-template-columns: auto minmax(0, 1fr);
 		gap: 0.7rem;
 		align-items: stretch;
 		height: 100%;
@@ -155,10 +155,14 @@
 
 	.cover-play {
 		position: relative;
+		box-sizing: border-box;
 		display: block;
-		width: 4.5rem;
+		justify-self: start;
+		width: auto;
 		height: 100%;
+		aspect-ratio: 1;
 		padding: 0;
+		overflow: hidden;
 		border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
 		background: transparent;
 		color: inherit;
