@@ -12,6 +12,7 @@ export const STREAM_COUNT_PRESETS = [6, 12, 24];
 
 /**
  * Normalized stream block props. Empty filters mean "the whole published catalog".
+ * `q` is a visitor search, not a saved block prop.
  * @typedef {{
  *   heading: string,
  *   headingAlign: StreamAlign,
@@ -20,8 +21,47 @@ export const STREAM_COUNT_PRESETS = [6, 12, 24];
  *   dateTo: string | null,
  *   genre: string | null,
  *   artists: string[],
- *   mediaType: StreamMediaType | null
+ *   mediaType: StreamMediaType | null,
+ *   q: string | null
  * }} StreamQuery
+ */
+
+/**
+ * Visitor browse on top of the block query. Artist is the track credit, not the site profile.
+ * @typedef {{
+ *   q?: string | null,
+ *   artist?: string | null,
+ *   genre?: string | null
+ * }} StreamBrowse
+ */
+
+/**
+ * @typedef {{
+ *   name: string,
+ *   count: number
+ * }} StreamFacet
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   title: string,
+ *   artist: string,
+ *   slug: string | null,
+ *   username: string | null,
+ *   likeCount: number,
+ *   hasCover: boolean,
+ *   coverUrl: string | null
+ * }} StreamMostLiked
+ */
+
+/**
+ * @typedef {{
+ *   key: string,
+ *   artists: StreamFacet[],
+ *   genres: StreamFacet[],
+ *   mostLiked: StreamMostLiked[]
+ * }} StreamFacets
  */
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -121,8 +161,101 @@ export function parseStreamQuery(props) {
 		dateTo: parseDate(row.dateTo),
 		genre: parseGenre(row.genre),
 		artists: parseArtists(row.artists),
-		mediaType: isTrackMediaType(row.mediaType) ? row.mediaType : null
+		mediaType: isTrackMediaType(row.mediaType) ? row.mediaType : null,
+		q: parseStreamSearch(row.q)
 	};
+}
+
+/**
+ * Optional stream chrome. Missing props stay off so existing blocks do not change.
+ * @param {Record<string, unknown> | null | undefined} props
+ * @returns {{ showSearch: boolean, showSidebar: boolean }}
+ */
+export function parseStreamChrome(props) {
+	const row = props ?? {};
+	return {
+		showSearch: row.showSearch === true,
+		showSidebar: row.showSidebar === true
+	};
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function parseStreamSearch(value) {
+	if (typeof value !== 'string') return null;
+	// `%` `_` `\` are LIKE wildcards. Drop them so a visitor query cannot widen the match.
+	const q = value
+		.trim()
+		.slice(0, 80)
+		.replace(/[%_\\]/g, '');
+	return q || null;
+}
+
+/**
+ * Overlay a visitor search / artist / genre onto the block query.
+ * A selection replaces the inspector's artist or genre list. While browsing,
+ * the display count is dropped so matches are not clipped to the first page.
+ * @param {StreamQuery} query
+ * @param {StreamBrowse} browse
+ * @returns {StreamQuery}
+ */
+export function withStreamBrowse(query, browse) {
+	const q = parseStreamSearch(browse.q);
+	const artist = typeof browse.artist === 'string' ? browse.artist.trim() : '';
+	const genre = typeof browse.genre === 'string' ? browse.genre.trim() : '';
+	const active = Boolean(q || artist || genre);
+	return {
+		...query,
+		count: active ? null : query.count,
+		artists: artist ? parseArtists([artist]) : query.artists,
+		genre: genre ? parseGenre(genre) : query.genre,
+		q
+	};
+}
+
+/**
+ * @param {StreamBrowse} browse
+ */
+export function streamBrowseActive(browse) {
+	return Boolean(
+		parseStreamSearch(browse.q) ||
+		(typeof browse.artist === 'string' && browse.artist.trim()) ||
+		(typeof browse.genre === 'string' && browse.genre.trim())
+	);
+}
+
+/**
+ * Client-side match for the same fields the stream search query uses.
+ * Reposts are not the site's own credits, so a browse hides them.
+ * @param {Record<string, any>} item
+ * @param {StreamBrowse} browse
+ */
+export function streamItemMatches(item, browse) {
+	const q = (parseStreamSearch(browse.q) ?? '').toLowerCase();
+	const artist = (typeof browse.artist === 'string' ? browse.artist.trim() : '').toLowerCase();
+	const genre = (typeof browse.genre === 'string' ? browse.genre.trim() : '').toLowerCase();
+	if (!q && !artist && !genre) return true;
+	if (item?.repostedAt) return false;
+
+	if (item?.kind === 'playlist') {
+		const title = String(item.title ?? '').toLowerCase();
+		const members = Array.isArray(item.tracks) ? item.tracks : [];
+		const member = members.some((track) => streamItemMatches({ ...track, kind: 'track' }, browse));
+		if (artist || genre) return member;
+		return title.includes(q) || member;
+	}
+
+	const title = String(item?.title ?? '').toLowerCase();
+	const credit = String(item?.artist ?? '').toLowerCase();
+	const genres = String(item?.genre ?? '').toLowerCase();
+	if (artist && credit !== artist) return false;
+	if (genre && !parseGenres(item?.genre).some((token) => token.toLowerCase() === genre)) {
+		return false;
+	}
+	if (!q) return true;
+	return title.includes(q) || credit.includes(q) || genres.includes(q);
 }
 
 /**
@@ -136,7 +269,8 @@ export function streamQueryActive(query) {
 		query.dateTo ||
 		query.genre ||
 		query.artists.length ||
-		query.mediaType
+		query.mediaType ||
+		query.q
 	);
 }
 
@@ -147,6 +281,21 @@ export function streamQueryActive(query) {
 export function streamQueryKey(query) {
 	return JSON.stringify({
 		count: query.count,
+		dateFrom: query.dateFrom,
+		dateTo: query.dateTo,
+		genre: query.genre,
+		artists: query.artists,
+		mediaType: query.mediaType,
+		q: query.q
+	});
+}
+
+/**
+ * Identity for sidebar facets. The list cap and visitor search do not change them.
+ * @param {StreamQuery} query
+ */
+export function streamFacetKey(query) {
+	return JSON.stringify({
 		dateFrom: query.dateFrom,
 		dateTo: query.dateTo,
 		genre: query.genre,
@@ -169,6 +318,7 @@ export function streamSearchParams(query) {
 	if (query.genre) params.genre = query.genre;
 	if (query.artists.length) params.artists = query.artists.join(STREAM_ARTIST_SEP);
 	if (query.mediaType) params.mediaType = query.mediaType;
+	if (query.q) params.q = query.q;
 	return params;
 }
 

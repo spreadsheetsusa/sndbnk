@@ -33,6 +33,7 @@
 	 *     },
 	 *     catalog: Record<string, any> | null,
 	 *     streamPages?: Record<string, { key: string, items: any[], nextCursor: string | null }> | null,
+	 *     streamFacets?: Record<string, import('#lib/builder/stream-query.js').StreamFacets> | null,
 	 *     siteOrigin: string
 	 *   },
 	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null
@@ -78,4 +79,5 @@
 	profileData={data.catalog}
 	{profileList}
 	streamPages={data.streamPages ?? null}
+	streamFacets={data.streamFacets ?? null}
 />

@@ -35,10 +35,18 @@
 	 *       items: import('#lib/lists/track-list.svelte.js').ListItem[],
 	 *       nextCursor: string | null
 	 *     }
-	 *   > | null
+	 *   > | null,
+	 *   streamFacets?: Record<string, import('#lib/builder/stream-query.js').StreamFacets> | null
 	 * }}
 	 */
-	let { site, page, profileData = null, profileList = null, streamPages = null } = $props();
+	let {
+		site,
+		page,
+		profileData = null,
+		profileList = null,
+		streamPages = null,
+		streamFacets = null
+	} = $props();
 
 	/**
 	 * @param {PageBlockInstance} block
@@ -62,6 +70,7 @@
 								{profileData}
 								{profileList}
 								streamSeed={streamPages?.[instance.id] ?? null}
+								streamFacets={streamFacets?.[instance.id] ?? null}
 							/>
 						{:else if instance.type === 'catalog.profile'}
 							<Block {...instance.props} {profileData} {profileList} />

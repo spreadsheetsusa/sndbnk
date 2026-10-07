@@ -1,19 +1,21 @@
 <script>
 	import {
+		parseStreamChrome,
 		parseStreamQuery,
 		streamQueryActive,
 		streamQueryKey
 	} from '#lib/builder/stream-query.js';
+	import StreamBrowse from '#lib/components/blocks/StreamBrowse.svelte';
+	import StreamItems from '#lib/components/blocks/StreamItems.svelte';
 	import StreamTrackList from '#lib/components/blocks/StreamTrackList.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
-	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
-	import TrackCard from '#lib/components/player/TrackCard.svelte';
 
 	/**
 	 * @type {{
 	 *   profileData?: Record<string, any> | null,
 	 *   profileList?: import('#lib/lists/track-list.svelte.js').TrackList | null,
 	 *   streamSeed?: { key: string, items: import('#lib/lists/track-list.svelte.js').ListItem[], nextCursor: string | null } | null,
+	 *   streamFacets?: import('#lib/builder/stream-query.js').StreamFacets | null,
 	 *   heading?: string,
 	 *   headingAlign?: string,
 	 *   count?: number | string | null,
@@ -21,13 +23,16 @@
 	 *   dateTo?: string,
 	 *   genre?: string,
 	 *   artists?: string[] | string,
-	 *   mediaType?: string
+	 *   mediaType?: string,
+	 *   showSearch?: boolean,
+	 *   showSidebar?: boolean
 	 * }}
 	 */
 	let {
 		profileData = null,
 		profileList = null,
 		streamSeed = null,
+		streamFacets = null,
 		heading = '',
 		headingAlign = 'left',
 		count = null,
@@ -35,16 +40,20 @@
 		dateTo = '',
 		genre = '',
 		artists = undefined,
-		mediaType = ''
+		mediaType = '',
+		showSearch = false,
+		showSidebar = false
 	} = $props();
 
 	const query = $derived(
 		parseStreamQuery({ heading, headingAlign, count, dateFrom, dateTo, genre, artists, mediaType })
 	);
+	const chrome = $derived(parseStreamChrome({ showSearch, showSidebar }));
 	const active = $derived(streamQueryActive(query));
 	const queryKey = $derived(streamQueryKey(query));
 	const title = $derived(query.heading.trim());
 	const headingId = $props.id();
+	const resultsId = `${headingId}-results`;
 	const username = $derived(
 		typeof profileData?.profile?.username === 'string' ? profileData.profile.username : ''
 	);
@@ -59,7 +68,21 @@
 		<h2 id={headingId} class={['heading', query.headingAlign]}>{title}</h2>
 	{/if}
 
-	{#if profileData && active && username}
+	{#if profileData && (chrome.showSearch || chrome.showSidebar) && username}
+		{#key queryKey}
+			<StreamBrowse
+				{username}
+				{query}
+				showSearch={chrome.showSearch}
+				showSidebar={chrome.showSidebar}
+				{profileData}
+				{profileList}
+				{streamSeed}
+				{streamFacets}
+				{resultsId}
+			/>
+		{/key}
+	{:else if profileData && active && username}
 		{#key queryKey}
 			<StreamTrackList
 				{username}
@@ -74,37 +97,7 @@
 			<p class="empty">No tracks have been uploaded yet.</p>
 		{:else}
 			<InfiniteList {list} moreLabel="Load more">
-				<ul>
-					{#each list.items as item (item.id)}
-						<li data-cursor={item.cursor}>
-							{#if item.kind === 'playlist'}
-								<PlaylistCard
-									playlist={item}
-									linkBase=""
-									showCommentForm={false}
-									signedIn={Boolean(profileData.viewer)}
-									viewerId={profileData.viewer?.id ?? null}
-									viewerName={profileData.viewer?.name ?? null}
-									viewerImage={profileData.viewer?.image ?? null}
-									ondeleted={() => list.remove(item.id)}
-								/>
-							{:else}
-								<TrackCard
-									track={item}
-									linkBase=""
-									hideArtist
-									stream
-									showCommentForm={false}
-									signedIn={Boolean(profileData.viewer)}
-									viewerId={profileData.viewer?.id ?? null}
-									viewerName={profileData.viewer?.name ?? null}
-									viewerImage={profileData.viewer?.image ?? null}
-									ondeleted={() => list.remove(item.id)}
-								/>
-							{/if}
-						</li>
-					{/each}
-				</ul>
+				<StreamItems items={list.items} {profileData} onremove={(id) => list.remove(id)} />
 			</InfiniteList>
 		{/if}
 	{:else}
@@ -140,13 +133,6 @@
 
 	.heading.right {
 		text-align: right;
-	}
-
-	ul {
-		display: grid;
-		margin: 0;
-		padding: 0;
-		list-style: none;
 	}
 
 	.empty {

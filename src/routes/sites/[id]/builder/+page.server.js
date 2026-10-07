@@ -10,7 +10,7 @@ import {
 	listSitePages,
 	updatePageProps
 } from '#lib/server/site-pages';
-import { loadStreamSeeds } from '#lib/server/stream-blocks';
+import { loadStreamFacets, loadStreamSeeds } from '#lib/server/stream-blocks';
 import { getProfileByUserId } from '#lib/server/tenant';
 
 export const load = async ({ locals, params, url }) => {
@@ -34,24 +34,27 @@ export const load = async ({ locals, params, url }) => {
 	const siteOwner = await ensureSiteChrome(row.id);
 	if (!siteOwner) error(404, 'Site not found');
 	const pages = await listSitePages(row.id);
-	const catalog = await loadPublicProfilePage({
-		username: profile.username,
-		locals,
-		url,
-		preview: true
-	});
+	const blocks = pages.flatMap((page) => page.blocks);
+	const [catalog, streamPages, streamFacets, logoMedia] = await Promise.all([
+		loadPublicProfilePage({
+			username: profile.username,
+			locals,
+			url,
+			preview: true
+		}),
+		loadStreamSeeds(locals.user.id, blocks, locals),
+		loadStreamFacets(locals.user.id, blocks, locals),
+		listSiteImagePicks(row.id)
+	]);
 
 	return {
 		site: siteOwner,
 		pages,
 		currentPageId: root.id,
 		profileCatalog: catalog,
-		streamPages: await loadStreamSeeds(
-			locals.user.id,
-			pages.flatMap((page) => page.blocks),
-			locals
-		),
-		logoMedia: await listSiteImagePicks(row.id)
+		streamPages,
+		streamFacets,
+		logoMedia
 	};
 };
 
