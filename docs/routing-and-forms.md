@@ -41,6 +41,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/tracks/[id]/embed-tags`      | owner only             | `GET` write-tags job status (`queued` / `writing` / `done` / `failed`)                                      |
 | `/api/tracks/[id]/like`            | required               | `POST` toggles a like                                                                                       |
 | `/api/tracks/[id]/play`            | public                 | `POST` records a play (`{ playCount }`); history when signed in                                             |
+| `/api/tracks/[id]/download`        | public                 | `GET` saves the player file (`Content-Disposition: attachment`) and increments `downloadCount`              |
+| `/api/tracks/[id]/downloadable`    | owner only             | `POST` sets `canDownload` (`{ canDownload }`)                                                               |
 | `/api/tracks/[id]/comments`        | mixed                  | `GET` timed comments for markers; `POST` adds a comment (auth)                                              |
 | `/api/tracks/[id]/comments/[id]`   | required (author)      | `PATCH` repositions timed `atMs`; `DELETE` removes own comment                                              |
 | `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                                                         |

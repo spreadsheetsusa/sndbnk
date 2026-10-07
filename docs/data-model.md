@@ -244,7 +244,7 @@ Four groups of columns:
 | Editable metadata   | `title` (required), `slug` (URL-safe title, unique per owner; stable after create), `description`, `artist`, `album`, `albumArtist`, `genre` (free text; comma-separated for multiple values), `mediaType` (`track` \| `mix` \| `sample` \| `loop` \| `podcast`, default `track`), `year`, `trackNumber`, `discNumber`, `bpm`, `isrc`, `composer`, `comment`                                                                                                                                                                                                      |
 | Files               | **Master (required):** `mediaRevision` (random id; CAS race guard), `masterFilename` / `masterMime` / `masterBytes` / `masterSha256` (exact upload bytes; immutable). **Playback (nullable):** `playbackFilename` / `playbackMime` / `playbackBytes`, `playbackStatus` (`queued` \| `ready` \| `failed`) / `playbackError` / `playbackUpdatedAt` — null when playback aliases a sane MP3/AAC/M4A master. **Legacy:** `audio*` is kept in sync as the current stream file; `original*` is deprecated (backfill only). `coverFilename` / `coverMime` / `coverBytes` |
 | Probed technical    | `durationMs`, `bitrate`, `sampleRate`, `channels`, `codec`, `encoder`, `tagTypes`, `trackGainDb`, `container`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Derived / placement | `waveform` (JSON string of ~1000 ints), `published`, `isPrivate`, `storageAdapter`, `folderKey`, `tagEmbedStatus` (`queued` \| `writing` \| `done` \| `failed`), `tagEmbedMessage`, `tagEmbedUpdatedAt`                                                                                                                                                                                                                                                                                                                                                           |
+| Derived / placement | `waveform` (JSON string of ~1000 ints), `playCount`, `downloadCount`, `canDownload` (default on, including existing rows), `published`, `isPrivate`, `storageAdapter`, `folderKey`, `tagEmbedStatus` (`queued` \| `writing` \| `done` \| `failed`), `tagEmbedMessage`, `tagEmbedUpdatedAt`                                                                                                                                                                                                                                                                        |
 
 `storageAdapter` is a **snapshot of the owner's adapter at upload time** (`local`, `s3`, or `ssh`),
 and `folderKey` equals the track `id`. Reads pass the stored value back in —
@@ -256,12 +256,19 @@ for unmigrated hosted files.
 does not change when the title is edited. Existing rows are backfilled the same way. Public detail
 URLs are `/{username}/tracks/{slug}/`; `/tracks/{id}` 301s there.
 
+`canDownload` defaults to `1` and `downloadCount` to `0`. The migration adds both with
+constant defaults, so existing rows pick them up in one `ALTER TABLE` (no backfill script).
+`canDownload` lets anyone who can open the track save the file the player streams
+(`GET /api/tracks/{id}/download`). That file is the playback derivative when one exists, and the
+master only when playback aliases it. The owner-only original (`/api/media/{id}/master`) is separate
+and stays available from the library. Each successful download increments `downloadCount`.
+
 `published` defaults to `1`; `isPrivate` defaults to `0`. Link access (`/{username}/tracks/{slug}/`,
 media) uses
 `published` — private published tracks stay reachable by URL. Public listings — profile pages, the
 feed, the landing hero, sitemap, likes tabs, playlists, and discover sidebars — require
-`published && !isPrivate`. The owner's library lists every track and carries Published + Private
-toggles.
+`published && !isPrivate`. The owner's library lists every track and carries Published, Private,
+and Downloads toggles.
 
 ### `track_comment`
 

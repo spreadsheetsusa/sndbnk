@@ -40,6 +40,8 @@
 	 * @property {number[] | null} waveform
 	 * @property {number} likeCount
 	 * @property {number} commentCount
+	 * @property {boolean} [canDownload]
+	 * @property {boolean} [downloadReady]
 	 * @property {boolean} likedByViewer
 	 */
 
@@ -273,6 +275,20 @@
 					</span>
 					{copied ? 'Copied!' : 'Copy link'}
 				</button>
+				{#if track.canDownload && track.downloadReady}
+					<a
+						class="menu-item"
+						role="menuitem"
+						href="/api/tracks/{track.id}/download"
+						download
+						onclick={closeMenu}
+					>
+						<span class="menu-icon" aria-hidden="true">
+							<IconDownload size={14} stroke={1.75} />
+						</span>
+						Download
+					</a>
+				{/if}
 				<a
 					class="menu-item"
 					role="menuitem"

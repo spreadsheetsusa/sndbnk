@@ -43,6 +43,7 @@ import {
 	isBrowserStreamableMaster,
 	masterObjectName,
 	parsePlaybackStatus,
+	resolveDownloadSource,
 	resolveStreamSource,
 	sha256Hex,
 	trackNeedsPlaybackMp3,
@@ -740,6 +741,25 @@ export async function setTrackPrivate(userId, trackId, isPrivate) {
 /**
  * @param {string} userId
  * @param {string} trackId
+ * @param {boolean} canDownload
+ */
+export async function setTrackCanDownload(userId, trackId, canDownload) {
+	const existing = await getOwnedTrack(userId, trackId);
+	if (!existing) {
+		return { ok: false, message: 'Track not found.' };
+	}
+
+	await db
+		.update(track)
+		.set({ canDownload, updatedAt: new Date() })
+		.where(and(eq(track.id, trackId), eq(track.userId, userId)));
+
+	return { ok: true, canDownload };
+}
+
+/**
+ * @param {string} userId
+ * @param {string} trackId
  */
 export async function deleteTrackForUser(userId, trackId) {
 	const existing = await getOwnedTrack(userId, trackId);
@@ -1163,6 +1183,7 @@ export async function serializeTrackForPlayer(
 		base = map.get(row.userId) ?? null;
 	}
 	const stream = resolveStreamSource(row);
+	const downloadSource = resolveDownloadSource(row);
 	const { audioUrl, coverUrl } = resolvePublicTrackMediaUrls(
 		{
 			...row,
@@ -1192,6 +1213,9 @@ export async function serializeTrackForPlayer(
 		published: Boolean(row.published),
 		isPrivate: Boolean(row.isPrivate),
 		playCount: row.playCount ?? 0,
+		downloadCount: row.downloadCount ?? 0,
+		canDownload: Boolean(row.canDownload),
+		downloadReady: Boolean(downloadSource),
 		createdAt: row.createdAt?.getTime() ?? Date.now(),
 		// Position in the paged list, so the client can resume from any item.
 		cursor: encodeCursor(

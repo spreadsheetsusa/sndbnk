@@ -241,6 +241,10 @@ Resolver rules ([`assets.js`](../src/lib/server/media/assets.js)):
   derivative is still encoding).
 - Playback `failed` → never public-fallback to an unplayable master (FLAC/AIFF stay 404 for
   listeners). The owner can still download the master.
+- Public **Download** (`GET /api/tracks/{id}/download`, `canDownload` default on) saves that same
+  stream: the playback file when a derivative exists, the master only when playback aliases it.
+  A derivative that is still encoding or failed does not offer the original. The library's
+  **Download original** stays the owner-only master route.
 
 Encode runs in [`queue/transcode.js`](../src/lib/server/queue/transcode.js) on the same
 `bun run worker:waveform` / `sndbnk-waveform-worker` process (second BullMQ worker, concurrency 1).

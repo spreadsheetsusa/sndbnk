@@ -55,6 +55,8 @@
 	 * @property {string | null} [audioUrl]
 	 * @property {boolean} [published]
 	 * @property {boolean} [isPrivate]
+	 * @property {boolean} [canDownload]
+	 * @property {number} [downloadCount]
 	 * @property {string | null} username
 	 * @property {string} uploaderName
 	 * @property {number[] | null} waveform
@@ -106,7 +108,8 @@
 	 *   oncancel?: () => void,
 	 *   onupdated?: (patch: Record<string, unknown>) => void,
 	 *   onpublished?: (published: boolean) => void,
-	 *   onprivate?: (isPrivate: boolean) => void
+	 *   onprivate?: (isPrivate: boolean) => void,
+	 *   ondownloadable?: (canDownload: boolean) => void
 	 * }}
 	 */
 	let {
@@ -118,7 +121,8 @@
 		oncancel,
 		onupdated,
 		onpublished,
-		onprivate
+		onprivate,
+		ondownloadable
 	} = $props();
 
 	const showViz = $derived(visualizerBackdrop && visualizer.showInline);
@@ -172,13 +176,17 @@
 	let busy = $state(false);
 	let publishBusy = $state(false);
 	let privateBusy = $state(false);
+	let downloadBusy = $state(false);
 	let writeTags = $state(false);
 	/** @type {boolean | null} */
 	let publishOverride = $state(null);
 	/** @type {boolean | null} */
 	let privateOverride = $state(null);
+	/** @type {boolean | null} */
+	let downloadOverride = $state(null);
 	const published = $derived(publishOverride ?? track?.published ?? false);
 	const isPrivate = $derived(privateOverride ?? track?.isPrivate ?? false);
+	const canDownload = $derived(downloadOverride ?? track?.canDownload ?? true);
 	const writeTagsPending = $derived(isTagEmbedPending(track?.tagEmbedStatus));
 	const writeTagsNotice = $derived(tagEmbedNotice(track?.tagEmbedStatus, track?.tagEmbedMessage));
 
@@ -240,6 +248,7 @@
 		draftValue = '';
 		publishOverride = null;
 		privateOverride = null;
+		downloadOverride = null;
 		writeTags = false;
 		clearCoverPreview();
 	});
@@ -284,6 +293,13 @@
 		}
 		if (track.tagTypes) {
 			rows.push({ key: 'tagTypes', label: 'ID3 tag', value: track.tagTypes });
+		}
+		if (typeof track.downloadCount === 'number') {
+			rows.push({
+				key: 'downloads',
+				label: 'Downloads',
+				value: String(track.downloadCount)
+			});
 		}
 		if (track.encoder) {
 			rows.push({ key: 'encoder', label: 'Encoded with', value: track.encoder });
@@ -490,6 +506,25 @@
 			}
 		} finally {
 			publishBusy = false;
+		}
+	}
+
+	async function toggleCanDownload() {
+		if (!track || downloadBusy) return;
+		downloadBusy = true;
+		try {
+			const res = await fetch(`/api/tracks/${track.id}/downloadable`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ canDownload: !canDownload })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				downloadOverride = data.canDownload;
+				ondownloadable?.(data.canDownload);
+			}
+		} finally {
+			downloadBusy = false;
 		}
 	}
 
@@ -967,7 +1002,7 @@
 												title={published
 													? 'Visible on your public profile'
 													: 'Hidden from your public profile'}
-												disabled={publishBusy || privateBusy || busy}
+												disabled={publishBusy || privateBusy || downloadBusy || busy}
 												onclick={togglePublished}
 											>
 												<span class="knob"></span>
@@ -987,13 +1022,32 @@
 													title={isPrivate
 														? 'Only reachable by link'
 														: 'Listed on feed and profile'}
-													disabled={privateBusy || publishBusy || busy}
+													disabled={privateBusy || publishBusy || downloadBusy || busy}
 													onclick={togglePrivate}
 												>
 													<span class="knob"></span>
 												</button>
 											</div>
 										{/if}
+										<div class="publish-field">
+											<span class="publish-label">Downloads</span>
+											<button
+												type="button"
+												class="publish-switch"
+												role="switch"
+												aria-checked={canDownload}
+												aria-label={canDownload
+													? `Turn off downloads for ${track.title}`
+													: `Allow downloads for ${track.title}`}
+												title={canDownload
+													? 'Listeners can save the file this player streams'
+													: 'The download option is hidden'}
+												disabled={downloadBusy || publishBusy || privateBusy || busy}
+												onclick={toggleCanDownload}
+											>
+												<span class="knob"></span>
+											</button>
+										</div>
 										<label class="write-tags">
 											<input
 												type="checkbox"

@@ -179,6 +179,21 @@ export function resolveStreamSource(row) {
 }
 
 /**
+ * File a public Download saves. This is the stream the player is set up for.
+ * When a playback derivative exists or is still being made, the master is not
+ * offered — that owner-only original is a separate download.
+ *
+ * @param {MediaRow} row
+ * @returns {{ filename: string, mime: string, bytes: number } | null}
+ */
+export function resolveDownloadSource(row) {
+	const stream = resolveStreamSource(row);
+	if (!stream) return null;
+	if (stream.role === 'master' && !playbackAliasesMaster(row)) return null;
+	return { filename: stream.filename, mime: stream.mime, bytes: stream.bytes };
+}
+
+/**
  * Owner download always targets the immutable master.
  *
  * @param {MediaRow} row

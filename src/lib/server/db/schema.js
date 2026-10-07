@@ -507,6 +507,10 @@ export const track = sqliteTable(
 		waveform: text('waveform'),
 		/** Denormalized listen count; incremented by recordTrackPlay. */
 		playCount: integer('play_count').notNull().default(0),
+		/** Denormalized download count; incremented when a public download starts. */
+		downloadCount: integer('download_count').notNull().default(0),
+		/** Listeners may download the file the player streams. On for existing rows. */
+		canDownload: integer('can_download', { mode: 'boolean' }).notNull().default(true),
 		published: integer('published', { mode: 'boolean' }).notNull().default(true),
 		/** When true with published, link-reachable but omitted from public listings. */
 		isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),

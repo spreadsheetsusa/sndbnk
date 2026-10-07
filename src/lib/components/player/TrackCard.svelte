@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import IconChevronDown from '@tabler/icons-svelte-runes/icons/chevron-down';
 	import IconDots from '@tabler/icons-svelte-runes/icons/dots';
+	import IconDownload from '@tabler/icons-svelte-runes/icons/download';
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
@@ -59,6 +60,9 @@
 	 * @property {number} commentCount
 	 * @property {number} [repostCount]
 	 * @property {number} [playCount]
+	 * @property {number} [downloadCount]
+	 * @property {boolean} [canDownload]
+	 * @property {boolean} [downloadReady]
 	 * @property {boolean} likedByViewer
 	 * @property {boolean} [repostedByViewer]
 	 * @property {number | null} [repostedAt]
@@ -115,6 +119,13 @@
 	let repostOverride = $state(null);
 	const reposted = $derived(repostOverride?.reposted ?? track.repostedByViewer ?? false);
 	const repostCount = $derived(repostOverride?.count ?? track.repostCount ?? 0);
+	/** @type {{ id: string, count: number } | null} */
+	let downloadOverride = $state(null);
+	const downloadCount = $derived(
+		downloadOverride?.id === track.id ? downloadOverride.count : (track.downloadCount ?? 0)
+	);
+	const canOfferDownload = $derived(Boolean(track.canDownload && track.downloadReady));
+
 	const playCount = $derived(
 		player.isCurrent(track.id)
 			? (player.current?.playCount ?? track.playCount ?? 0)
@@ -542,6 +553,23 @@
 				<button type="button" role="menuitem" onclick={copyLink}>
 					{copied ? 'Copied!' : 'Copy link'}
 				</button>
+				{#if canOfferDownload}
+					<a
+						class="menu-item"
+						role="menuitem"
+						href="/api/tracks/{track.id}/download"
+						download
+						onclick={() => {
+							downloadOverride = { id: track.id, count: downloadCount + 1 };
+							menuOpen = false;
+						}}
+					>
+						Download
+						{#if downloadCount > 0}
+							<span class="menu-count">{downloadCount}</span>
+						{/if}
+					</a>
+				{/if}
 				{#if track.isOwner}
 					<a class="menu-item" role="menuitem" href="/library?track={track.id}&edit=1">Edit</a>
 				{/if}
@@ -615,6 +643,12 @@
 
 {#snippet likeControl()}
 	<span class="engage-actions">
+		{#if downloadCount > 0}
+			<span class="stat" title="{downloadCount} {downloadCount === 1 ? 'download' : 'downloads'}">
+				<IconDownload size={12} stroke={2} aria-hidden="true" />
+				{downloadCount}
+			</span>
+		{/if}
 		{#if playCount > 0}
 			<span class="stat" title="{playCount} {playCount === 1 ? 'listen' : 'listens'}">
 				<IconHeadphones size={12} stroke={2} aria-hidden="true" />
@@ -1463,7 +1497,8 @@
 		font-weight: 700;
 	}
 
-	.menu button:not(:disabled):hover .menu-count {
+	.menu button:not(:disabled):hover .menu-count,
+	.menu .menu-item:hover .menu-count {
 		color: inherit;
 	}
 
