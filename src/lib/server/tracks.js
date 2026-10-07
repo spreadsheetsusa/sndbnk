@@ -1402,7 +1402,8 @@ function artistsCondition(artists, source = track) {
  *   genre?: string | null,
  *   artists?: string[],
  *   dateFromMs?: number | null,
- *   dateToMs?: number | null
+ *   dateToMs?: number | null,
+ *   q?: string | null
  * }} input
  * @returns {import('drizzle-orm').SQL[]}
  */
@@ -1422,7 +1423,41 @@ function listingTrackConditions(source, ownerProfile, input) {
 	if (artistSql) conditions.push(artistSql);
 	if (input.dateFromMs != null) conditions.push(gte(source.createdAt, new Date(input.dateFromMs)));
 	if (input.dateToMs != null) conditions.push(lte(source.createdAt, new Date(input.dateToMs)));
+	const textSql = textSearchCondition(input.q, source);
+	if (textSql) conditions.push(textSql);
 	return conditions;
+}
+
+/**
+ * Case-insensitive substring for a visitor search. `%` and `_` are stripped
+ * so the query cannot widen into a wildcard.
+ * @param {string | null | undefined} q
+ * @returns {string | null}
+ */
+function likePattern(q) {
+	if (typeof q !== 'string') return null;
+	const safe = q
+		.trim()
+		.slice(0, 80)
+		.replace(/[%_\\]/g, '');
+	if (!safe) return null;
+	return `%${safe.toLowerCase()}%`;
+}
+
+/**
+ * Match title, the track artist credit, or the genre field.
+ * @param {string | null | undefined} q
+ * @param {typeof track} source
+ * @returns {import('drizzle-orm').SQL | null}
+ */
+function textSearchCondition(q, source) {
+	const pattern = likePattern(q);
+	if (!pattern) return null;
+	return or(
+		sql`lower(${source.title}) like ${pattern}`,
+		sql`lower(coalesce(${source.artist}, '')) like ${pattern}`,
+		sql`lower(coalesce(${source.genre}, '')) like ${pattern}`
+	);
 }
 
 /**
@@ -1436,6 +1471,7 @@ function listingTrackConditions(source, ownerProfile, input) {
  *   artists?: string[],
  *   dateFromMs?: number | null,
  *   dateToMs?: number | null,
+ *   q?: string | null,
  *   decoded: { ms: number, id: string } | null
  * } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
  */
@@ -1449,6 +1485,7 @@ function selectOwnTracks(
 		artists = [],
 		dateFromMs = null,
 		dateToMs = null,
+		q = null,
 		decoded,
 		limit,
 		direction,
@@ -1465,7 +1502,8 @@ function selectOwnTracks(
 			genre,
 			artists,
 			dateFromMs,
-			dateToMs
+			dateToMs,
+			q
 		})
 	];
 	if (decoded) {
@@ -1538,6 +1576,7 @@ export async function listTracksWithUploader(
  *   artists?: string[],
  *   dateFromMs?: number | null,
  *   dateToMs?: number | null,
+ *   q?: string | null,
  *   decoded: { ms: number, id: string } | null
  * } & Required<Pick<PageOptions, 'limit' | 'direction' | 'inclusive'>>} input
  */
@@ -1550,6 +1589,7 @@ function selectStreamPlaylists(
 		artists = [],
 		dateFromMs = null,
 		dateToMs = null,
+		q = null,
 		decoded,
 		limit,
 		direction,
@@ -1558,32 +1598,46 @@ function selectStreamPlaylists(
 ) {
 	const member = alias(track, 'stream_member');
 	const memberProfile = alias(profile, 'stream_member_profile');
-	const memberMatch = db
-		.select({ trackId: playlistTrack.trackId })
-		.from(playlistTrack)
-		.innerJoin(member, eq(member.id, playlistTrack.trackId))
-		.leftJoin(memberProfile, eq(memberProfile.userId, member.userId))
-		.where(
-			and(
-				eq(playlistTrack.playlistId, playlist.id),
-				...listingTrackConditions(member, memberProfile, {
-					publishedOnly: true,
-					mediaType,
-					hostOwnerId,
-					genre,
-					artists,
-					dateFromMs,
-					dateToMs
-				})
+
+	/**
+	 * @param {boolean} includeText
+	 */
+	const memberMatch = (includeText) =>
+		db
+			.select({ trackId: playlistTrack.trackId })
+			.from(playlistTrack)
+			.innerJoin(member, eq(member.id, playlistTrack.trackId))
+			.leftJoin(memberProfile, eq(memberProfile.userId, member.userId))
+			.where(
+				and(
+					eq(playlistTrack.playlistId, playlist.id),
+					...listingTrackConditions(member, memberProfile, {
+						publishedOnly: true,
+						mediaType,
+						hostOwnerId,
+						genre,
+						artists,
+						dateFromMs,
+						dateToMs,
+						q: includeText ? q : null
+					})
+				)
+			);
+
+	const pattern = likePattern(q);
+	const memberHit = pattern
+		? or(
+				sql`exists ${memberMatch(true)}`,
+				and(sql`lower(${playlist.title}) like ${pattern}`, sql`exists ${memberMatch(false)}`)
 			)
-		);
+		: sql`exists ${memberMatch(false)}`;
 
 	/** @type {import('drizzle-orm').SQL[]} */
 	const conditions = [
 		eq(playlist.userId, userId),
 		eq(playlist.published, true),
 		visibleOnHostCondition(profile, playlist.userId, hostOwnerId),
-		sql`exists ${memberMatch}`
+		/** @type {import('drizzle-orm').SQL} */ (memberHit)
 	];
 	if (dateFromMs != null) conditions.push(gte(playlist.createdAt, new Date(dateFromMs)));
 	if (dateToMs != null) conditions.push(lte(playlist.createdAt, new Date(dateToMs)));
@@ -1618,6 +1672,7 @@ function selectStreamPlaylists(
  *   artists?: string[],
  *   dateFromMs?: number | null,
  *   dateToMs?: number | null,
+ *   q?: string | null,
  *   count?: number | null
  * } & PageOptions} [options]
  * @returns {Promise<{ rows: ProfileItemRow[], nextCursor: string | null }>}
@@ -1631,6 +1686,7 @@ export async function listStreamTracks(
 		artists = [],
 		dateFromMs = null,
 		dateToMs = null,
+		q = null,
 		count = null,
 		limit = TRACK_PAGE_SIZE,
 		cursor = null,
@@ -1650,6 +1706,7 @@ export async function listStreamTracks(
 		artists,
 		dateFromMs,
 		dateToMs,
+		q,
 		decoded,
 		limit: pageLimit,
 		direction: pageDirection,
@@ -1679,6 +1736,164 @@ export async function listStreamTracks(
 	const page = keysetPage(rows, pageLimit, itemCursor, pageDirection);
 	if (count != null) return { rows: page.rows.slice(0, count), nextCursor: null };
 	return page;
+}
+
+/**
+ * Artist credits, genre tokens, and the six most-liked uploads for a stream sidebar.
+ * Artists come from the track `artist` field on this site owner's own published tracks.
+ * The stream's display count is not applied — the sidebar describes the whole filtered catalog.
+ *
+ * @param {string} userId
+ * @param {{
+ *   hostOwnerId?: string | null,
+ *   mediaType?: import('#lib/media/track-media-type.js').TrackMediaType | null,
+ *   genre?: string | null,
+ *   artists?: string[],
+ *   dateFromMs?: number | null,
+ *   dateToMs?: number | null
+ * }} [filters]
+ * @returns {Promise<{
+ *   artists: { name: string, count: number }[],
+ *   genres: { name: string, count: number }[],
+ *   mostLiked: {
+ *     id: string,
+ *     title: string,
+ *     artist: string,
+ *     slug: string | null,
+ *     username: string | null,
+ *     likeCount: number,
+ *     hasCover: boolean,
+ *     coverUrl: string | null
+ *   }[]
+ * }>}
+ */
+export async function listStreamFacets(
+	userId,
+	{
+		hostOwnerId = null,
+		mediaType = null,
+		genre = null,
+		artists = [],
+		dateFromMs = null,
+		dateToMs = null
+	} = {}
+) {
+	/** @type {import('drizzle-orm').SQL[]} */
+	const conditions = [
+		eq(track.userId, userId),
+		...listingTrackConditions(track, profile, {
+			publishedOnly: true,
+			mediaType,
+			hostOwnerId,
+			genre,
+			artists,
+			dateFromMs,
+			dateToMs
+		})
+	];
+	const where = and(...conditions);
+
+	const [rows, likeRows] = await Promise.all([
+		db
+			.select({
+				id: track.id,
+				title: track.title,
+				artist: track.artist,
+				genre: track.genre,
+				slug: track.slug,
+				coverFilename: track.coverFilename,
+				storageAdapter: track.storageAdapter,
+				published: track.published,
+				userId: track.userId,
+				folderKey: track.folderKey,
+				createdAt: track.createdAt,
+				username: profile.username
+			})
+			.from(track)
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(where),
+		db
+			.select({
+				trackId: trackLike.trackId,
+				n: count()
+			})
+			.from(trackLike)
+			.innerJoin(track, eq(track.id, trackLike.trackId))
+			.leftJoin(profile, eq(profile.userId, track.userId))
+			.where(where)
+			.groupBy(trackLike.trackId)
+	]);
+
+	/** @type {Map<string, number>} */
+	const likes = new Map(likeRows.map((row) => [row.trackId, row.n]));
+
+	/** @type {Map<string, { name: string, count: number }>} */
+	const artistMap = new Map();
+	/** @type {Map<string, { name: string, count: number }>} */
+	const genreMap = new Map();
+	for (const row of rows) {
+		const credit = row.artist?.trim() ?? '';
+		if (credit) {
+			const key = credit.toLowerCase();
+			const entry = artistMap.get(key);
+			if (entry) entry.count += 1;
+			else artistMap.set(key, { name: credit, count: 1 });
+		}
+		for (const token of parseGenres(row.genre)) {
+			const key = token.toLowerCase();
+			const entry = genreMap.get(key);
+			if (entry) entry.count += 1;
+			else genreMap.set(key, { name: token, count: 1 });
+		}
+	}
+
+	const byName = (
+		/** @type {{ name: string, count: number }} */ a,
+		/** @type {{ name: string, count: number }} */ b
+	) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
+	const ranked = rows
+		.map((row) => ({ row, likeCount: likes.get(row.id) ?? 0 }))
+		.filter((entry) => entry.likeCount > 0)
+		.sort((a, b) => {
+			if (b.likeCount !== a.likeCount) return b.likeCount - a.likeCount;
+			const aMs = a.row.createdAt?.getTime() ?? 0;
+			const bMs = b.row.createdAt?.getTime() ?? 0;
+			return bMs - aMs;
+		})
+		.slice(0, 6);
+
+	const sshOwners = ranked
+		.filter((entry) => entry.row.storageAdapter === 'ssh' && entry.row.published)
+		.map((entry) => entry.row.userId);
+	const bases = await getSshPublicBaseUrls(sshOwners);
+
+	return {
+		artists: [...artistMap.values()].sort(byName),
+		genres: [...genreMap.values()].sort(byName),
+		mostLiked: ranked.map(({ row, likeCount }) => {
+			const { coverUrl } = resolvePublicTrackMediaUrls(
+				{
+					storageAdapter: row.storageAdapter,
+					published: row.published,
+					userId: row.userId,
+					folderKey: row.folderKey,
+					coverFilename: row.coverFilename
+				},
+				bases.get(row.userId) ?? null
+			);
+			return {
+				id: row.id,
+				title: row.title,
+				artist: row.artist?.trim() ?? '',
+				slug: row.slug,
+				username: row.username,
+				likeCount,
+				hasCover: Boolean(row.coverFilename),
+				coverUrl
+			};
+		})
+	};
 }
 
 /**

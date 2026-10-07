@@ -403,7 +403,9 @@ export const blockDefinitions = [
 			dateTo: '',
 			genre: '',
 			artists: [],
-			mediaType: ''
+			mediaType: '',
+			showSearch: false,
+			showSidebar: false
 		},
 		fields: []
 	},

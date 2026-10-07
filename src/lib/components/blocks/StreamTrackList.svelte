@@ -1,29 +1,48 @@
 <script>
-	import { onMount } from 'svelte';
-
-	import { STREAM_ARTIST_SEP, streamSearchParams } from '#lib/builder/stream-query.js';
+	import {
+		STREAM_ARTIST_SEP,
+		streamQueryKey,
+		streamSearchParams
+	} from '#lib/builder/stream-query.js';
+	import StreamItems from '#lib/components/blocks/StreamItems.svelte';
 	import InfiniteList from '#lib/components/lists/InfiniteList.svelte';
-	import PlaylistCard from '#lib/components/player/PlaylistCard.svelte';
-	import TrackCard from '#lib/components/player/TrackCard.svelte';
 	import { restorableList } from '#lib/lists/restorable-list.svelte.js';
 
 	/**
 	 * @type {{
 	 *   username: string,
 	 *   query: import('#lib/builder/stream-query.js').StreamQuery,
-	 *   seed?: { items: import('#lib/lists/track-list.svelte.js').ListItem[], nextCursor: string | null } | null,
-	 *   profileData: Record<string, any>
+	 *   seed?: { key?: string, items: import('#lib/lists/track-list.svelte.js').ListItem[], nextCursor: string | null } | null,
+	 *   profileData: Record<string, any>,
+	 *   narrow?: ((item: Record<string, any>) => boolean) | null,
+	 *   pending?: boolean,
+	 *   placeholder?: Array<Record<string, any>> | null,
+	 *   emptyLabel?: string
 	 * }}
 	 */
-	let { username, query, seed = null, profileData } = $props();
+	let {
+		username,
+		query,
+		seed = null,
+		profileData,
+		narrow = null,
+		pending = false,
+		placeholder = null,
+		emptyLabel = 'No tracks match this stream.'
+	} = $props();
 
 	/** @type {HTMLElement | undefined} */
 	let box = $state.raw();
-	/** @type {{ items: import('#lib/lists/track-list.svelte.js').ListItem[], nextCursor: string | null } | null} */
+	/** @type {{ key: string, items: import('#lib/lists/track-list.svelte.js').ListItem[], nextCursor: string | null } | null} */
 	let fetched = $state(null);
 	let failed = $state(/** @type {string | null} */ (null));
+	let loading = $state(false);
 
-	const page = $derived(seed ?? fetched);
+	const requestKey = $derived(streamQueryKey(query));
+	const fresh = $derived(seed ?? (fetched?.key === requestKey ? fetched : null));
+	const source = $derived(
+		fresh ?? fetched ?? (placeholder ? { items: placeholder, nextCursor: null } : null)
+	);
 
 	const paged = restorableList(
 		() => ({
@@ -35,11 +54,17 @@
 			dateTo: query.dateTo,
 			artists: query.artists.length ? query.artists.join(STREAM_ARTIST_SEP) : null,
 			count: query.count,
-			owner: page ? `ready:${page.items.length}:${page.nextCursor ?? ''}` : 'pending'
+			q: query.q,
+			owner: fresh ? `ready:${fresh.items.length}:${fresh.nextCursor ?? ''}` : 'pending'
 		}),
-		() => page ?? { items: [], nextCursor: null },
+		() => fresh ?? { items: [], nextCursor: null },
 		() => box
 	);
+
+	const shown = $derived.by(() => {
+		const items = fresh && paged.current ? paged.current.items : (source?.items ?? []);
+		return narrow ? items.filter((item) => narrow(item)) : items;
+	});
 
 	/** @type {import('svelte/attachments').Attachment} */
 	const captureBox = (node) => {
@@ -49,15 +74,18 @@
 		};
 	};
 
-	onMount(() => {
-		if (page) return;
-		const controller = new AbortController();
-		let alive = true;
+	$effect(() => {
+		if (seed) return;
+		const key = requestKey;
 		const params = new URLSearchParams({
 			scope: 'stream',
 			username,
 			...streamSearchParams(query)
 		});
+		const controller = new AbortController();
+		let alive = true;
+		loading = true;
+		failed = null;
 		fetch(`/api/tracks?${params}`, { signal: controller.signal })
 			.then(async (res) => {
 				if (!res.ok) throw new Error('Could not load this stream.');
@@ -65,12 +93,15 @@
 			})
 			.then((body) => {
 				if (!alive) return;
-				fetched = { items: body.items ?? [], nextCursor: body.nextCursor ?? null };
+				fetched = { key, items: body.items ?? [], nextCursor: body.nextCursor ?? null };
 			})
 			.catch((err) => {
 				if (!alive) return;
 				if (err instanceof DOMException && err.name === 'AbortError') return;
 				failed = 'Could not load this stream.';
+			})
+			.finally(() => {
+				if (alive) loading = false;
 			});
 		return () => {
 			alive = false;
@@ -79,60 +110,27 @@
 	});
 </script>
 
-<div class="results" {@attach captureBox}>
-	{#if paged.current && page}
-		{#if paged.current.items.length === 0}
-			<p class="empty">No tracks match this stream.</p>
-		{:else}
-			<InfiniteList list={paged.current} moreLabel="Load more">
-				<ul>
-					{#each paged.current.items as item (item.id)}
-						<li data-cursor={item.cursor}>
-							{#if item.kind === 'playlist'}
-								<PlaylistCard
-									playlist={item}
-									linkBase=""
-									showCommentForm={false}
-									signedIn={Boolean(profileData.viewer)}
-									viewerId={profileData.viewer?.id ?? null}
-									viewerName={profileData.viewer?.name ?? null}
-									viewerImage={profileData.viewer?.image ?? null}
-									ondeleted={() => paged.current.remove(item.id)}
-								/>
-							{:else}
-								<TrackCard
-									track={item}
-									linkBase=""
-									hideArtist
-									stream
-									showCommentForm={false}
-									signedIn={Boolean(profileData.viewer)}
-									viewerId={profileData.viewer?.id ?? null}
-									viewerName={profileData.viewer?.name ?? null}
-									viewerImage={profileData.viewer?.image ?? null}
-									ondeleted={() => paged.current.remove(item.id)}
-								/>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			</InfiniteList>
-		{/if}
-	{:else if failed}
-		<p class="empty" role="alert">{failed}</p>
+<div class="results" {@attach captureBox} aria-busy={loading || pending}>
+	{#if shown.length === 0}
+		<p class="empty" role="status">
+			{#if failed && !source}
+				{failed}
+			{:else if loading || pending}
+				Searching…
+			{:else}
+				{emptyLabel}
+			{/if}
+		</p>
+	{:else if fresh && paged.current}
+		<InfiniteList list={paged.current} moreLabel="Load more">
+			<StreamItems items={shown} {profileData} onremove={(id) => paged.current.remove(id)} />
+		</InfiniteList>
 	{:else}
-		<p class="empty">Loading…</p>
+		<StreamItems items={shown} {profileData} />
 	{/if}
 </div>
 
 <style>
-	ul {
-		display: grid;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
 	.empty {
 		margin: 0;
 		color: var(--muted);

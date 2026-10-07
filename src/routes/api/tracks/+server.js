@@ -10,6 +10,7 @@ import { getProfileByUsername, isTenantUsernameAllowed } from '#lib/server/tenan
 import { serializeTimelineRows } from '#lib/server/timeline';
 import {
 	listProfileItemsWithUploader,
+	listStreamFacets,
 	listStreamTracks,
 	listTracksWithUploader,
 	serializeLibraryTrackRows,
@@ -106,10 +107,22 @@ export async function GET({ locals, url }) {
 			dateTo: url.searchParams.get('to'),
 			genre: url.searchParams.get('genre'),
 			artists: url.searchParams.get('artists'),
-			mediaType: url.searchParams.get('mediaType')
+			mediaType: url.searchParams.get('mediaType'),
+			q: url.searchParams.get('q')
 		});
 		const bounds = streamDateBounds(query);
 		const hostOwnerId = listingHostOwnerId(locals, owner.userId);
+		if (url.searchParams.get('facets') === '1') {
+			const facets = await listStreamFacets(owner.userId, {
+				hostOwnerId,
+				mediaType: query.mediaType,
+				genre: query.genre,
+				artists: query.artists,
+				dateFromMs: bounds.from,
+				dateToMs: bounds.to
+			});
+			return json(facets);
+		}
 		const { rows, nextCursor } = await listStreamTracks(owner.userId, {
 			hostOwnerId,
 			mediaType: query.mediaType,
@@ -117,6 +130,7 @@ export async function GET({ locals, url }) {
 			artists: query.artists,
 			dateFromMs: bounds.from,
 			dateToMs: bounds.to,
+			q: query.q,
 			count: query.count,
 			limit: page.limit,
 			cursor: page.cursor,

@@ -698,6 +698,7 @@
 												profileData={profileCatalog}
 												profileList={profileCatalog ? profileCatalogList.current : null}
 												streamSeed={data.streamPages?.[instance.id] ?? null}
+												streamFacets={data.streamFacets?.[instance.id] ?? null}
 											/>
 										{:else if instance.type === 'catalog.profile'}
 											<Block
@@ -1208,7 +1209,9 @@
 		pointer-events: none;
 	}
 
-	.instance-hit :global(.post-toggle) {
+	.instance-hit :global(.post-toggle),
+	.instance-hit :global(.stream-interactive),
+	.instance-hit :global(.stream-interactive *) {
 		pointer-events: auto;
 	}
 

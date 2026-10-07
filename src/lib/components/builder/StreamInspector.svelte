@@ -23,6 +23,8 @@
 	let { props, items = [], onChange } = $props();
 
 	const query = $derived(parseStreamQuery(props));
+	const showSearch = $derived(props.showSearch === true);
+	const showSidebar = $derived(props.showSidebar === true);
 	let artistDraft = $state('');
 	/** Local text so a genre can be typed without refetching the stream on each character. */
 	let genreDraft = $state(/** @type {string | null} */ (null));
@@ -177,6 +179,38 @@
 					</button>
 				{/each}
 			</div>
+		</div>
+	</section>
+
+	<section class="group" aria-label="Stream browse">
+		<div class="group-label">Browse</div>
+		<div class="switches">
+			<button
+				type="button"
+				class="switch"
+				role="switch"
+				aria-checked={showSearch}
+				onclick={() => onChange({ showSearch: !showSearch })}
+			>
+				<span class="switch-copy">
+					<span class="switch-label">Search</span>
+					<span class="switch-hint">Filter by artist, title, or genre</span>
+				</span>
+				<span class="knob-track" aria-hidden="true"><span class="knob"></span></span>
+			</button>
+			<button
+				type="button"
+				class="switch"
+				role="switch"
+				aria-checked={showSidebar}
+				onclick={() => onChange({ showSidebar: !showSidebar })}
+			>
+				<span class="switch-copy">
+					<span class="switch-label">Sidebar</span>
+					<span class="switch-hint">Most liked, artists, and genres</span>
+				</span>
+				<span class="knob-track" aria-hidden="true"><span class="knob"></span></span>
+			</button>
 		</div>
 	</section>
 
@@ -375,6 +409,88 @@
 	.field {
 		display: grid;
 		gap: 0.28rem;
+	}
+
+	.switches {
+		display: grid;
+		border: 1px solid var(--hud-line);
+		border-radius: 0.125rem;
+		background: var(--hud-wash);
+	}
+
+	.switch {
+		display: flex;
+		gap: 0.65rem;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		min-height: 2.35rem;
+		padding: 0.4rem 0.5rem;
+		border: 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+		background: transparent;
+		color: var(--ink);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.switches > :last-child {
+		border-bottom: 0;
+	}
+
+	.switch-copy {
+		display: grid;
+		gap: 0.05rem;
+		min-width: 0;
+	}
+
+	.switch-label {
+		font-size: 0.78rem;
+		letter-spacing: 0.01em;
+		text-transform: none;
+		color: var(--ink);
+	}
+
+	.switch-hint {
+		font-size: 0.65rem;
+		line-height: 1.3;
+		letter-spacing: 0;
+		text-transform: none;
+		color: var(--muted);
+	}
+
+	.knob-track {
+		position: relative;
+		display: inline-flex;
+		flex-shrink: 0;
+		box-sizing: border-box;
+		width: 2.2rem;
+		height: 1.1rem;
+		align-items: center;
+		padding: 1px;
+		border: 1px solid var(--hud-line);
+		border-radius: 0.125rem;
+		background: var(--hud-wash);
+		box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 20%, transparent);
+	}
+
+	.switch[aria-checked='true'] .knob-track {
+		background: var(--hud-ui);
+		box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 28%, transparent);
+	}
+
+	.knob {
+		width: 0.85rem;
+		height: 0.85rem;
+		border-radius: 0.125rem;
+		background: color-mix(in srgb, var(--ink) 42%, var(--paper));
+		box-shadow: 0 1px 1px color-mix(in srgb, var(--ink) 28%, transparent);
+		transition: transform 120ms ease;
+	}
+
+	.switch[aria-checked='true'] .knob {
+		background: var(--on-hud-ui);
+		transform: translateX(1.05rem);
 	}
 
 	.heading-row {
