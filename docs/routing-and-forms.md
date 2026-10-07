@@ -18,6 +18,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/library/new`                     | required               | redirects to `/library` (former LOAD console)                                                               |
 | `/library/[id]`                    | owner only             | redirects to `/library?track={id}&edit=1`                                                                   |
 | `/[username]/tracks/[slug]`        | public                 | track detail with waveform and comments (`/{artist}/tracks/{slug}/`)                                        |
+| `/[username]/tracks/[slug]/embed`  | public                 | frameable player used by oEmbed (`X-Frame-Options` omitted)                                                 |
+| `/oembed`                          | public                 | oEmbed JSON for a public track `url` (`format=json`)                                                        |
 | `/tracks/[id]`                     | public                 | 301 to `/{username}/tracks/{slug}/`                                                                         |
 | `/playlists/new`                   | required               | create a playlist                                                                                           |
 | `/playlists/[id]`                  | public                 | playlist detail (waveform + member list)                                                                    |
@@ -50,7 +52,8 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`, `/library`,
 `/sites`, `/plans`, `/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/users/*`, and unlisted
 `/api/*` 404 on tenant hosts. See
-[architecture.md](architecture.md).
+[architecture.md](architecture.md). Track pages also advertise oEmbed, Open Graph audio, and a
+Discord component card so shared URLs can unfurl; `/oembed` returns the player iframe.
 
 **Site builder** (`/sites/[id]/builder`): Vault+ owner only. Load ensures a root `site_page` and site
 chrome (`ensureSiteChrome`), returns `site` (with `header` / `footer`), `pages` + `currentPageId`

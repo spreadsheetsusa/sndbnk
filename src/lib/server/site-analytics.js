@@ -88,6 +88,8 @@ export function normalizePagePath(pathname) {
 	if (path.length > 1) path = path.replace(/\/+$/, '') || '/';
 	if (!path.startsWith('/') || path.includes('..') || path.length > MAX_PATH_LENGTH) return null;
 	if (SKIP_PATH.test(path)) return null;
+	// Framed players and oEmbed fetches are not site visits.
+	if (path === '/oembed' || /\/tracks\/[^/]+\/embed$/.test(path)) return null;
 	if (
 		/\.(?:js|css|map|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|txt|xml|json|webmanifest)$/i.test(path)
 	) {

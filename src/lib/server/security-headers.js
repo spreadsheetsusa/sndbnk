@@ -21,16 +21,24 @@ export const CSP_REPORT_ONLY = [
 ].join('; ');
 
 /**
- * @type {import('@sveltejs/kit').Handle}
+ * The track widget is the only document other sites may frame.
+ * @param {string} pathname
  */
+export function isFrameableEmbed(pathname) {
+	return /^\/[^/]+\/tracks\/[^/]+\/embed\/?$/.test(pathname);
+}
+
 export const handleSecurityHeaders = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	const headers = response.headers;
+	const frameable = isFrameableEmbed(event.url.pathname);
 
 	if (!headers.has('x-content-type-options')) {
 		headers.set('X-Content-Type-Options', 'nosniff');
 	}
-	if (!headers.has('x-frame-options')) {
+	if (frameable) {
+		headers.delete('x-frame-options');
+	} else if (!headers.has('x-frame-options')) {
 		headers.set('X-Frame-Options', 'DENY');
 	}
 	if (!headers.has('referrer-policy')) {

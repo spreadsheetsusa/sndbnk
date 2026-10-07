@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 
+import { resolveStreamSource } from '#lib/server/media/assets';
 import { loadContentImages, renderTrackPostHtml } from '#lib/server/media/track-post';
 import { redirectApexCatalogToDomain } from '#lib/server/platform-pool';
 import { safeRedirect } from '#lib/server/safe-redirect';
@@ -56,9 +57,12 @@ export const load = async ({ locals, params }) => {
 	);
 
 	const contentImages = await loadContentImages(row.track);
+	const stream = resolveStreamSource(row.track);
 
 	return {
 		track,
+		streamMime: stream?.mime ?? null,
+		coverMime: row.track.coverMime ?? null,
 		description: row.track.description,
 		descriptionHtml: renderTrackPostHtml(row.track.id, row.track.description, contentImages),
 		meta: {

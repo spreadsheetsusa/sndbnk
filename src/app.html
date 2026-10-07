@@ -9,6 +9,9 @@
 			(function () {
 				try {
 					var root = document.documentElement;
+					if (/\/tracks\/[^/]+\/embed\/?$/.test(location.pathname)) {
+						root.classList.add('embed-widget');
+					}
 					var stored = localStorage.getItem('theme');
 					var dark =
 						stored === 'dark' ||
@@ -52,6 +55,18 @@
 			}
 			html.dark {
 				background: #141410;
+			}
+			html.embed-widget,
+			html.embed-widget body {
+				height: 100%;
+				overflow: hidden;
+			}
+			html.embed-widget #boot-splash {
+				display: none !important;
+			}
+			html.embed-widget .app-shell {
+				height: 100%;
+				min-height: 0 !important;
 			}
 			#boot-splash {
 				position: fixed;
