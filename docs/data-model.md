@@ -69,6 +69,8 @@ These tables have no `$defaultFn` on IDs or timestamps — better-auth supplies 
 | Column                                     | Purpose                                                    |
 | ------------------------------------------ | ---------------------------------------------------------- |
 | `username`                                 | unique; the subdomain label and path segment               |
+| `bio` / `location`                         | public profile copy; nullable                              |
+| `avatarFilename` / `avatarMime`            | profile image served from `/api/avatar/[userId]`           |
 | `plan`                                     | `'free' \| 'vault' \| 'studio' \| 'label'`, default `free` |
 | `customDomain`                             | unique, nullable; apex↔`www` paired at lookup time         |
 | `customDomainStatus`                       | `'none' \| 'pending' \| 'active'`                          |
@@ -89,6 +91,11 @@ redirect to the custom domain). Landing stat badges still count every listed tra
 the whole bank. Turning it on shares the catalog in the pool. Removing the domain or leaving
 Studio/Label ignores the flag, so the catalog is not stranded, and the subdomain serves the site
 again.
+
+### `profile_link` — labeled external URLs
+
+`label`, `url`, and `position`, many per user. Edited from Settings → Profile. The public profile
+lists them in the hero and, when the sidebar is on, in a Links panel under Stats.
 
 ### `site` — optional 1:1 tenant branding
 
@@ -220,6 +227,11 @@ Service: [`site-media.js`](../src/lib/server/site-media.js). Builder HUD uploads
 deletes. Blocks store `imageId` / `imageKind` (and the same pair on list items) and render through
 `MediaPlaceholder`.
 
+### `stripe_event` — webhook idempotency
+
+Primary key is the Stripe event id. A redelivery is a no-op. Not a billing source of truth; the
+`profile` subscription columns are.
+
 ### `plan` — entitlement catalog
 
 Seeded by [`scripts/migrate-sqlite.js`](../scripts/migrate-sqlite.js) as Free / Vault / Studio /
@@ -336,6 +348,15 @@ Same shape as `track_like` — composite primary key `(playlistId, userId)` plus
 `(userId, createdAt, playlistId)` index for the Likes tab. Playlist likes are independent of likes
 on member tracks.
 
+### `listen_history`
+
+One row per `(userId, trackId)`. A counted play by a signed-in listener upserts `lastPlayedAt` and
+`playCount`. The profile History tab is owner-only.
+
+### `platform_settings`
+
+Singleton row, `id = 'default'`. `trackPlayPercent` (default 60) and `mixPlayContinualMs` (default 600000) are the play-count thresholds, edited from `/admin`.
+
 ## Relations
 
 ```mermaid
@@ -362,6 +383,9 @@ erDiagram
   user ||--o{ playlist_like : gives
   user ||--o{ follow : follows
   user ||--o{ account_link : links
+  user ||--o{ profile_link : links out
+  user ||--o{ listen_history : heard
+  site ||--o{ site_account : signups
 ```
 
 Drizzle `relations()` are declared for every table but the code overwhelmingly uses explicit

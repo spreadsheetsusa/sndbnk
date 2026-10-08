@@ -1,8 +1,9 @@
 # Design system
 
-Brutalist and print-inspired: hard 1px ink borders, zero border-radius, offset drop shadows instead
-of blur, a single acid-lime accent, and a paper-textured grid background. Display type carries
-chromatic aberration; interactive marks glitch on hover.
+Brutalist and print-inspired: hard 1px ink borders, offset drop shadows instead of blur, a single
+acid-lime accent, and a paper-textured grid background. Display type carries chromatic aberration;
+interactive marks glitch on hover. Most chrome stays square. Form controls, genre chips, the library
+deck, and the header player strip use `border-radius: 0.125rem`. Avatars are circles.
 
 All of it comes from CSS custom properties defined once in
 [`src/routes/layout.css`](../src/routes/layout.css) and consumed by component-scoped `<style>`
@@ -22,7 +23,7 @@ Defined on `:root`, overridden on `.dark`.
 | `--inverse`       | `#11110f`               | `#050504`                | inverted panels (auth intro, eyebrow chips) |
 | `--on-inverse`    | `#f2f0e8`               | `#f2f0e8`                | text on an inverted panel                   |
 | `--hard-border`   | `var(--ink)`            | `var(--accent)`          | raised panel/menu edges                     |
-| `--hard-shadow`   | `var(--ink)`            | accent @ 48% into black  | offset block shadows on raised surfaces     |
+| `--hard-shadow`   | `var(--ink)`            | accent @ 30% into black  | offset block shadows on raised surfaces     |
 | `--cover-shadow`  | `var(--ink)`            | ink @ 28% transparent    | offset shadows on cover art only            |
 | `--field-border`  | accent darkened + muted | same recipe, darker mix  | resting borders on inputs/textareas/selects |
 | `--field-surface` | accent @ 7% transparent | accent @ 10% transparent | light wash behind form controls             |
@@ -38,8 +39,8 @@ Layout rail:
 | ------------------------- | ------------------------------------------------ | -------------------------------------------------------------- |
 | `--site-shell-max`        | `1600px`                                         | outer page width, shared by header and pages so nothing shifts |
 | `--site-shell-pad-x`      | `clamp(1rem, 3.5vw, 4rem)`, `0.5rem` under 640px | horizontal gutter (header + pages share it)                    |
-| `--site-content-max`      | `920px`                                          | main reading column                                            |
-| `--site-content-max-wide` | `1100px`                                         | profile pages                                                  |
+| `--site-content-max`      | `var(--site-shell-max)` (`1600px`)               | page content, same rail as the header                          |
+| `--site-content-max-wide` | `var(--site-shell-max)` (`1600px`)               | same rail; the old narrower profile column is gone             |
 | `--site-header-height`    | `5rem`                                           | sticky header min-height                                       |
 | `--site-header-gap`       | `clamp(0.75rem, 2vw, 1.25rem)`                   | space below the header before page content                     |
 | `--site-sidebar-width`    | `20rem`                                          | card sidebar rail on feed/list pages                           |
@@ -101,7 +102,9 @@ the fill. [`ThemeControls.svelte`](../src/lib/components/ThemeControls.svelte) i
 swatch row + segmented appearance control used by the account menu (listener light/dark via
 `brand.js` / `theme.js`) and the builder Inspector Site theme panel (tenant hex +
 `light`/`dark`/`user` via `PUT /api/sites/{id}/theme`). Builder also picks a theme persona
-(`#lib/builder/theme-persona.js`) that derives `--theme-1`…`--theme-5` from the accent. The
+(`#lib/builder/theme-persona.js`) that derives named slots (`--theme-primary`, `--theme-secondary`,
+`--theme-tertiary`, `--theme-surface`, `--theme-success`, `--theme-error`) and the numbered aliases
+`--theme-1`…`--theme-5` from the accent. The
 conic-gradient wheel slides
 [`AccentPicker.svelte`](../src/lib/components/AccentPicker.svelte) open beneath the row; every drag
 commits through the parent's callback so listener chrome or the site preview recolors live.
@@ -120,7 +123,7 @@ Four roles, tokenized on `:root` so a rebrand is one swap in `layout.css` (+ the
 | Display     | Audiowide     | `--font-display` / `.display-face`  | wordmark, hero `h1`          |
 | Editorial   | Space Grotesk | `--font-editorial`                  | section titles, form heads   |
 | Body        | KoHo          | `--font-body` / `:root` default     | paragraphs, lists, chrome    |
-| LCD         | Jersey 20     | `--font-lcd` / `.lcd-face`          | global player now-playing    |
+| LCD         | Jersey 20     | `--font-lcd` / `.lcd-face`          | header player now-playing    |
 | Micro-label | body @ 800    | `.eyebrow` (inherits `--font-body`) | uppercase, `0.15em` tracking |
 
 Fonts load via `@import url(…fonts.googleapis.com…)` at the top of `layout.css`; `:root` sets
@@ -179,19 +182,19 @@ inherits this automatically through the global rule — but if you add JS-driven
 
 - **Scoped `<style>` in the component**, semantic class names (`.auth-intro`, `.form-error`,
   `.dns-actions`) rather than utility soup.
-- **Tailwind is installed but essentially unused in components.** `@import 'tailwindcss'` is present
-  and `prettier-plugin-tailwindcss` will sort classes if you write them, but the design language is
-  custom properties. Do not convert existing scoped CSS to utilities, and prefer scoped CSS for new
-  work so the codebase stays one thing.
+- **Tailwind is installed but essentially unused in components.** `@import 'tailwindcss'` is present,
+  plus a small `@theme inline` block that aliases `--color-*` to the CSS variables. Color tokens
+  still live on `:root`. `prettier-plugin-tailwindcss` will sort classes if you write them. Do not
+  convert existing scoped CSS to utilities, and prefer scoped CSS for new work.
 - **Expose knobs as custom properties** rather than adding boolean props. `SiteHeader` reads
   `--site-header-gap` (default on `:root` in `layout.css`); the landing page overrides it to `0`:
   `<SiteHeader --site-header-gap="0" />`.
 - **Focus is never removed.** `:focus-visible` gets a `2px solid var(--ink)` outline with `3px`
   offset globally; if you restyle focus, keep it at least that visible.
-- **Inputs and buttons are square** — `border-radius: 0`. Text controls rest on
-  `1px solid var(--field-border)` with `background: var(--field-surface)` so they pick up the
-  accent without competing with CTAs; buttons stay on ink / `--hard-border`. Inputs show focus as
-  `box-shadow: 4px 4px 0 var(--accent)`.
+- **Raised panels stay square** (`border-radius: 0`). Text controls, genre chips, and the header
+  player strip use `0.125rem`. Text controls rest on `1px solid var(--field-border)` with
+  `background: var(--field-surface)` so they pick up the accent without competing with CTAs; buttons
+  stay on ink / `--hard-border`. Inputs show focus as `box-shadow: 4px 4px 0 var(--accent)`.
 
 ## Waveforms
 

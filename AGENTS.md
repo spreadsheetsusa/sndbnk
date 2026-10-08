@@ -1,7 +1,7 @@
 # AGENTS.md
 
-`sndbnk` is a SoundCloud-style audio host: creators upload tracks, listeners play them through a
-global player bar, and every creator gets a public profile reachable by path, by subdomain, or on
+`sndbnk` is a SoundCloud-style audio host: creators upload tracks, listeners play them through the
+header player, and every creator gets a public profile reachable by path, by subdomain, or on
 their own custom domain. SvelteKit + Svelte 5 runes, plain JS with JSDoc, Drizzle over SQLite,
 better-auth, running on Bun.
 
@@ -50,6 +50,9 @@ bun run format       # prettier --write .
 bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js
 ```
 
+Also: `worker:waveform`, `createsuperuser`, `stripe:bootstrap`, `pull:prod`, `mail:preview`.
+There is no test script. `db:push` is retired.
+
 Schema changes are **Drizzle generate + migrate**: edit [`src/lib/server/db/schema.js`](src/lib/server/db/schema.js),
 run `bun run db:generate`, review SQL under [`drizzle/`](drizzle/), apply with `bun run db:migrate`.
 Deploy backs up SQLite then migrates. Kit's CLI migrate/push uses `better-sqlite3` (Node-only), so
@@ -80,7 +83,7 @@ route at boot with `Invalid environment variables` — copy the missing line fro
 ## Smoke test
 
 `/signup` → `/library` (drop or pick an audio file; deck edit opens) → `/users/{username}` (play it,
-confirm the global player bar survives navigation) → `/{username}/tracks/{slug}/` (like and comment) → sign out
+confirm the header player survives navigation) → `/{username}/tracks/{slug}/` (like and comment) → sign out
 from the header → `/signin` back in. Check any visual change in both light and dark mode.
 
 ## Svelte MCP
