@@ -766,7 +766,7 @@
 					{#if genres.length}
 						<span class="tags">
 							{#each genres as g (g)}
-								<span class="tag"># {g}</span>
+								<span class="tag">{g}</span>
 							{/each}
 						</span>
 					{/if}

@@ -716,7 +716,6 @@
 											</button>
 										{:else if chip.kind === 'draft'}
 											<label class="genre draft">
-												<span class="hash" aria-hidden="true">#</span>
 												<input
 													bind:this={draftInput}
 													class="genre-input"
@@ -734,7 +733,7 @@
 											</label>
 										{:else}
 											<span class="genre editable">
-												# {chip.label}
+												{chip.label}
 												<button
 													type="button"
 													class="genre-x"
@@ -758,9 +757,8 @@
 								</button>
 							{:else}
 								{#each displayGenres as g (g)}
-									<span class="genre"># {g}</span>
+									<span class="genre">{g}</span>
 								{/each}
-								{@render masterDownload()}
 								<button
 									type="button"
 									class="edit-btn"
@@ -1466,10 +1464,6 @@
 		min-width: 5.5rem;
 		padding: 0.15rem 0.55rem;
 		cursor: text;
-	}
-
-	.genre .hash {
-		opacity: 0.7;
 	}
 
 	.genre-input {

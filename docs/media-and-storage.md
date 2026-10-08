@@ -78,6 +78,14 @@ SSH always writes and manages files over SFTP. Browser reads have two modes, con
 The public base is not a secret. Trim trailing slashes on save. For the visualizer, the public host should
 send `Access-Control-Allow-Origin` because the player sets `crossOrigin = 'anonymous'`.
 
+The library storage meter is the plan's hosted allowance when new uploads go to SNDBNK. When the
+adapter is SSH it is the remote filesystem that holds `sshRemotePath` (used / total), not that
+allowance. The reading is OpenSSH `statvfs` over the existing SFTP session (`df -Pk` only if the
+server does not advertise the extension). A fresh result is reused for 10 minutes; a stale one stays
+on screen while a refresh runs in the background, and a failed probe waits a minute before trying
+again so library loads do not open SSH on every request. See
+[`ssh-disk.js`](../src/lib/server/storage/ssh-disk.js).
+
 ### Resolving an adapter
 
 ```js
