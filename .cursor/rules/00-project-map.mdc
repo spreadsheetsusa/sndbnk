@@ -39,8 +39,8 @@ Violating any of these breaks the app.
 | Design tokens and global CSS | `src/routes/layout.css`                                          |
 | Schema migrations            | `drizzle/` + `scripts/migrate-sqlite.js`                         |
 
-Routes call `src/lib/server/*` services; services own `db`. Routes never query `db` directly, and
-components never import from `src/lib/server/`.
+Routes should call `src/lib/server/*` services; services own `db`. Components never import from
+`src/lib/server/`. A few older routes still query `db` directly — see `docs/known-issues.md`.
 
 ## Read the docs before non-trivial work
 
@@ -66,3 +66,6 @@ bun run lint         # prettier --check .
 bun run format       # prettier --write .
 bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js
 ```
+
+Other scripts in `package.json`: `worker:waveform`, `createsuperuser`, `stripe:bootstrap`,
+`pull:prod`, `mail:preview`, `db:backup`, `nuke`. There is no test script. `db:push` is retired.

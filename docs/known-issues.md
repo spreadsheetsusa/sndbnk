@@ -173,9 +173,11 @@ prod origin does.
   `.visually-hidden`, and [`InfiniteList.svelte`](../src/lib/components/lists/InfiniteList.svelte)
   redefines `.sr-only`. Collapse onto the global class.
 - **Tailwind is installed but not the component idiom.** `@import 'tailwindcss'`, the Vite plugin,
-  and `prettier-plugin-tailwindcss` are configured; components primarily use scoped CSS and custom
-  properties. Tokens live in `:root`, not a Tailwind `@theme` block. Prefer scoped CSS for new work;
-  do not assume utility classes are the house style.
+  and `prettier-plugin-tailwindcss` are configured. `layout.css` also has a small `@theme inline`
+  block that aliases `--color-*` to the CSS variables. Color tokens still live on `:root`. Components
+  use scoped CSS. Prefer that for new work; do not assume utility classes are the house style.
+- **A few routes still query `db`.** Settings, admin, the sitemap, the Stripe webhook, and the track
+  like and comment POST handlers import the client directly. New routes go through a service.
 - **Import extension inconsistency.** `storage/index.js` imports `./crypto.js`;
   `db/schema.js` imports `./auth.schema`. Both resolve; neither is enforced.
 - **Env access is split by context.** Runtime code uses `$app/env/private`; `drizzle.config.js` and

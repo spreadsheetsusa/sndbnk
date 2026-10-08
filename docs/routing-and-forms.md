@@ -6,12 +6,17 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 
 | Route                              | Auth                   | What it does                                                                                                |
 | ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `/`                                | optional               | Marketing landing on apex; the composed Home `site_page` on a tenant host                                   |
+| `/`                                | optional               | Marketing landing on apex (`mode: 'marketing'`); composed Home on a tenant host (`mode: 'tenant-site'`)     |
 | `/[...path]`                       | public (tenant only)   | Flat composed tenant page such as `/about`; exact `site_page.path` lookup or 404                            |
-| `/signin`, `/signup`               | redirects if signed in | email or username + password auth, then `303 → /`                                                           |
-| `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration)                                                     |
-| `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1`                                     |
-| `/settings`                        | required               | tabbed profile (incl. email change) / linked accounts / plan / domain / site / storage                      |
+| `/signin`, `/signup`               | redirects if signed in | email or username + password, then `303 → /`. On a custom domain, 404 unless `site.allowDomainAuth`         |
+| `/forgot-password`                 | redirects if signed in | request a reset email (generic success; no enumeration). Same custom-domain gate as sign-in                 |
+| `/reset-password`                  | redirects if signed in | set a new password from the emailed token, then `303 → /signin?reset=1` (apex only)                         |
+| `/signout`                         | public                 | form action signs out. Custom domains also clear the apex cookie via `/auth/network/signout`                |
+| `/auth/network`                    | public                 | `GET ?code=` redeems a one-time session handoff between the apex and a custom domain                        |
+| `/feed`                            | required               | signed-in timeline; `?following=1`, `?genre=`, `?q=`                                                        |
+| `/plans`                           | public                 | Stripe checkout. Label stays unpurchasable until a teams UI exists                                          |
+| `/billing/return`                  | required               | confirms a Checkout session after Stripe redirects back                                                     |
+| `/settings`                        | required               | Profile, Linked Accounts, Billing, Domain, Site, Audience (Studio+ custom domain), Storage                  |
 | `/sites/[id]`                      | owner only (apex)      | first-run site setup wizard; redirects to builder when `setupCompletedAt` is set                            |
 | `/sites/[id]/builder`              | owner only (apex)      | site builder workspace (root page + draggable HUDs); redirects back to setup when incomplete                |
 | `/library`                         | required               | owner track list; drop/picker upload via `?/create`; `?mediaType=` filters; `?track=` + `?edit=1` deck edit |
@@ -45,17 +50,30 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/api/tracks/[id]/downloadable`    | owner only             | `POST` sets `canDownload` (`{ canDownload }`)                                                               |
 | `/api/tracks/[id]/comments`        | mixed                  | `GET` timed comments for markers; `POST` adds a comment (auth)                                              |
 | `/api/tracks/[id]/comments/[id]`   | required (author)      | `PATCH` repositions timed `atMs`; `DELETE` removes own comment                                              |
-| `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker                                                                         |
+| `/api/tracks/[id]/repost`          | required               | `POST` toggles a repost                                                                                     |
+| `/api/tracks/[id]/publish`         | owner only             | `POST` sets `published`                                                                                     |
+| `/api/tracks/[id]/private`         | owner only             | `POST` sets `isPrivate`                                                                                     |
+| `/api/tracks/[id]/post`            | public                 | `GET` rendered post HTML (`{ html }`)                                                                       |
+| `/api/playlists`                   | required               | `GET ?mine=1` owner playlist picker; `POST` creates one                                                     |
+| `/api/users/[username]/follow`     | required               | `POST` toggles a follow                                                                                     |
+| `/api/site-views`                  | public                 | `POST` records a later in-site page load on a custom domain                                                 |
+| `/api/health`                      | public (apex)          | `GET` `{ ok: true }` after `SELECT 1`                                                                       |
+| `/api/billing/checkout`            | mixed                  | `POST` starts Stripe Checkout                                                                               |
+| `/api/stripe/webhook`              | Stripe                 | `POST` subscription events; idempotent via `stripe_event`                                                   |
+| `/api/avatar/[userId]`             | public                 | profile avatar                                                                                              |
+| `/api/site-og/[userId]`            | public                 | tenant Open Graph image                                                                                     |
 | `/api/playlists/[id]`              | required               | `DELETE` a playlist                                                                                         |
 | `/api/playlists/[id]/like`         | required               | `POST` toggles a playlist like                                                                              |
-| `/api/playlists/[id]/tracks`       | required               | `POST`/`DELETE`/`PATCH` membership                                                                          |
+| `/api/playlists/[id]/tracks`       | required               | `GET` members; `POST`/`DELETE`/`PATCH` membership                                                           |
 | `/api/domain-tls-check`            | internal               | Caddy on-demand TLS gate                                                                                    |
 
-`/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`, `/library`,
-`/sites`, `/plans`, `/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/users/*`, and unlisted
-`/api/*` 404 on tenant hosts. See
-[architecture.md](architecture.md). Track pages also advertise oEmbed, Open Graph audio, and a
-Discord component card so shared URLs can unfurl; `/oembed` returns the player iframe.
+Apex-only prefixes (`/settings`, `/reset-password`, `/feed`, `/library`, `/sites`, `/plans`,
+`/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/privacy`, `/terms`, `/copyright`,
+`/billing`, `/sitemap.xml`, `/users/*`, and unlisted `/api/*`) 404 on tenant hosts. A custom domain
+also serves `/signin`, `/signup`, `/forgot-password`, and `/signout`; the first three 404 unless
+`site.allowDomainAuth` is on. See [architecture.md](architecture.md). Track pages also advertise
+oEmbed, Open Graph audio, and a Discord component card so shared URLs can unfurl; `/oembed` returns
+the player iframe.
 
 **Site builder** (`/sites/[id]/builder`): Vault+ owner only. Load ensures a root `site_page` and site
 chrome (`ensureSiteChrome`), returns `site` (with `header` / `footer`), `pages` + `currentPageId`
@@ -65,8 +83,9 @@ media HUD uploads, renames, and deletes design images and videos (`GET`/`POST /a
 and store `imageId` plus `imageKind` on the block; public pages render them from
 `/api/site-media/[assetId]`. Named action `?/updatePage` saves page title / slug / SEO (root path
 stays `/`). Canvas body blocks drag from the Blocks HUD — insertable categories are Blog, Contact,
-Content, CTA, Ecommerce, Feature, Gallery, Hero, Pricing, Statistic, Step, Team, and Testimonial
-(Header/Footer stay site chrome only). `PUT /api/sites/[id]/pages/[pageId]/blocks` persists the
+Content, CTA, Ecommerce, Feature, Gallery, Hero, Music, Pricing, Statistic, Step, Team, and
+Testimonial (Header/Footer stay site chrome only; Music is `catalog.profile` and `catalog.stream`).
+`PUT /api/sites/[id]/pages/[pageId]/blocks` persists the
 ordered body list (`{ id, type, props, layout?, hidden? }` — optional `layout.maxWidth` from canvas side
 handles, centered between ~512px and the full canvas content width; resize snaps to common
 breakpoints with dashed vertical guides while dragging). `hidden: true` drops the block from the
@@ -113,10 +132,16 @@ example: `{ user, profile, site, urls, baseDomain, billing, storageAdapters, sto
 the component can branch on one field:
 
 ```js
-return locals.tenant
-	? { mode: 'tenant-profile', ...profilePage }
-	: { mode: 'marketing', user, authNotice };
+if (locals.tenant) {
+	const sitePage = await loadTenantSitePage({ locals, url, path: '/' });
+	if (!sitePage) error(404, 'Site page not found');
+	return sitePage; // { mode: 'tenant-site', ... }
+}
+return { mode: 'marketing', user, authNotice };
 ```
+
+`loadPublicProfilePage()` still builds `/users/[username]`. A tenant page calls it only when a
+visible `catalog.profile` or `catalog.stream` block needs the live catalog.
 
 **404 with `error()`, not `null`.** Service functions return `null` for "not found"; the loader
 converts: `if (!row) error(404, 'Track not found')`.
@@ -134,9 +159,9 @@ converts: `if (!row) error(404, 'Track not found')`.
 
 `fail()` data lands on the page as the `form` prop, and there is only one `form` prop no matter how
 many forms are on the page. So each section of `/settings` owns a distinct key —
-`profileMessage`, `planMessage`, `domainMessage`, `storageMessage`, with matching
-`profileSuccess` / `planSuccess` / `domainSuccess` / `storageSuccess` — and a failed domain save
-cannot render an error above the storage form.
+`profileMessage`, `billingMessage`, `domainMessage`, `catalogMessage`, `storageMessage`, with matching
+`*Success` keys — and a failed domain save cannot render an error above the storage form. Admin plan
+edits use `planMessage` on `/admin`, not on Settings.
 
 Single-form routes just use `message`.
 

@@ -13,10 +13,10 @@ alwaysApply: false
 - Return a flat, serializable, explicitly picked shape. Convert `Date` to milliseconds. Do not return
   a whole DB row when the page uses three fields.
 - Tag multi-mode pages with a literal so the component branches on one field:
-  `{ mode: 'tenant-profile', … }` vs `{ mode: 'marketing', … }`.
+  `{ mode: 'tenant-site', … }` vs `{ mode: 'marketing', … }`.
 - Services return `null` for not-found; the loader converts with `error(404, '…')`.
-- Reuse a shared loader across surfaces that must not drift — `loadPublicProfilePage()` serves both
-  `/users/[username]` and the tenant `/`.
+- `loadPublicProfilePage()` serves `/users/[username]`. Tenant `/` and flat pages go through
+  `loadTenantSitePage()`, which calls it only when a catalog block is visible.
 
 ## Form actions
 
@@ -66,9 +66,12 @@ Both paths must call the same service function.
 - Errors use Kit's `error(status, message)` — never a `200` with an error body. Clients check `res.ok`.
 - Return the new authoritative state (`{ liked, likeCount }`), not `{ ok: true }`, so the client can
   replace its optimistic value.
-- On tenant hosts only `/`, `/tracks/*`, `/api/media/*`, and `/api/tracks/*` resolve. A new
-  account-facing route must be added to `APEX_ONLY_PREFIXES` in `src/hooks.server.js`; a new public
-  one must be added to `TENANT_ALLOWED_PREFIXES`.
+- On a tenant host, paths in `APEX_ONLY_PREFIXES` (`src/hooks.server.js`) 404. Public playback
+  prefixes live in `TENANT_ALLOWED_PREFIXES` (tracks, playlists, `/auth/network`, media, avatars,
+  site assets, track/playlist/user APIs, site views). Composed pages and `/{username}/tracks/…`
+  fall through. A custom domain also resolves `/signin`, `/signup`, `/forgot-password`, and
+  `/signout`; the first three 404 unless `site.allowDomainAuth` is on. A new account route goes in
+  `APEX_ONLY_PREFIXES`; a new public one goes in `TENANT_ALLOWED_PREFIXES`.
 
 ## Accessibility
 

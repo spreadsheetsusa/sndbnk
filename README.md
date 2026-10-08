@@ -1,9 +1,11 @@
 # sndbnk
 
 A SoundCloud-style audio host. Creators upload tracks with cover art and metadata; listeners play
-them from a global player bar that survives navigation, scrub a real waveform, like, and leave
+them from a header player that survives navigation, scrub a real waveform, like, and leave
 comments pinned to a playback position. Every creator gets a public profile — by path, and on
-Vault+ at `{username}.sndbnk.com`, or on Studio+ with their own custom domain.
+Vault+ at `{username}.sndbnk.com`, or on Studio+ with their own custom domain (and a site builder).
+Playlists are ordered collections of published tracks. Plans are Free, Vault, Studio, and Label;
+Label checkout stays off until a teams UI exists.
 
 Built with SvelteKit and Svelte 5 runes on Bun, Drizzle ORM over SQLite, and better-auth. Audio can
 live on SNDBNK-hosted storage (local disk in dev, S3 in prod) or on a server you own, over SFTP.
@@ -11,8 +13,8 @@ live on SNDBNK-hosted storage (local disk in dev, S3 in prod) or on a server you
 ## Quickstart
 
 Requires [Bun](https://bun.sh). The app imports `bun:sqlite`, so it does not run under Node.
-Install `ffmpeg` as well — uploads use it to generate real waveforms; without it, tracks fall back
-to placeholder bars.
+Install `ffmpeg` (with `libmp3lame`) as well. The waveform worker uses it for peaks and 320k
+playback copies; without ffmpeg, Redis, or `bun run worker:waveform`, tracks keep placeholder bars.
 
 ```sh
 cp .env.example .env    # then fill BETTER_AUTH_SECRET and STORAGE_SECRET
@@ -54,7 +56,15 @@ With `PUBLIC_BASE_DOMAIN=localhost`:
 | `bun run nuke`                    | wipe DB + media + backups, then remigrate (confirms first)   |
 | `bun run media:migrate-s3`        | dry-run local→S3 (`-- --dry-run`; `-- --apply` to copy/flip) |
 | `bun run auth:schema`             | regenerate the better-auth Drizzle schema                    |
+| `bun run worker:waveform`         | BullMQ consumer for peaks, playback MP3, and write-tags      |
+| `bun run createsuperuser`         | bootstrap a staff user (`role = 'admin'`)                    |
+| `bun run stripe:bootstrap`        | sync Stripe products/prices into the `plan` table            |
+| `bun run pull:prod`               | rsync prod SQLite + media, then fill missing platform S3     |
+| `bun run mail:preview`            | render auth mail to stdout                                   |
 | `bun run lint` / `bun run format` | Prettier check / write                                       |
+
+`db:push` is retired. `db:push:kit` and `db:studio` run Drizzle Kit under Node for local
+prototyping only. There is no test script.
 
 ## Documentation
 

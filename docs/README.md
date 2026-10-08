@@ -1,7 +1,7 @@
 # sndbnk docs
 
-`sndbnk` is a SoundCloud-style audio host: creators upload tracks, listeners play them from a
-global player bar, and every creator gets a public profile reachable by path, subdomain, or their
+`sndbnk` is a SoundCloud-style audio host: creators upload tracks, listeners play them from the
+header player, and every creator gets a public profile reachable by path, subdomain, or their
 own custom domain. SvelteKit + Svelte 5 runes, plain JS with JSDoc types, Drizzle over SQLite,
 better-auth, all running on Bun.
 
@@ -53,3 +53,6 @@ bun run lint         # prettier --check .
 bun run format       # prettier --write .
 bun run auth:schema  # regenerate src/lib/server/db/auth.schema.js
 ```
+
+Also in `package.json`: `worker:waveform`, `createsuperuser`, `stripe:bootstrap`, `pull:prod`,
+`mail:preview`. There is no test script. `db:push` is retired.

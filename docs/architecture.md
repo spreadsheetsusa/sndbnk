@@ -25,7 +25,8 @@ flowchart TD
   runes -->|"fetch /api/*"| routes
 ```
 
-Routes never touch `db` directly — they call a service module in `src/lib/server/`. Services never
+Routes are meant to call a service in `src/lib/server/` and not query `db`. Settings, admin, the
+sitemap, the Stripe webhook, and the track like and comment POST handlers still do. Services never
 import from `src/routes/`. Components never import from `src/lib/server/`.
 
 ## Request lifecycle
@@ -60,18 +61,20 @@ which Caddy sets) and resolves it:
 
 On a tenant host platform and account routes stay deliberately narrow:
 
-- **Passthrough:** `/_app`, `/api/auth`, `/favicon.*`, `/robots.txt`
-- **404:** `/settings`, `/signin`, `/signup`, `/forgot-password`, `/reset-password`, `/feed`,
-  `/library`, `/sites`, `/plans`, `/for-artists`, `/vault`, `/studio`, `/admin`, `/dev`, `/users/*`,
-  and unlisted `/api/*` — platform
-  surfaces only exist on the apex. Custom domains also reach `/signin`, `/signup`,
-  `/forgot-password`, and `/signout`. Those pages 404 unless `site.allowDomainAuth` is on;
-  `/signout` still clears a session after the switch is turned off
-- **Network session:** `/auth/network` copies the same better-auth session between the custom domain
-  and the apex with a single-use code. Browsers will not send a `sndbnk.com` cookie to another host
-- **Platform public:** `/{username}/tracks/{slug}/`, `/tracks/*` (legacy UUID 301), `/api/media/*`,
-  `/api/avatar/*`, `/api/site-logo/*`, `/api/site-og/*`, `/api/site-media/*`, `/api/tracks/*`,
-  `/api/playlists/*`, `/api/users/*`, `/playlists/*`
+- **Passthrough:** `/_app`, `/api/auth`, `/favicon.ico`, `/favicon.png`, `/robots.txt`
+- **404:** `/settings`, `/reset-password`, `/feed`, `/library`, `/sites`, `/plans`, `/for-artists`,
+  `/vault`, `/studio`, `/admin`, `/dev`, `/privacy`, `/terms`, `/copyright`, `/billing`,
+  `/sitemap.xml`, `/users/*`, and any `/api/*` not listed below. `/signin`, `/signup`, and
+  `/forgot-password` are apex-only too, except on a custom domain (next bullet)
+- **Custom-domain auth:** those three auth pages, plus `/signout`, resolve when `hostKind` is
+  `custom`. Sign-in, sign-up, and forgot-password 404 unless `site.allowDomainAuth` is on.
+  `/signout` still clears the session after that switch is turned off. Subdomains 404 all four
+- **Network session:** `/auth/network` (in `TENANT_ALLOWED_PREFIXES`) copies the same better-auth
+  session between the custom domain and the apex with a single-use code. Browsers will not send a
+  `sndbnk.com` cookie to another host
+- **Platform public:** `/{username}/tracks/{slug}/`, `/tracks/*` (legacy UUID 301), `/playlists/*`,
+  `/api/media/*`, `/api/avatar/*`, `/api/site-logo/*`, `/api/site-og/*`, `/api/site-media/*`,
+  `/api/tracks/*`, `/api/playlists/*`, `/api/users/*`, `/api/site-views`
 - **Composed site:** `/` and flat `site_page` paths such as `/about`; the catch-all loader returns
   404 when no page has that exact path
 - `/users/{own username}` redirects to `/` so a tenant host has one canonical profile URL
@@ -152,16 +155,25 @@ src/
   routes/
     +layout.svelte        app shell, theme + accent init, visualizer floating window mount
     layout.css            design tokens + global utilities
-    +page.svelte          marketing landing OR tenant profile
-    signin/ signup/       auth forms
+    +page.svelte          marketing landing OR composed tenant site (`mode: 'tenant-site'`)
+    signin/ signup/       auth forms; branded on a custom domain when allowDomainAuth
     forgot-password/      request password reset email
-    reset-password/       set new password from emailed token
-    settings/             profile, linked accounts, plan, domain, site, storage (tabbed)
-    for-artists/ vault/ studio/ marketing funnels (apex)
-    library/              owner CRUD: list, new, [id] edit
-    tracks/[id]/          public track detail
+    reset-password/       set new password from emailed token (apex only)
+    signout/              form action signs out; custom domains also clear the apex cookie
+    auth/network/         one-time session copy between apex and a custom domain
+    feed/                 signed-in timeline
+    library/              owner file manager; deck edit is ?track= + ?edit=1
+    library/new/ [id]/    redirects into that deck
+    [username]/tracks/[slug]/  public track detail (+ /embed)
+    tracks/[id]/          301 to the slug URL
+    playlists/            public playlist, new, edit
     users/[username]/     public profile by path
-    api/                  media streaming, social mutations, TLS check
+    plans/ billing/return/ Stripe checkout and the return page
+    settings/             profile, linked accounts, billing, domain, site, audience, storage
+    sites/[id]/           setup wizard; sites/[id]/builder is the site builder
+    for-artists/ vault/ studio/ marketing funnels (apex)
+    admin/                staff plans, users, play thresholds, HTML docs
+    api/                  media, social, billing, health, TLS check
   lib/
     components/           SiteHeader (hosts the player), ThemeToggle, PublicProfile, player/*
     player/player.svelte.js       rune-class audio singleton
@@ -170,6 +182,7 @@ src/
     media/                client-side metadata probe
     server/
       auth.js             better-auth instance (+ multi-session, linked-account switch)
+      domain-auth.js      custom-domain sign-in, session handoff, site accounts
       auth-linked-switch.js  trusted switch between mutually linked accounts
       account-links.js    request / approve / unlink moniker accounts
       db/                 schema.js, auth.schema.js (generated), index.js
