@@ -32,7 +32,8 @@
 			image: null,
 			isAdmin: false,
 			linkedAccounts: [],
-			sites: { siteId: null, hosts: [] }
+			sites: { siteId: null, hosts: [] },
+			customDomain: null
 		}
 	);
 	const signedIn = $derived(Boolean(nav.name));

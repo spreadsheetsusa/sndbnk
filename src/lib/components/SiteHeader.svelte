@@ -18,10 +18,12 @@
 			image: null,
 			isAdmin: false,
 			linkedAccounts: [],
-			sites: { siteId: null, hosts: [] }
+			sites: { siteId: null, hosts: [] },
+			customDomain: null
 		}
 	);
 	const signedIn = $derived(Boolean(nav.name));
+	const profileLabel = $derived(nav.customDomain || (nav.username ? `@${nav.username}` : ''));
 
 	let guestMenuOpen = $state(false);
 
@@ -95,10 +97,10 @@
 						class="mode-btn"
 						href="/users/{nav.username}"
 						aria-current={current(`/users/${nav.username}`)}
-						aria-label="@{nav.username}"
+						aria-label={profileLabel}
 					>
 						<IconUser size={16} stroke={1.75} aria-hidden="true" />
-						<span class="label">@{nav.username}</span>
+						<span class="label">{profileLabel}</span>
 					</a>
 				{/if}
 			</nav>

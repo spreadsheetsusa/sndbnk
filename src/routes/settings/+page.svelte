@@ -403,11 +403,6 @@
 
 		{#if activeTab === 'profile'}
 			<div class="block" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
-				<div class="block-head">
-					<h2>Profile</h2>
-					<p>How you appear across SNDBNK.</p>
-				</div>
-
 				{#if form?.avatarMessage && !avatarBusy}
 					<div class="banner error" role="alert">{form.avatarMessage}</div>
 				{/if}
@@ -423,7 +418,7 @@
 
 				<div class="profile-layout">
 					<div class="profile-avatar">
-						<Avatar src={data.user.image} name={data.user.name} size="5rem" />
+						<Avatar src={data.user.image} name={data.user.name} size="calc(5rem + 30px)" />
 						<div class="avatar-actions">
 							<form
 								class="inline-form"
@@ -1883,7 +1878,6 @@
 		grid-template-columns: auto 1fr;
 		gap: 1.15rem 1.5rem;
 		align-items: start;
-		margin-top: 1.25rem;
 	}
 
 	.profile-avatar {

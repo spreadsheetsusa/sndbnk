@@ -5,7 +5,7 @@ import { canRemoveBranding } from '#lib/server/billing/plans';
 import { getPlatformSettings } from '#lib/server/platform-settings';
 import { ensureSiteChrome, ensureSiteRow, getSitePublic, listNavSites } from '#lib/server/site';
 import { ensureRootPage } from '#lib/server/site-pages';
-import { getProfileByUserId } from '#lib/server/tenant';
+import { buildPublicUrls, getProfileByUserId } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
 
@@ -22,7 +22,8 @@ const emptyNav = {
 	isAdmin: false,
 	linkedAccounts:
 		/** @type {Array<{ userId: string, username: string, name: string, image: string | null }>} */ ([]),
-	sites: emptySites
+	sites: emptySites,
+	customDomain: /** @type {string | null} */ (null)
 };
 
 export const load = async ({ locals, url }) => {
@@ -95,6 +96,7 @@ export const load = async ({ locals, url }) => {
 	]);
 
 	const sites = await listNavSites(profile);
+	const publicUrls = profile ? buildPublicUrls(profile) : null;
 
 	return {
 		siteOrigin,
@@ -106,7 +108,9 @@ export const load = async ({ locals, url }) => {
 			image: locals.user.image ?? null,
 			isAdmin: locals.user.role === 'admin',
 			linkedAccounts,
-			sites
+			sites,
+			customDomain:
+				publicUrls?.customDomainUrl && profile?.customDomain ? profile.customDomain : null
 		},
 		tenantHostKind: null,
 		domainAuth: false,
