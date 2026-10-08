@@ -4,6 +4,7 @@ import { isTrackMediaType } from '#lib/media/track-media-type.js';
 import { listPlaylistsForOwner } from '#lib/server/playlists';
 import { enqueueEmbedTagsJob } from '#lib/server/queue/embed-tags';
 import { getUsage } from '#lib/server/quota';
+import { getCachedSshDiskUsage } from '#lib/server/storage/ssh-disk';
 import { getStorageSettingPublic } from '#lib/server/storage';
 import { getProfileByUserId } from '#lib/server/tenant';
 import {
@@ -52,11 +53,12 @@ export const load = async ({ locals, url }) => {
 	const mediaTypeRaw = url.searchParams.get('mediaType')?.trim() || null;
 	const mediaType = isTrackMediaType(mediaTypeRaw) ? mediaTypeRaw : null;
 
-	const [{ rows, nextCursor }, usage, playlists, storage] = await Promise.all([
+	const [{ rows, nextCursor }, usage, playlists, storage, sshDisk] = await Promise.all([
 		listTracksWithUploader(locals.user.id, { mediaType }),
 		getUsage(locals.user.id),
 		listPlaylistsForOwner(locals.user.id),
-		getStorageSettingPublic(locals.user.id)
+		getStorageSettingPublic(locals.user.id),
+		getCachedSshDiskUsage(locals.user.id)
 	]);
 
 	return {
@@ -74,7 +76,8 @@ export const load = async ({ locals, url }) => {
 		playlists,
 		usage,
 		storageAdapter: storage.adapter === 'ssh' ? 'ssh' : 'local',
-		sshHost: storage.adapter === 'ssh' ? (storage.sshHost ?? '') : ''
+		sshHost: storage.adapter === 'ssh' ? (storage.sshHost ?? '') : '',
+		sshDisk
 	};
 };
 

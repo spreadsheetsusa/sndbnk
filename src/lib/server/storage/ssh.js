@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { assertSafeStorageSegment } from './path-safety.js';
 import { assertPublicSshHost } from './ssh-host.js';
+import { volumeFromDf, volumeFromStatvfs } from './ssh-volume.js';
 
 /**
  * @typedef {Object} SshConfig
@@ -53,9 +54,10 @@ function mkdirp(sftp, dir) {
 
 /**
  * @param {SshConfig} config
+ * @param {number} [readyTimeout]
  * @returns {Promise<{ client: import('ssh2').Client, sftp: import('ssh2').SFTPWrapper }>}
  */
-async function connect(config) {
+async function connect(config, readyTimeout = 15000) {
 	const hostCheck = await assertPublicSshHost(config.host);
 	if (!hostCheck.ok) {
 		throw new Error(hostCheck.message);
@@ -81,7 +83,7 @@ async function connect(config) {
 				username: config.username,
 				privateKey: config.privateKey,
 				passphrase: config.passphrase || undefined,
-				readyTimeout: 15000
+				readyTimeout
 			});
 	});
 }
@@ -106,6 +108,117 @@ function remoteFolder(userId, config, folderKey) {
 	assertSafeStorageSegment(userId, 'user id');
 	assertSafeStorageSegment(folderKey, 'folder key');
 	return path.posix.join(config.remotePath.replace(/\\/g, '/'), userId, folderKey);
+}
+
+/**
+ * @param {string} remotePath
+ */
+function parentDir(remotePath) {
+	const normalized = remotePath.replace(/\\/g, '/').replace(/\/+$/, '') || '/';
+	const slash = normalized.lastIndexOf('/');
+	if (slash <= 0) return '/';
+	return normalized.slice(0, slash);
+}
+
+/**
+ * @param {import('ssh2').SFTPWrapper} sftp
+ * @param {string} remotePath
+ */
+function statvfs(sftp, remotePath) {
+	return new Promise((resolve, reject) => {
+		try {
+			sftp.ext_openssh_statvfs(remotePath, (err, stats) => (err ? reject(err) : resolve(stats)));
+		} catch (err) {
+			reject(err);
+		}
+	});
+}
+
+/**
+ * @param {unknown} err
+ */
+function isMissingPath(err) {
+	const code = /** @type {{ code?: number }} */ (err).code;
+	if (code === 2) return true;
+	const message = err instanceof Error ? err.message : String(err);
+	return /no such file/i.test(message);
+}
+
+/**
+ * @param {unknown} err
+ */
+function isUnsupportedStatvfs(err) {
+	const message = err instanceof Error ? err.message : String(err);
+	return message.includes('does not support this extended request');
+}
+
+/**
+ * @param {string} value
+ */
+function shellQuote(value) {
+	return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+/**
+ * @param {import('ssh2').Client} client
+ * @param {string} remotePath
+ * @returns {Promise<{ usedBytes: number, totalBytes: number }>}
+ */
+function dfVolume(client, remotePath) {
+	return new Promise((resolve, reject) => {
+		client.exec(`df -Pk ${shellQuote(remotePath)}`, (err, stream) => {
+			if (err || !stream) {
+				reject(err ?? new Error('Could not read remote disk usage.'));
+				return;
+			}
+			/** @type {Buffer[]} */
+			const chunks = [];
+			stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+			stream.stderr?.on('data', () => {});
+			stream.on('error', reject);
+			stream.on('close', (code) => {
+				const text = Buffer.concat(chunks).toString('utf8');
+				const volume = code === 0 ? volumeFromDf(text) : null;
+				if (!volume) {
+					reject(new Error('Could not read remote disk usage.'));
+					return;
+				}
+				resolve(volume);
+			});
+		});
+	});
+}
+
+/**
+ * Bytes used and total on the filesystem that holds `config.remotePath`.
+ * Prefers the OpenSSH SFTP statvfs extension so shell-less accounts still work.
+ *
+ * @param {SshConfig} config
+ * @returns {Promise<{ usedBytes: number, totalBytes: number }>}
+ */
+export async function statSshVolume(config) {
+	const { client, sftp } = await connect(config, 8000);
+	try {
+		const remotePath = config.remotePath.replace(/\\/g, '/');
+		try {
+			let stats;
+			try {
+				stats = await statvfs(sftp, remotePath);
+			} catch (err) {
+				const parent = parentDir(remotePath);
+				if (isUnsupportedStatvfs(err) || parent === remotePath || !isMissingPath(err)) throw err;
+				stats = await statvfs(sftp, parent);
+			}
+			const volume = volumeFromStatvfs(stats);
+			if (!volume) throw new Error('Remote disk usage was empty.');
+			return volume;
+		} catch (err) {
+			if (!isUnsupportedStatvfs(err)) throw err;
+			return await dfVolume(client, remotePath);
+		}
+	} finally {
+		close(client);
+	}
 }
 
 /**

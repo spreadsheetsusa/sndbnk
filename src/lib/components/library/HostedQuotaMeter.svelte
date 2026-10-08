@@ -13,7 +13,8 @@
 	 *   trackCount?: number,
 	 *   maxTracks?: number | null,
 	 *   planLabel: string,
-	 *   label?: string
+	 *   label?: string,
+	 *   planUpsell?: boolean
 	 * }}
 	 */
 	let {
@@ -22,7 +23,8 @@
 		trackCount = 0,
 		maxTracks = null,
 		planLabel,
-		label = 'Hosted'
+		label = 'Hosted',
+		planUpsell = true
 	} = $props();
 
 	const meterLabel = $derived(label.trim() || 'Hosted');
@@ -92,7 +94,7 @@
 				</p>
 			{/if}
 		</div>
-	{:else if atStorageCap}
+	{:else if atStorageCap && planUpsell}
 		<p class="quota-upsell">
 			You've used the {bytes(maxLocalBytes ?? 0)} of hosted storage on {planLabel}.
 			<a href="/plans">See plans</a>

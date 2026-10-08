@@ -580,15 +580,25 @@
 				</h1>
 			</div>
 			<div class="page-head-actions">
-				{#if data.usage.maxTracks !== null || data.usage.maxLocalBytes !== null}
+				{#if data.storageAdapter === 'ssh' && data.sshDisk}
+					<div class="page-head-quota">
+						<HostedQuotaMeter
+							localBytes={data.sshDisk.usedBytes}
+							maxLocalBytes={data.sshDisk.totalBytes}
+							planLabel={data.usage.planLabel}
+							label={data.sshHost || 'Server'}
+							planUpsell={false}
+						/>
+					</div>
+				{:else if data.usage.maxTracks !== null || (data.storageAdapter !== 'ssh' && data.usage.maxLocalBytes !== null)}
 					<div class="page-head-quota">
 						<HostedQuotaMeter
 							trackCount={data.usage.trackCount}
 							maxTracks={data.usage.maxTracks}
 							localBytes={data.usage.localBytes}
-							maxLocalBytes={data.usage.maxLocalBytes}
+							maxLocalBytes={data.storageAdapter === 'ssh' ? null : data.usage.maxLocalBytes}
 							planLabel={data.usage.planLabel}
-							label={data.storageAdapter === 'ssh' && data.sshHost ? data.sshHost : 'Hosted'}
+							label="Hosted"
 						/>
 					</div>
 				{/if}
@@ -713,7 +723,6 @@
 								<div class="track-table">
 									<div class="table-head" aria-hidden="true">
 										<span></span>
-										<span></span>
 										<span>Track</span>
 										<span class="col-genre">Genre</span>
 										<span class="col-duration">Time</span>
@@ -766,7 +775,6 @@
 					{:else}
 						<div class="track-table">
 							<div class="table-head" aria-hidden="true">
-								<span></span>
 								<span></span>
 								<span>Track</span>
 								<span class="col-genre">Genre</span>
@@ -1176,7 +1184,7 @@
 
 	/* Shared by the header strip and every row so the columns cannot drift apart. */
 	.track-table {
-		--library-grid: 1.7rem 1.75rem minmax(0, 1fr) minmax(0, 8rem) 4rem 5.5rem 6rem 1.7rem;
+		--library-grid: 1.75rem minmax(0, 1fr) minmax(0, 8rem) 4rem 5.5rem 6rem 1.7rem;
 	}
 
 	.table-head {
@@ -1272,7 +1280,7 @@
 		}
 
 		.track-table {
-			--library-grid: 1.7rem 1.75rem minmax(0, 1fr) minmax(0, 8rem) 4rem 1.7rem;
+			--library-grid: 1.75rem minmax(0, 1fr) minmax(0, 8rem) 4rem 1.7rem;
 		}
 
 		.table-head .col-stats,

@@ -160,7 +160,7 @@
 <div class="row" class:selected class:playing={isPlaying}>
 	<button
 		type="button"
-		class="play-btn"
+		class="cover-play"
 		aria-label={isLoading
 			? `Loading ${track.title}`
 			: isPlaying
@@ -169,17 +169,19 @@
 		aria-busy={isLoading}
 		onclick={togglePlay}
 	>
-		<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={13} />
+		<CoverArt
+			trackId={track.id}
+			hasCover={track.hasCover}
+			coverUrl={track.coverUrl}
+			class="cover"
+			width="28"
+			height="28"
+			alt=""
+		/>
+		<span class="cover-play-mark">
+			<PlayPauseGlyph playing={isPlaying} loading={isLoading} size={11} />
+		</span>
 	</button>
-
-	<CoverArt
-		trackId={track.id}
-		hasCover={track.hasCover}
-		coverUrl={track.coverUrl}
-		class="cover"
-		width="28"
-		height="28"
-	/>
 
 	<button
 		type="button"
@@ -241,9 +243,6 @@
 		>
 			<span class="more-icon" aria-hidden="true">
 				<IconDots size={15} stroke={1.75} />
-			</span>
-			<span class="more-cover" aria-hidden="true">
-				<CoverArt trackId={track.id} hasCover={track.hasCover} coverUrl={track.coverUrl} />
 			</span>
 		</button>
 
@@ -371,45 +370,64 @@
 		);
 	}
 
-	.play-btn {
-		display: inline-flex;
-		width: 1.7rem;
-		height: 1.7rem;
-		align-items: center;
-		justify-content: center;
+	.cover-play {
+		position: relative;
+		display: block;
+		width: 1.75rem;
+		height: 1.75rem;
 		padding: 0;
-		border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
-		color: var(--ink);
+		overflow: hidden;
+		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+		border-radius: 0.125rem;
 		background: transparent;
 		cursor: pointer;
 	}
 
-	.play-btn :global(svg) {
+	.cover-play :global(img.cover),
+	.cover-play :global(span.cover.placeholder) {
 		display: block;
-	}
-
-	.play-btn:hover,
-	.row.playing .play-btn {
-		border-color: var(--ink);
-		color: var(--on-accent);
-		background: var(--accent);
-	}
-
-	.row :global(img.cover),
-	.row :global(span.cover.placeholder) {
-		display: block;
-		width: 1.75rem;
-		height: 1.75rem;
-		border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-		border-radius: 0.125rem;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		border-radius: 0;
 		object-fit: cover;
 	}
 
-	.row :global(span.cover.placeholder) {
+	.cover-play :global(span.cover.placeholder) {
 		background:
 			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
 			var(--paper);
 		background-size: 8px 8px;
+	}
+
+	.cover-play-mark {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		z-index: 1;
+		display: grid;
+		width: 1.05rem;
+		height: 1.05rem;
+		place-items: center;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--paper) 88%, transparent);
+		color: var(--ink);
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+	}
+
+	.cover-play-mark :global(svg) {
+		display: block;
+		width: 0.7rem;
+		height: 0.7rem;
+	}
+
+	.cover-play:hover .cover-play-mark,
+	.cover-play:focus-visible .cover-play-mark,
+	.row.playing .cover-play-mark,
+	.cover-play[aria-busy='true'] .cover-play-mark {
+		color: var(--on-accent);
+		background: var(--accent);
 	}
 
 	.name {
@@ -573,20 +591,6 @@
 		display: block;
 	}
 
-	.more-cover {
-		display: none;
-	}
-
-	.more-cover :global(.cover-placeholder) {
-		display: block;
-		width: 100%;
-		height: 100%;
-		background:
-			linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent) 25%, transparent 25%),
-			var(--paper);
-		background-size: 8px 8px;
-	}
-
 	.menu {
 		position: absolute;
 		z-index: 30;
@@ -674,15 +678,15 @@
 		.row {
 			grid-template-columns: auto auto minmax(0, 1fr);
 			grid-template-areas:
-				'play menu name'
+				'cover menu name'
 				'. . meta';
 			column-gap: 0.45rem;
 			row-gap: 0.15rem;
 			padding: 0.4rem 0.5rem;
 		}
 
-		.play-btn {
-			grid-area: play;
+		.cover-play {
+			grid-area: cover;
 			align-self: start;
 		}
 
@@ -715,59 +719,9 @@
 			gap: 0.45rem;
 		}
 
-		.row :global(img.cover),
-		.row :global(span.cover.placeholder),
 		.genre,
 		.added {
 			display: none;
-		}
-
-		.more-icon {
-			display: none;
-		}
-
-		.more-cover {
-			display: block;
-			width: 100%;
-			height: 100%;
-		}
-
-		.more-cover :global(img) {
-			display: block;
-			width: 100%;
-			height: 100%;
-			object-fit: cover;
-		}
-
-		.more-btn {
-			position: relative;
-			display: block;
-			width: 1.75rem;
-			height: 1.75rem;
-			padding: 0;
-			overflow: hidden;
-			border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-			border-radius: 0.125rem;
-			color: inherit;
-			background: transparent;
-		}
-
-		.more-btn:hover,
-		.more-btn[aria-expanded='true'] {
-			border-color: var(--ink);
-			color: inherit;
-			background: transparent;
-			outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-			outline-offset: 1px;
-		}
-
-		.more-btn:hover::after,
-		.more-btn[aria-expanded='true']::after {
-			content: '';
-			position: absolute;
-			inset: 0;
-			background: color-mix(in srgb, var(--accent) 18%, transparent);
-			pointer-events: none;
 		}
 
 		.menu {
@@ -777,10 +731,20 @@
 	}
 
 	@media (pointer: coarse) {
-		.play-btn,
+		.cover-play,
 		.more-btn {
 			width: var(--tap-min);
 			height: var(--tap-min);
+		}
+
+		.cover-play-mark {
+			width: 1.65rem;
+			height: 1.65rem;
+		}
+
+		.cover-play-mark :global(svg) {
+			width: 0.95rem;
+			height: 0.95rem;
 		}
 	}
 </style>
