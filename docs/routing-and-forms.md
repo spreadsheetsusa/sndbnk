@@ -31,6 +31,7 @@ No nested layouts, no route groups, no `+error.svelte`. One root layout and a fl
 | `/playlists/[id]/edit`             | owner only             | edit metadata, reorder/remove members                                                                       |
 | `/users/[username]`                | public                 | public profile by path                                                                                      |
 | `/admin`                           | admin only (apex)      | Plans, discounts, users, site play thresholds, business-planning docs                                       |
+| `/admin/stats`                     | admin only (apex)      | System stats: media files, disk, database size, accounts, and catalog activity                              |
 | `/admin/docs/[slug]`               | admin only (apex)      | Serves `docs/*.html` briefs (plan, finance, migrations)                                                     |
 | `/for-artists`                     | public (apex)          | Artist marketing funnel — station pitch, SC contrast, Start free → `/signup`                                |
 | `/vault`                           | public (apex)          | Vault marketing funnel — 15-track wall, Choose Vault → `/plans?plan=vault`                                  |
