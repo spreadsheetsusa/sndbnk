@@ -291,23 +291,26 @@
 			</div>
 		{/if}
 
-		<div class="tab-bar" role="tablist" aria-label="Admin sections">
-			{#each sections as section (section.id)}
-				<button
-					type="button"
-					role="tab"
-					id="tab-{section.id}"
-					class="tab"
-					class:active={activeSection === section.id}
-					aria-selected={activeSection === section.id}
-					aria-controls="panel-{section.id}"
-					tabindex={activeSection === section.id ? 0 : -1}
-					onclick={() => selectSection(section.id)}
-					onkeydown={handleTabKeydown}
-				>
-					{section.label}
-				</button>
-			{/each}
+		<div class="section-nav">
+			<div class="tab-bar" role="tablist" aria-label="Admin sections">
+				{#each sections as section (section.id)}
+					<button
+						type="button"
+						role="tab"
+						id="tab-{section.id}"
+						class="tab"
+						class:active={activeSection === section.id}
+						aria-selected={activeSection === section.id}
+						aria-controls="panel-{section.id}"
+						tabindex={activeSection === section.id ? 0 : -1}
+						onclick={() => selectSection(section.id)}
+						onkeydown={handleTabKeydown}
+					>
+						{section.label}
+					</button>
+				{/each}
+			</div>
+			<a class="tab" href="/admin/stats">System stats</a>
 		</div>
 
 		{#if activeSection === 'plans'}
@@ -1069,12 +1072,20 @@
 		line-height: 1.5;
 	}
 
+	.section-nav {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1rem;
+		align-items: flex-end;
+		justify-content: space-between;
+		margin-bottom: 2rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+	}
+
 	.tab-bar {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		margin-bottom: 2rem;
-		border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
 	}
 
 	.tab {
@@ -1087,6 +1098,7 @@
 		font-size: 0.7rem;
 		font-weight: 900;
 		letter-spacing: 0.1em;
+		text-decoration: none;
 		text-transform: uppercase;
 		cursor: pointer;
 	}

@@ -51,8 +51,13 @@
 	/**
 	 * @param {string} href
 	 */
-	function current(href) {
+	/**
+	 * @param {string} href
+	 * @param {boolean} [exact]
+	 */
+	function current(href, exact = false) {
 		const { pathname } = page.url;
+		if (exact) return pathname === href ? 'page' : undefined;
 		return pathname === href || pathname.startsWith(`${href}/`) ? 'page' : undefined;
 	}
 
@@ -183,7 +188,10 @@
 				<a class="account-item" href="/settings" aria-current={current('/settings')}> Settings </a>
 
 				{#if nav.isAdmin}
-					<a class="account-item" href="/admin" aria-current={current('/admin')}>Admin</a>
+					<a class="account-item" href="/admin" aria-current={current('/admin', true)}>Admin</a>
+					<a class="account-item" href="/admin/stats" aria-current={current('/admin/stats', true)}>
+						System stats
+					</a>
 				{/if}
 
 				<hr class="account-divider" />
