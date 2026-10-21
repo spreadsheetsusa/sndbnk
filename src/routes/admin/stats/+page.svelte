@@ -460,7 +460,11 @@
 				<h2>Tracks</h2>
 				<p class="metric-value lcd-face">{formatCount(data.catalog.tracks)}</p>
 				<p class="metric-sub">
-					{formatCount(data.catalog.published)} published · {formatCount(data.catalog.drafts)} drafts
+					{formatCount(data.catalog.published)} published · {counted(
+						data.catalog.drafts,
+						'draft',
+						'drafts'
+					)}
 				</p>
 			</article>
 			<article class="metric">
@@ -479,21 +483,31 @@
 				<h2>Sites</h2>
 				<p class="metric-value lcd-face">{formatCount(data.sites.total)}</p>
 				<p class="metric-sub">
-					{formatCount(data.sites.activeDomains)} custom domains · {formatCount(data.sites.pages)} pages
+					{counted(data.sites.activeDomains, 'custom domain', 'custom domains')} · {counted(
+						data.sites.pages,
+						'page',
+						'pages'
+					)}
 				</p>
 			</article>
 			<article class="metric">
 				<h2>Listening</h2>
 				<p class="metric-value lcd-face">{formatCount(data.catalog.likes)}</p>
 				<p class="metric-sub">
-					{formatCount(data.catalog.comments)} comments · {formatCount(data.catalog.downloads)} downloads
+					{counted(data.catalog.comments, 'comment', 'comments')} · {formatCount(
+						data.catalog.downloads
+					)} downloads
 				</p>
 			</article>
 			<article class="metric">
 				<h2>Collections</h2>
 				<p class="metric-value lcd-face">{formatCount(data.catalog.playlists)}</p>
 				<p class="metric-sub">
-					{formatCount(data.catalog.follows)} follows · {formatCount(data.catalog.reposts)} reposts
+					{counted(data.catalog.follows, 'follow', 'follows')} · {counted(
+						data.catalog.reposts,
+						'repost',
+						'reposts'
+					)}
 				</p>
 			</article>
 		</section>
@@ -604,13 +618,15 @@
 								<th scope="row">{row.label}</th>
 								<td class="num">{formatCount(row.accounts)}</td>
 								<td>
-									<span class="mini-meter" aria-hidden="true">
-										<span
-											class="mini-fill"
-											style:width="{planAccounts ? (row.accounts / planAccounts) * 100 : 0}%"
-										></span>
+									<span class="share-cell">
+										<span class="mini-meter" aria-hidden="true">
+											<span
+												class="mini-fill"
+												style:width="{planAccounts ? (row.accounts / planAccounts) * 100 : 0}%"
+											></span>
+										</span>
+										<span class="share-label">{share(row.accounts, planAccounts)}</span>
 									</span>
-									<span class="visually-hidden">{share(row.accounts, planAccounts)}</span>
 								</td>
 								<td class="num">{formatCount(row.tracks)}</td>
 								<td class="num">{formatBytes(row.hostedBytes)}</td>
@@ -1079,12 +1095,28 @@
 		font-weight: 500;
 	}
 
+	.share-cell {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		min-width: 7rem;
+	}
+
+	.share-label {
+		font-variant-numeric: tabular-nums;
+	}
+
 	.mini-meter {
 		display: block;
+		flex: 1;
 		height: 0.35rem;
 		margin-top: 0.35rem;
 		border-radius: 999px;
 		background: color-mix(in srgb, var(--ink) 12%, var(--paper));
+	}
+
+	.share-cell .mini-meter {
+		margin-top: 0;
 	}
 
 	.mini-fill {
