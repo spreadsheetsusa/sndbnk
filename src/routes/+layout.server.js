@@ -8,6 +8,7 @@ import { ensureRootPage } from '#lib/server/site-pages';
 import { buildPublicUrls, getProfileByUserId } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
+const apexOrigin = siteOrigin;
 
 const emptySites = {
 	siteId: null,
@@ -50,6 +51,7 @@ export const load = async ({ locals, url }) => {
 
 		return {
 			siteOrigin: url.origin,
+			apexOrigin,
 			playThresholds,
 			nav: emptyNav,
 			tenantHostKind: locals.tenant.hostKind,
@@ -81,6 +83,7 @@ export const load = async ({ locals, url }) => {
 	if (!locals.user) {
 		return {
 			siteOrigin,
+			apexOrigin,
 			playThresholds,
 			nav: emptyNav,
 			tenantHostKind: null,
@@ -100,6 +103,7 @@ export const load = async ({ locals, url }) => {
 
 	return {
 		siteOrigin,
+		apexOrigin,
 		playThresholds,
 		nav: {
 			id: locals.user.id,

@@ -287,6 +287,8 @@ constant defaults, so existing rows pick them up in one `ALTER TABLE` (no backfi
 master only when playback aliases it. The owner-only original (`/api/media/{id}/master`) is separate
 and stays available from the library. Each successful download increments `downloadCount`.
 
+`playCount`, `track_like`, and `downloadCount` are one counter each. A play, like, or download from the apex, from `{username}.{base}`, or from an active custom domain writes that same counter. A custom-domain-only catalog (`publishToSndbnk` off while the domain is active) uses those same columns and stays out of the sndbnk.com pool — the numbers are not split by host. Settings → Audience (`site_stat_day` / `site_listen`) is an extra custom-domain play report. It does not replace `track.playCount`.
+
 `published` defaults to `1`; `isPrivate` defaults to `0`. Link access (`/{username}/tracks/{slug}/`,
 media) uses
 `published` — private published tracks stay reachable by URL. Public listings — profile pages, the

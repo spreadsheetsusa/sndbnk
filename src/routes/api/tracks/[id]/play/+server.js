@@ -1,7 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 
-import { recordTrackPlay } from '#lib/server/listens';
-import { recordSitePlay } from '#lib/server/site-analytics';
+import { recordQualifiedPlay } from '#lib/server/engagement';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
 import { getTrackById } from '#lib/server/tracks';
@@ -16,21 +15,11 @@ export async function POST({ locals, params, request, url }) {
 		error(404, 'Track not found');
 	}
 
-	const result = await recordTrackPlay(row.id, { userId: locals.user?.id ?? null });
+	const result = await recordQualifiedPlay(row.id, {
+		userId: locals.user?.id ?? null,
+		tenant: locals.tenant
+	});
 	if (!result.ok) error(result.status ?? 400, result.message);
-
-	const tenant = locals.tenant;
-	if (tenant?.hostKind === 'custom' && locals.user?.id !== tenant.userId) {
-		try {
-			await recordSitePlay({
-				siteUserId: tenant.userId,
-				trackId: row.id,
-				listenerUserId: locals.user?.id ?? null
-			});
-		} catch (err) {
-			console.error('[site-analytics] play', err);
-		}
-	}
 
 	return json({ playCount: result.playCount });
 }

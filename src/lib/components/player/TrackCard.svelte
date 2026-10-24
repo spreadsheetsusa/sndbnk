@@ -7,6 +7,7 @@
 	import IconHeadphones from '@tabler/icons-svelte-runes/icons/headphones';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
+	import IconShare from '@tabler/icons-svelte-runes/icons/share';
 	import IconMessageCircle from '@tabler/icons-svelte-runes/icons/message-circle';
 	import IconRepeat from '@tabler/icons-svelte-runes/icons/repeat';
 	import IconArrowUp from '@tabler/icons-svelte-runes/icons/arrow-up';
@@ -23,6 +24,8 @@
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { publicTrackUrl, shareOrCopy } from '#lib/share-action.js';
+	import { likeSignInHref } from '#lib/sign-in-return.js';
 	import { trackPath } from '#lib/track-path.js';
 
 	/**
@@ -112,9 +115,16 @@
 	} = $props();
 
 	const signInHref = $derived(
-		!signedIn && page.data.domainAuth
-			? `/signin?next=${encodeURIComponent(page.url.pathname + page.url.search)}`
-			: null
+		likeSignInHref({
+			signedIn,
+			pathname: page.url.pathname,
+			search: page.url.search,
+			hash: page.url.hash,
+			origin: page.url.origin,
+			tenantHostKind: page.data.tenantHostKind,
+			domainAuth: page.data.domainAuth,
+			apexOrigin: page.data.apexOrigin
+		})
 	);
 	/** @type {{ liked: boolean, count: number } | null} */
 	let likeOverride = $state(null);
@@ -141,7 +151,6 @@
 	let commentCountOverride = $state(null);
 	const commentCount = $derived(commentCountOverride ?? track.commentCount ?? 0);
 	const likeBesidePost = $derived(Boolean(stream && track.hasPost));
-	const likeBesideComment = $derived(!likeBesidePost && signedIn && showCommentForm);
 	const genres = $derived(parseGenres(track.genre));
 
 	let postOpen = $state(false);
@@ -231,6 +240,10 @@
 	let moreBtn = $state(null);
 	let playlistPickerOpen = $state(false);
 	let copied = $state(false);
+	/** @type {'idle' | 'copied' | 'shared'} */
+	let shareState = $state('idle');
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let shareTimer;
 	let likeBusy = $state(false);
 	let repostBusy = $state(false);
 	let deleteBusy = $state(false);
@@ -357,7 +370,7 @@
 	}
 
 	async function copyLink() {
-		const url = `${location.origin}${trackPath(track)}`;
+		const url = publicTrackUrl(location.origin, track);
 		try {
 			await navigator.clipboard.writeText(url);
 			copied = true;
@@ -365,6 +378,23 @@
 		} catch {
 			// Clipboard unavailable (permissions/insecure context); ignore.
 		}
+	}
+
+	const shareLabel = $derived(
+		shareState === 'copied' ? 'Copied' : shareState === 'shared' ? 'Shared' : 'Share'
+	);
+
+	async function shareTrack() {
+		const url = publicTrackUrl(location.origin, track);
+		const result = await shareOrCopy({
+			title: track.title,
+			text: track.artist || track.uploaderName || track.title,
+			url
+		});
+		if (result === 'aborted' || result === 'failed') return;
+		shareState = result === 'copied' ? 'copied' : 'shared';
+		if (shareTimer) clearTimeout(shareTimer);
+		shareTimer = setTimeout(() => (shareState = 'idle'), 2000);
 	}
 
 	async function toggleLike() {
@@ -658,12 +688,6 @@
 
 {#snippet likeControl()}
 	<span class="engage-actions">
-		{#if downloadCount > 0}
-			<span class="stat" title="{downloadCount} {downloadCount === 1 ? 'download' : 'downloads'}">
-				<IconDownload size={12} stroke={2} aria-hidden="true" />
-				{downloadCount}
-			</span>
-		{/if}
 		{#if playCount > 0}
 			<span class="stat" title="{playCount} {playCount === 1 ? 'listen' : 'listens'}">
 				<IconHeadphones size={12} stroke={2} aria-hidden="true" />
@@ -672,18 +696,19 @@
 		{/if}
 		{#if signInHref}
 			<a
-				class="like-btn"
+				class="engage-btn"
 				href={signInHref}
 				aria-label="Sign in to like, {likeCount} {likeCount === 1 ? 'like' : 'likes'}"
 				title="Sign in to like"
 			>
 				<IconHeart size={14} stroke={2} aria-hidden="true" />
-				<span>{likeCount}</span>
+				<span>Like</span>
+				<span class="engage-count">{likeCount}</span>
 			</a>
 		{:else}
 			<button
 				type="button"
-				class="like-btn"
+				class="engage-btn"
 				aria-pressed={liked}
 				aria-label="{liked ? 'Unlike' : 'Like'}, {likeCount} {likeCount === 1 ? 'like' : 'likes'}"
 				title="{likeCount} {likeCount === 1 ? 'like' : 'likes'}"
@@ -695,8 +720,32 @@
 				{:else}
 					<IconHeart size={14} stroke={2} aria-hidden="true" />
 				{/if}
-				<span>{likeCount}</span>
+				<span>Like</span>
+				<span class="engage-count">{likeCount}</span>
 			</button>
+		{/if}
+		<span class="engage-sep" aria-hidden="true">·</span>
+		<button type="button" class="engage-btn" aria-label="Share {track.title}" onclick={shareTrack}>
+			<IconShare size={14} stroke={2} aria-hidden="true" />
+			<span>{shareLabel}</span>
+		</button>
+		{#if canOfferDownload}
+			<span class="engage-sep" aria-hidden="true">·</span>
+			<a
+				class="engage-btn"
+				href="/api/tracks/{track.id}/download"
+				download
+				aria-label="Download {track.title}"
+				onclick={() => {
+					downloadOverride = { id: track.id, count: downloadCount + 1 };
+				}}
+			>
+				<IconDownload size={14} stroke={2} aria-hidden="true" />
+				<span>Download</span>
+				{#if downloadCount > 0}
+					<span class="engage-count">{downloadCount}</span>
+				{/if}
+			</a>
 		{/if}
 	</span>
 {/snippet}
@@ -845,45 +894,43 @@
 				</div>
 			{/if}
 
-			{#if signInHref && showCommentForm}
-				<p class="comment-signin"><a href={signInHref}>Sign in to comment</a></p>
-			{:else if signedIn && showCommentForm}
+			{#if !likeBesidePost || showCommentForm}
 				<div class="engage-row">
-					{#if likeBesideComment}
+					{#if !likeBesidePost}
 						{@render likeControl()}
 					{/if}
-					<form class="comment-row" onsubmit={submitComment}>
-						<Avatar src={viewerImage} name={viewerName} />
-						<div class="comment-field">
-							<textarea
-								bind:this={commentField}
-								name="comment"
-								rows="1"
-								placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-								aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
-								maxlength="1000"
-								autocomplete="off"
-								bind:value={commentBody}
-								disabled={commentBusy}
-								oninput={resizeCommentField}
-								onkeydown={onCommentKeydown}></textarea>
-							<button
-								type="submit"
-								class="send-btn"
-								aria-label="Post comment"
-								disabled={commentBusy || !commentBody.trim()}
-							>
-								<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
-							</button>
-						</div>
-						{#if commentNote}
-							<span class="comment-note" role="status">{commentNote}</span>
-						{/if}
-					</form>
-				</div>
-			{:else if !likeBesidePost}
-				<div class="engage-row">
-					{@render likeControl()}
+					{#if signInHref && showCommentForm}
+						<p class="comment-signin"><a href={signInHref}>Sign in to comment</a></p>
+					{:else if signedIn && showCommentForm}
+						<form class="comment-row" onsubmit={submitComment}>
+							<Avatar src={viewerImage} name={viewerName} />
+							<div class="comment-field">
+								<textarea
+									bind:this={commentField}
+									name="comment"
+									rows="1"
+									placeholder={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+									aria-label={isActive ? 'Write a comment at the current time' : 'Write a comment'}
+									maxlength="1000"
+									autocomplete="off"
+									bind:value={commentBody}
+									disabled={commentBusy}
+									oninput={resizeCommentField}
+									onkeydown={onCommentKeydown}></textarea>
+								<button
+									type="submit"
+									class="send-btn"
+									aria-label="Post comment"
+									disabled={commentBusy || !commentBody.trim()}
+								>
+									<IconArrowUp size={12} stroke={1.75} aria-hidden="true" />
+								</button>
+							</div>
+							{#if commentNote}
+								<span class="comment-note" role="status">{commentNote}</span>
+							{/if}
+						</form>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -1137,6 +1184,7 @@
 	.post-bar,
 	.engage-row {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.65rem;
 		align-items: center;
 		min-width: 0;
@@ -1150,11 +1198,20 @@
 	.engage-actions {
 		display: inline-flex;
 		flex-shrink: 0;
-		gap: 0.55rem;
+		flex-wrap: wrap;
+		gap: 0.15rem 0.35rem;
 		align-items: center;
 	}
 
-	.like-btn {
+	.engage-sep {
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		line-height: 1;
+		user-select: none;
+	}
+
+	.engage-btn {
 		display: inline-flex;
 		flex-shrink: 0;
 		gap: 0.28rem;
@@ -1172,20 +1229,24 @@
 		cursor: pointer;
 	}
 
-	.like-btn :global(svg) {
+	.engage-btn :global(svg) {
 		display: block;
 	}
 
-	.like-btn:not(:disabled):hover {
+	.engage-count {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.engage-btn:not(:disabled):hover {
 		color: var(--ink);
 	}
 
-	.like-btn[aria-pressed='true'],
-	.like-btn[aria-pressed='true']:hover {
+	.engage-btn[aria-pressed='true'],
+	.engage-btn[aria-pressed='true']:hover {
 		color: var(--accent);
 	}
 
-	.like-btn:disabled {
+	.engage-btn:disabled {
 		cursor: default;
 	}
 
