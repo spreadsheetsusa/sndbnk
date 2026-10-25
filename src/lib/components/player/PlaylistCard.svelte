@@ -14,6 +14,7 @@
 	import { toPlayerTrack } from '#lib/player/to-player-track.js';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
+	import { likeSignInHref } from '#lib/sign-in-return.js';
 
 	/**
 	 * @typedef {Object} TimedComment
@@ -95,9 +96,16 @@
 	} = $props();
 
 	const signInHref = $derived(
-		!signedIn && page.data.domainAuth
-			? `/signin?next=${encodeURIComponent(page.url.pathname + page.url.search)}`
-			: null
+		likeSignInHref({
+			signedIn,
+			pathname: page.url.pathname,
+			search: page.url.search,
+			hash: page.url.hash,
+			origin: page.url.origin,
+			tenantHostKind: page.data.tenantHostKind,
+			domainAuth: page.data.domainAuth,
+			apexOrigin: page.data.apexOrigin
+		})
 	);
 	/** @type {{ liked: boolean, count: number } | null} */
 	let likeOverride = $state(null);

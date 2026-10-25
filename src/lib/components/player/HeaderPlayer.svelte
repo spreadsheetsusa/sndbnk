@@ -20,6 +20,7 @@
 	import { eq } from '#lib/player/eq.svelte.js';
 	import { player } from '#lib/player/player.svelte.js';
 	import { visualizer } from '#lib/player/visualizer.svelte.js';
+	import { likeSignInHref } from '#lib/sign-in-return.js';
 	import { trackPath } from '#lib/track-path.js';
 
 	/**
@@ -57,9 +58,16 @@
 
 	const signedIn = $derived(Boolean(page.data.nav?.name || page.data.tenantViewer));
 	const signInHref = $derived(
-		!signedIn && page.data.domainAuth
-			? `/signin?next=${encodeURIComponent(page.url.pathname + page.url.search)}`
-			: null
+		likeSignInHref({
+			signedIn,
+			pathname: page.url.pathname,
+			search: page.url.search,
+			hash: page.url.hash,
+			origin: page.url.origin,
+			tenantHostKind: page.data.tenantHostKind,
+			domainAuth: page.data.domainAuth,
+			apexOrigin: page.data.apexOrigin
+		})
 	);
 
 	let queueOpen = $state(false);

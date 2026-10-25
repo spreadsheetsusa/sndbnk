@@ -2,11 +2,12 @@ import { and, desc, eq, gt, inArray, lt } from 'drizzle-orm';
 import { ORIGIN } from '$app/env/private';
 import { PUBLIC_BASE_DOMAIN } from '$app/env/public';
 
+import { canUseSubdomain } from '#lib/server/billing/plans';
 import { customDomainCandidates, customDomainMatches } from '#lib/server/domain-verify';
 import { db } from '#lib/server/db';
 import { authHandoff, profile, site, siteAccount, user } from '#lib/server/db/schema';
 import { getSitePublic } from '#lib/server/site';
-import { classifyHost, getRequestHostname } from '#lib/server/tenant';
+import { classifyHost, getProfileByUsername, getRequestHostname } from '#lib/server/tenant';
 
 const HANDOFF_TTL_MS = 90_000;
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
@@ -406,6 +407,73 @@ export async function resolveHandoffReturn(requestHost, returnUrl) {
 	if (requestHost === apexHostname() && (await isActiveCustomDomain(host))) return url;
 	if (host === apexHostname() && (await isActiveCustomDomain(requestHost))) return url;
 	return null;
+}
+
+/**
+ * Absolute URL on a real tenant host. Rejects the apex and unknown hosts so
+ * `?return=` cannot send a session cookie somewhere we do not serve.
+ *
+ * @param {string | null | undefined} raw
+ * @returns {Promise<URL | null>}
+ */
+export async function tenantReturnUrl(raw) {
+	if (!raw || raw.length > 1024) return null;
+	let url;
+	try {
+		url = new URL(raw);
+	} catch {
+		return null;
+	}
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+	if (url.username || url.password) return null;
+
+	const classified = classifyHost(url.hostname);
+	if (classified === 'apex') return null;
+	if (classified.kind === 'subdomain') {
+		const owner = await getProfileByUsername(classified.username);
+		if (!owner || !canUseSubdomain(owner.plan)) return null;
+		return url;
+	}
+	if (classified.kind === 'custom' && (await isActiveCustomDomain(url.hostname))) return url;
+	return null;
+}
+
+/**
+ * After an apex sign-in, stay on a relative `next` or go back to the tenant
+ * page that asked. Custom domains and local subdomains need a one-time cookie
+ * copy; production subdomains already share the apex cookie.
+ *
+ * @param {string | null | undefined} next
+ * @param {string | null | undefined} returnTo
+ * @param {Headers | null | undefined} authHeaders fresh sign-in headers, or null to read this request
+ * @param {import('@sveltejs/kit').RequestEvent} [event] required when `authHeaders` is null
+ * @returns {Promise<{ location: string, extraHosts: string[] }>}
+ */
+export async function signInLanding(next, returnTo, authHeaders, event) {
+	const relative = safeNextPath(next);
+	const tenant = await tenantReturnUrl(returnTo);
+	if (!tenant) return { location: relative, extraHosts: [] };
+
+	const cookies = authHeaders
+		? sessionCookiesFromHeaders(authHeaders)
+		: event
+			? sessionCookiesFromRequest(event)
+			: [];
+	if (cookies.length === 0) return { location: relative, extraHosts: [] };
+
+	const classified = classifyHost(tenant.hostname);
+	if (classified !== 'apex' && classified.kind === 'subdomain' && !isLocalBase) {
+		return { location: tenant.toString(), extraHosts: [tenant.hostname] };
+	}
+
+	const code = await createHandoff({
+		destHost: tenant.hostname.toLowerCase(),
+		returnUrl: tenant.toString(),
+		cookies
+	});
+	const redeem = new URL('/auth/network', tenant.origin);
+	redeem.searchParams.set('code', code);
+	return { location: redeem.toString(), extraHosts: [tenant.hostname] };
 }
 
 /**

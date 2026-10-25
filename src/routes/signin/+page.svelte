@@ -12,6 +12,7 @@
 	 *   data: {
 	 *     passwordReset: boolean,
 	 *     next: string,
+	 *     returnTo: string,
 	 *     domain: { name: string, logoUrl: string | null } | null
 	 *   },
 	 *   form: { message?: string, identifier?: string, email?: string } | null | undefined
@@ -69,6 +70,7 @@
 
 		<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
 			<input type="hidden" name="next" value={data.next} />
+			<input type="hidden" name="return" value={data.returnTo} />
 			<label for="identifier">Email or username</label>
 			<input
 				id="identifier"
@@ -154,6 +156,8 @@
 				{/if}
 
 				<form method="POST" use:enhance={handleSubmit} aria-busy={submitting}>
+					<input type="hidden" name="next" value={data.next} />
+					<input type="hidden" name="return" value={data.returnTo} />
 					<label for="identifier">Email or username</label>
 					<input
 						id="identifier"

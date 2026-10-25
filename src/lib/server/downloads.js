@@ -40,7 +40,9 @@ export function openTrackDownload(row, viewerId) {
 }
 
 /**
- * Count one download kick-off. Anonymous downloads count, same as plays.
+ * Count one download kick-off on `track.downloadCount`. Anonymous downloads
+ * count, same as plays. Apex, subdomain, and custom-domain downloads share
+ * this column; domain-only catalogs are not given a second counter.
  *
  * @param {string} trackId
  * @returns {Promise<number>}

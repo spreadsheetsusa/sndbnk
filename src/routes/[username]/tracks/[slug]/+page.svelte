@@ -15,6 +15,7 @@
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { relativeTime } from '#lib/relative-time.js';
 	import { trackShareMeta } from '#lib/share.js';
+	import { likeSignInHref } from '#lib/sign-in-return.js';
 
 	let { data } = $props();
 
@@ -22,6 +23,18 @@
 	let deletingCommentId = $state(null);
 
 	const tenantSiteName = $derived(page.data.tenantSite?.name ?? null);
+	const commentSignInHref = $derived(
+		likeSignInHref({
+			signedIn: Boolean(data.viewer),
+			pathname: page.url.pathname,
+			search: page.url.search,
+			hash: page.url.hash,
+			origin: page.url.origin,
+			tenantHostKind: page.data.tenantHostKind,
+			domainAuth: page.data.domainAuth,
+			apexOrigin: page.data.apexOrigin
+		})
+	);
 	const share = $derived(
 		trackShareMeta({
 			origin: data.siteOrigin,
@@ -139,10 +152,8 @@
 						No comments yet.
 						{#if data.viewer}
 							Be the first — drop one above while the track plays.
-						{:else if !page.data.tenantHostKind || page.data.domainAuth}
-							<a href="/signin?next={encodeURIComponent(page.url.pathname + page.url.search)}"
-								>Sign in</a
-							> to leave one.
+						{:else if commentSignInHref}
+							<a href={commentSignInHref}>Sign in</a> to leave one.
 						{/if}
 					</p>
 				{:else}

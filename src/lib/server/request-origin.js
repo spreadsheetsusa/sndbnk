@@ -19,13 +19,41 @@ export function isTrustedMutationRequest(request, url) {
 		const referer = request.headers.get('referer');
 		if (!referer) return false;
 		try {
-			return isAllowedOrigin(new URL(referer).origin, url);
+			const refererOrigin = new URL(referer).origin;
+			return (
+				isAllowedOrigin(refererOrigin, url) || originMatchesRequestHost(refererOrigin, request)
+			);
 		} catch {
 			return false;
 		}
 	}
 
-	return isAllowedOrigin(origin, url);
+	// `url.origin` can be the apex when a proxy rebuilt the request without the
+	// public Host. A browser on a custom domain still sends that host on Host /
+	// X-Forwarded-Host. Trust it so like, play, and download land on the shared counters.
+	return isAllowedOrigin(origin, url) || originMatchesRequestHost(origin, request);
+}
+
+/**
+ * @param {string} origin
+ * @param {Request} request
+ */
+function originMatchesRequestHost(origin, request) {
+	let host;
+	try {
+		host = new URL(origin).hostname.toLowerCase();
+	} catch {
+		return false;
+	}
+	if (!host) return false;
+
+	for (const header of ['host', 'x-forwarded-host']) {
+		const raw = request.headers.get(header);
+		if (!raw) continue;
+		const name = raw.split(',')[0]?.trim().split(':')[0]?.toLowerCase();
+		if (name && name === host) return true;
+	}
+	return false;
 }
 
 /**

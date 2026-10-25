@@ -6,21 +6,26 @@ import {
 	domainAuthBrand,
 	domainSignInBridgeLocation,
 	establishDomainSession,
-	safeNextPath
+	safeNextPath,
+	signInLanding
 } from '#lib/server/domain-auth';
 import { clientIp, rateLimit } from '#lib/server/rate-limit';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { resolveSignInEmail } from '#lib/server/signin';
 
-export const load = async ({ locals, url }) => {
+export const load = async (event) => {
+	const { locals, url } = event;
 	const brand = await domainAuthBrand(locals);
 	if (brand.kind === 'hidden') {
 		error(404, 'Not found');
 	}
 
 	const next = safeNextPath(url.searchParams.get('next'));
+	const returnTo = url.searchParams.get('return') ?? '';
 	if (locals.user) {
-		safeRedirect(302, brand.kind === 'domain' ? next : '/');
+		if (brand.kind === 'domain') safeRedirect(302, next);
+		const landing = await signInLanding(next, returnTo, null, event);
+		safeRedirect(302, landing.location, landing.extraHosts);
 	}
 
 	if (brand.kind === 'domain' && url.searchParams.get('bridged') !== '1') {
@@ -30,7 +35,8 @@ export const load = async ({ locals, url }) => {
 	return {
 		passwordReset: url.searchParams.get('reset') === '1',
 		domain: brand.kind === 'domain' ? brand.brand : null,
-		next
+		next,
+		returnTo: returnTo.length > 1024 ? '' : returnTo
 	};
 };
 
@@ -49,6 +55,7 @@ export const actions = {
 			'';
 		const password = formData.get('password')?.toString() ?? '';
 		const next = safeNextPath(formData.get('next')?.toString() || url.searchParams.get('next'));
+		const returnTo = formData.get('return')?.toString() || url.searchParams.get('return');
 		const onDomain = brand.kind === 'domain';
 
 		if (!identifier || !password) {
@@ -102,6 +109,7 @@ export const actions = {
 			safeRedirect(303, location);
 		}
 
-		safeRedirect(303, '/');
+		const landing = await signInLanding(next, returnTo, signedIn?.headers, event);
+		safeRedirect(303, landing.location, landing.extraHosts);
 	}
 };

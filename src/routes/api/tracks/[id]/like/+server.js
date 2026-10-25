@@ -1,8 +1,6 @@
 import { error, json } from '@sveltejs/kit';
-import { and, count, eq } from 'drizzle-orm';
 
-import { db } from '#lib/server/db';
-import { trackLike } from '#lib/server/db/schema';
+import { toggleTrackLike } from '#lib/server/engagement';
 import { isTrustedMutationRequest } from '#lib/server/request-origin';
 import { isTenantResourceAllowed } from '#lib/server/tenant';
 import { canViewTrack, getTrackById } from '#lib/server/tracks';
@@ -20,28 +18,6 @@ export async function POST({ locals, params, request, url }) {
 		error(404, 'Track not found');
 	}
 
-	const userId = locals.user.id;
-	const existing = await db
-		.select({ trackId: trackLike.trackId })
-		.from(trackLike)
-		.where(and(eq(trackLike.trackId, row.id), eq(trackLike.userId, userId)))
-		.limit(1);
-
-	let liked;
-	if (existing.length > 0) {
-		await db
-			.delete(trackLike)
-			.where(and(eq(trackLike.trackId, row.id), eq(trackLike.userId, userId)));
-		liked = false;
-	} else {
-		await db.insert(trackLike).values({ trackId: row.id, userId });
-		liked = true;
-	}
-
-	const [{ n: likeCount }] = await db
-		.select({ n: count() })
-		.from(trackLike)
-		.where(eq(trackLike.trackId, row.id));
-
+	const { liked, likeCount } = await toggleTrackLike(row.id, locals.user.id);
 	return json({ liked, likeCount });
 }
