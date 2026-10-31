@@ -85,7 +85,7 @@
 	class:panel={isPanel}
 	class:backdrop={isBackdrop}
 	data-panel={isPanel ? 'viz' : undefined}
-	aria-label="Audio visualizer"
+	aria-label="Visuals"
 	transition:vizMotion
 >
 	<div class="stage">
@@ -96,27 +96,32 @@
 			<p class="loading" role="status">Loading visualizer…</p>
 		{/if}
 
-		<div class="chrome" role="toolbar" aria-label="Visualizer controls">
+		<div class="chrome" role="toolbar" aria-label="Visuals controls">
 			<button
 				type="button"
 				class="chrome-btn"
-				aria-label="Next preset"
+				title="Next visual"
+				aria-label="Next visual"
 				onclick={() => visualizer.nextPreset()}
 			>
 				<IconPlayerTrackNext size={14} stroke={1.75} aria-hidden="true" />
+				<span>Next visual</span>
 			</button>
 			<button
 				type="button"
 				class="chrome-btn"
-				aria-label="Pop out visualizer"
+				title="Expand visuals"
+				aria-label="Expand visuals"
 				onclick={() => visualizer.popOut()}
 			>
 				<IconArrowsMaximize size={14} stroke={1.75} aria-hidden="true" />
+				<span>Expand</span>
 			</button>
 			<button
 				type="button"
 				class="chrome-btn"
-				aria-label="Close visualizer"
+				title="Close visuals"
+				aria-label="Close visuals"
 				onclick={() => void visualizer.setEnabled(false)}
 			>
 				<IconX size={14} stroke={1.75} aria-hidden="true" />
@@ -124,7 +129,7 @@
 		</div>
 	</div>
 
-	<p class="collapsed-label" aria-hidden="true">Viz</p>
+	<p class="collapsed-label" aria-hidden="true">Visuals</p>
 </section>
 
 <style>
@@ -198,18 +203,28 @@
 	}
 
 	.chrome-btn {
-		display: grid;
-		place-items: center;
-		width: 1.75rem;
-		height: 1.75rem;
-		padding: 0;
+		display: inline-flex;
+		gap: 0.28rem;
+		align-items: center;
+		justify-content: center;
+		width: auto;
+		min-height: 1.75rem;
+		padding: 0.2rem 0.45rem;
 		border: 1px solid color-mix(in srgb, #fff 28%, transparent);
 		border-radius: 0.125rem;
 		background: color-mix(in srgb, #000 55%, transparent);
 		color: #fff;
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		line-height: 1;
 		cursor: pointer;
 		pointer-events: auto;
 		backdrop-filter: blur(4px);
+	}
+
+	.chrome-btn span {
+		white-space: nowrap;
 	}
 
 	.chrome-btn:hover {
@@ -261,13 +276,13 @@
 	/* Touch / coarse pointers: keep controls faintly visible. */
 	@media (hover: none), (pointer: coarse) {
 		.chrome {
-			opacity: 0.45;
+			opacity: 0.92;
 			pointer-events: auto;
 		}
 
 		.inline-milkdrop:hover .chrome,
 		.inline-milkdrop:focus-within .chrome {
-			opacity: 0.85;
+			opacity: 1;
 		}
 	}
 

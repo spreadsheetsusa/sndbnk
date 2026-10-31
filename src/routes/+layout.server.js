@@ -5,7 +5,7 @@ import { canRemoveBranding } from '#lib/server/billing/plans';
 import { getPlatformSettings } from '#lib/server/platform-settings';
 import { ensureSiteChrome, ensureSiteRow, getSitePublic, listNavSites } from '#lib/server/site';
 import { ensureRootPage } from '#lib/server/site-pages';
-import { buildPublicUrls, getProfileByUserId } from '#lib/server/tenant';
+import { buildPublicUrls, getProfileByUserId, getPublicOrigin } from '#lib/server/tenant';
 
 const siteOrigin = ORIGIN.replace(/\/$/, '');
 const apexOrigin = siteOrigin;
@@ -27,7 +27,8 @@ const emptyNav = {
 	customDomain: /** @type {string | null} */ (null)
 };
 
-export const load = async ({ locals, url }) => {
+export const load = async (event) => {
+	const { locals } = event;
 	const playThresholds = await getPlatformSettings();
 
 	if (locals.tenant) {
@@ -50,7 +51,7 @@ export const load = async ({ locals, url }) => {
 			: null;
 
 		return {
-			siteOrigin: url.origin,
+			siteOrigin: getPublicOrigin(event),
 			apexOrigin,
 			playThresholds,
 			nav: emptyNav,

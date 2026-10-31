@@ -43,6 +43,23 @@ export function getRequestHostname(event) {
 }
 
 /**
+ * Origin the visitor's browser is on. `event.url` can stay the apex when the
+ * proxy rebuilds Host without `x-forwarded-host`, which would send a custom
+ * domain like/sign-in return back to sndbnk.com.
+ * @param {import('@sveltejs/kit').RequestEvent} event
+ */
+export function getPublicOrigin(event) {
+	const host = getRequestHostname(event);
+	const forwarded = event.request.headers.get('x-forwarded-proto');
+	const proto = (forwarded?.split(',')[0]?.trim() || event.url.protocol.replace(':', '')).replace(
+		/:$/,
+		''
+	);
+	if (!host) return event.url.origin;
+	return `${proto}://${host}`;
+}
+
+/**
  * On tenant hosts, resources must belong to the tenant creator. Apex is open.
  * @param {{ tenant?: TenantContext | null | undefined }} locals
  * @param {string | null | undefined} ownerUserId

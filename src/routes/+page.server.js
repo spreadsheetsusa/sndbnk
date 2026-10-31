@@ -5,11 +5,17 @@ import { getPlans, isPlanPurchasable } from '#lib/server/billing/plans';
 import { safeRedirect } from '#lib/server/safe-redirect';
 import { getSiteStats, listLatestMembers, pickHeroTrack } from '#lib/server/showcase';
 import { loadTenantSitePage } from '#lib/server/site-page-public';
-import { getProfileByUserId } from '#lib/server/tenant';
+import { getProfileByUserId, getPublicOrigin } from '#lib/server/tenant';
 
-export const load = async ({ cookies, locals, url }) => {
+export const load = async (event) => {
+	const { cookies, locals, url } = event;
 	if (locals.tenant) {
-		const sitePage = await loadTenantSitePage({ locals, url, path: '/' });
+		const sitePage = await loadTenantSitePage({
+			locals,
+			url,
+			path: '/',
+			origin: getPublicOrigin(event)
+		});
 		if (!sitePage) error(404, 'Site page not found');
 		return sitePage;
 	}

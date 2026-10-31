@@ -5,6 +5,7 @@
 	/**
 	 * @type {{
 	 *   headline?: string,
+	 *   kicker?: string,
 	 *   body?: string,
 	 *   showPrimary?: boolean,
 	 *   primaryLabel?: string,
@@ -22,6 +23,7 @@
 	 */
 	let {
 		headline = 'Host the catalog. Own the page.',
+		kicker = '',
 		body = 'Bring mixes, samples, and podcasts into one place listeners can actually find.',
 		showPrimary = true,
 		primaryLabel = 'Create your site',
@@ -44,6 +46,9 @@
 <section class="hero">
 	<div class="copy">
 		<h2>{headline}</h2>
+		{#if kicker.trim()}
+			<p class="kicker">{kicker}</p>
+		{/if}
 		<p>{body}</p>
 		{#if primaryOn || secondaryOn}
 			<div class="actions">
@@ -94,6 +99,10 @@
 		color: var(--muted);
 		max-width: 36ch;
 		line-height: 1.45;
+	}
+
+	p.kicker {
+		margin-bottom: 0.2rem;
 	}
 
 	.actions {

@@ -121,6 +121,54 @@ function backfillTrackSlugs() {
 
 backfillTrackSlugs();
 
+/**
+ * Andrew's published NoCoast statement shipped without the location line.
+ * Fill an empty hero tagline when the body is still that exact sentence.
+ * Idempotent: a tagline Andrew already set is left alone.
+ */
+function backfillHeroLocationLine() {
+	const hasPages = sqlite
+		.query("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'site_page' LIMIT 1")
+		.get();
+	if (!hasPages) return;
+
+	const statement =
+		"Muzikal Collective of Dj's pushing Positive Love Energy across the Globe, one mix, show, and track at a time =]";
+	const location = 'MILWAUKEE / MADISON Wisconsin';
+	const rows = sqlite.query('SELECT id, blocks FROM site_page').all();
+	const update = sqlite.prepare('UPDATE site_page SET blocks = ? WHERE id = ?');
+	let n = 0;
+	for (const row of rows) {
+		/** @type {unknown} */
+		let blocks;
+		try {
+			blocks = JSON.parse(row.blocks);
+		} catch {
+			continue;
+		}
+		if (!Array.isArray(blocks)) continue;
+		let changed = false;
+		for (const block of blocks) {
+			if (!block || typeof block !== 'object') continue;
+			const type = /** @type {{ type?: unknown }} */ (block).type;
+			if (typeof type !== 'string' || !type.startsWith('hero.')) continue;
+			const props = /** @type {{ props?: Record<string, unknown> }} */ (block).props ?? {};
+			const body = typeof props.body === 'string' ? props.body.trim() : '';
+			const kicker = typeof props.kicker === 'string' ? props.kicker.trim() : '';
+			if (kicker || body !== statement) continue;
+			props.kicker = location;
+			/** @type {{ props?: Record<string, unknown> }} */ (block).props = props;
+			changed = true;
+		}
+		if (!changed) continue;
+		update.run(JSON.stringify(blocks), row.id);
+		n += 1;
+	}
+	if (n) console.log(`Filled hero tagline on ${n} page(s)`);
+}
+
+backfillHeroLocationLine();
+
 // Catalog cutover + idempotent seeds (safe on every deploy).
 const GIB = 1024 * 1024 * 1024;
 const now = Date.now();
