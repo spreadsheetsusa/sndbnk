@@ -5,6 +5,7 @@
 	/**
 	 * @type {{
 	 *   headline?: string,
+	 *   kicker?: string,
 	 *   body?: string,
 	 *   showPrimary?: boolean,
 	 *   primaryLabel?: string,
@@ -22,6 +23,7 @@
 	 */
 	let {
 		headline = 'Your sound, your stage',
+		kicker = '',
 		body = 'Upload tracks, build a page, and share a link that actually sounds like you.',
 		showPrimary = true,
 		primaryLabel = 'Start listening',
@@ -44,6 +46,9 @@
 <section class="hero">
 	<div class="copy">
 		<h2>{headline}</h2>
+		{#if kicker.trim()}
+			<p class="kicker">{kicker}</p>
+		{/if}
 		<p>{body}</p>
 		{#if primaryOn || secondaryOn}
 			<div class="actions">
@@ -95,6 +100,10 @@
 		color: var(--muted);
 		max-width: 34ch;
 		line-height: 1.45;
+	}
+
+	p.kicker {
+		margin-bottom: 0.2rem;
 	}
 
 	.actions {

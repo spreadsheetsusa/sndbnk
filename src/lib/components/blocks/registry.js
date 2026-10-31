@@ -200,6 +200,7 @@ const HERO_IMAGE_WIDTHS = [
 /** @type {BlockField[]} */
 const HERO_FIELDS = [
 	{ key: 'headline', label: 'Headline', kind: 'text' },
+	{ key: 'kicker', label: 'Tagline', kind: 'text' },
 	{ key: 'body', label: 'Body', kind: 'textarea' },
 	{ key: 'showPrimary', label: 'Show primary button', kind: 'boolean', default: true },
 	{ key: 'primaryLabel', label: 'Primary button', kind: 'text' },

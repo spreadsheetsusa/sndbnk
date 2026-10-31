@@ -120,7 +120,7 @@
 			pathname: page.url.pathname,
 			search: page.url.search,
 			hash: page.url.hash,
-			origin: page.url.origin,
+			origin: page.data.siteOrigin || page.url.origin,
 			tenantHostKind: page.data.tenantHostKind,
 			domainAuth: page.data.domainAuth,
 			apexOrigin: page.data.apexOrigin

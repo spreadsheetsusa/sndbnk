@@ -13,6 +13,34 @@ export function publicTrackUrl(origin, track) {
 }
 
 /**
+ * `clipboard.writeText` only exists in a secure context. Copy from a textarea
+ * in the same turn as the click so an http custom-domain host still confirms.
+ * @param {string} url
+ */
+function copyWithTextarea(url) {
+	const doc = globalThis.document;
+	if (!doc?.body) return false;
+	const input = doc.createElement('textarea');
+	input.value = url;
+	input.setAttribute('readonly', '');
+	input.style.position = 'fixed';
+	input.style.top = '0';
+	input.style.left = '0';
+	input.style.opacity = '0';
+	doc.body.appendChild(input);
+	input.focus();
+	input.select();
+	let ok = false;
+	try {
+		ok = doc.execCommand('copy');
+	} catch {
+		ok = false;
+	}
+	input.remove();
+	return ok;
+}
+
+/**
  * Web Share when the browser offers it. Otherwise copy `url`.
  * A dismissed share sheet does not fall through to the clipboard.
  *
@@ -22,6 +50,10 @@ export function publicTrackUrl(origin, track) {
 export async function shareOrCopy(payload) {
 	const nav = globalThis.navigator;
 	if (!nav) return 'failed';
+
+	if (!globalThis.isSecureContext) {
+		return copyWithTextarea(payload.url) ? 'copied' : 'failed';
+	}
 
 	if (typeof nav.share === 'function') {
 		const data = {
@@ -46,6 +78,6 @@ export async function shareOrCopy(payload) {
 		await nav.clipboard.writeText(payload.url);
 		return 'copied';
 	} catch {
-		return 'failed';
+		return copyWithTextarea(payload.url) ? 'copied' : 'failed';
 	}
 }

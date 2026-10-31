@@ -13,9 +13,9 @@ import { loadStreamFacets, loadStreamSeeds } from '#lib/server/stream-blocks';
 /**
  * Load one composed tenant-site page and its optional live catalog data.
  *
- * @param {{ locals: App.Locals, url: URL, path: string }} input
+ * @param {{ locals: App.Locals, url: URL, path: string, origin?: string }} input
  */
-export async function loadTenantSitePage({ locals, url, path }) {
+export async function loadTenantSitePage({ locals, url, path, origin }) {
 	if (!locals.tenant) return null;
 
 	const row = await ensureSiteRow(
@@ -69,6 +69,6 @@ export async function loadTenantSitePage({ locals, url, path }) {
 		catalog,
 		streamPages,
 		streamFacets,
-		siteOrigin: url.origin
+		siteOrigin: origin || url.origin
 	};
 }
