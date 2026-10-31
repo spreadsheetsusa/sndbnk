@@ -3,7 +3,6 @@
 	import IconGripVertical from '@tabler/icons-svelte-runes/icons/grip-vertical';
 	import IconHeart from '@tabler/icons-svelte-runes/icons/heart';
 	import IconHeartFilled from '@tabler/icons-svelte-runes/icons/heart-filled';
-	import IconPlanet from '@tabler/icons-svelte-runes/icons/planet';
 	import IconPlayerSkipBackFilled from '@tabler/icons-svelte-runes/icons/player-skip-back-filled';
 	import IconPlayerSkipForwardFilled from '@tabler/icons-svelte-runes/icons/player-skip-forward-filled';
 	import IconX from '@tabler/icons-svelte-runes/icons/x';
@@ -14,14 +13,14 @@
 	import CoverArt from '#lib/components/CoverArt.svelte';
 	import MarqueeLine from '#lib/components/player/MarqueeLine.svelte';
 	import PlayPauseGlyph from '#lib/components/player/PlayPauseGlyph.svelte';
+	import VisualsToggle from '#lib/components/player/VisualsToggle.svelte';
 	import Waveform from '#lib/components/player/Waveform.svelte';
 	import WaveformCommentMarkers from '#lib/components/player/WaveformCommentMarkers.svelte';
 	import { formatDuration } from '#lib/media/audio-metadata.js';
 	import { eq } from '#lib/player/eq.svelte.js';
 	import { player } from '#lib/player/player.svelte.js';
-	import { visualizer } from '#lib/player/visualizer.svelte.js';
 	import { likeSignInHref } from '#lib/sign-in-return.js';
-	import { trackPath } from '#lib/track-path.js';
+	import { isCurrentMixPage, trackPath } from '#lib/track-path.js';
 
 	/**
 	 * @typedef {Object} TimedComment
@@ -63,11 +62,15 @@
 			pathname: page.url.pathname,
 			search: page.url.search,
 			hash: page.url.hash,
-			origin: page.url.origin,
+			origin: page.data.siteOrigin || page.url.origin,
 			tenantHostKind: page.data.tenantHostKind,
 			domainAuth: page.data.domainAuth,
 			apexOrigin: page.data.apexOrigin
 		})
+	);
+	/** Mix detail already shows this track's player; the header bar would duplicate it. */
+	const hideDuplicateBar = $derived(
+		player.current ? isCurrentMixPage(page.url.pathname, player.current) : false
 	);
 
 	let queueOpen = $state(false);
@@ -288,7 +291,7 @@
 
 <svelte:window onkeydown={handleChromeKeydown} />
 
-{#if player.current}
+{#if player.current && !hideDuplicateBar}
 	{@const track = player.current}
 	{@const artistLabel = track.artist || track.uploaderName}
 	<div class="header-player" role="region" aria-label="Now playing" transition:tuck>
@@ -452,17 +455,6 @@
 						>
 							EQ
 						</button>
-						<button
-							type="button"
-							class="now-toggle"
-							class:on={visualizer.enabled}
-							aria-pressed={visualizer.enabled}
-							aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
-							disabled={!visualizer.supported}
-							onclick={() => visualizer.toggle()}
-						>
-							VIZ
-						</button>
 					</div>
 				</div>
 			</div>
@@ -531,20 +523,9 @@
 				>
 					<IconAdjustments size={15} stroke={1.75} aria-hidden="true" />
 				</button>
-				{#if visualizer.supported}
-					<button
-						type="button"
-						class="cell icon-btn viz-mobile-only"
-						class:active={visualizer.enabled}
-						aria-label={visualizer.enabled ? 'Hide visualizer' : 'Show visualizer'}
-						aria-pressed={visualizer.enabled}
-						onclick={() => visualizer.toggle()}
-					>
-						<IconPlanet size={15} stroke={1.75} aria-hidden="true" />
-					</button>
-				{/if}
 			</div>
 		</div>
+		<VisualsToggle />
 	</div>
 {/if}
 
@@ -554,6 +535,8 @@
 		--waveform-height: 1.75rem;
 		position: relative;
 		display: flex;
+		flex-direction: column;
+		align-items: center;
 		flex: 1 1 auto;
 		min-width: 0;
 		max-width: 100%;
@@ -605,23 +588,21 @@
 		overflow: hidden;
 	}
 
-	/* Desktop: EQ/VIZ live in .now-toggles; adjustments/planet icons are mobile-only. */
-	.eq-mobile-only,
-	.viz-mobile-only {
+	/* Desktop: EQ lives in .now-toggles; the adjustments icon is mobile-only. */
+	.eq-mobile-only {
 		display: none;
 	}
 
-	/* Right-edge radii on the last *visible* action (skip hidden mobile-only controls). */
-	.bar-actions .cell:last-child:not(.eq-mobile-only):not(.viz-mobile-only),
-	.bar-actions .cell:has(+ .eq-mobile-only),
-	.bar-actions .cell:has(+ .viz-mobile-only) {
+	/* Right-edge radii on the last *visible* action (skip the hidden mobile EQ control). */
+	.bar-actions .cell:last-child:not(.eq-mobile-only),
+	.bar-actions .cell:has(+ .eq-mobile-only) {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
 	}
 
 	/* When no visible like/actions remain, scrub is the rightmost cell. */
-	.strip:not(:has(.bar-actions .cell:not(.eq-mobile-only):not(.viz-mobile-only))) .scrub {
+	.strip:not(:has(.bar-actions .cell:not(.eq-mobile-only))) .scrub {
 		border-right: 0;
 		border-top-right-radius: var(--player-radius);
 		border-bottom-right-radius: var(--player-radius);
@@ -934,7 +915,7 @@
 	.now-toggle.on {
 		color: var(--accent);
 		background: transparent;
-		/* Inset only — no translate, so EQ/VIZ stay on the same grid when pressed. */
+		/* Inset only — no translate, so EQ stays on the same grid when pressed. */
 		box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
 		text-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent);
 		transform: none;
@@ -1200,9 +1181,8 @@
 			display: none;
 		}
 
-		/* Desktop toggles / parked pad hidden — show EQ + planet viz icons instead. */
-		.eq-mobile-only,
-		.viz-mobile-only {
+		/* Desktop EQ toggle is hidden — show the adjustments icon instead. */
+		.eq-mobile-only {
 			display: flex;
 		}
 
@@ -1240,9 +1220,8 @@
 			border-bottom-right-radius: 0;
 		}
 
-		/* Like / EQ before a trailing mobile control: not the right edge. */
-		.bar-actions .cell:has(+ .eq-mobile-only),
-		.bar-actions .cell:has(+ .viz-mobile-only) {
+		/* Like before the trailing mobile EQ control: not the right edge. */
+		.bar-actions .cell:has(+ .eq-mobile-only) {
 			border-right: 1px solid var(--hard-border);
 			border-top-right-radius: 0;
 			border-bottom-right-radius: 0;
@@ -1288,7 +1267,7 @@
 			min-width: 0;
 			padding: 0 0.5rem;
 			border-right: 0;
-			/* Undo desktop “scrub is rightmost” when only mobile viz was hidden. */
+			/* Two-row layout: scrub is the bottom-right corner, not the desktop right edge. */
 			border-top-right-radius: 0;
 			border-bottom-right-radius: var(--player-radius);
 		}

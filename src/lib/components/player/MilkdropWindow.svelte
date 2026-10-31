@@ -121,31 +121,36 @@
 	style:height="{visualizer.h}px"
 	style:z-index={floatStack.milkdrop}
 	onpointerdowncapture={() => floatStack.raise('milkdrop')}
-	aria-label="Audio visualizer"
+	aria-label="Visuals"
 >
-	<div class="chrome" role="toolbar" aria-label="Visualizer controls">
+	<div class="chrome" role="toolbar" aria-label="Visuals controls">
 		<button
 			type="button"
 			class="chrome-btn"
-			aria-label="Dock visualizer"
+			title="Dock visuals"
+			aria-label="Dock visuals"
 			onclick={() => visualizer.dock()}
 			onpointerdown={(e) => e.stopPropagation()}
 		>
 			<IconArrowsMinimize size={13} stroke={1.75} aria-hidden="true" />
+			<span>Dock</span>
 		</button>
 		<button
 			type="button"
 			class="chrome-btn"
-			aria-label="Next preset"
+			title="Next visual"
+			aria-label="Next visual"
 			onclick={() => visualizer.nextPreset()}
 			onpointerdown={(e) => e.stopPropagation()}
 		>
 			<IconPlayerTrackNext size={13} stroke={1.75} aria-hidden="true" />
+			<span>Next visual</span>
 		</button>
 		<button
 			type="button"
 			class="chrome-btn"
-			aria-label="Close visualizer"
+			title="Close visuals"
+			aria-label="Close visuals"
 			onclick={() => void visualizer.setEnabled(false)}
 			onpointerdown={(e) => e.stopPropagation()}
 		>
@@ -227,17 +232,26 @@
 
 	.chrome-btn {
 		display: inline-flex;
+		gap: 0.25rem;
 		align-items: center;
 		justify-content: center;
-		width: 1.25rem;
-		height: 1.25rem;
-		padding: 0;
+		width: auto;
+		min-height: 1.35rem;
+		padding: 0.15rem 0.35rem;
 		border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
-		border-radius: 0;
-		color: var(--muted);
+		border-radius: 0.125rem;
+		color: var(--ink);
 		background: color-mix(in srgb, var(--paper) 88%, var(--ink));
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		line-height: 1;
 		cursor: pointer;
 		pointer-events: auto;
+	}
+
+	.chrome-btn span {
+		white-space: nowrap;
 	}
 
 	.chrome-btn :global(svg) {

@@ -7,6 +7,7 @@
 	import SiteHeader from '#lib/components/SiteHeader.svelte';
 	import InlineMilkdrop from '#lib/components/player/InlineMilkdrop.svelte';
 	import TrackCard from '#lib/components/player/TrackCard.svelte';
+	import VisualsToggle from '#lib/components/player/VisualsToggle.svelte';
 	import TrackInfoConsole from '#lib/components/player/TrackInfoConsole.svelte';
 	import TenantSiteChrome from '#lib/components/site/TenantSiteChrome.svelte';
 	import { player } from '#lib/player/player.svelte.js';
@@ -29,7 +30,7 @@
 			pathname: page.url.pathname,
 			search: page.url.search,
 			hash: page.url.hash,
-			origin: page.url.origin,
+			origin: page.data.siteOrigin || page.url.origin,
 			tenantHostKind: page.data.tenantHostKind,
 			domainAuth: page.data.domainAuth,
 			apexOrigin: page.data.apexOrigin
@@ -118,9 +119,6 @@
 			class:viz-dock-hot={visualizer.draggingWindow && visualizer.dockHotKey === 'track'}
 			data-viz-dock="track"
 		>
-			{#if visualizer.showInline}
-				<InlineMilkdrop variant="deck" />
-			{/if}
 			<TrackCard
 				track={data.track}
 				signedIn={Boolean(data.viewer)}
@@ -132,6 +130,12 @@
 				onrepositioned={() => invalidateAll()}
 				ondeleted={handleDeleted}
 			/>
+			<div class="visuals-row">
+				<VisualsToggle />
+			</div>
+			{#if visualizer.showInline}
+				<InlineMilkdrop variant="deck" />
+			{/if}
 		</div>
 
 		{#if data.descriptionHtml}
@@ -259,6 +263,11 @@
 		display: grid;
 		gap: 1rem;
 		animation: rise 0.65s ease both;
+	}
+
+	.visuals-row {
+		display: flex;
+		justify-content: center;
 	}
 
 	@media (max-width: 640px) {
